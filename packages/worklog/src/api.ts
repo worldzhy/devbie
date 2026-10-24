@@ -27,27 +27,38 @@ export interface UploadDocument {
 }
 
 /** Hard caps mirrored from the server DTOs. */
+const MAX_WORKSPACES_PER_BATCH = 100;
 const MAX_SESSIONS_PER_BATCH = 50;
 const MAX_MESSAGES_PER_SESSION = 2_000;
 const MAX_DOCUMENTS_PER_BATCH = 100;
 
+/** Server rejected the installation token (HTTP 401). */
+export class WorklogAuthError extends Error {}
+
 /**
  * HTTP client for the server ingest endpoints. Bearer token only — the
  * server resolves it to exactly one member and rejects anything else.
+ * Consecutive 401s trip a circuit breaker: once the token is rejected, every
+ * later request of this run is pointless, so the client stops asking.
  */
 export class WorklogApi {
+  private rejected = false;
+
   constructor(
     private readonly endpoint: string,
     private readonly token: string,
   ) {}
 
   async reportWorkspaces(workspaces: WorklogWorkspaceConfig[]): Promise<void> {
-    await this.post("/people/evidence/workspaces", {
-      workspaces: workspaces.map((workspace) => ({
-        workspaceKey: workspace.workspaceKey,
-        rootPath: workspace.rootPath,
-      })),
-    });
+    for (let index = 0; index < workspaces.length; index += MAX_WORKSPACES_PER_BATCH) {
+      const batch = workspaces.slice(index, index + MAX_WORKSPACES_PER_BATCH);
+      await this.post("/people/evidence/workspaces", {
+        workspaces: batch.map((workspace) => ({
+          workspaceKey: workspace.workspaceKey,
+          rootPath: workspace.rootPath,
+        })),
+      });
+    }
   }
 
   async reportSessions(sessions: UploadSession[]): Promise<void> {
@@ -97,6 +108,11 @@ export class WorklogApi {
   }
 
   private async post(path: string, body: unknown): Promise<void> {
+    if (this.rejected) {
+      throw new WorklogAuthError(
+        "Installation token already rejected this run — re-apply the credentials file (worklog --profile) to rotate it.",
+      );
+    }
     const response = await fetch(`${this.endpoint}${path}`, {
       method: "POST",
       headers: {
@@ -105,6 +121,12 @@ export class WorklogApi {
       },
       body: JSON.stringify(body),
     });
+    if (response.status === 401) {
+      this.rejected = true;
+      throw new WorklogAuthError(
+        "Server rejected the installation token (401) — re-apply the credentials file (worklog --profile) to rotate it.",
+      );
+    }
     if (!response.ok) {
       const text = await response.text().catch(() => "");
       throw new Error(`POST ${path} failed: ${response.status} ${text.slice(0, 500)}`);

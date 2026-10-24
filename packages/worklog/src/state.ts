@@ -68,24 +68,27 @@ export function emptyProgress(): FileProgress {
 
 /**
  * Folds one read delta into the file's running totals. Session boundaries stay
- * stable across runs: the earliest start and the latest end win.
+ * stable across runs: the earliest start and the latest end win. A file that
+ * was truncated or rotated (`reset`) discards the previous totals — its
+ * contents no longer include them.
  */
 export function mergeProgress(
   progress: FileProgress | undefined,
   aggregate: SessionAggregate,
+  options?: { reset?: boolean },
 ): Omit<FileProgress, "offset" | "nextSeq" | "sessionId"> {
+  const prior = options?.reset ? undefined : progress;
   const startedAt =
-    progress && new Date(progress.startedAt) < new Date(aggregate.startedAt) ? progress.startedAt : aggregate.startedAt;
-  const endedAt =
-    progress && new Date(progress.endedAt) > new Date(aggregate.endedAt) ? progress.endedAt : aggregate.endedAt;
+    prior && new Date(prior.startedAt) < new Date(aggregate.startedAt) ? prior.startedAt : aggregate.startedAt;
+  const endedAt = prior && new Date(prior.endedAt) > new Date(aggregate.endedAt) ? prior.endedAt : aggregate.endedAt;
 
   return {
-    model: aggregate.model || progress?.model || "",
-    turnCount: (progress?.turnCount ?? 0) + aggregate.turnCount,
-    messageCount: (progress?.messageCount ?? 0) + aggregate.messageCount,
-    toolCallCount: (progress?.toolCallCount ?? 0) + aggregate.toolCallCount,
-    toolNames: [...new Set([...(progress?.toolNames ?? []), ...aggregate.toolNames])],
-    touchedFiles: [...new Set([...(progress?.touchedFiles ?? []), ...aggregate.touchedFiles])],
+    model: aggregate.model || prior?.model || "",
+    turnCount: (prior?.turnCount ?? 0) + aggregate.turnCount,
+    messageCount: (prior?.messageCount ?? 0) + aggregate.messageCount,
+    toolCallCount: (prior?.toolCallCount ?? 0) + aggregate.toolCallCount,
+    toolNames: [...new Set([...(prior?.toolNames ?? []), ...aggregate.toolNames])],
+    touchedFiles: [...new Set([...(prior?.touchedFiles ?? []), ...aggregate.touchedFiles])],
     startedAt,
     endedAt,
   };

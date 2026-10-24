@@ -8,14 +8,21 @@ describe("worklog redaction", () => {
     const input = [
       "aws AKIAIOSFODNN7EXAMPLE done",
       "github ghp_0123456789abcdefghijABCDEF",
+      "openai sk-0123456789abcdefghijABCDEF",
+      "google AIzaSyD4iE2xVSpk7LOpoyqTG1k1VY8O0p8tHvQ",
       "jwt eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
     ].join("\n");
 
     const output = redact(input);
 
-    assert.equal(output, `aws ${REDACTED} done\ngithub ${REDACTED}\njwt ${REDACTED}`);
+    assert.equal(
+      output,
+      `aws ${REDACTED} done\ngithub ${REDACTED}\nopenai ${REDACTED}\ngoogle ${REDACTED}\njwt ${REDACTED}`,
+    );
     assert.doesNotMatch(output, /AKIA/);
     assert.doesNotMatch(output, /ghp_/);
+    assert.doesNotMatch(output, /sk-0123/);
+    assert.doesNotMatch(output, /AIza/);
     assert.doesNotMatch(output, /eyJhbGciOi/);
   });
 

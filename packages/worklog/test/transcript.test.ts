@@ -108,4 +108,50 @@ describe("session transcript delta reader", () => {
     assert.equal(second.parsed.messages.length, 0);
     assert.equal(second.nextOffset, first.nextOffset);
   });
+
+  it("redacts credentials inside serialized tool calls and string content", () => {
+    const lines = [
+      JSON.stringify({
+        type: "user",
+        sessionId: "session-secret",
+        message: { role: "user", content: "use key AKIAIOSFODNN7EXAMPLE here" },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        sessionId: "session-secret",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              name: "Write",
+              input: { file_path: "/work/company/.env", content: "token = ghp_0123456789abcdefghijABCDEF" },
+            },
+          ],
+        },
+      }),
+    ];
+
+    const { parsed } = readTranscriptDelta(transcriptFile(lines), 0, 0);
+
+    assert.equal(parsed.messages.length, 2);
+    assert.doesNotMatch(parsed.messages[0].content, /AKIA/);
+    assert.doesNotMatch(parsed.messages[1].toolCalls ?? "", /ghp_/);
+  });
+
+  it("restarts from byte 0 and resets seq when the file is truncated underneath", () => {
+    const file = transcriptFile(claudeRecords);
+    const first = readTranscriptDelta(file, 0, 0);
+    assert.ok(!first.reset);
+
+    // Simulate log rotation: the file now starts over, shorter than before.
+    writeFileSync(file, claudeRecords[0] + "\n");
+    const second = readTranscriptDelta(file, first.nextOffset, first.parsed.messages.length);
+
+    assert.equal(second.reset, true);
+    assert.equal(second.nextOffset, claudeRecords[0].length + 1);
+    assert.deepEqual(
+      second.parsed.messages.map((message) => message.seq),
+      [0],
+    );
+  });
 });

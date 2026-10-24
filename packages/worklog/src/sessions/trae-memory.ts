@@ -17,9 +17,9 @@ import type { NormalizedMessage, SessionDelta } from "./types";
  * directory slug — the records carry no cwd.
  */
 export function readTraeMemoryDelta(filePath: string, offset: number, nextSeq: number): SessionDelta {
-  const { lines, nextOffset } = readCompleteLines(filePath, offset);
+  const { lines, nextOffset, reset } = readCompleteLines(filePath, offset);
   if (lines.length === 0) {
-    return { parsed: emptySession(), nextOffset };
+    return { parsed: emptySession(), nextOffset, reset };
   }
 
   // Stable session identity: the chat id from the file name plus the daily
@@ -31,7 +31,7 @@ export function readTraeMemoryDelta(filePath: string, offset: number, nextSeq: n
   const messages: NormalizedMessage[] = [];
   let startedAt: string | null = null;
   let endedAt: string | null = null;
-  let seq = nextSeq;
+  let seq = reset ? 0 : nextSeq;
 
   for (const line of lines) {
     let record: Record<string, unknown>;
@@ -73,6 +73,7 @@ export function readTraeMemoryDelta(filePath: string, offset: number, nextSeq: n
       },
     },
     nextOffset,
+    reset,
   };
 }
 

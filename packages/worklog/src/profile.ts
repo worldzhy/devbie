@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { DEFAULT_AGENT_SESSION_DIRECTORIES, DEFAULT_CONFIG_PATH, loadConfig } from "./config";
@@ -44,5 +44,9 @@ export function upsertConfigFromProfile(profile: WorklogProfile, path = DEFAULT_
     maxDocumentBytes: existing?.maxDocumentBytes ?? 200_000,
   };
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, JSON.stringify(config, null, 2), "utf8");
+  // The config carries the installation token — owner-only, even when the file
+  // already exists with wider permissions (writeFileSync mode applies only on
+  // creation, hence the explicit chmod).
+  writeFileSync(path, JSON.stringify(config, null, 2), { encoding: "utf8", mode: 0o600 });
+  chmodSync(path, 0o600);
 }

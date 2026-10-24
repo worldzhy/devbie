@@ -63,7 +63,7 @@ export async function sendOnce(config: WorklogConfig, state: WorklogState, api: 
       }
 
       const externalSessionId = delta.parsed.externalSessionId || progress?.sessionId || filePath;
-      const aggregate = mergeProgress(progress, delta.parsed.aggregate);
+      const aggregate = mergeProgress(progress, delta.parsed.aggregate, { reset: delta.reset });
       const upload: UploadSession = {
         externalSessionId,
         workspaceKey: workspace.workspaceKey,
@@ -83,12 +83,15 @@ export async function sendOnce(config: WorklogConfig, state: WorklogState, api: 
       await api.reportSessions([upload]);
       summary.sessionsUploaded++;
       summary.messagesUploaded += delta.parsed.messages.length;
+      if (delta.reset) {
+        summary.notes.push(`${filePath} was truncated or rotated — re-read from the beginning.`);
+      }
 
       state.files[filePath] = {
         ...aggregate,
         sessionId: externalSessionId,
         offset: delta.nextOffset,
-        nextSeq: (progress?.nextSeq ?? 0) + delta.parsed.messages.length,
+        nextSeq: delta.reset ? delta.parsed.messages.length : (progress?.nextSeq ?? 0) + delta.parsed.messages.length,
       };
     }
 

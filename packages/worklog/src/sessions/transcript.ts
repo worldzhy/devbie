@@ -1,4 +1,5 @@
 import { readCompleteLines } from "../jsonl-files";
+import { redact } from "../redact";
 import { normalizeClaudeRecord } from "./claude";
 import { normalizeCodexRecord } from "./codex";
 import { chunkContent } from "./content";
@@ -28,9 +29,9 @@ function normalizeRecord(record: Record<string, unknown>): NormalizedRecord | nu
  * written trailing line is left for the next run.
  */
 export function readTranscriptDelta(filePath: string, offset: number, nextSeq: number): SessionDelta {
-  const { lines, nextOffset } = readCompleteLines(filePath, offset);
+  const { lines, nextOffset, reset } = readCompleteLines(filePath, offset);
   if (lines.length === 0) {
-    return { parsed: emptySession(), nextOffset };
+    return { parsed: emptySession(), nextOffset, reset };
   }
 
   const messages: NormalizedMessage[] = [];
@@ -43,7 +44,9 @@ export function readTranscriptDelta(filePath: string, offset: number, nextSeq: n
   let endedAt: string | null = null;
   let turnCount = 0;
   let toolCallCount = 0;
-  let seq = nextSeq;
+  // A truncated or rotated file restarts its numbering: the old tail is gone,
+  // so the server-side dedupe key (session_id, seq) must not inherit it.
+  let seq = reset ? 0 : nextSeq;
 
   for (const line of lines) {
     let record: Record<string, unknown>;
@@ -80,7 +83,9 @@ export function readTranscriptDelta(filePath: string, offset: number, nextSeq: n
         role: normalized.role,
         content: chunk,
         toolName: normalized.toolNames.join(",") || undefined,
-        toolCalls: normalized.toolCalls.length > 0 ? JSON.stringify(normalized.toolCalls) : undefined,
+        // Tool inputs can carry credentials (e.g. a Write whose content pastes
+        // an env file) — the serialized form goes through the same scrubber.
+        toolCalls: normalized.toolCalls.length > 0 ? redact(JSON.stringify(normalized.toolCalls)) : undefined,
         createdAt: timestamp ?? undefined,
       });
     }
@@ -104,5 +109,6 @@ export function readTranscriptDelta(filePath: string, offset: number, nextSeq: n
       },
     },
     nextOffset,
+    reset,
   };
 }

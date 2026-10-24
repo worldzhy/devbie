@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync, statSync } from "node:fs";
+import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 
 import type { WorklogConfig } from "./config";
@@ -20,11 +20,18 @@ export function scanDocuments(config: WorklogConfig, state: WorklogState): Uploa
   for (const workspace of config.workspaces) {
     for (const directory of config.documentDirectories) {
       const absoluteDirectory = join(workspace.rootPath, directory);
+      // A declared directory that is itself a symlink would escape the
+      // workspace boundary — only real directories are walked.
+      try {
+        if (lstatSync(absoluteDirectory).isSymbolicLink()) continue;
+      } catch {
+        continue;
+      }
       for (const filePath of walk(absoluteDirectory)) {
         const extension = filePath.slice(filePath.lastIndexOf("."));
         if (!DOCUMENT_EXTENSIONS.has(extension)) continue;
 
-        const stats = statSync(filePath);
+        const stats = lstatSync(filePath);
         if (stats.size > config.maxDocumentBytes) continue;
 
         const content = readFileSync(filePath, "utf8");
@@ -58,10 +65,13 @@ function* walk(directory: string): Generator<string> {
     const absolute = join(directory, entry);
     let stats;
     try {
-      stats = statSync(absolute);
+      // lstat, not stat: a symlink inside the workspace can point anywhere on
+      // the machine, and following it would read outside the declared boundary.
+      stats = lstatSync(absolute);
     } catch {
       continue;
     }
+    if (stats.isSymbolicLink()) continue;
     if (stats.isDirectory()) {
       yield* walk(absolute);
     } else if (stats.isFile()) {

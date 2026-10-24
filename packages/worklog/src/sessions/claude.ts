@@ -22,7 +22,7 @@ export function normalizeClaudeRecord(record: Record<string, unknown>): Normaliz
   if (typeof container === "string") {
     return {
       role: type === "assistant" ? "assistant" : "user",
-      content: container,
+      content: redact(container),
       model,
       toolNames: [],
       toolCalls: [],

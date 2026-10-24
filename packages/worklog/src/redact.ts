@@ -7,6 +7,8 @@ const PATTERNS: { name: string; pattern: RegExp }[] = [
   { name: "aws-access-key", pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g },
   { name: "github-token", pattern: /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g },
   { name: "github-pat", pattern: /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g },
+  { name: "openai-key", pattern: /\bsk-[A-Za-z0-9_-]{20,}\b/g },
+  { name: "google-api-key", pattern: /\bAIza[0-9A-Za-z_-]{35}\b/g },
   { name: "slack-token", pattern: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
   { name: "private-key-block", pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g },
   {

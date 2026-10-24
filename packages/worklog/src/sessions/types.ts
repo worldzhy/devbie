@@ -36,6 +36,8 @@ export interface ParsedSessionFile {
 export interface SessionDelta {
   parsed: ParsedSessionFile;
   nextOffset: number;
+  /** True when the file was truncated or rotated and the delta re-reads from byte 0. */
+  reset?: boolean;
 }
 
 /** One source line after format normalization, before it is chunked into messages. */
