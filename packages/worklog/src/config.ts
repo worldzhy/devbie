@@ -19,7 +19,6 @@ export type IdeKey = "claude" | "codex" | "trae";
 export interface WorklogConfig {
   endpoint: string;
   token: string;
-  evaluateeUserId: string;
   /**
    * The allowlist (ADR-030): only workspaces declared here are ever scanned
    * or uploaded. There is no company/personal split — a path that is not
@@ -51,20 +50,19 @@ export const DEFAULT_AGENT_SESSION_DIRECTORIES: Record<IdeKey, string> = {
 
 export function loadConfig(path = DEFAULT_CONFIG_PATH): WorklogConfig {
   if (!existsSync(path)) {
-    throw new Error(`Worklog config not found at ${path}. Run "worklog --profile <path>" with the downloaded profile.`);
+    throw new Error(`Worklog config not found at ${path}. Run "worklog --profile <path>" with the credentials file.`);
   }
   const parsed = JSON.parse(readFileSync(path, "utf8")) as Partial<WorklogConfig>;
   const config: WorklogConfig = {
     endpoint: (parsed.endpoint ?? "").replace(/\/$/, ""),
     token: parsed.token ?? "",
-    evaluateeUserId: parsed.evaluateeUserId ?? "",
     workspaces: parsed.workspaces ?? [],
     agentSessionDirectories: parsed.agentSessionDirectories ?? {},
     documentDirectories: parsed.documentDirectories ?? [],
     maxDocumentBytes: parsed.maxDocumentBytes ?? 200_000,
   };
-  if (!config.endpoint || !config.token || !config.evaluateeUserId) {
-    throw new Error("Worklog config must define endpoint, token and evaluateeUserId.");
+  if (!config.endpoint || !config.token) {
+    throw new Error("Worklog config must define endpoint and token.");
   }
   return config;
 }

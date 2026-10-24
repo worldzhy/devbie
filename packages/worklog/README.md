@@ -19,7 +19,8 @@ evaluation without anyone reading your disk.
 ## Requirements
 
 - Node.js `>= 18`
-- A profile JSON downloaded from your team's evaluation backend
+- A credentials JSON (`{ "endpoint": ..., "token": ... }`) issued when your
+  installation is created or its token is rotated
 
 ## Installation
 
@@ -30,8 +31,8 @@ npm install -g @devbie/worklog
 ## Quick start
 
 ```bash
-# 1. Apply the profile you downloaded (installs or rotates credentials)
-worklog --profile ~/Downloads/worklog-profile.json
+# 1. Apply the credentials file you were given (installs or rotates credentials)
+worklog --profile ~/Downloads/worklog-credentials.json
 
 # 2. Declare the workspace you want to report
 worklog add ~/src/my-project
@@ -44,7 +45,7 @@ worklog start
 
 | Command                    | What it does                                                      |
 | -------------------------- | ----------------------------------------------------------------- |
-| `worklog --profile <path>` | Apply a downloaded profile — installs or rotates credentials      |
+| `worklog --profile <path>` | Apply a credentials file — installs or rotates credentials        |
 | `worklog add <path>`       | Declare a workspace; only declared paths are ever read            |
 | `worklog remove <path>`    | Stop reporting a workspace                                        |
 | `worklog send`             | Send everything not sent yet, then exit                           |

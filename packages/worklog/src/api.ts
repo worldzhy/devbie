@@ -41,22 +41,20 @@ export class WorklogApi {
     private readonly token: string,
   ) {}
 
-  async reportWorkspaces(evaluateeUserId: string, workspaces: WorklogWorkspaceConfig[]): Promise<void> {
-    await this.post("/people/worklog/workspaces", {
+  async reportWorkspaces(workspaces: WorklogWorkspaceConfig[]): Promise<void> {
+    await this.post("/people/evidence/workspaces", {
       workspaces: workspaces.map((workspace) => ({
-        evaluateeUserId,
         workspaceKey: workspace.workspaceKey,
         rootPath: workspace.rootPath,
       })),
     });
   }
 
-  async reportSessions(evaluateeUserId: string, sessions: UploadSession[]): Promise<void> {
+  async reportSessions(sessions: UploadSession[]): Promise<void> {
     for (let index = 0; index < sessions.length; index += MAX_SESSIONS_PER_BATCH) {
       const batch = sessions.slice(index, index + MAX_SESSIONS_PER_BATCH);
-      await this.post("/people/worklog/sessions", {
+      await this.post("/people/evidence/sessions", {
         sessions: batch.map((session) => ({
-          evaluateeUserId,
           workspaceKey: session.workspaceKey,
           externalSessionId: session.externalSessionId,
           source: session.source,
@@ -83,12 +81,11 @@ export class WorklogApi {
     }
   }
 
-  async reportDocuments(evaluateeUserId: string, documents: UploadDocument[]): Promise<void> {
+  async reportDocuments(documents: UploadDocument[]): Promise<void> {
     for (let index = 0; index < documents.length; index += MAX_DOCUMENTS_PER_BATCH) {
       const batch = documents.slice(index, index + MAX_DOCUMENTS_PER_BATCH);
-      await this.post("/people/worklog/documents", {
+      await this.post("/people/evidence/documents", {
         documents: batch.map((document) => ({
-          evaluateeUserId,
           workspaceKey: document.workspaceKey,
           title: document.title,
           refPath: document.refPath,

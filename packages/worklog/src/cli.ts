@@ -26,10 +26,10 @@ Use:
   worklog add <path>           declare a workspace — only declared paths are ever read
   worklog remove <path>        stop reporting a workspace
   worklog status               show what is declared, whether reporting is on, and what was sent
-  worklog --profile <path>     apply the downloaded profile (install or rotate credentials)
+  worklog --profile <path>     apply the credentials file (install or rotate credentials)
 
 First run:
-  worklog --profile ~/Downloads/worklog-profile.json
+  worklog --profile ~/Downloads/worklog-credentials.json
   worklog add ~/src/my-project
   worklog start`;
 
@@ -85,7 +85,6 @@ async function main(): Promise<void> {
     console.log(`Config:   ${DEFAULT_CONFIG_PATH}`);
     console.log(`State:    ${DEFAULT_STATE_PATH}`);
     console.log(`Server:   ${config ? config.endpoint : "not configured — run: worklog --profile <path>"}`);
-    console.log(`Evaluatee: ${config?.evaluateeUserId ?? "not configured"}`);
     console.log(
       `Reporting: ${scheduled ? `on (send every ${SCHEDULER_INTERVAL_SECONDS / 60} minutes)` : "off — run: worklog start"}`,
     );

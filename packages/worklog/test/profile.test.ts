@@ -14,23 +14,22 @@ describe("upsertConfigFromProfile", () => {
   it("writes a config carrying the profile credentials", () => {
     const path = configPath();
 
-    upsertConfigFromProfile({ endpoint: "https://nw.example.com/", token: "token-1", evaluateeUserId: "user-1" }, path);
+    upsertConfigFromProfile({ endpoint: "https://nw.example.com/", token: "token-1" }, path);
 
     const written = JSON.parse(readFileSync(path, "utf8"));
     assert.equal(written.endpoint, "https://nw.example.com");
     assert.equal(written.token, "token-1");
-    assert.equal(written.evaluateeUserId, "user-1");
     assert.deepEqual(written.workspaces, []);
   });
 
   it("keeps declared workspaces when the profile is re-applied after a token rotation", () => {
     const path = configPath();
-    upsertConfigFromProfile({ endpoint: "https://nw.example.com", token: "token-1", evaluateeUserId: "user-1" }, path);
+    upsertConfigFromProfile({ endpoint: "https://nw.example.com", token: "token-1" }, path);
     const existing = JSON.parse(readFileSync(path, "utf8"));
     existing.workspaces = [{ workspaceKey: "app", rootPath: "/Users/w/app" }];
     writeFileSync(path, JSON.stringify(existing), "utf8");
 
-    upsertConfigFromProfile({ endpoint: "https://nw.example.com", token: "token-2", evaluateeUserId: "user-1" }, path);
+    upsertConfigFromProfile({ endpoint: "https://nw.example.com", token: "token-2" }, path);
 
     const written = JSON.parse(readFileSync(path, "utf8"));
     assert.equal(written.token, "token-2");
@@ -38,8 +37,6 @@ describe("upsertConfigFromProfile", () => {
   });
 
   it("rejects an incomplete profile", () => {
-    assert.throws(() =>
-      upsertConfigFromProfile({ endpoint: "", token: "token-1", evaluateeUserId: "user-1" }, configPath()),
-    );
+    assert.throws(() => upsertConfigFromProfile({ endpoint: "", token: "token-1" }, configPath()));
   });
 });

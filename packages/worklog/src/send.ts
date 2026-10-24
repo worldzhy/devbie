@@ -30,7 +30,7 @@ export async function sendOnce(config: WorklogConfig, state: WorklogState, api: 
     notes: [],
   };
 
-  await api.reportWorkspaces(config.evaluateeUserId, config.workspaces);
+  await api.reportWorkspaces(config.workspaces);
   summary.workspacesReported = config.workspaces.length;
 
   for (const ide of Object.keys(SESSION_SOURCES) as IdeKey[]) {
@@ -80,7 +80,7 @@ export async function sendOnce(config: WorklogConfig, state: WorklogState, api: 
         messages: delta.parsed.messages,
       };
 
-      await api.reportSessions(config.evaluateeUserId, [upload]);
+      await api.reportSessions([upload]);
       summary.sessionsUploaded++;
       summary.messagesUploaded += delta.parsed.messages.length;
 
@@ -97,7 +97,7 @@ export async function sendOnce(config: WorklogConfig, state: WorklogState, api: 
 
   const documents: UploadDocument[] = scanDocuments(config, state);
   if (documents.length > 0) {
-    await api.reportDocuments(config.evaluateeUserId, documents);
+    await api.reportDocuments(documents);
     summary.documentsUploaded = documents.length;
   }
 

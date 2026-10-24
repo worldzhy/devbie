@@ -12,7 +12,6 @@ function config(overrides: Partial<WorklogConfig> = {}): WorklogConfig {
   return {
     endpoint: "https://nw.example.com",
     token: "token",
-    evaluateeUserId: "user-1",
     workspaces: [],
     agentSessionDirectories: {},
     documentDirectories: [],
