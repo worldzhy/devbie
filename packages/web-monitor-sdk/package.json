@@ -1,11 +1,17 @@
 {
   "name": "@devbie/web-monitor-sdk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Browser-side web monitoring SDK: PV, AJAX, resource, JS error and custom event reporting. No heartbeat, no credential logic.",
   "license": "MIT",
   "author": "worldzhy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
