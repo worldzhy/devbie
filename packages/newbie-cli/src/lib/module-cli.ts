@@ -7,7 +7,7 @@ import { moduleKeys } from "@devbie/modules-state";
 
 import { installedModuleDir } from "./module-install";
 import { readInstalledManifest } from "./module-install";
-import { CliError } from "./errors";
+import { CliError } from "@devbie/cli-kit";
 import { readModulesState, stateExists } from "./modules-state";
 import { ModuleManifest } from "../core/module-manifest";
 import { GlobalOptions } from "../commands/shared";

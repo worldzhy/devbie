@@ -4,7 +4,7 @@ import { gray, green, red, yellow } from "colorette";
 
 import { REGISTRY_MODULES_DIR } from "../../constants/paths";
 import { LayeredModule, lintModuleLayers } from "../../core/layer-lint";
-import { CliError } from "../../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { listRegistryKeys, readRegistryModule } from "../../lib/registry";
 
 /** Cross-module import reference, e.g. `@modules/account/account.service`. */

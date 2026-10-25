@@ -10,9 +10,7 @@ import {
   resolveRegistryRoot,
 } from "../../registry/store";
 import { confirm } from "../../lib/confirm";
-import { CliError } from "../../lib/errors";
-import { pathExists, readTextIfExists } from "../../lib/fs-util";
-import { execInteractive } from "../../lib/exec-interactive";
+import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
 import { requireModulesFile, writeModulesFile } from "../../lib/modules-file";
 import { missingPackages } from "../../lib/npm-spec";
 import { assertProjectRoot } from "../../lib/project";
@@ -240,7 +238,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
       console.info(yellow(`\nSkipped npm install. Add manually: npm install ${missing.join(" ")}`));
     } else {
       console.info(`\nInstalling dependencies: ${missing.join(", ")}`);
-      await execInteractive("npm", ["install", ...missing], projectRoot);
+      await execLive("npm", ["install", ...missing], { cwd: projectRoot });
     }
   }
 

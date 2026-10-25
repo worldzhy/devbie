@@ -8,7 +8,7 @@ import {
   readModulesState as readSharedModulesState,
 } from "@devbie/modules-state";
 
-import { CliError } from "./errors";
+import { CliError } from "@devbie/cli-kit";
 import { Sink } from "./sink";
 
 export async function stateExists(cwd: string): Promise<boolean> {

@@ -4,7 +4,7 @@ import path from "node:path";
 import { MODULES_DIR, MODULE_MANIFEST_FILE } from "@devbie/modules-state";
 
 import { ModuleManifest, normalizeModuleManifest } from "../core/module-manifest";
-import { CliError } from "./errors";
+import { CliError } from "@devbie/cli-kit";
 
 export function installedModuleDir(cwd: string, key: string): string {
   return path.resolve(cwd, MODULES_DIR, key);

@@ -5,7 +5,7 @@ import { moduleKeys } from "@devbie/modules-state";
 import { expandRegistryClosure } from "../../assemble/module-graph";
 import { applyModuleKeys } from "../../assemble/pipeline";
 import { directDependents } from "../../core/module-closure";
-import { CliError } from "../../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 
 import { createContext, GlobalOptions } from "../shared";
 

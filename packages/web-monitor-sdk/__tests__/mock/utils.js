@@ -14,6 +14,27 @@ export function overrideFetch(cb) {
   };
 }
 
+/**
+ * Resolve once `predicate` returns true, polling until `timeoutMs` elapses.
+ * Report delivery runs through SDK-internal timers (outTime), so a fixed sleep
+ * is flaky when several jest workers compete for CPU.
+ */
+export function waitFor(predicate, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    const tick = () => {
+      if (predicate()) {
+        resolve();
+      } else if (Date.now() - startedAt >= timeoutMs) {
+        reject(new Error(`condition was not met within ${timeoutMs}ms`));
+      } else {
+        setTimeout(tick, 25);
+      }
+    };
+    tick();
+  });
+}
+
 const http = require("http");
 const path = require("path");
 const fs = require("fs");

@@ -2,7 +2,7 @@ import { bold, green } from "colorette";
 import { moduleKeys } from "@devbie/modules-state";
 
 import { applyModuleKeys } from "../../assemble/pipeline";
-import { CliError } from "../../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { deprecatedNoticesOf, listRegistryModules } from "../../lib/registry";
 
 import { createContext, GlobalOptions } from "../shared";

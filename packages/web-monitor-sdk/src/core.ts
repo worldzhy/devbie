@@ -100,7 +100,11 @@ function Performance(options: InitOptions): void {
   };
 
   const beginTime = new Date().getTime();
-  let loadTime = 0;
+  // Truthiness gate for the first page report. It must be a flag rather than
+  // an elapsed-time number: when the framework initializes the SDK faster than
+  // one millisecond, `Date.now() - beginTime` is 0 and the page report would
+  // be skipped entirely.
+  let pageLoaded = false;
   let ajaxTime = 0;
   let fetchTime = 0;
 
@@ -196,13 +200,13 @@ function Performance(options: InitOptions): void {
 
   function getLargeTime() {
     if (conf.page !== location.href) {
-      if (conf.haveAjax && conf.haveFetch && loadTime && ajaxTime && fetchTime) {
+      if (conf.haveAjax && conf.haveFetch && pageLoaded && ajaxTime && fetchTime) {
         reportData(ReportType.PagePerf);
-      } else if (conf.haveAjax && !conf.haveFetch && loadTime && ajaxTime) {
+      } else if (conf.haveAjax && !conf.haveFetch && pageLoaded && ajaxTime) {
         reportData(ReportType.PagePerf);
-      } else if (!conf.haveAjax && conf.haveFetch && loadTime && fetchTime) {
+      } else if (!conf.haveAjax && conf.haveFetch && pageLoaded && fetchTime) {
         reportData(ReportType.PagePerf);
-      } else if (!conf.haveAjax && !conf.haveFetch && loadTime) {
+      } else if (!conf.haveAjax && !conf.haveFetch && pageLoaded) {
         reportData(ReportType.PagePerf);
       }
     } else {
@@ -743,7 +747,7 @@ function Performance(options: InitOptions): void {
     addEventListener(
       "load",
       () => {
-        loadTime = new Date().getTime() - beginTime;
+        pageLoaded = true;
         getLargeTime();
       },
       false,
@@ -761,7 +765,7 @@ function Performance(options: InitOptions): void {
     // loaded document as "loaded now" and emit the first page report once the
     // report machinery above is fully assigned.
     if (document.readyState === "complete") {
-      loadTime = new Date().getTime() - beginTime;
+      pageLoaded = true;
       setTimeout(() => getLargeTime(), opt.outTime);
     }
   } catch (err: any) {

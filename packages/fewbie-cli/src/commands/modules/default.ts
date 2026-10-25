@@ -4,7 +4,7 @@ import { bold, cyan, green, yellow } from "colorette";
 
 import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../registry/store";
 import { confirm, isInteractive } from "../../lib/confirm";
-import { pathExists } from "../../lib/fs-util";
+import { pathExists } from "@devbie/cli-kit";
 import { readModulesFile } from "../../lib/modules-file";
 import { assertProjectRoot } from "../../lib/project";
 import { applyModuleSelection } from "./apply";

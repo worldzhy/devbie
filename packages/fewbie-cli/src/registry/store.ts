@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { CliError } from "../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import type { BuiltRegistryItem, RegistryManifest } from "./types";
 
 /** A loaded item plus the absolute paths its files should be copied from. */

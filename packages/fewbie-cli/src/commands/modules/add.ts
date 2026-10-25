@@ -3,7 +3,7 @@ import { bold, cyan, green } from "colorette";
 
 import { resolveInstallSet, resolveRegistryRoot } from "../../registry/store";
 import { confirm } from "../../lib/confirm";
-import { CliError } from "../../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { assertProjectRoot } from "../../lib/project";
 import { readModulesFile } from "../../lib/modules-file";
 import { applyModuleSelection } from "./apply";

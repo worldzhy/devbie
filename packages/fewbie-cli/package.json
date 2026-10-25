@@ -1,6 +1,6 @@
 {
   "name": "@devbie/fewbie-cli",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "fewbie frontend framework CLI",
   "license": "MIT",
   "author": "worldzhy",
@@ -27,6 +27,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@devbie/cli-kit": "^1.0.0",
     "@inquirer/prompts": "^7.5.0",
     "colorette": "^2.0.20",
     "commander": "^12.1.0"

@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { CliError } from "./errors";
+import { CliError } from "@devbie/cli-kit";
 
 /** Assert the directory is a Node.js project (package.json present). */
 export async function assertProjectRoot(projectRoot: string): Promise<void> {

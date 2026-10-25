@@ -6,7 +6,7 @@ import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON, ModulesState, moduleKe
 
 import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
-import { CliError } from "../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { readRegistryModule } from "../lib/registry";
 import { writeModulesState } from "../lib/modules-state";
 

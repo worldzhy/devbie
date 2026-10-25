@@ -9,8 +9,7 @@ import { ModuleSourceDrift, diffModuleSources } from "../../assemble/module-sour
 import { runSteps } from "../../assemble/pipeline";
 import { diffSnapshots, driftPatchIds } from "../../core/drift";
 import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
-import { CliError } from "../../lib/errors";
-import { fileExists } from "../../lib/fs-util";
+import { CliError, fileExists } from "@devbie/cli-kit";
 import { writeModulesState } from "../../lib/modules-state";
 
 import { createContext, GlobalOptions } from "../shared";

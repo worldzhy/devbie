@@ -15,7 +15,7 @@ import {
   TemplateFile,
 } from "../../core/template-update";
 import { unifiedDiff } from "../../core/unified-diff";
-import { CliError } from "../../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { createSink } from "../../lib/sink";
 import { GlobalOptions } from "../shared";
 import { resolveTemplate, TemplateReference } from "../create";

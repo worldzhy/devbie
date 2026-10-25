@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, green, red, yellow } from "colorette";
 
-import { CliError } from "../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { readModulesFile } from "../lib/modules-file";
 import { packageNameOf } from "../lib/npm-spec";
 import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";

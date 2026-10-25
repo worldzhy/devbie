@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { CliError } from "./errors";
+import { CliError } from "@devbie/cli-kit";
 
 /** Declaration file that lists the registry modules a project enables. */
 export const MODULES_FILE = "fewbie.json";

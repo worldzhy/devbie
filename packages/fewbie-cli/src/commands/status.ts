@@ -1,7 +1,7 @@
 import path from "node:path";
 
 import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
-import { pathExists } from "../lib/fs-util";
+import { pathExists } from "@devbie/cli-kit";
 import { MODULES_FILE, readModulesFile } from "../lib/modules-file";
 import { assertProjectRoot } from "../lib/project";
 

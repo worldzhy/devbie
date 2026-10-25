@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { execLive } from "./exec";
+import { execLive } from "@devbie/cli-kit";
 
 /** One planned change recorded by the sink in check mode. */
 export interface SinkFinding {

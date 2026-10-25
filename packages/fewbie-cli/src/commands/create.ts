@@ -3,8 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { bold, cyan, green } from "colorette";
 
-import { CliError } from "../lib/errors";
-import { execCapture } from "../lib/exec";
+import { CliError, execCapture } from "@devbie/cli-kit";
 import { MODULES_FILE, modulesFileContent } from "../lib/modules-file";
 
 /** Repository that ships the starter template at its root. */

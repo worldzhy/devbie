@@ -3,8 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { bold, cyan, green } from "colorette";
 
-import { CliError } from "../lib/errors";
-import { execCapture } from "../lib/exec";
+import { CliError, execCapture } from "@devbie/cli-kit";
 
 /** Repository that ships the starter template at its root. */
 export const TEMPLATE_REPOSITORY_URL = "https://github.com/worldzhy/newbie-starter.git";

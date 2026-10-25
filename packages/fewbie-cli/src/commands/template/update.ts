@@ -3,8 +3,7 @@ import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
 import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../registry/store";
-import { CliError } from "../../lib/errors";
-import { readTextIfExists } from "../../lib/fs-util";
+import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
   FRAMEWORK_MARKER_END,
   FRAMEWORK_MARKER_START,

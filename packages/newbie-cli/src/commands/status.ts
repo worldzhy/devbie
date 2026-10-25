@@ -6,7 +6,7 @@ import { DriftReport } from "../core/drift";
 import { diffSnapshots } from "../core/drift";
 import { collectMissingEnv } from "../lib/check";
 import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
-import { fileExists } from "../lib/fs-util";
+import { fileExists } from "@devbie/cli-kit";
 import { readInstalledManifest } from "../lib/module-install";
 import { readModulesState } from "../lib/modules-state";
 import { resolveRegistry } from "../lib/registry";

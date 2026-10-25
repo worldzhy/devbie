@@ -7,7 +7,7 @@ import { renderPublicNamespaceBody, spliceModulesBlock } from "../core/caddyfile
 import { buildComposeModulesYaml, ComposeModulesInput } from "../core/deploy-compose";
 import { isRegisteredDatastore } from "../core/datastore-registry";
 import { DEPLOY_CADDYFILE_TMPL, DEPLOY_COMPOSE_MODULES } from "../constants/paths";
-import { CliError } from "../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest } from "../lib/module-install";
 import { Sink } from "../lib/sink";

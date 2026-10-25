@@ -5,8 +5,7 @@ import { cyan, green, yellow } from "colorette";
 import { MODULES_DIR, MODULE_MANIFEST_FILE } from "@devbie/modules-state";
 
 import { REGISTRY_MODULES_DIR } from "../../constants/paths";
-import { CliError } from "../../lib/errors";
-import { execCapture, trim } from "../../lib/exec";
+import { CliError, execCapture, trim } from "@devbie/cli-kit";
 import { moduleRootInRegistry, RegistryLocation, resolveRegistry } from "../../lib/registry";
 
 export interface ModulesWatchOptions {

@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { runTemplateUpdate } from "../src/commands/template/update";
-import { CliError } from "../src/lib/errors";
+import { CliError } from "@devbie/cli-kit";
 
 /**
  * Exercises runTemplateUpdate against a local template directory

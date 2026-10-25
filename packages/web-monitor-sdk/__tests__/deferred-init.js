@@ -4,7 +4,7 @@
  * still emit the first page report in that case.
  */
 import "./mock/web.env";
-import { overrideFetch } from "./mock/utils";
+import { overrideFetch, waitFor } from "./mock/utils";
 
 function initAfterWindowLoad(options, reports) {
   overrideFetch(function () {
@@ -15,12 +15,9 @@ function initAfterWindowLoad(options, reports) {
   init({ appId: "appid_test", api: "http://localhost/report", token: "token_test", ...options });
 }
 
-test("reports PagePerf when initialized after the window load event", (done) => {
+test("reports PagePerf when initialized after the window load event", async () => {
   Object.defineProperty(document, "readyState", { value: "complete", configurable: true });
   const reports = [];
   initAfterWindowLoad({}, reports);
-  setTimeout(() => {
-    expect(reports.some((report) => report.type === "PagePerf")).toBe(true);
-    done();
-  }, 1000);
+  await waitFor(() => reports.some((report) => report.type === "PagePerf"));
 });

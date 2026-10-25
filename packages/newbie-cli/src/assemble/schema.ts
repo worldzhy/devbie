@@ -7,7 +7,7 @@ import { mergeModelAdditions, moduleSchemaNamespace, reconcileDatasourceSchemas 
 import { PRISMA_ADDITIONS_DIR, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest, readInstalledSchema } from "../lib/module-install";
-import { fileExists } from "../lib/fs-util";
+import { fileExists } from "@devbie/cli-kit";
 import { Sink } from "../lib/sink";
 
 const DO_NOT_EDIT_HEADER = `// THIS FILE IS MANAGED BY @devbie/newbie-cli. DO NOT EDIT.

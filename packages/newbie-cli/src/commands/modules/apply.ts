@@ -4,7 +4,7 @@ import { moduleKeys } from "@devbie/modules-state";
 
 import { applyPlanned, planReconcile } from "../../assemble/pipeline";
 import { ENV_PATH } from "../../constants/paths";
-import { CliError } from "../../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { SinkFinding } from "../../lib/sink";
 
 import { createContext, GlobalOptions } from "../shared";

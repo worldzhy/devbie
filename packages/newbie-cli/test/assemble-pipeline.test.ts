@@ -8,7 +8,7 @@ import { normalizeModulesState } from "@devbie/modules-state";
 
 import { applyModuleKeys, planReconcile, PipelineContext } from "../src/assemble/pipeline";
 import { addModules } from "../src/assemble/modules-copy";
-import { CliError } from "../src/lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { IssueBag } from "../src/lib/issues";
 import { createSink } from "../src/lib/sink";
 

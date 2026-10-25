@@ -4,8 +4,7 @@ import { bold, cyan, green, yellow } from "colorette";
 
 import { LoadedItem, readItemFileContent, resolveInstallSet, resolveRegistryRoot } from "../../registry/store";
 import { confirm } from "../../lib/confirm";
-import { CliError } from "../../lib/errors";
-import { readTextIfExists } from "../../lib/fs-util";
+import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { requireModulesFile } from "../../lib/modules-file";
 import { assertProjectRoot } from "../../lib/project";
 import { unifiedDiff } from "../../lib/diff";

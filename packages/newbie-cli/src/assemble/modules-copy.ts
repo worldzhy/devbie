@@ -3,8 +3,7 @@ import path from "node:path";
 import { MODULES_DIR } from "@devbie/modules-state";
 
 import { moduleRootInRegistry, RegistryLocation } from "../lib/registry";
-import { CliError } from "../lib/errors";
-import { pathExists } from "../lib/fs-util";
+import { CliError, pathExists } from "@devbie/cli-kit";
 import { Sink } from "../lib/sink";
 
 /**

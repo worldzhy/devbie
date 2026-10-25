@@ -1,6 +1,6 @@
 import { cyan, yellow } from "colorette";
 
-import { CliError } from "./errors";
+import { CliError } from "@devbie/cli-kit";
 import { Sink } from "./sink";
 
 /**
