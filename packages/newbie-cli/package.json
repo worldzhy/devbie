@@ -1,6 +1,6 @@
 {
   "name": "@devbie/newbie-cli",
-  "version": "1.9.1",
+  "version": "1.13.0",
   "description": "newbie backend framework CLI",
   "license": "MIT",
   "author": "worldzhy",
@@ -24,10 +24,13 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@devbie/cli-kit": "^1.0.0",
+    "@devbie/modules-state": "^1.0.0",
     "@inquirer/prompts": "^7.0.0",
     "colorette": "^2.0.20",
     "commander": "^12.1.0",
     "figlet": "^1.7.0",
+    "prettier": "^3.9.9",
     "tsx": "^4.19.0"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 # Release Checklist
 
-Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/heartbeat-sdk, packages/health-sdk, packages/web-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/fewbie-cli, packages/apits, packages/style-guide). Do not skip steps for "trivial" patches.
+Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/cli-kit, packages/modules-state, packages/heartbeat-sdk, packages/health-sdk, packages/web-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/module-hub-cli, packages/fewbie-cli, packages/apits, packages/worklog, packages/style-guide). Do not skip steps for "trivial" patches.
 
 1. `git status` — working tree is clean, all intended changes are committed.
 2. Clean build: remove `dist/` and `*.tsbuildinfo` for the package(s) being released, then rebuild. Never publish from a stale `dist/`.
@@ -27,6 +27,19 @@ Run through every step below before publishing any package in this repo (package
   against attacker-controlled globs. Waived since 1.4.0; revisit when
   upstream ships fixes or the dependency-union milestone reshapes the next
   layer.
+
+- `@nestjs/platform-express` — 2 high findings (multer
+  GHSA-q7qp-rjg7-q26m, plus the parent edge) against the workspace-installed
+  `@nestjs/platform-express@11.2.7`, which pins `multer` exactly `2.4.0`;
+  even the latest upstream release (`12.2.0`) still pins it, so no version
+  bump can resolve the finding, and a root `overrides` entry is not honored
+  by npm 11 while the tree carries an invalid optional-peer edge (attempted
+  2026-10-25, reverted). It is a **peerDependency range** of
+  `@devbie/newbie` (`^11.0.0 || ^12.0.0`), not a runtime dependency of any
+  published package, and no devbie code exercises multer's fileFilter path;
+  the host (nightwatch-backend) pins its own NestJS version. Waived
+  (2026-10-24, re-verified 2026-10-25); revisit when NestJS ships a release
+  with a patched multer pin.
 
 - `@devbie/web-monitor-sdk` — 3 findings, all **indirect**:
   - `braces` high (GHSA-vfj7-8cjw-p6xm, range `*`) and `micromatch` high

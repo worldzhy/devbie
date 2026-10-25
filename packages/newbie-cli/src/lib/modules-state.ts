@@ -1,9 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { MODULES_JSON } from "../constants/paths";
-import { createEmptyModulesState, ModulesState, normalizeModulesState } from "../core/modules-state";
-import { CliError } from "./errors";
+import {
+  createEmptyModulesState,
+  MODULES_JSON,
+  ModulesState,
+  readModulesState as readSharedModulesState,
+} from "@devbie/modules-state";
+
+import { CliError } from "@devbie/cli-kit";
 import { Sink } from "./sink";
 
 export async function stateExists(cwd: string): Promise<boolean> {
@@ -16,21 +21,13 @@ export async function stateExists(cwd: string): Promise<boolean> {
 }
 
 export async function readModulesState(cwd: string): Promise<ModulesState> {
-  const target = path.resolve(cwd, MODULES_JSON);
-  let content: string;
   try {
-    content = await fs.readFile(target, "utf8");
+    return await readSharedModulesState(cwd);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return createEmptyModulesState();
+    if (error instanceof SyntaxError) {
+      throw new CliError(`Invalid JSON in ${MODULES_JSON}: ${error.message}`);
     }
     throw error;
-  }
-
-  try {
-    return normalizeModulesState(JSON.parse(content));
-  } catch (error) {
-    throw new CliError(`Invalid JSON in ${MODULES_JSON}: ${(error as Error).message}`);
   }
 }
 

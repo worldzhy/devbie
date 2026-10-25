@@ -2,11 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { cyan } from "colorette";
+import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON, ModulesState, moduleKeys } from "@devbie/modules-state";
 
-import { diffModuleKeys, ModulesState, moduleKeys, withModuleKeys } from "../core/modules-state";
+import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
-import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON } from "../constants/paths";
-import { CliError } from "../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { readRegistryModule } from "../lib/registry";
 import { writeModulesState } from "../lib/modules-state";
 
@@ -220,7 +220,7 @@ export async function applyModuleKeys(
 }
 
 /**
- * `newbie install` planning (read-only): modules.json is the source of truth;
+ * `newbie modules apply` planning (read-only): modules.json is the source of truth;
  * modules missing from src/modules (or lacking a registry pin, e.g. after an
  * interrupted install) are reinstalled, extra copied modules are removed.
  *

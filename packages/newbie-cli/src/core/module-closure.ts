@@ -30,7 +30,7 @@ export interface ModuleClosure {
 /**
  * Expand `roots` with their transitive module dependencies.
  *
- * Cycles are tolerated (they are rejected separately by `newbie dev lint`):
+ * Cycles are tolerated (they are rejected separately by `newbie modules lint`):
  * a visited node is never traversed twice. Unknown roots are kept in `keys`
  * untouched; callers are expected to validate root keys beforehand.
  */

@@ -38,12 +38,6 @@ export * from "./interceptors/http-response.interceptor";
 export * from "./middlewares/http.middleware";
 export * from "./middlewares/raw-body.middleware";
 
-// Built-in backend monitor probe. The implementation lives in the standalone
-// @devbie/backend-monitor-sdk (zero-dependency core + Nest adapter under
-// /nest); re-exported here so `@devbie/newbie` import paths keep working.
-export * from "@devbie/backend-monitor-sdk";
-export * from "@devbie/backend-monitor-sdk/nest";
-
 // Built-in module-hub reporter (env-gated; no-op without MODULE_HUB_*)
 export * from "./module-hub/reporter";
 export * from "./module-hub/snapshot";

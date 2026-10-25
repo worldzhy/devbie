@@ -1,12 +1,12 @@
 import path from "node:path";
 
+import { MODULES_DIR, moduleKeys } from "@devbie/modules-state";
+
 import { DriftReport } from "../core/drift";
-import { MODULES_DIR } from "../constants/paths";
 import { diffSnapshots } from "../core/drift";
-import { moduleKeys } from "../core/modules-state";
 import { collectMissingEnv } from "../lib/check";
 import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
-import { fileExists } from "../lib/fs-util";
+import { fileExists } from "@devbie/cli-kit";
 import { readInstalledManifest } from "../lib/module-install";
 import { readModulesState } from "../lib/modules-state";
 import { resolveRegistry } from "../lib/registry";
@@ -25,7 +25,7 @@ export interface StatusModuleEntry {
   drift?: DriftReport;
 }
 
-/** Machine-readable project state; the module-hub agent poll contract. */
+/** Machine-readable project state. */
 export interface StatusReport {
   cwd: string;
   registry: { available: true; local: boolean; path: string; sourceCommit: string | null } | { available: false };
@@ -34,7 +34,7 @@ export interface StatusReport {
 
 /**
  * Collect the project state without printing anything. Never mutates anything
- * and never touches the network. Shared by `newbie status` and `newbie agent`.
+ * and never touches the network.
  */
 export async function collectStatus(cwd: string, options?: { drift?: boolean }): Promise<StatusReport> {
   const state = await readModulesState(cwd);
@@ -85,7 +85,7 @@ export async function collectStatus(cwd: string, options?: { drift?: boolean }):
 }
 
 /**
- * Machine-readable project state for module-hub/agent consumers.
+ * Machine-readable project state for scripts and CI.
  * This command never mutates anything and never touches the network.
  */
 export async function runStatus(options: GlobalOptions & { drift?: boolean }): Promise<void> {

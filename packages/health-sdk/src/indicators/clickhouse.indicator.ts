@@ -1,12 +1,12 @@
 import type { NamedHealthIndicator } from "../types";
 
 /**
- * Health indicator for ClickhouseService.
+ * Health indicator for ClickHouseService.
  *
  * Duck-types the service for a `query` method and runs `SELECT 1` to verify
  * the ClickHouse HTTP connection is alive.
  */
-export function createClickhouseIndicator(service: unknown): NamedHealthIndicator {
+export function createClickHouseIndicator(service: unknown): NamedHealthIndicator {
   return {
     name: "clickhouse",
     check: async () => {

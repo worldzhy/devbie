@@ -10,7 +10,7 @@ const GLOBAL_KEY = Symbol.for("@devbie/health-sdk:active");
  * foundation services and POSTs the aggregated snapshot to the server.
  *
  * Auto-detection: the function scans the NestJS DI container for known
- * foundation service constructors (PrismaService, ClickhouseService, ...).
+ * foundation service constructors (PrismaService, ClickHouseService, ...).
  * Only services that are actually assembled become indicators — no manual
  * wiring needed.
  *

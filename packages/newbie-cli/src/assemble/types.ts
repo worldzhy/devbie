@@ -1,8 +1,9 @@
+import { ModulesState } from "@devbie/modules-state";
+
 import { ModuleManifest } from "../core/module-manifest";
 import { IssueBag } from "../lib/issues";
 import { RegistryLocation } from "../lib/registry";
 import { Sink } from "../lib/sink";
-import { ModulesState } from "../core/modules-state";
 
 /** Everything the assemble steps need; commands build it once. */
 export interface PipelineContext {

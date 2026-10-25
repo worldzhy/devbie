@@ -2,8 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, green, red, yellow } from "colorette";
 
-import { CliError } from "../lib/errors";
-import { loadItem, resolveRegistryRoot } from "../registry/store";
+import { CliError } from "@devbie/cli-kit";
+import { readModulesFile } from "../lib/modules-file";
+import { packageNameOf } from "../lib/npm-spec";
+import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
 
 export interface DoctorOptions {
   /** Project root (global --cwd). */
@@ -24,8 +26,8 @@ interface Finding {
 interface DoctorResult {
   projectRoot: string;
   findings: Finding[];
-  /** Registry items whose files are present in the project. */
-  installed: string[];
+  /** Registry items declared in fewbie.json (ADR-025 F10: the declaration is the criterion). */
+  declared: string[];
   /** Count of findings grouped by severity. */
   summary: { error: number; warn: number; info: number };
 }
@@ -57,30 +59,6 @@ async function readJsonSafe<T>(filePath: string): Promise<T | null> {
   } catch {
     return null;
   }
-}
-
-/** Extract the bare package name from an npm spec ("axios@^1" -> "axios"). */
-function packageNameOf(spec: string): string {
-  if (spec.startsWith("@")) {
-    const at = spec.indexOf("@", 1);
-    return at === -1 ? spec : spec.slice(0, at);
-  }
-  return spec.split("@")[0];
-}
-
-/** List every item name available in the registry. */
-async function listRegistryItems(registryRoot: string): Promise<string[]> {
-  const entries = await fs.readdir(registryRoot, { withFileTypes: true });
-  const names: string[] = [];
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const hasItem = await fs
-      .access(path.join(registryRoot, entry.name, "item.json"))
-      .then(() => true)
-      .catch(() => false);
-    if (hasItem) names.push(entry.name);
-  }
-  return names.sort();
 }
 
 /**
@@ -125,53 +103,70 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
     .then(() => true)
     .catch(() => false);
 
-  // --- 2. Installed registry items ---
+  // --- 2. Declared registry modules ---
+  // The declaration is the only criterion (ADR-024 F10): files that merely
+  // exist (the template ships some registry files) do not imply installation.
   const registryRoot = await resolveRegistryRoot();
-  const allItems = await listRegistryItems(registryRoot);
-  const installed: string[] = [];
+  const declaration = await readModulesFile(projectRoot);
+  const declaredModules = declaration ?? [];
+  if (declaration === null) {
+    findings.push({
+      severity: "error",
+      category: "registry",
+      message: `No fewbie.json found — run 'fewbie create' or add { "modules": [] } to the project root.`,
+    });
+  }
 
-  for (const name of allItems) {
+  const available = new Set(await listRegistryItemNames(registryRoot));
+  const installedItems: Array<{ name: string; dependencies: string[] }> = [];
+
+  for (const name of declaredModules) {
+    if (!available.has(name)) {
+      findings.push({
+        severity: "warn",
+        category: "registry",
+        message: `Declared module '${name}' is not present in the registry.`,
+      });
+      continue;
+    }
     const item = await loadItem(registryRoot, name);
-    const targets = item.files.map((f) => f.target);
+    const targets = item.files.map((file) => file.target);
     const present = await Promise.all(
-      targets.map((t) =>
+      targets.map((target) =>
         fs
-          .access(path.join(projectRoot, t))
+          .access(path.join(projectRoot, target))
           .then(() => true)
           .catch(() => false),
       ),
     );
-    const allPresent = present.every(Boolean);
-    const somePresent = present.some(Boolean);
 
-    if (allPresent) {
-      installed.push(name);
-    } else if (somePresent) {
+    if (present.every(Boolean)) {
+      installedItems.push({ name, dependencies: item.manifest.dependencies ?? [] });
+    } else {
       findings.push({
         severity: "warn",
         category: "registry",
-        message: `Item '${name}' is partially installed — some files are missing: ${targets
-          .filter((_, i) => !present[i])
-          .join(", ")}. Re-run 'fewbie add ${name}' to repair.`,
+        message: `Module '${name}' is partially installed — missing: ${targets
+          .filter((_, index) => !present[index])
+          .join(", ")}. Run 'fewbie modules apply' to repair.`,
       });
     }
   }
 
-  // --- 3. Dependency completeness for installed items ---
+  // --- 3. Dependency completeness for declared modules ---
   const pkg = (await readJsonSafe<{
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
   }>(path.join(projectRoot, "package.json")))!;
-  const declared = new Set([...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})]);
+  const declaredPackages = new Set([...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})]);
 
-  for (const name of installed) {
-    const item = await loadItem(registryRoot, name);
-    const missing = (item.manifest.dependencies ?? []).filter((spec) => !declared.has(packageNameOf(spec)));
+  for (const item of installedItems) {
+    const missing = item.dependencies.filter((spec) => !declaredPackages.has(packageNameOf(spec)));
     if (missing.length > 0) {
       findings.push({
         severity: "warn",
         category: "dependencies",
-        message: `Item '${name}' is missing dependencies: ${missing.join(", ")}. Run 'npm install ${missing.join(" ")}'.`,
+        message: `Module '${item.name}' is missing dependencies: ${missing.join(", ")}. Run 'npm install ${missing.join(" ")}'.`,
       });
     }
   }
@@ -201,34 +196,24 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
     });
   }
 
-  // --- 5. v0 readability ---
-  // Installed items live as source in the project (shadcn philosophy), so AI
-  // tools can read them directly. If any installed item is actually an npm
-  // dependency instead of source, flag it.
-  for (const name of installed) {
-    const item = await loadItem(registryRoot, name);
-    for (const file of item.files) {
-      const exists = await fs
-        .access(path.join(projectRoot, file.target))
-        .then(() => true)
-        .catch(() => false);
-      if (!exists) {
-        findings.push({
-          severity: "warn",
-          category: "ai-readability",
-          message: `Installed item '${name}' source file missing: ${file.target}. AI tools cannot read it.`,
-        });
-      }
-    }
+  // --- 5. AI readability ---
+  // Registry items are copied into the project as source (shadcn philosophy),
+  // so AI tools can read them without an npm package boundary.
+  if (declaredModules.length > 0) {
+    findings.push({
+      severity: "info",
+      category: "ai-readability",
+      message: "Declared module sources are plain project files, readable by AI tools.",
+    });
   }
 
-  return finalize(projectRoot, findings, installed);
+  return finalize(projectRoot, findings, declaredModules);
 }
 
-function finalize(projectRoot: string, findings: Finding[], installed: string[]): DoctorResult {
+function finalize(projectRoot: string, findings: Finding[], declared: string[]): DoctorResult {
   const summary = { error: 0, warn: 0, info: 0 };
-  for (const f of findings) summary[f.severity]++;
-  return { projectRoot, findings, installed, summary };
+  for (const finding of findings) summary[finding.severity]++;
+  return { projectRoot, findings, declared, summary };
 }
 
 /** Format the doctor result for human consumption. */
@@ -237,10 +222,10 @@ export function formatDoctorReport(result: DoctorResult): string {
   lines.push(bold(`fewbie doctor — ${result.projectRoot}`));
   lines.push("");
 
-  if (result.installed.length > 0) {
-    lines.push(`${green("Installed items")}: ${result.installed.join(", ")}`);
+  if (result.declared.length > 0) {
+    lines.push(`${green("Declared modules")}: ${result.declared.join(", ")}`);
   } else {
-    lines.push(yellow("No fewbie registry items installed yet."));
+    lines.push(yellow("No modules declared in fewbie.json."));
   }
   lines.push("");
 

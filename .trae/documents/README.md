@@ -10,6 +10,10 @@ nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本
 
 - [adr-template.md](file:///Users/worldzhy/src/devbie/.trae/documents/adr-template.md) — ADR 模板
 
+## 待办登记
+
+- [backlog.md](file:///Users/worldzhy/src/devbie/.trae/documents/backlog.md) — 已确认但未排期的遗留项（只保留未办事项）
+
 ## 设计文档（design/）
 
 1. [newbie-framework-split-plan.md](file:///Users/worldzhy/src/devbie/.trae/documents/design/newbie-framework-split-plan.md) — 框架包拆分与中心化管理（设计决议）

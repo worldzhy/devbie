@@ -18,6 +18,6 @@ export type {
 // indicator registries if needed.
 export { createPrismaIndicator } from "./indicators/prisma.indicator";
 export { createMongoIndicator } from "./indicators/mongo.indicator";
-export { createClickhouseIndicator } from "./indicators/clickhouse.indicator";
+export { createClickHouseIndicator } from "./indicators/clickhouse.indicator";
 export { createRedisIndicator } from "./indicators/redis.indicator";
 export { createAwsIdentityIndicator } from "./indicators/aws-identity.indicator";

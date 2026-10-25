@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { CliError } from "../lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import type { BuiltRegistryItem, RegistryManifest } from "./types";
 
 /** A loaded item plus the absolute paths its files should be copied from. */
@@ -59,6 +59,26 @@ async function readItemFile(root: string, name: string): Promise<RegistryManifes
   return JSON.parse(raw) as RegistryManifest | BuiltRegistryItem;
 }
 
+/** Names of every authored item in the registry, sorted. */
+export async function listRegistryItemNames(root: string): Promise<string[]> {
+  const entries = await fs.readdir(root, { withFileTypes: true });
+  const names: string[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const hasItem = await fs
+      .access(path.join(root, entry.name, "item.json"))
+      .then(() => true)
+      .catch(() => false);
+    if (hasItem) names.push(entry.name);
+  }
+  return names.sort();
+}
+
+/** Content one loaded item file should be copied from. */
+export async function readItemFileContent(file: LoadedItem["files"][number]): Promise<string> {
+  return file.content ?? (await fs.readFile(file.source as string, "utf8"));
+}
+
 function isBuilt(item: RegistryManifest | BuiltRegistryItem): item is BuiltRegistryItem {
   return Array.isArray(item.files) && item.files.length > 0 && typeof item.files[0] === "object";
 }
@@ -110,7 +130,7 @@ export async function resolveInstallSet(root: string, names: string[]): Promise<
     }
     visiting.add(name);
     const loaded = await loadItem(root, name).catch(() => {
-      throw new CliError(`Registry item '${name}' not found. Run 'fewbie add' with a valid item name.`);
+      throw new CliError(`Registry item '${name}' not found. Run 'fewbie modules add <name>' with a valid name.`);
     });
     for (const dep of loaded.manifest.registryDependencies ?? []) {
       await visit(dep);

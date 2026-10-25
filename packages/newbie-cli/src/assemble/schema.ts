@@ -1,15 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { MODULES_DIR } from "@devbie/modules-state";
+
 import { mergeModelAdditions, moduleSchemaNamespace, reconcileDatasourceSchemas } from "../core/prisma-schema";
-import { MODULES_DIR, PRISMA_ADDITIONS_DIR, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
+import { PRISMA_ADDITIONS_DIR, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest, readInstalledSchema } from "../lib/module-install";
-import { fileExists } from "../lib/fs-util";
+import { fileExists } from "@devbie/cli-kit";
 import { Sink } from "../lib/sink";
 
 const DO_NOT_EDIT_HEADER = `// THIS FILE IS MANAGED BY @devbie/newbie-cli. DO NOT EDIT.
-// Run 'newbie install' to regenerate this file.
+// Run 'newbie modules apply' to regenerate this file.
 
 `;
 
@@ -49,7 +51,7 @@ export async function assembleSchemaFiles(params: {
   // [step 1] Render a fragment for every enabled module into
   // prisma/models/<key>.prisma, merging the host's optional additions
   // (ADR-020). Rendering the enabled set rather than only newly added keys is
-  // what makes a host addition take effect on a plain `newbie install` and
+  // what makes a host addition take effect on a plain `newbie modules apply` and
   // keeps the generated file convergent.
   for (const { key, fragment } of await keysWithSchema(cwd, enabledKeys)) {
     if (fragment === null) {

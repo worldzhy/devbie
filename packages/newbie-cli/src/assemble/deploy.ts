@@ -1,11 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { MODULES_DIR } from "@devbie/modules-state";
+
 import { renderPublicNamespaceBody, spliceModulesBlock } from "../core/caddyfile-modules";
 import { buildComposeModulesYaml, ComposeModulesInput } from "../core/deploy-compose";
 import { isRegisteredDatastore } from "../core/datastore-registry";
-import { DEPLOY_CADDYFILE_TMPL, DEPLOY_COMPOSE_MODULES, MODULES_DIR } from "../constants/paths";
-import { CliError } from "../lib/errors";
+import { DEPLOY_CADDYFILE_TMPL, DEPLOY_COMPOSE_MODULES } from "../constants/paths";
+import { CliError } from "@devbie/cli-kit";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest } from "../lib/module-install";
 import { Sink } from "../lib/sink";

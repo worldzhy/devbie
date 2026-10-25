@@ -36,9 +36,9 @@ not publishable `@devbie/*` packages.
 ## CLI
 
 The CLI is the primary entry point. See [packages/newbie-cli/README.md](packages/newbie-cli/README.md)
-for installation, the full command reference (`create`, interactive module selection,
-`install`, `apply`, `update`, `doctor`, `status`, `watch`, module-bundled command
-namespaces) and the `newbie.module.json` manifest format.
+for installation, the full command reference (`create`, `doctor`, `status`, the
+`modules` namespace — `add` / `apply` / `remove` / `update` / `watch` / `lint` — and
+`template update`) and the `newbie.module.json` manifest format.
 
 Quick start:
 
@@ -46,8 +46,8 @@ Quick start:
 npx @devbie/newbie-cli create my-app
 cd my-app && npm install
 
-npx newbie          # interactive module enable/disable (default command)
-npx newbie install  # reconcile project files with modules.json
+npx newbie modules        # interactive module selection
+npx newbie modules apply  # reconcile project files with modules.json
 ```
 
 ## Development

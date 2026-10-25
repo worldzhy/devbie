@@ -1,6 +1,6 @@
 import type { KnownIndicator } from "./types";
 import { createAwsIdentityIndicator } from "./indicators/aws-identity.indicator";
-import { createClickhouseIndicator } from "./indicators/clickhouse.indicator";
+import { createClickHouseIndicator } from "./indicators/clickhouse.indicator";
 import { createMongoIndicator } from "./indicators/mongo.indicator";
 import { createPrismaIndicator } from "./indicators/prisma.indicator";
 import { createRedisIndicator } from "./indicators/redis.indicator";
@@ -18,7 +18,7 @@ import { createRedisIndicator } from "./indicators/redis.indicator";
 export const KNOWN_INDICATORS: readonly KnownIndicator[] = [
   { name: "PrismaService", factory: createPrismaIndicator },
   { name: "MongoModelRegistry", factory: createMongoIndicator },
-  { name: "ClickhouseService", factory: createClickhouseIndicator },
+  { name: "ClickHouseService", factory: createClickHouseIndicator },
   { name: "RedisService", factory: createRedisIndicator },
   { name: "AwsCredentialsService", factory: createAwsIdentityIndicator },
 ];

@@ -3,8 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { CliError } from "../lib/errors";
-import { execInteractive } from "../lib/exec-interactive";
+import { CliError, execLive } from "@devbie/cli-kit";
 import {
   ADAPTER_CONTENT,
   ADAPTER_PROJECT_PATH,
@@ -73,7 +72,7 @@ export async function runApits(options: ApitsOptions): Promise<void> {
 
   // The generated adapter imports the fewbie api client.
   if (!(await exists(path.join(projectRoot, API_CLIENT_PROJECT_PATH)))) {
-    throw new CliError(`'fewbie apits' requires the api-client item. Run 'fewbie add api-client' first.`);
+    throw new CliError(`'fewbie apits' requires the api-client item. Run 'fewbie modules add api-client' first.`);
   }
 
   // First run: scaffold apits.config.ts from the positional input. The
@@ -117,7 +116,7 @@ export async function runApits(options: ApitsOptions): Promise<void> {
       throw new CliError(`Generator not installed. Run: npm install -D ${GENERATOR_PACKAGE_SPEC}`);
     }
     console.info(`\nInstalling dev dependency: ${GENERATOR_PACKAGE_SPEC}`);
-    await execInteractive("npm", ["install", "-D", GENERATOR_PACKAGE_SPEC], projectRoot);
+    await execLive("npm", ["install", "-D", GENERATOR_PACKAGE_SPEC], { cwd: projectRoot });
   }
 
   const binPath = path.join(projectRoot, GENERATOR_BIN_RELATIVE);

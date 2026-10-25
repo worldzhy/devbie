@@ -4,7 +4,7 @@ import type { NestAppLike } from "./types";
  * Scan the NestJS DI container for providers whose registration name matches
  * any of the given constructor names.
  *
- * Foundation services (PrismaService, ClickhouseService, ...) are registered
+ * Foundation services (PrismaService, ClickHouseService, ...) are registered
  * with their class as the DI token. We cannot import these classes from an
  * npm package — they live in the host's assembled source tree — so instead
  * we iterate the internal container's provider map and match by the

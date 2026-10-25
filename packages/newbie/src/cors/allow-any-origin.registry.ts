@@ -5,8 +5,9 @@ import type { NextFunction, Request, Response } from "express";
 import { ALLOW_ANY_ORIGIN_KEY } from "./allow-any-origin.decorator";
 
 /**
- * Headers a browser may send to an any-origin report endpoint
- * (Bearer standard + legacy private headers during the SDK migration window).
+ * Token headers carried by the any-origin report endpoints: the built-in
+ * SDKs (heartbeat, health, backend-monitor) and the module-hub reporter each
+ * authenticate with one of these headers. All are live contracts.
  */
 const ALLOW_HEADERS = [
   "Content-Type",

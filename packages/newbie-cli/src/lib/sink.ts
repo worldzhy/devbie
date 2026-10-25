@@ -1,16 +1,29 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { execLive } from "./exec";
+import { execLive } from "@devbie/cli-kit";
+
+/** One planned change recorded by the sink in check mode. */
+export interface SinkFinding {
+  /** Project-relative path (or command label for `action` findings). */
+  path: string;
+  kind: "missing" | "differs" | "action";
+  /** Human-readable description of an `action` finding. */
+  detail?: string;
+}
 
 /**
  * Single write/exec boundary for every assemble step.
  * In dry-run mode no file is touched and no mutating command is executed;
- * the planned action is printed instead. Read operations bypass the sink.
+ * the planned action is printed instead. In check mode nothing is written and
+ * every planned change is recorded in `findings` for a CI gate to inspect.
+ * Read operations bypass the sink.
  */
 export interface Sink {
   readonly cwd: string;
   readonly dryRun: boolean;
+  readonly check: boolean;
+  readonly findings: SinkFinding[];
   writeText(file: string, content: string): Promise<void>;
   writeJson(file: string, value: unknown): Promise<void>;
   remove(fileOrDir: string): Promise<void>;
@@ -18,18 +31,43 @@ export interface Sink {
   run(command: string, args: string[], label?: string): Promise<void>;
 }
 
-export function createSink(cwd: string, dryRun: boolean): Sink {
+/** Read a project-relative file; null when absent or unreadable. */
+async function readOrNull(absolutePath: string): Promise<string | null> {
+  try {
+    return await fs.readFile(absolutePath, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+export function createSink(cwd: string, dryRun: boolean, options: { check?: boolean } = {}): Sink {
   const resolve = (file: string) => path.resolve(cwd, file);
+  const check = Boolean(options.check);
+  const findings: SinkFinding[] = [];
 
   const plan = (message: string): void => {
     console.info(`[dry-run] ${message}`);
   };
 
+  const recordAction = (target: string, detail: string): void => {
+    findings.push({ path: target, kind: "action", detail });
+  };
+
   return {
     cwd,
-    dryRun,
+    // Check mode never writes, so it also runs under dry-run reporting rules.
+    dryRun: dryRun || check,
+    check,
+    findings,
 
     async writeText(file: string, content: string): Promise<void> {
+      if (check) {
+        const current = await readOrNull(resolve(file));
+        if (current !== content) {
+          findings.push({ path: file, kind: current === null ? "missing" : "differs" });
+        }
+        return;
+      }
       if (dryRun) {
         plan(`write ${file} (${content.length} bytes)`);
         return;
@@ -44,6 +82,15 @@ export function createSink(cwd: string, dryRun: boolean): Sink {
     },
 
     async remove(fileOrDir: string): Promise<void> {
+      if (check) {
+        try {
+          await fs.stat(resolve(fileOrDir));
+          recordAction(fileOrDir, `remove ${fileOrDir}`);
+        } catch {
+          // Already absent: nothing to check.
+        }
+        return;
+      }
       if (dryRun) {
         plan(`remove ${fileOrDir}`);
         return;
@@ -52,6 +99,10 @@ export function createSink(cwd: string, dryRun: boolean): Sink {
     },
 
     async copy(fromAbsolute: string, toRelative: string): Promise<void> {
+      if (check) {
+        recordAction(toRelative, `copy ${path.basename(fromAbsolute)} -> ${toRelative}`);
+        return;
+      }
       if (dryRun) {
         plan(`copy ${path.basename(fromAbsolute)} -> ${toRelative}`);
         return;
@@ -62,7 +113,11 @@ export function createSink(cwd: string, dryRun: boolean): Sink {
       await fs.cp(fromAbsolute, target, { recursive: true });
     },
 
-    async run(command: string, args: string[], _label?: string): Promise<void> {
+    async run(command: string, args: string[], label?: string): Promise<void> {
+      if (check) {
+        recordAction(label ?? `${command} ${args.join(" ")}`.trim(), label ?? `${command} ${args.join(" ")}`.trim());
+        return;
+      }
       if (dryRun) {
         plan(`${command} ${args.join(" ")}`.trim());
         return;

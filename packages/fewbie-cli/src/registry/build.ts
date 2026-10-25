@@ -9,7 +9,7 @@ const SHADCN_ITEM_SCHEMA = "https://ui.shadcn.com/r/registry-item.json";
  * Build the shadcn-compatible registry: each authored registry/<name>/item.json
  * plus its file contents is emitted as a self-contained
  * <outputRoot>/<name>/item.json (files carry inlined content), so both
- * `fewbie add` and `npx shadcn add <url>` install the exact same source.
+ * `fewbie modules add` and `npx shadcn add <url>` install the exact same source.
  */
 export async function buildRegistry(sourceRoot: string, outputRoot: string): Promise<string[]> {
   const entries = await fs.readdir(sourceRoot, { withFileTypes: true });

@@ -1,0 +1,40 @@
+{
+  "name": "@devbie/worklog",
+  "version": "1.4.0",
+  "description": "Member-side worklog agent for people-evaluation: sends your declared workspaces, agent sessions and documents — only the paths you declare are ever read",
+  "license": "MIT",
+  "author": "worldzhy",
+  "bin": {
+    "worklog": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "rimraf": "^6.1.3",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

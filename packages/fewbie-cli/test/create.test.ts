@@ -58,6 +58,10 @@ describe("runCreate", () => {
     const target = path.join(parent, "my-app");
     const pkg = JSON.parse(await fs.readFile(path.join(target, "package.json"), "utf8")) as { name?: string };
     assert.equal(pkg.name, "my-app");
+    const declaration = JSON.parse(await fs.readFile(path.join(target, "fewbie.json"), "utf8")) as {
+      modules?: string[];
+    };
+    assert.deepEqual(declaration.modules, []);
     await assert.doesNotReject(() => fs.access(path.join(target, "src", "app", "page.tsx")));
     await assert.doesNotReject(() => fs.access(path.join(target, ".env.example")));
     await assert.rejects(() => fs.access(path.join(target, "node_modules")));

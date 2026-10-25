@@ -1,6 +1,9 @@
 # newbie 框架包拆分与中心化管理方案
 
 > 状态：设计决议（2026-09-23），fewbie 章节于 2026-09-24 修订
+>
+> **历史快照说明（2026-10-24）**：本文记录拆分方案定稿时的命令面（`newbie install` / `apply` / `update --keys` / `newbie agent` / `update-template` 等）。命令面已于 2026-10-24 由 [ADR-024](../decisions/ADR-024-cli-surface-contract.md) 统一（`apply`、`config`、`assemble`、`agent`、`dev lint` 删除），同日经 [ADR-029](../decisions/ADR-029-cli-surface-corrections.md) 修正为：根命令 `create` / `doctor` / `status` + `modules` 命名空间（`add` / `apply` / `remove` / `update` / `watch` / `lint`）+ `template update`。本文正文保留定稿时点原貌，不据此执行命令；当前契约以 ADR-024/025/029 与各包 README 为准。
+>
 > 关联文档：
 >
 > - 前端 fewbie 设计（以此为准，本文第六章仅存摘要）：`/Users/worldzhy/src/devbie/.trae/documents/design/fewbie-framework-design.md`

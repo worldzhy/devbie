@@ -1,6 +1,6 @@
 {
   "name": "@devbie/fewbie-cli",
-  "version": "1.1.1",
+  "version": "1.4.0",
   "description": "fewbie frontend framework CLI",
   "license": "MIT",
   "author": "worldzhy",
@@ -23,9 +23,12 @@
     "clean": "rimraf dist",
     "test": "node --import tsx --test test/*.test.ts",
     "check:template-drift": "node --import tsx scripts/check-template-drift.ts",
+    "check:template-deps": "node --import tsx scripts/check-template-deps.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
+    "@devbie/cli-kit": "^1.0.0",
+    "@inquirer/prompts": "^7.5.0",
     "colorette": "^2.0.20",
     "commander": "^12.1.0"
   },

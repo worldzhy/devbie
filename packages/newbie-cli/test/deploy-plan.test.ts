@@ -6,7 +6,7 @@ import { afterEach, describe, it } from "node:test";
 
 import { applyDeployRenders, planDeployRenders } from "../src/assemble/deploy";
 import { buildComposeModulesYaml } from "../src/core/deploy-compose";
-import { CliError } from "../src/lib/errors";
+import { CliError } from "@devbie/cli-kit";
 import { IssueBag } from "../src/lib/issues";
 import { createSink, Sink } from "../src/lib/sink";
 

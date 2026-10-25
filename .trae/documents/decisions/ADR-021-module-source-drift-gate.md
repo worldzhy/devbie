@@ -1,8 +1,9 @@
 # ADR-021: assemble --check gates module source drift against the registry checkout
 
 Date: 2026-10-23
-状态：已采纳
+状态：已采纳（门禁放置章节由 ADR-024 取代）
 Supersedes: none
+Superseded by: ADR-024 —— 本 ADR 把「已装配副本 ↔ registry checkout」漂移断言放进 `assemble --check` 并否决拆成两条 CI 命令；ADR-024 的 F7 按「门随副本对放置」把它拆到 `modules install --check` 与 `modules update --check`。ADR-019 的 diff-empty back-port 契约本体不变。
 
 ## Context
 

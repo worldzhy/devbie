@@ -7,7 +7,7 @@
 
 ## Module coupling
 
-- [ ] New or changed module dependencies are declared explicitly in `newbie.module.json` (`moduleDependencies`) and `newbie dev lint` passes.
+- [ ] New or changed module dependencies are declared explicitly in `newbie.module.json` (`moduleDependencies`) and `newbie modules lint` passes.
 
 ## Security review
 

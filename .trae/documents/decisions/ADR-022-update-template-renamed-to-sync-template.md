@@ -1,7 +1,8 @@
 # ADR-022: update-template 命令改名为 sync-template
 
-状态：已采纳
+状态：被 ADR-029 取代
 日期：2026-10-23
+Superseded by: ADR-029 —— `sync` 词根的前提（平铺命令面下避免与模块 `update` 混淆）随 ADR-024 命名空间化失效，命令名与词根一并改为 `template update`（ADR-029 修正 3）。
 
 ## 背景
 

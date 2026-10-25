@@ -5,10 +5,12 @@
 [![node](https://img.shields.io/node/v/@devbie/newbie-cli?style=flat-square)](https://www.npmjs.com/package/@devbie/newbie-cli)
 
 Command-line tool for the [Newbie](https://www.npmjs.com/package/@devbie/newbie)
-backend framework. Scaffold new projects, install modules from the
+backend framework. Scaffold new projects, manage the enabled module set from the
 newbie-modules registry, reconcile module copies and project wiring, and load
 module-bundled command namespaces (e.g. `newbie secrets`) declared by the
 installed modules.
+
+The command surface is a written contract; see ADR-024/ADR-029.
 
 ## Requirements
 
@@ -42,18 +44,25 @@ npx @devbie/newbie-cli create my-app
 cd my-app
 npm install
 
-# Enable/disable modules through an interactive flow (default command)
-npx newbie
+# Enable/disable modules through the interactive picker
+npx newbie modules
 
-# Reconcile project files with the enabled module list
-npx newbie install
+# Reconcile project files with the enabled module list (non-interactive)
+npx newbie modules apply -y
 ```
 
 ## Commands
 
-### Project creation
+Conventions (ADR-024): commands that write do so by default; `--dry-run` only
+prints; `--check` is the CI gate and never writes. Selectors are positional
+arguments, not flags.
 
-#### `newbie create <name>`
+### Project lifecycle
+
+The current project is the CLI's implicit default resource, so these verbs sit
+at the program root.
+
+#### `newbie create <project-name>`
 
 Scaffold a new project from the basic newbie template.
 
@@ -63,114 +72,74 @@ Scaffold a new project from the basic newbie template.
 | `--template-ref <ref>`  | Git ref of the newbie repository to clone the template from.      |
 | `--no-git-init`         | Skip `git init` in the new project.                               |
 
-### Module management
-
-#### `newbie` (default, interactive)
-
-Interactive module enable/disable flow. Running `newbie` with no command opens
-the interactive selector.
-
-#### `newbie install`
-
-Reconcile the project with `modules.json`: copy missing modules, remove extra
-ones, and regenerate wiring (Prisma schema, dependencies, environment
-requirements).
-
-| Option      | Description                |
-| ----------- | -------------------------- |
-| `-y, --yes` | Skip confirmation prompts. |
-
-#### `newbie assemble`
-
-Regenerate the module-derived deploy assets from the installed module set:
-`deploy/compose.modules.yml` (datastore services rendered from the CLI
-datastore registry, ADR-008) and the `@@newbie-modules` route block of
-`deploy/Caddyfile.tmpl` (one `handle /<key>/*` block per module declaring
-`publicNamespace`). The same renders run as a step of install/apply/update.
-
-| Option    | Description                                                                                                                                                                         |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--check` | CI gate: print the diff and exit non-zero when the generated assets drift, or when an installed module differs from the registry checkout it must stay byte-identical to (ADR-021). |
-
-#### `newbie config`
-
-View or edit the enabled-module list in `modules.json` without touching project
-files.
-
-| Option                  | Description                                  |
-| ----------------------- | -------------------------------------------- |
-| `--add <modules...>`    | Enable module(s), space or comma separated.  |
-| `--remove <modules...>` | Disable module(s), space or comma separated. |
-| `--list`                | Print the current configuration.             |
-
-#### `newbie update`
-
-Update enabled module copies to the registry HEAD commit. Local drift blocks the
-update unless `--force` is used.
-
-| Option                   | Description                                              |
-| ------------------------ | -------------------------------------------------------- |
-| `--all`                  | Select every module with an available update.            |
-| `-y, --yes`              | Skip confirmation prompts.                               |
-| `--force`                | Overwrite locally drifted module copies.                 |
-| `--keys <moduleKeys...>` | Non-interactive module selector (comma/space separated). |
-
-#### `newbie apply`
-
-Non-interactively sync the module set declared in a JSON spec.
-
-```json
-{ "modules": ["module-a", "module-b"] }
-```
-
-| Option            | Description                                         |
-| ----------------- | --------------------------------------------------- |
-| `--config <file>` | Path to the declarative apply spec JSON (required). |
-| `--ci`            | CI mode marker (apply is always non-interactive).   |
-
-### Diagnostics
-
 #### `newbie doctor`
 
 Audit the installation: registry pins, copied modules, drift, environment
 variables and Prisma wiring.
 
+| Option   | Description             |
+| -------- | ----------------------- |
+| `--json` | Print findings as JSON. |
+
 #### `newbie status`
 
-Print machine-readable project state as JSON.
+Print machine-readable project state as JSON (always JSON).
 
 | Option    | Description                                           |
 | --------- | ----------------------------------------------------- |
 | `--drift` | Include content drift against pinned pristine copies. |
 
-### Template sync and automation
+### `newbie modules`
 
-#### `newbie sync-template`
+The module resource namespace. A bare invocation opens the interactive
+enable/disable picker on a TTY; on a non-TTY it degrades to a read-only
+inventory and never writes.
 
-Diff framework-owned template files against the template, driven by the
-ADR-009 ownership registry: whole-file sync for `main.ts`, `tsconfig*`,
-`nest-cli.json`, `prisma.config.ts` and the static `deploy/` stack; block sync
-for the `@@newbie-framework` blocks of `.env.example`, `.gitignore` and
-`prisma/schema.prisma`. Generated (`newbie assemble` products) and
-template-shipped host-owned files are skipped.
+| Option   | Description                         |
+| -------- | ----------------------------------- |
+| `--json` | Print the module inventory as JSON. |
 
-| Option                  | Description                                                       |
-| ----------------------- | ----------------------------------------------------------------- |
-| `--template-path <dir>` | Use a local template directory instead of cloning the repository. |
-| `--template-ref <ref>`  | Git ref (e.g. a template tag) to sync from.                       |
-| `--write`               | Apply the template version of differing template files.           |
-| `--check`               | CI gate: print the diff and exit non-zero when files drift.       |
+#### `newbie modules add <keys...>`
 
-#### `newbie agent`
+Declare modules in `modules.json` (npm-style add) and install them: fetch the
+registry, reject unknown or deprecated keys, then land the copies and wiring.
 
-Run the module-hub agent: poll the hub with `newbie status`, execute dispatched
-changes (`apply`/`update`) and report receipts.
+| Option      | Description                |
+| ----------- | -------------------------- |
+| `-y, --yes` | Skip confirmation prompts. |
 
-| Option   | Description                                                                         |
-| -------- | ----------------------------------------------------------------------------------- |
-| `--once` | Single pass: drain pending changes, deliver receipts, then exit (CI/cron friendly). |
+#### `newbie modules apply`
 
-#### `newbie watch [keys...]`
+Reconcile the project with `modules.json`: copy missing modules, remove extra
+ones, regenerate wiring.
+
+| Option      | Description                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| `--check`   | CI gate: verify module copies, `modules.json` and generated wiring without writing anything. |
+| `-y, --yes` | Skip confirmation prompts.                                                                   |
+
+#### `newbie modules remove <keys...>`
+
+Remove modules from the enabled set. A module still required by an enabled
+module is rejected rather than silently re-added by the dependency closure.
+
+| Option      | Description                |
+| ----------- | -------------------------- |
+| `-y, --yes` | Skip confirmation prompts. |
+
+#### `newbie modules update [keys...]`
+
+Update enabled module copies to the registry HEAD commit. Local drift blocks the
+update unless `--force` is used. With no keys (or a non-TTY), every module with
+an available update is selected.
+
+| Option      | Description                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| `--check`   | CI gate: verify installed copies against the registry checkout (offline, no fetch); writes nothing. |
+| `-y, --yes` | Skip confirmation prompts.                                                                          |
+| `--force`   | Overwrite locally drifted module copies.                                                            |
+
+#### `newbie modules watch [keys...]`
 
 Watch the local newbie-modules registry and sync installed module sources into
 the project on change. Useful for framework/module development.
@@ -179,18 +148,33 @@ the project on change. Useful for framework/module development.
 | ------- | ----------------------------------------------------------- |
 | `--all` | Watch every registry module instead of only installed ones. |
 
-### Registry development
-
-These commands run against the newbie-modules registry itself (inside the
-registry checkout, not a consuming project).
-
-#### `newbie dev lint`
+#### `newbie modules lint`
 
 Enforce the module layering rules (`feature` -> `capability` -> `infrastructure`
 -> `datastore`) across registry sources: upward dependencies and same-layer
 import cycles are errors; same-layer dependencies are warnings for review. A
 `datastore` module must additionally be listed in the CLI datastore registry
 (see ADR-008 D3).
+
+Only valid inside a newbie-modules registry checkout (cwd must contain
+`packages/modules/`); the command does not fall back to a cached registry.
+
+### `newbie template`
+
+#### `newbie template update [paths...]`
+
+Update framework-owned template files from the template, driven by the ADR-009
+ownership registry: whole-file update for `main.ts`, `tsconfig*`, `nest-cli.json`,
+`prisma.config.ts` and the static `deploy/` stack; block update for the
+`@@newbie-framework` blocks of `.env.example`, `.gitignore` and
+`prisma/schema.prisma`. Generated and template-shipped host-owned files are
+skipped. Path prefixes (e.g. `deploy/`) restrict the scope.
+
+| Option                  | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `--template-path <dir>` | Use a local template directory instead of cloning the repository. |
+| `--template-ref <ref>`  | Git ref (e.g. a template tag) to update from.                     |
+| `--check`               | CI gate: print the diff and exit non-zero when files drift.       |
 
 ### Module-provided commands
 
@@ -234,7 +218,7 @@ Every registry module carries a `newbie.module.json` at its root:
 | `moduleDependencies` | string[] | Registry module keys imported via `@modules/<key>`; installs expand to the transitive closure.                  |
 | `cli`                | string   | Command namespace this module exposes (see "Module-provided commands").                                         |
 | `sdk`                | string   | Package name of the companion SDK shipped alongside the module (pairing record for tooling).                    |
-| `publicNamespace`    | boolean  | Claim the public URL namespace `/<key>/*`; assemble renders a Caddy handle block (ADR-008).                     |
+| `publicNamespace`    | boolean  | Claim the public URL namespace `/<key>/*`; install renders a Caddy handle block (ADR-008).                      |
 
 ## Global options
 

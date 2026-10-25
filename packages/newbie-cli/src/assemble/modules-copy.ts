@@ -1,9 +1,9 @@
 import path from "node:path";
 
-import { MODULES_DIR } from "../constants/paths";
+import { MODULES_DIR } from "@devbie/modules-state";
+
 import { moduleRootInRegistry, RegistryLocation } from "../lib/registry";
-import { CliError } from "../lib/errors";
-import { pathExists } from "../lib/fs-util";
+import { CliError, pathExists } from "@devbie/cli-kit";
 import { Sink } from "../lib/sink";
 
 /**
@@ -57,7 +57,7 @@ export async function addModules(params: {
     const detail = missing.map(({ key, source }) => `  - ${key} (${source})`).join("\n");
     throw new CliError(
       `Registry checkout ${registry.sourceCommit ?? "unknown"} is missing module source(s):\n${detail}\n` +
-        `Point NEWBIE_MODULES_REF at a ref that carries them, then run 'newbie install'.`,
+        `Point NEWBIE_MODULES_REF at a ref that carries them, then run 'newbie modules apply'.`,
     );
   }
 

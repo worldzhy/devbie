@@ -43,6 +43,8 @@ export interface ContextOptions {
   ensureConfig?: boolean;
   /** Update (or clone) the remote registry cache; otherwise use it as-is. */
   fetch?: boolean;
+  /** Check mode: record planned writes instead of performing them (CI gate). */
+  check?: boolean;
 }
 
 /**
@@ -58,7 +60,7 @@ export async function createContext(
   registry: RegistryLocation;
 }> {
   const cwd = path.resolve(options.cwd);
-  const sink = createSink(cwd, options.dryRun);
+  const sink = createSink(cwd, options.dryRun, { check: opts.check });
   const issues = new IssueBag();
 
   if (opts.ensureConfig) {

@@ -4,7 +4,7 @@
 >
 > **v3 修订说明**：v2 为「token-only installation + agent 轮询 + 变更单执行通道」（4 表，含 change-request 状态机与 manage 向执行能力）。2026-09-28 评审后改为 **v1 观察者模式**：
 >
-> 1. **移除变更执行通道**：hub 不下发/编排变更，不引入 manage token。部署端点的模块升级由开发者/CI 跑 `newbie update` 后经自有部署流程完成，hub 从**部署后的状态上报**获知实际收敛结果——上报快照即回执，无需独立的命令-回执机制。
+> 1. **移除变更执行通道**：hub 不下发/编排变更，不引入 manage token。部署端点的模块升级由开发者/CI 跑 `newbie modules update` 后经自有部署流程完成，hub 从**部署后的状态上报**获知实际收敛结果——上报快照即回执，无需独立的命令-回执机制。
 > 2. **installation 与运行时部署端点合一**：注册触发点从「CLI 首 poll」提前到「进程启动自注册」（框架启动钩子），installation 即「一个运行中的部署端点」（newbie 后端 / fewbie SSR 服务），层级为 `Project → Application → Installation`。
 > 3. **单一 report token**：v1 只有一种凭证，权力仅限「报事实」（注册/心跳/快照），泄露破坏面 = 单实例数据污染，可单点吊销。系统内不存在高权限凭证。
 > 4. **该身份模型是 backend-monitor / heartbeat 的迁移方向**：二者后续脱离 `application.Agent`，收敛到同一 installation 身份（见第 9 章）；web-monitor 按兵不动观察。
@@ -27,7 +27,7 @@
 module-hub 是部署在宿主实例（nightwatch 即首个宿主）内部的 module 观察面，登记「安装实例」上的后端 module（`src/modules/` 下内容）实际装配状态。当前状态：
 
 - **registry 已就绪**：`newbie-modules` monorepo 含 48 个 module；复制模型，项目根 `modules.json` 登记 registry sourceCommit 与各 module 快照（`{key, version, sourceCommit, localPatches[]}`）。
-- **CLI 已具备执行面**：`newbie apply --ci`、`newbie update`（漂移阻断/--force）、`newbie status --json`（机器可读项目状态，源码注释明确「for module-hub/agent consumers」）、`newbie doctor`。执行面由人/CI 直接使用，不经 hub。
+- **CLI 已具备执行面**：`newbie modules apply`（含 `--check` 门禁）、`newbie modules update`（漂移阻断/--force）、`newbie status --json`（机器可读项目状态）、`newbie doctor`。执行面由人/CI 直接使用，不经 hub。
 - **观察面完全缺失**：没有任何服务端接收安装清单、登记 registry 发布、展示跨实例的模块版本分布与漂移。
 
 **目标：**
@@ -35,7 +35,7 @@ module-hub 是部署在宿主实例（nightwatch 即首个宿主）内部的 mod
 1. 落地 3 张 hub 表（PG schema `module/module-hub`）：installation、module-release、audit-log。
 2. 提供三组 API：宿主集成 API（installation/目录/targetSpec 管理，鉴权归宿主）、实例上报 API（hub 自有 report token 鉴权）、GitHub registry webhook。
 3. 定义实例上报协议：进程启动自注册 + 周期状态上报（快照即回执）。
-4. 作为普通 module 收录进 `newbie-modules` registry（`packages/modules/module-hub/`），经 `newbie add module-hub` 复制装配。
+4. 作为普通 module 收录进 `newbie-modules` registry（`packages/modules/module-hub/`），经 `newbie modules add module-hub` 复制装配。
 
 **非目标（v1 明确不做）：**
 
@@ -72,7 +72,7 @@ hub 作为 module 装配进宿主 Nest 进程，**无多租户**：
 | 职责                                                    | 归属                                     |
 | ------------------------------------------------------- | ---------------------------------------- |
 | 实例登记、模块清单快照、发布目录、漂移/升级可见性、审计 | **module-hub**                           |
-| 模块变更执行（`newbie apply/update`，改文件、装依赖）   | **人/CI 直接使用 newbie CLI**，不经 hub  |
+| 模块变更执行（`newbie modules add/update`，改文件、装依赖）       | **人/CI 直接使用 newbie CLI**，不经 hub  |
 | 面板 UI、project/application 层级、用户权限             | 宿主（nightwatch-frontend，C2）          |
 | 升级/异常的用户通知（邮件/短信/IM）                     | 宿主读 hub 查询 API 后自行发送；hub 不发 |
 | 应用监控数据展示（请求/错误日志查询）                   | backend-monitor，与 hub 无关             |
@@ -315,7 +315,7 @@ export class HubReportResponseDto {
 ### 5.2 升级闭环（观察模式）
 
 ```
-开发者/CI：newbie update（漂移闸门由 CLI doctor/status 保证）
+开发者/CI：newbie modules update（漂移闸门由 CLI doctor/status + modules update --check 保证）
   → 部署 → 进程重启
   → 启动钩子 kind="full" 上报新快照
   → hub 读时对比 targetSpec / 最新 release：展示「目标 vs 实际」收敛
@@ -352,7 +352,7 @@ packages/modules/module-hub/
 ```
 
 - manifest 约定（与既有 schema module 一致）：`{"key":"module-hub","module":{"file":"module-hub.module","className":"ModuleHubModule"},"schema":"prisma/schema.prisma", ...dependencies}`。
-- `newbie add module-hub`（= `newbie config --add module-hub` + `newbie install -y`）后：fragment 复制到宿主 `prisma/models/module-hub.prisma`、datasource 追加 `"module/module-hub"`、重新生成 modules 接线与 Prisma client。
+- `newbie modules add module-hub`（npm 式：声明 + 落地，并安装依赖闭包）后：fragment 复制到宿主 `prisma/models/module-hub.prisma`、datasource 追加 `"module/module-hub"`、重新生成 modules 接线与 Prisma client。
 - **migration 由宿主执行**：CLI 不跑 migrate；nightwatch 装配后自行在 node 容器内 `npx prisma migrate dev --name add_module_hub`。
 - 宿主 Guard 接线：report 与 webhook 两个公开端点需在宿主安全配置中放行（沿用 `@NoGuard()`/openApiRoutes 既有机制，实施时按宿主现状选择）。
 - hub 不 import 宿主业务模块（与 application schema 零耦合，天然可插拔）。
@@ -378,7 +378,7 @@ node 容器内执行（`/home/worldzhy/src/nightwatch-backend-next`）：
 3. 消费项目配置 `MODULE_HUB_ENDPOINT/MODULE_HUB_TOKEN` 启动进程（或 curl 模拟 `kind="full"`）→ `firstSeenAt/lastSeenAt/快照` 落库；宿主列表 `online=true`；停发后 180s 读时派生为离线。
 4. 同一 token 重启进程再 full → 复用原行、事实刷新、不新增行（幂等）。
 5. registry 推新 commit（webhook 或兜底任务）→ `hub-module-release` 新行；catalog 与 installation 快照体现可升级。
-6. 设置 targetSpec → 实例执行 `newbie update` 并重启上报 → 模块清单对比展示收敛（目标 = 实际）。
+6. 设置 targetSpec → 实例执行 `newbie modules update` 并重启上报 → 模块清单对比展示收敛（目标 = 实际）。
 7. 吊销 token → report 401；行与审计历史保留。
 8. 审计链：enroll / target-spec / revoke / release.ingest 均有审计行；常规 full/ping 不产生审计行。
 

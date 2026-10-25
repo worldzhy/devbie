@@ -1,6 +1,6 @@
 import { red } from "colorette";
 
-import { CliError, isUserCancellation } from "./errors";
+import { CliError, isUserCancellation } from "@devbie/cli-kit";
 
 /**
  * Wrap a CLI action with the standard error-handling protocol: user

@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "tsBuildInfoFile": "./dist/.tsbuildinfo",
+    "resolveJsonModule": true,
     "types": ["node"]
   },
   "include": ["src/**/*.ts"]
