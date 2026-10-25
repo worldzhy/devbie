@@ -1,20 +1,13 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "baseUrl": "./",
-    "rootDir": "./src",
-    "strict": false,
-    "target": "ES2020",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "declaration": true,
-    "removeComments": false,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "newLine": "LF",
-    "preserveSymlinks": true,
-    "skipLibCheck": true,
-    "lib": ["ESNext", "DOM"]
+    "rootDir": "src",
+    "outDir": "dist",
+    "module": "node16",
+    "moduleResolution": "node16",
+    "incremental": false,
+    "tsBuildInfoFile": "dist/.tsbuildinfo"
   },
-  "include": ["src", "types"],
-  "exclude": ["src/api", "dist", "node_modules"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }
