@@ -3,6 +3,11 @@
   "version": "1.10.0",
   "description": "newbie backend framework runtime",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/newbie"
+  },
   "author": "worldzhy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

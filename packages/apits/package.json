@@ -17,14 +17,13 @@
     }
   },
   "bin": {
-    "apits": "bin/apits"
+    "apits": "dist/cli.js"
   },
   "files": [
-    "bin",
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
     "clean": "rimraf dist",
     "test": "node --import tsx --test test/*.test.ts",
     "prepublishOnly": "npm run build"
@@ -60,7 +59,6 @@
     "node": ">=20"
   },
   "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "access": "public"
   }
 }

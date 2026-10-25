@@ -3,6 +3,11 @@
   "version": "1.4.1",
   "description": "Single source of truth for devbie ecosystem code style: shared prettier config and composable eslint flat layers (base, nest, next)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/style-guide"
+  },
   "author": "worldzhy",
   "type": "module",
   "exports": {
@@ -25,6 +30,12 @@
     "prettier.js",
     "eslint"
   ],
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "publishConfig": {
     "access": "public"
   },

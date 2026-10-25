@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { register } from "tsx/cjs/api";
 import fs from "fs-extra";
 import path from "path";
@@ -483,4 +484,9 @@ export default class CLI {
         .help()
     );
   }
+}
+
+// Self-execute when invoked as the `apits` bin (bin points at dist/cli.js directly).
+if (require.main === module) {
+  new CLI().run(process.argv.slice(2));
 }

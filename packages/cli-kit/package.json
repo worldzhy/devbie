@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "Shared CLI primitives (user-facing errors, process execution, filesystem helpers) for @devbie command-line tools",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/cli-kit"
+  },
   "author": "worldzhy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

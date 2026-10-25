@@ -3,6 +3,11 @@
   "version": "1.2.0",
   "description": "Framework-agnostic dependency health reporter for newbie-hosted NestJS applications",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/health-sdk"
+  },
   "author": "worldzhy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
