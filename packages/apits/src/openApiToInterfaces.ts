@@ -1,7 +1,7 @@
 import { OpenAPIV3 } from "openapi-types";
-import { Interface, RequestBodyType, RequestFormItemType, Required, ResponseBodyType } from "../types";
-import { each, find } from "./vtilsLite";
-import * as conso from "./console";
+import { ApiInterface, RequestBodyType, RequestFormItemType, Required, ResponseBodyType } from "./types";
+import { each } from "./utils/collections";
+import * as logger from "./utils/logger";
 
 function handlePath(p: string) {
   if (p === "/") return p;
@@ -31,20 +31,18 @@ function isRef(obj: any): obj is OpenAPIV3.ReferenceObject {
  * Process the OAS3 request body directly — no intermediate Swagger 2.0
  * `parameters[]` with `in:'body'`/`in:'formData'`.
  *
- * - `application/json` → `req_body_other` (JSON-stringified schema) + `req_body_type='json'`
+ * - `application/json` → `requestBodySchema` (JSON-stringified schema) + `requestBodyType='json'`
  * - `multipart/form-data` / `application/x-www-form-urlencoded` → expand schema
- *   properties into `req_body_form` + `req_body_type='form'`
- * - `additionalProperties` on a form schema → `req_body_additional`
+ *   properties into `requestBodyForm` + `requestBodyType='form'`
  */
-function handleRequestBody(requestBody: OpenAPIV3.RequestBodyObject | undefined, api: Interface): void {
+function handleRequestBody(requestBody: OpenAPIV3.RequestBodyObject | undefined, api: ApiInterface): void {
   if (!requestBody || typeof requestBody !== "object") return;
   const content = requestBody.content || {};
   const jsonContent = content["application/json"];
 
   if (jsonContent && jsonContent.schema) {
-    api.req_body_other = JSON.stringify(jsonContent.schema, null, 2);
-    api.req_body_type = RequestBodyType.json;
-    api.req_body_is_json_schema = true;
+    api.requestBodySchema = JSON.stringify(jsonContent.schema, null, 2);
+    api.requestBodyType = RequestBodyType.json;
     return;
   }
 
@@ -67,7 +65,7 @@ function handleRequestBody(requestBody: OpenAPIV3.RequestBodyObject | undefined,
       const arrayItems = Array.isArray(prop.items) ? prop.items[0] : prop.items;
       const isFileArray = prop.type === "array" && arrayItems && arrayItems.format === "binary";
       const isFile = prop.format === "binary" || isFileArray;
-      api.req_body_form.push({
+      api.requestBodyForm.push({
         name,
         type: isFile ? RequestFormItemType.file : RequestFormItemType.text,
         desc: prop.description || "",
@@ -77,14 +75,8 @@ function handleRequestBody(requestBody: OpenAPIV3.RequestBodyObject | undefined,
         ...(Array.isArray(prop.enum) && prop.enum.length ? { enum: prop.enum } : {}),
       });
     }
-    // Dynamic upload fields declared via `additionalProperties` (e.g.
-    // evidence_0, evidence_1, ...). Their names are derived at runtime so
-    // they cannot be expanded into named form params.
-    if (schema.additionalProperties && typeof schema.additionalProperties === "object") {
-      api.req_body_additional = schema.additionalProperties;
-    }
-    api.req_body_type = RequestBodyType.form;
-    api.req_body_multipart = !!multipartContent;
+    api.requestBodyType = RequestBodyType.form;
+    api.requestBodyMultipart = !!multipartContent;
   }
 }
 
@@ -126,44 +118,25 @@ function handleResponse(responses: OpenAPIV3.ResponsesObject | undefined): { bod
   return { body: "", hasSchema: false };
 }
 
-/** Convert a single OAS3 path-item operation into an `Interface`. */
+/** Convert a single OAS3 path-item operation into an `ApiInterface`. */
 function handleOpenApiOperation(
   operation: OpenAPIV3.OperationObject,
   path: string,
   method: string,
-  originTags: OpenAPIV3.TagObject[],
   root: OpenAPIV3.Document,
-): Interface {
-  const api: Interface = {
+): ApiInterface {
+  const api: ApiInterface = {
     title: operation.summary || path,
     path: handlePath(path),
-    method: method.toUpperCase() as Interface["method"],
-    req_params: [],
-    req_body_form: [],
-    req_query: [],
-    req_body_type: RequestBodyType.raw,
-    req_body_is_json_schema: false,
-    req_body_other: "",
-    res_body_type: ResponseBodyType.raw,
-    res_body_is_json_schema: false,
-    res_body: "",
+    method: method.toUpperCase() as ApiInterface["method"],
+    pathParams: [],
+    requestBodyForm: [],
+    queryParams: [],
+    requestBodyType: RequestBodyType.raw,
+    requestBodySchema: "",
+    responseBodyType: ResponseBodyType.raw,
+    responseBody: "",
   };
-
-  // Category from tags.
-  api.catname = null;
-  if (Array.isArray(operation.tags)) {
-    for (const tag of operation.tags) {
-      if (/v[0-9.]+/.test(tag)) continue;
-      if (originTags.length > 0 && find(originTags, (item) => item.name === tag)) {
-        api.catname = tag;
-        break;
-      }
-      if (originTags.length === 0) {
-        api.catname = tag;
-        break;
-      }
-    }
-  }
 
   // Process OAS3 path/query/header parameters (native — no Swagger 2.0
   // `in:'body'`/`in:'formData'` intermediates).
@@ -185,10 +158,10 @@ function handleOpenApiOperation(
 
       switch (p.in) {
         case "path":
-          api.req_params.push(paramObj);
+          api.pathParams.push(paramObj);
           break;
         case "query":
-          api.req_query.push(paramObj);
+          api.queryParams.push(paramObj);
           break;
         case "header":
           // Headers are not consumed downstream; skip silently.
@@ -205,19 +178,18 @@ function handleOpenApiOperation(
 
   // Process the OAS3 responses directly.
   const { body: resBody, hasSchema } = handleResponse(operation.responses);
-  api.res_body = resBody;
+  api.responseBody = resBody;
   if (hasSchema) {
-    api.res_body_type = ResponseBodyType.json;
-    api.res_body_is_json_schema = true;
+    api.responseBodyType = ResponseBodyType.json;
   } else if (resBody) {
-    api.res_body_type = ResponseBodyType.raw;
+    api.responseBodyType = ResponseBodyType.raw;
   }
 
   return api;
 }
 
 /**
- * Convert an OpenAPI 3.x document into the internal `Interface[]` format.
+ * Convert an OpenAPI 3.x document into the internal `ApiInterface[]` format.
  *
  * Reads OAS3 directly — no intermediate Swagger 2.0 `openapi3Format` step,
  * no YApi platform fields (`_id`/`project_id`/`catid`/`add_time`/`up_time`),
@@ -226,20 +198,19 @@ function handleOpenApiOperation(
  * @param data OpenAPI 3.x document (object or JSON string)
  */
 export async function openApiToInterfaces(data: OpenAPIV3.Document | string): Promise<{
-  interfaces: Interface[];
+  interfaces: ApiInterface[];
 }> {
   if (typeof data === "string" && data) {
     try {
       data = JSON.parse(data);
     } catch (e: any) {
-      conso.error(`Failed to parse JSON: ${e.message}`);
+      logger.error(`Failed to parse JSON: ${e.message}`);
     }
   }
 
   const doc = data as OpenAPIV3.Document;
-  const tags = Array.isArray(doc.tags) ? doc.tags : [];
 
-  const interfaces: Interface[] = [];
+  const interfaces: ApiInterface[] = [];
 
   each(doc.paths || {}, (pathItem: OpenAPIV3.PathItemObject, path: string) => {
     // `parameters` at the path-item level are common parameters, not an operation.
@@ -247,7 +218,7 @@ export async function openApiToInterfaces(data: OpenAPIV3.Document | string): Pr
     each(pathItem, (operation: OpenAPIV3.OperationObject, method: string) => {
       if (!operation || typeof operation !== "object") return;
       try {
-        const iface = handleOpenApiOperation(operation, path, method, tags, doc);
+        const iface = handleOpenApiOperation(operation, path, method, doc);
         interfaces.push(iface);
       } catch {
         // Skip malformed operations silently.

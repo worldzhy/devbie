@@ -1,4 +1,4 @@
 #!/usr/bin/env node
 
-const CLI = require("../dist/core/cli").default;
+const CLI = require("../dist/cli").default;
 new CLI().run(process.argv.slice(2));

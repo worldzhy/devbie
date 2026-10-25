@@ -1,8 +1,8 @@
 import fs from "fs-extra";
-import { Config } from "../types";
-import { dedent } from "../utils/vtilsLite";
-import { getOutputFilePath } from "../utils/getOutputPath";
-import { formatContent, topNotesContent } from "../utils/utils";
+import { Config } from "./types";
+import { dedent } from "./utils/dedent";
+import { getOutputFilePath } from "./utils/outputPath";
+import { formatContent, generatedFileBanner } from "./utils/format";
 
 export default async function writeRequestClient(config: Config) {
   const { client } = config;
@@ -13,7 +13,7 @@ export default async function writeRequestClient(config: Config) {
   }
 
   const content = `
-  ${topNotesContent()}
+  ${generatedFileBanner()}
 
   import axios, { AxiosRequestConfig } from 'axios';
 

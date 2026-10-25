@@ -4,10 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
-import { processJsonSchema, jsonSchemaToTsCode, getRequestDataJsonSchema } from "../src/utils/utils";
-import { openApiToInterfaces } from "../src/utils/openApiToInterfaces";
-import { Generator } from "../src/core/generator";
-import { defineConfig } from "../src/utils/helpers";
+import { processJsonSchema, jsonSchemaToTsCode, getRequestDataJsonSchema } from "../src/jsonSchemaToTsCode";
+import { openApiToInterfaces } from "../src/openApiToInterfaces";
+import { Generator } from "../src/generator";
+import { defineConfig } from "../src/helpers";
 import { RequestBodyType, Required } from "../src/types";
 
 // Shared by the G-4 multipart tests and the P-3/P-4 scaffold tests.
@@ -89,11 +89,10 @@ describe("G-1: nullable normalization", () => {
 
 describe("G-3: degenerate request body coercion", () => {
   const interfaceInfo = {
-    req_body_type: RequestBodyType.json,
-    req_body_other: JSON.stringify({ type: "string" }),
-    req_body_is_json_schema: true,
-    req_query: [],
-    req_params: [{ name: "id", type: "integer", required: Required.true, desc: "path id" }],
+    requestBodyType: RequestBodyType.json,
+    requestBodySchema: JSON.stringify({ type: "string" }),
+    queryParams: [],
+    pathParams: [{ name: "id", type: "integer", required: Required.true, desc: "path id" }],
   } as any;
 
   it("strips the bare primitive body so path params merge cleanly", () => {
@@ -125,11 +124,10 @@ describe("G-2: path params merged onto a $ref body", () => {
 
   it("compiles a degenerate-body schema without '& string'", async () => {
     const requestSchema = getRequestDataJsonSchema({
-      req_body_type: RequestBodyType.json,
-      req_body_other: JSON.stringify({ type: "string" }),
-      req_body_is_json_schema: true,
-      req_query: [],
-      req_params: [{ name: "id", type: "integer", required: Required.true, desc: "path id" }],
+      requestBodyType: RequestBodyType.json,
+      requestBodySchema: JSON.stringify({ type: "string" }),
+      queryParams: [],
+      pathParams: [{ name: "id", type: "integer", required: Required.true, desc: "path id" }],
     } as any);
     const degenerateCode = await jsonSchemaToTsCode(requestSchema, "PatchXxxRequest");
     assert.ok(!/&\s*string/.test(degenerateCode), `no '& string' in compiled type. Got: ${degenerateCode}`);
@@ -141,20 +139,20 @@ describe("G-4: multipart/form-data end-to-end", () => {
     const { interfaces } = await openApiToInterfaces(multipartSpec);
     const uploadIface = interfaces.find((i) => i.path === "/upload")!;
     assert.ok(uploadIface, "upload interface should exist");
-    assert.strictEqual(uploadIface.req_body_type, "form");
-    assert.strictEqual(uploadIface.req_body_multipart, true);
+    assert.strictEqual(uploadIface.requestBodyType, "form");
+    assert.strictEqual(uploadIface.requestBodyMultipart, true);
 
-    const fileField = uploadIface.req_body_form.find((f) => f.name === "file");
+    const fileField = uploadIface.requestBodyForm.find((f) => f.name === "file");
     assert.ok(fileField, "file field should exist");
     assert.strictEqual(fileField.type, "file");
     assert.strictEqual(fileField.isArray, undefined, "single file should not have isArray");
 
-    const filesField = uploadIface.req_body_form.find((f) => f.name === "files");
+    const filesField = uploadIface.requestBodyForm.find((f) => f.name === "files");
     assert.ok(filesField, "files field should exist");
     assert.strictEqual(filesField.type, "file");
     assert.strictEqual(filesField.isArray, true, "multi-file array should have isArray=true");
 
-    const nameField = uploadIface.req_body_form.find((f) => f.name === "name");
+    const nameField = uploadIface.requestBodyForm.find((f) => f.name === "name");
     assert.ok(nameField, "name field should exist");
     assert.strictEqual(nameField.type, "text");
 
@@ -168,8 +166,8 @@ describe("G-4: multipart/form-data end-to-end", () => {
   it("url-encoded endpoints are form bodies but not multipart", async () => {
     const { interfaces } = await openApiToInterfaces(multipartSpec);
     const profileIface = interfaces.find((i) => i.path === "/profile")!;
-    assert.strictEqual(profileIface.req_body_type, "form");
-    assert.strictEqual(profileIface.req_body_multipart, false);
+    assert.strictEqual(profileIface.requestBodyType, "form");
+    assert.strictEqual(profileIface.requestBodyMultipart, false);
   });
 
   it("request schema maps binary fields to File / File[] tsTypes", async () => {
@@ -297,15 +295,14 @@ describe("P-2: schema-based response type detection", () => {
     const { interfaces } = await openApiToInterfaces(spec);
     const textIface = interfaces.find((i) => i.path === "/text")!;
     assert.ok(textIface, "text interface should exist");
-    assert.strictEqual(textIface.res_body_type, "raw");
+    assert.strictEqual(textIface.responseBodyType, "raw");
   });
 
   it("a response with a schema is classified as json schema", async () => {
     const { interfaces } = await openApiToInterfaces(spec);
     const jsonIface = interfaces.find((i) => i.path === "/json")!;
     assert.ok(jsonIface, "json interface should exist");
-    assert.strictEqual(jsonIface.res_body_type, "json");
-    assert.strictEqual(jsonIface.res_body_is_json_schema, true);
+    assert.strictEqual(jsonIface.responseBodyType, "json");
   });
 });
 
