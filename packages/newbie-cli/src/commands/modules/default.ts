@@ -1,8 +1,8 @@
 import { checkbox, select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse } from "colorette";
+import { moduleKeys } from "@devbie/modules-state";
 
 import { applyModuleKeys } from "../../assemble/pipeline";
-import { moduleKeys } from "../../core/modules-state";
 import { deprecatedNoticesOf, listRegistryModules, RegistryModule, resolveRegistry } from "../../lib/registry";
 import { readModulesState } from "../../lib/modules-state";
 

@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { MODULES_DIR } from "@devbie/modules-state";
+
 import { mergeModelAdditions, moduleSchemaNamespace, reconcileDatasourceSchemas } from "../core/prisma-schema";
-import { MODULES_DIR, PRISMA_ADDITIONS_DIR, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
+import { PRISMA_ADDITIONS_DIR, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest, readInstalledSchema } from "../lib/module-install";
 import { fileExists } from "../lib/fs-util";

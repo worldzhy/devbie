@@ -1,14 +1,13 @@
 import figlet from "figlet";
 import { checkbox, select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse, yellow } from "colorette";
+import { MODULES_DIR, moduleKeys } from "@devbie/modules-state";
 
 import { describeMissingDependencies, expandRegistryClosure } from "../../assemble/module-graph";
 import { collectMissingRegistrySources } from "../../assemble/modules-copy";
 import { ModuleSourceDrift, diffModuleSources } from "../../assemble/module-source-drift";
 import { runSteps } from "../../assemble/pipeline";
 import { diffSnapshots, driftPatchIds } from "../../core/drift";
-import { moduleKeys } from "../../core/modules-state";
-import { MODULES_DIR } from "../../constants/paths";
 import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
 import { CliError } from "../../lib/errors";
 import { fileExists } from "../../lib/fs-util";

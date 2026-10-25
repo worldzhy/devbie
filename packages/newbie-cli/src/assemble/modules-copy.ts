@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { MODULES_DIR } from "../constants/paths";
+import { MODULES_DIR } from "@devbie/modules-state";
+
 import { moduleRootInRegistry, RegistryLocation } from "../lib/registry";
 import { CliError } from "../lib/errors";
 import { pathExists } from "../lib/fs-util";

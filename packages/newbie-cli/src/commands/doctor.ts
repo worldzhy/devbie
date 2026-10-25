@@ -2,18 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import figlet from "figlet";
 import { bold, cyan, gray, green, red, yellow } from "colorette";
+import { MODULES_DIR, MODULES_JSON, moduleKeys } from "@devbie/modules-state";
 
-import {
-  MODULES_CONFIG_TS,
-  MODULES_DIR,
-  MODULES_MODULE_TS,
-  MODULES_JSON,
-  PRISMA_SCHEMA_MAIN,
-  PRISMA_SCHEMA_MODELS_DIR,
-} from "../constants/paths";
+import { MODULES_CONFIG_TS, MODULES_MODULE_TS, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
 import { diffSnapshots } from "../core/drift";
 import { findMissingEnabledModules } from "../core/module-closure";
-import { moduleKeys } from "../core/modules-state";
 import { moduleSchemaNamespace, readDatasourceSchemas } from "../core/prisma-schema";
 import { collectMissingEnv } from "../lib/check";
 import { CliError } from "../lib/errors";

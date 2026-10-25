@@ -3,13 +3,13 @@ import path from "node:path";
 
 import { yellow } from "colorette";
 import { Command } from "commander";
+import { moduleKeys } from "@devbie/modules-state";
 
 import { installedModuleDir } from "./module-install";
 import { readInstalledManifest } from "./module-install";
 import { CliError } from "./errors";
 import { readModulesState, stateExists } from "./modules-state";
 import { ModuleManifest } from "../core/module-manifest";
-import { moduleKeys } from "../core/modules-state";
 import { GlobalOptions } from "../commands/shared";
 
 /**

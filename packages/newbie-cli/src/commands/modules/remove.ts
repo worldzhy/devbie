@@ -1,10 +1,10 @@
 import { select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse } from "colorette";
+import { moduleKeys } from "@devbie/modules-state";
 
 import { expandRegistryClosure } from "../../assemble/module-graph";
 import { applyModuleKeys } from "../../assemble/pipeline";
 import { directDependents } from "../../core/module-closure";
-import { moduleKeys } from "../../core/modules-state";
 import { CliError } from "../../lib/errors";
 
 import { createContext, GlobalOptions } from "../shared";

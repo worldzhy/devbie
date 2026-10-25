@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { cyan } from "colorette";
+import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON, ModulesState, moduleKeys } from "@devbie/modules-state";
 
-import { diffModuleKeys, ModulesState, moduleKeys, withModuleKeys } from "../core/modules-state";
+import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
-import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON } from "../constants/paths";
 import { CliError } from "../lib/errors";
 import { readRegistryModule } from "../lib/registry";
 import { writeModulesState } from "../lib/modules-state";

@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 
-import { MODULES_DIR, REGISTRY_MODULES_DIR } from "../constants/paths";
+import { MODULES_DIR } from "@devbie/modules-state";
+
+import { REGISTRY_MODULES_DIR } from "../constants/paths";
 import { diffSnapshots, DriftReport } from "../core/drift";
 import { snapshotDirectory, snapshotInstalledModule } from "../lib/drift";
 import { moduleRootInRegistry } from "../lib/registry";

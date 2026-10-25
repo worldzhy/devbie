@@ -2,8 +2,9 @@ import fs from "node:fs";
 import fsp from "node:fs/promises";
 import path from "node:path";
 import { cyan, green, yellow } from "colorette";
+import { MODULES_DIR, MODULE_MANIFEST_FILE } from "@devbie/modules-state";
 
-import { MODULES_DIR, MODULE_MANIFEST_FILE, REGISTRY_MODULES_DIR } from "../../constants/paths";
+import { REGISTRY_MODULES_DIR } from "../../constants/paths";
 import { CliError } from "../../lib/errors";
 import { execCapture, trim } from "../../lib/exec";
 import { moduleRootInRegistry, RegistryLocation, resolveRegistry } from "../../lib/registry";

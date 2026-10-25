@@ -1,7 +1,7 @@
 import { bold, green } from "colorette";
+import { moduleKeys } from "@devbie/modules-state";
 
 import { applyModuleKeys } from "../../assemble/pipeline";
-import { moduleKeys } from "../../core/modules-state";
 import { CliError } from "../../lib/errors";
 import { deprecatedNoticesOf, listRegistryModules } from "../../lib/registry";
 

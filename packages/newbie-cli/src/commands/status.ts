@@ -1,9 +1,9 @@
 import path from "node:path";
 
+import { MODULES_DIR, moduleKeys } from "@devbie/modules-state";
+
 import { DriftReport } from "../core/drift";
-import { MODULES_DIR } from "../constants/paths";
 import { diffSnapshots } from "../core/drift";
-import { moduleKeys } from "../core/modules-state";
 import { collectMissingEnv } from "../lib/check";
 import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
 import { fileExists } from "../lib/fs-util";

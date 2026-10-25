@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { MODULES_DIR, MODULE_MANIFEST_FILE } from "../constants/paths";
+import { MODULES_DIR, MODULE_MANIFEST_FILE } from "@devbie/modules-state";
+
 import { ModuleManifest, normalizeModuleManifest } from "../core/module-manifest";
 import { CliError } from "./errors";
 

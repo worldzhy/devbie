@@ -1,9 +1,9 @@
 import { select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse } from "colorette";
+import { moduleKeys } from "@devbie/modules-state";
 
 import { applyPlanned, planReconcile } from "../../assemble/pipeline";
 import { ENV_PATH } from "../../constants/paths";
-import { moduleKeys } from "../../core/modules-state";
 import { CliError } from "../../lib/errors";
 import { SinkFinding } from "../../lib/sink";
 

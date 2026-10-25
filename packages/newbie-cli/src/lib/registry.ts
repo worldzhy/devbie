@@ -2,7 +2,9 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { MODULE_MANIFEST_FILE, REGISTRY_MODULES_DIR } from "../constants/paths";
+import { MODULE_MANIFEST_FILE } from "@devbie/modules-state";
+
+import { REGISTRY_MODULES_DIR } from "../constants/paths";
 import { normalizeModuleManifest } from "../core/module-manifest";
 import { CliError } from "./errors";
 import { execCapture, trim } from "./exec";
