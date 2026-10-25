@@ -615,7 +615,7 @@ function Performance(options: InitOptions): void {
       (navigator as any).sendBeacon(api, body);
       return;
     }
-    if (window.fetch) {
+    if (typeof window.fetch === "function") {
       setTimeout(() => {
         fetch(api, {
           method: "POST",

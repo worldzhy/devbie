@@ -1,6 +1,6 @@
 import "./mock/web.env";
 import { mockPerformanceResource, XMLConstructorEnum, mockBaseXhrApi } from "./mock/mock";
-import { overrideFetch, httpServer } from "./mock/utils";
+import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
 const appId = "appid_test";
 const _monitor = webMonitorSdk({
@@ -26,11 +26,31 @@ overrideFetch(function () {
   }
 });
 
-// Test: one page-load report and one ajax-completion report, 2 reports total
-test("web api: XMLHttpRequest", (done) => {
-  //GET
-  const requestAddress = mockPerformanceResource.xhr.name;
+// Two phases, matching the SDK's deferred-init behavior in an already-loaded
+// document: the initial page report fires first with an empty resourceList;
+// ajax traffic after it produces a separate AjaxPerf report.
+test("web api: XMLHttpRequest", async () => {
+  // Verify enumerable XMLHttpRequest properties are not lost after patching
+  for (const attr in XMLHttpRequest) {
+    expect(XMLHttpRequest[attr]).toEqual(XMLConstructorEnum[attr]);
+  }
 
+  // Phase 1: page-load report
+  await waitFor(() => reportTypePage, 8000);
+  expect(reportTypePage.appId).toEqual(appId);
+  expect(reportTypePage.performance.andt).toEqual(
+    Math.round(
+      window.performance.getEntriesByType("navigation")[0].domComplete -
+        window.performance.getEntriesByType("navigation")[0].domInteractive,
+    ),
+  );
+  expect(reportTypePage.isFirstIn).toEqual(true);
+  expect(reportTypePage.markUser.length).toBeGreaterThan(0);
+  expect(reportTypePage.markUv.length).toBeGreaterThan(0);
+  expect(reportTypePage.resourceList.length).toEqual(0);
+
+  // Phase 2: ajax-completion report
+  const requestAddress = mockPerformanceResource.xhr.name;
   // Send a request; ensure it is sent successfully, the patched collection logic runs and captures the data, and the SDK produces the corresponding record
   const xmlhttp = new XMLHttpRequest();
   xmlhttp.onreadystatechange = state_Change;
@@ -47,27 +67,8 @@ test("web api: XMLHttpRequest", (done) => {
       }
     }
   }
-  // Verify enumerable XMLHttpRequest properties are not lost after patching
-  for (const attr in XMLHttpRequest) {
-    expect(XMLHttpRequest[attr]).toEqual(XMLConstructorEnum[attr]);
-  }
-  setTimeout(() => {
-    // page performance report payload
-    expect(reportTypePage.appId).toEqual(appId);
-    expect(reportTypePage.performance.andt).toEqual(
-      Math.round(
-        window.performance.getEntriesByType("navigation")[0].domComplete -
-          window.performance.getEntriesByType("navigation")[0].domInteractive,
-      ),
-    );
-    expect(reportTypePage.isFirstIn).toEqual(true);
-    expect(reportTypePage.markUser.length).toBeGreaterThan(0);
-    expect(reportTypePage.markUv.length).toBeGreaterThan(0);
-    expect(reportTypePage.resourceList.length).toEqual(0);
-    // ajax report
-    expect(reportTypeAjax.resourceList[0].name).toEqual(requestAddress);
-    expect(reportTypeAjax.markUser.length).toBeGreaterThan(0);
-    expect(reportTypeAjax.markUv.length).toBeGreaterThan(0);
-    done();
-  }, 6500);
-}, 10000);
+  await waitFor(() => reportTypeAjax, 8000);
+  expect(reportTypeAjax.resourceList[0].name).toEqual(requestAddress);
+  expect(reportTypeAjax.markUser.length).toBeGreaterThan(0);
+  expect(reportTypeAjax.markUv.length).toBeGreaterThan(0);
+}, 20000);

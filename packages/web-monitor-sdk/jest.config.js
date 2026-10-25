@@ -2,7 +2,7 @@ module.exports = {
   testEnvironment: "jsdom",
   testMatch: ["<rootDir>/test/*.js"],
   transform: {
-    "^.+\\.[t|j]sx?$": [
+    "^.+\\.[tj]sx?$": [
       "babel-jest",
       {
         presets: [
@@ -16,7 +16,6 @@ module.exports = {
           ],
           "@babel/preset-typescript",
         ],
-        plugins: ["@babel/plugin-transform-spread"],
       },
     ],
   },
