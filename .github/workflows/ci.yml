@@ -22,8 +22,11 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
 
-      # Build leaf SDKs first: @devbie/newbie resolves their declarations
-      # through the workspace symlinks, so their dist/ must exist beforehand.
+      # Build zero-dependency shared packages and leaf SDKs first:
+      # @devbie/newbie and the CLI workspaces resolve them through workspace
+      # symlinks, so their dist/ must exist beforehand.
+      - run: npm run build -w @devbie/cli-kit
+      - run: npm run build -w @devbie/modules-state
       - run: npm run build -w @devbie/heartbeat-sdk
       - run: npm run build -w @devbie/health-sdk
       - run: npm run build -w @devbie/backend-monitor-sdk
@@ -52,7 +55,10 @@ jobs:
       - run: npm ci
 
       # Tests import sibling workspaces through the workspace symlinks, which
-      # resolve to dist/. Build the leaf SDKs first, same order as verify.
+      # resolve to dist/. Build zero-dependency shared packages and leaf SDKs
+      # first, same order as verify.
+      - run: npm run build -w @devbie/cli-kit
+      - run: npm run build -w @devbie/modules-state
       - run: npm run build -w @devbie/heartbeat-sdk
       - run: npm run build -w @devbie/health-sdk
       - run: npm run build -w @devbie/backend-monitor-sdk
