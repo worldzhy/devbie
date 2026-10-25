@@ -1,6 +1,6 @@
 {
   "name": "@devbie/newbie",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "newbie backend framework runtime",
   "license": "MIT",
   "author": "worldzhy",
@@ -21,7 +21,7 @@
     "dist"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "publishConfig": {
     "access": "public"

@@ -1,6 +1,6 @@
 {
   "name": "@devbie/worklog",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Member-side worklog agent for people-evaluation: sends your declared workspaces, agent sessions and documents — only the paths you declare are ever read",
   "license": "MIT",
   "author": "worldzhy",
@@ -35,6 +35,6 @@
     "typescript": "^6.0.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }
