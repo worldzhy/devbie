@@ -18,7 +18,9 @@
 //     dist/cjs/*.js + *.d.ts    (CommonJS)
 //     dist/esm/*.mjs + *.d.mts  (ESM, relative imports rewritten with ext)
 //   package.json main/module/types and bin are aligned to these paths.
+// - `dts: {}` enables declaration emission (tsc); without it father 4 emits
+//   JS only and package.json `types` points at a nonexistent file.
 export default {
-  esm: { autoExtension: true },
-  cjs: { autoExtension: true },
+  esm: { autoExtension: true, dts: {} },
+  cjs: { autoExtension: true, dts: {} },
 };
