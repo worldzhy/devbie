@@ -69,7 +69,14 @@ async function request(url: string, token: string): Promise<unknown> {
 
 /** Fetch this installation's recorded snapshot and host-marked target spec. */
 export async function fetchSelfInspection(credentials: HubCredentials): Promise<SelfInspection> {
-  const body = (await request(credentials.selfUrl, credentials.token)) as Partial<SelfInspection> | null;
+  const json = await request(credentials.selfUrl, credentials.token);
+
+  // Hosts wrap success payloads in their global response envelope
+  // (`{ code, error, data }` is the common shape). Unwrap when present and
+  // fall back to the raw body so an unwrapped hub still works.
+  const wrapped = (json as { data?: unknown } | null)?.data;
+  const body = (wrapped && typeof wrapped === "object" ? wrapped : json) as Partial<SelfInspection> | null;
+
   if (!body || typeof body !== "object") {
     throw new CliError(`Unexpected self-inspection payload from ${credentials.selfUrl}.`);
   }
