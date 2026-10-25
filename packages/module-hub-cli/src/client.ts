@@ -6,13 +6,13 @@ import type { HubCredentials } from "./env";
  * Minimal HTTP client for the token-only half of the module-hub API.
  *
  * Only endpoints authenticated by the installation report token are used, so
- * this client needs no host user session: `GET /module-hub/self/modules`
+ * this client needs no host user session: `GET /module-hub/me/modules`
  * returns facts about the installation the token belongs to.
  */
 
 const REQUEST_TIMEOUT_MS = 15_000;
 
-/** Installation facts returned by the self-inspection endpoint. */
+/** Installation facts returned by the caller-scoped modules endpoint. */
 export interface RemoteInstallation {
   id?: string;
   label?: string;
@@ -28,7 +28,7 @@ export interface RemoteInstallation {
 /** One module entry as recorded by the hub (loose shape, verbatim snapshot). */
 export type RemoteModule = Record<string, unknown>;
 
-export interface SelfInspection {
+export interface InstallationInspection {
   installation: RemoteInstallation;
   /** Latest snapshot reported by the instance; null before the first report. */
   actual: RemoteModule[] | null;
@@ -68,22 +68,22 @@ async function request(url: string, token: string): Promise<unknown> {
 }
 
 /** Fetch this installation's recorded snapshot and host-marked target spec. */
-export async function fetchSelfInspection(credentials: HubCredentials): Promise<SelfInspection> {
-  const json = await request(credentials.selfUrl, credentials.token);
+export async function fetchInstallationInspection(credentials: HubCredentials): Promise<InstallationInspection> {
+  const json = await request(credentials.modulesUrl, credentials.token);
 
   // Hosts wrap success payloads in their global response envelope
   // (`{ code, error, data }` is the common shape). Unwrap when present and
   // fall back to the raw body so an unwrapped hub still works.
   const wrapped = (json as { data?: unknown } | null)?.data;
-  const body = (wrapped && typeof wrapped === "object" ? wrapped : json) as Partial<SelfInspection> | null;
+  const body = (wrapped && typeof wrapped === "object" ? wrapped : json) as Partial<InstallationInspection> | null;
 
   if (!body || typeof body !== "object") {
-    throw new CliError(`Unexpected self-inspection payload from ${credentials.selfUrl}.`);
+    throw new CliError(`Unexpected module snapshot payload from ${credentials.modulesUrl}.`);
   }
 
   const installation = body.installation;
   if (!installation || typeof installation !== "object") {
-    throw new CliError(`Self-inspection payload from ${credentials.selfUrl} has no installation block.`);
+    throw new CliError(`Module snapshot payload from ${credentials.modulesUrl} has no installation block.`);
   }
 
   return {

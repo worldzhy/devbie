@@ -25,7 +25,7 @@ export function register(parent: Command, options: GlobalOptions): void {
       dryRun: Boolean(globals.dryRun),
       skipPrismaGenerate: Boolean(globals.skipPrismaGenerate),
       expectLabel: flags.expectLabel as string | undefined,
-      endpoint: flags.endpoint as string | undefined,
+      modulesUrl: flags.modulesUrl as string | undefined,
       token: flags.token as string | undefined,
     };
   }
@@ -34,7 +34,7 @@ export function register(parent: Command, options: GlobalOptions): void {
     .command("show")
     .description("Print this installation's runtime facts and the module snapshot the hub recorded")
     .option("--expect-label <label>", "abort when the token resolves to a different installation label")
-    .option("--endpoint <url>", "override the derived self-inspection URL")
+    .option("--modules-url <url>", "override the derived caller-scoped modules URL")
     .option("--token <token>", "override the installation report token")
     .action(function (this: Command) {
       return run(() => runShow(collectOptions(this)));
@@ -44,7 +44,7 @@ export function register(parent: Command, options: GlobalOptions): void {
     .command("verify")
     .description("Fail when the hub's snapshot of this installation differs from the local modules.json")
     .option("--expect-label <label>", "abort when the token resolves to a different installation label")
-    .option("--endpoint <url>", "override the derived self-inspection URL")
+    .option("--modules-url <url>", "override the derived caller-scoped modules URL")
     .option("--token <token>", "override the installation report token")
     .action(function (this: Command) {
       return run(() => runVerify(collectOptions(this)));

@@ -2,7 +2,7 @@ import { bold, gray, red } from "colorette";
 import { CliError } from "@devbie/newbie-cli/lib";
 import { readModulesState } from "@devbie/modules-state";
 
-import { fetchSelfInspection } from "../client";
+import { fetchInstallationInspection } from "../client";
 import { resolveCredentials, resolveExpectedLabel } from "../env";
 import type { HubCommandOptions } from "../options";
 import { compareModules } from "../verify";
@@ -21,11 +21,11 @@ import { assertExpectedLabel, formatTimestamp, renderMismatch, renderVerificatio
 export async function runVerify(options: HubCommandOptions): Promise<void> {
   const credentials = await resolveCredentials({
     cwd: options.cwd,
-    endpoint: options.endpoint,
+    modulesUrl: options.modulesUrl,
     token: options.token,
   });
   const expectedLabel = await resolveExpectedLabel(options.cwd, options.expectLabel);
-  const inspection = await fetchSelfInspection(credentials);
+  const inspection = await fetchInstallationInspection(credentials);
 
   assertExpectedLabel(inspection, expectedLabel);
 
@@ -39,7 +39,7 @@ export async function runVerify(options: HubCommandOptions): Promise<void> {
   const local = await readModulesState(options.cwd);
   const mismatches = compareModules(local.modules, inspection.actual);
 
-  console.log(bold(`Hub: ${credentials.selfUrl}`));
+  console.log(bold(`Hub: ${credentials.modulesUrl}`));
   console.log(
     gray(
       `Installation: ${inspection.installation.label ?? "(unnamed)"} · ` +

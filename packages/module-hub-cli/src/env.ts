@@ -17,33 +17,38 @@ export const MODULE_HUB_ENDPOINT = "MODULE_HUB_ENDPOINT";
 export const MODULE_HUB_TOKEN = "MODULE_HUB_TOKEN";
 export const MODULE_HUB_INSTALLATION_LABEL = "MODULE_HUB_INSTALLATION_LABEL";
 
-/** Report endpoint suffix; the self-inspection endpoint derives from it. */
+/** Report endpoint suffix; the caller-scoped modules endpoint derives from it. */
 const REPORT_SUFFIX = "/module-hub/report";
 
+/**
+ * Read endpoint of the caller's own installation. `me` means "the installation
+ * the presented token belongs to", mirroring the host-scoped
+ * `GET /module-hub/installations/:id/modules` used by the hub UI.
+ */
+const OWN_MODULES_PATH = "/module-hub/me/modules";
+
 export interface HubCredentials {
-  /** `POST` target for instance reports, e.g. https://api.example.com/module-hub/report. */
-  reportUrl: string;
-  /** `GET` target for this installation's own recorded snapshot. */
-  selfUrl: string;
+  /** `GET` target for this installation's own recorded module snapshot. */
+  modulesUrl: string;
   token: string;
 }
 
 /**
- * Derive the self-inspection URL from the report endpoint.
+ * Derive the caller-scoped modules URL from the report endpoint.
  *
  * `MODULE_HUB_ENDPOINT` is the full report URL (see the provisioning docs), so
  * the hub root is recovered by stripping the known suffix. Anything else is a
  * configuration error rather than something to guess at: silently guessing a
  * URL could point the CLI at the wrong hub.
  */
-export function deriveSelfUrl(reportUrl: string): string {
+export function deriveModulesUrl(reportUrl: string): string {
   if (!reportUrl.endsWith(REPORT_SUFFIX)) {
     throw new CliError(
       `${MODULE_HUB_ENDPOINT} must end with '${REPORT_SUFFIX}' (got '${reportUrl}'). ` +
-        `Pass --endpoint with the full self-inspection URL to override the derivation.`,
+        `Pass --modules-url with the full '${OWN_MODULES_PATH}' URL to override the derivation.`,
     );
   }
-  return `${reportUrl.slice(0, -REPORT_SUFFIX.length)}/module-hub/self/modules`;
+  return `${reportUrl.slice(0, -REPORT_SUFFIX.length)}${OWN_MODULES_PATH}`;
 }
 
 /** Project `.env` values; empty when the file is absent or unparseable. */
@@ -69,8 +74,8 @@ function pickVariable(name: string, envFile: Record<string, string>, override?: 
 
 export interface ResolveCredentialsOptions {
   cwd: string;
-  /** Explicit self-inspection URL override; skips derivation. */
-  endpoint?: string;
+  /** Explicit modules URL; skips derivation from MODULE_HUB_ENDPOINT. */
+  modulesUrl?: string;
   /** Explicit token override. */
   token?: string;
 }
@@ -86,19 +91,20 @@ export async function resolveCredentials(options: ResolveCredentialsOptions): Pr
     );
   }
 
-  const endpoint = pickVariable(MODULE_HUB_ENDPOINT, envFile, options.endpoint);
+  const modulesUrlOverride = options.modulesUrl?.trim();
+  if (modulesUrlOverride) {
+    return { modulesUrl: modulesUrlOverride, token };
+  }
+
+  const endpoint = pickVariable(MODULE_HUB_ENDPOINT, envFile);
   if (!endpoint) {
     throw new CliError(
       `${MODULE_HUB_ENDPOINT} is not set. Export it or add it to ${ENV_PATH}. ` +
-        `Use --endpoint only when the report URL has a non-standard shape.`,
+        `Use --modules-url only when the endpoint has a non-standard shape.`,
     );
   }
 
-  return {
-    reportUrl: endpoint,
-    selfUrl: options.endpoint ? endpoint : deriveSelfUrl(endpoint),
-    token,
-  };
+  return { modulesUrl: deriveModulesUrl(endpoint), token };
 }
 
 /** Expected installation label, when the caller or environment supplies one. */

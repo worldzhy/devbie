@@ -1,7 +1,7 @@
 import { bold, cyan, gray, green, yellow } from "colorette";
 import { CliError } from "@devbie/newbie-cli/lib";
 
-import type { SelfInspection } from "../client";
+import type { InstallationInspection } from "../client";
 
 /** Render an ISO timestamp as `YYYY-MM-DD HH:mm:ss UTC`, or a dash when absent. */
 export function formatTimestamp(value: string | null | undefined): string {
@@ -12,7 +12,7 @@ export function formatTimestamp(value: string | null | undefined): string {
 }
 
 /** Assert that the installation the token belongs to is the one we expected. */
-export function assertExpectedLabel(inspection: SelfInspection, expected: string | null): void {
+export function assertExpectedLabel(inspection: InstallationInspection, expected: string | null): void {
   if (!expected) return;
   const actual = inspection.installation.label;
   if (actual !== expected) {
@@ -23,7 +23,7 @@ export function assertExpectedLabel(inspection: SelfInspection, expected: string
 }
 
 /** Print installation facts, the recorded snapshot and the target spec. */
-export function renderSelfInspection(inspection: SelfInspection): void {
+export function renderInstallationInspection(inspection: InstallationInspection): void {
   const { installation } = inspection;
 
   console.log(bold(`Installation: ${installation.label ?? "(unnamed)"}`));

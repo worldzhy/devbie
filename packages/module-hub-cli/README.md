@@ -23,11 +23,13 @@ installation report token already lives in the deployment environment.
 | `MODULE_HUB_INSTALLATION_LABEL` | Optional label assertion (the analogue of an expected AWS account id) |
 
 Both are read from `process.env` first, then from the project `.env`. The
-self-inspection URL is derived by replacing the `/module-hub/report` suffix;
-pass `--endpoint` when the endpoint has a non-standard shape.
+read URL is derived from the report URL by swapping the `/module-hub/report`
+suffix for `/module-hub/me/modules` (`me` = the installation the token belongs
+to); pass `--modules-url` when the endpoint has a non-standard shape.
 
 Only token-scoped endpoints are used, so the CLI needs no host user session
-and can never see other installations.
+and can never see other installations. The host-wide view lives on
+`GET /module-hub/installations/:id/modules`, which requires a user session.
 
 ## Commands
 

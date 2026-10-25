@@ -3,23 +3,23 @@ import { describe, it } from "node:test";
 
 import type { ModuleRecord } from "@devbie/modules-state";
 
-import { deriveSelfUrl } from "../src/env";
+import { deriveModulesUrl } from "../src/env";
 import { compareModules } from "../src/verify";
 
 function record(key: string, sourceCommit: string | null = "abc"): ModuleRecord {
   return { key, version: null, sourceCommit, localPatches: [] };
 }
 
-describe("deriveSelfUrl", () => {
-  it("replaces the report suffix with the self-inspection path", () => {
+describe("deriveModulesUrl", () => {
+  it("replaces the report suffix with the caller-scoped modules path", () => {
     assert.equal(
-      deriveSelfUrl("https://api.example.com/module-hub/report"),
-      "https://api.example.com/module-hub/self/modules",
+      deriveModulesUrl("https://api.example.com/module-hub/report"),
+      "https://api.example.com/module-hub/me/modules",
     );
   });
 
   it("rejects endpoints that do not have the documented shape", () => {
-    assert.throws(() => deriveSelfUrl("https://api.example.com"), /must end with/);
+    assert.throws(() => deriveModulesUrl("https://api.example.com"), /must end with/);
   });
 });
 
