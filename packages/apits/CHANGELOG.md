@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.0] - 2026-10-26
+
+> Naming and structure cleanup: coherent pipeline file names, camelCase interface fields, dead YApi-era remnants removed. Public consumer API (`defineConfig`, `Config`, `FileData`, `Generator`, CLI) and generated output are unchanged.
+
+### Breaking Changes
+
+- **`Interface` → `ApiInterface`** (`ExtendedInterface` → `ExtendedApiInterface`), with all snake_case fields renamed to camelCase: `req_params`/`req_query` → `pathParams`/`queryParams`, `req_body_type`/`req_body_form`/`req_body_multipart`/`req_body_other` → `requestBodyType`/`requestBodyForm`/`requestBodyMultipart`/`requestBodySchema`, `res_body_type`/`res_body` → `responseBodyType`/`responseBody`. The `[key: string]: any` index signature is removed.
+- **Dead fields removed**: `catname` (plus the tags-classification loop), write-only `req_body_is_json_schema`/`res_body_is_json_schema`/`req_body_additional`; unused `Category` type; `OutputFileList.projectId`/`categoryId`.
+- **`SyntheticalConfig` → `ResolvedConfig`**; `topNotesContent` → `generatedFileBanner` (now in `utils/format.ts`); `asyncFnArrayOrderRun` → `runSequentially` (iterative); `spinnerInstance` → `spinner` (the pass-through `Spin` wrapper class is gone).
+
+### Architecture
+
+- `core/` flattened into `src/`; pipeline files named by stage: `openApiToInterfaces.ts` → `jsonSchemaToTsCode.ts` → `generator.ts` → `writeRequestClient.ts`.
+- `utils/utils.ts` split by responsibility: schema/TS pipeline stays in `jsonSchemaToTsCode.ts`, prettier/banner helpers moved to `utils/format.ts`.
+- `vtilsLite.ts` split into `utils/collections.ts` + `utils/dedent.ts`; `console.ts` → `utils/logger.ts` (no more shadowing of the Node global); `getOutputPath.ts` → `utils/outputPath.ts`.
+
+---
+
 ## [1.0.1] - 2026-10-12
 
 > Type-safety fix: the per-request `extra` argument no longer degrades to `Record<string, any>`.
