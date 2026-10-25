@@ -28,14 +28,18 @@ Run through every step below before publishing any package in this repo (package
   upstream ships fixes or the dependency-union milestone reshapes the next
   layer.
 
-- `@nestjs/platform-express` — 3 high findings (multer) reported against the
-  installed `@nestjs/platform-express@10.4.18` (audit range
-  `10.4.18 - 10.4.22 || >=11.1.2`). It is a **peerDependency range** of
-  `@devbie/newbie` (`^11.0.0 || ^12.0.0`), not a runtime dependency of the
-  CLI packages, and the workspace install resolves it for the framework's
-  test fixtures. The host (nightwatch-backend) pins its own NestJS version.
-  Waived for CLI-only releases (2026-10-24); revisit when the framework
-  raises its peer floor or NestJS ships a patched multer pin.
+- `@nestjs/platform-express` — 2 high findings (multer
+  GHSA-q7qp-rjg7-q26m, plus the parent edge) against the workspace-installed
+  `@nestjs/platform-express@11.2.7`, which pins `multer` exactly `2.4.0`;
+  even the latest upstream release (`12.2.0`) still pins it, so no version
+  bump can resolve the finding, and a root `overrides` entry is not honored
+  by npm 11 while the tree carries an invalid optional-peer edge (attempted
+  2026-10-25, reverted). It is a **peerDependency range** of
+  `@devbie/newbie` (`^11.0.0 || ^12.0.0`), not a runtime dependency of any
+  published package, and no devbie code exercises multer's fileFilter path;
+  the host (nightwatch-backend) pins its own NestJS version. Waived
+  (2026-10-24, re-verified 2026-10-25); revisit when NestJS ships a release
+  with a patched multer pin.
 
 - `@devbie/web-monitor-sdk` — 3 findings, all **indirect**:
   - `braces` high (GHSA-vfj7-8cjw-p6xm, range `*`) and `micromatch` high
