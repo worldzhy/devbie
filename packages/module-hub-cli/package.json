@@ -1,0 +1,44 @@
+{
+  "name": "@devbie/module-hub-cli",
+  "version": "1.0.0",
+  "description": "CLI plugin of the module-hub newbie module: inspect this installation's reported module snapshot and verify it against the local modules.json",
+  "license": "MIT",
+  "author": "worldzhy",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "colorette": "^2.0.20"
+  },
+  "peerDependencies": {
+    "@devbie/newbie-cli": "^1.12.0"
+  },
+  "devDependencies": {
+    "@devbie/newbie-cli": "^1.12.0",
+    "@types/node": "^22.20.5",
+    "commander": "^12.1.0",
+    "rimraf": "^6.1.3",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
