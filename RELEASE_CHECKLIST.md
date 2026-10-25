@@ -1,6 +1,6 @@
 # Release Checklist
 
-Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/heartbeat-sdk, packages/health-sdk, packages/web-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/fewbie-cli, packages/apits, packages/style-guide). Do not skip steps for "trivial" patches.
+Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/modules-state, packages/heartbeat-sdk, packages/health-sdk, packages/web-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/module-hub-cli, packages/fewbie-cli, packages/apits, packages/worklog, packages/style-guide). Do not skip steps for "trivial" patches.
 
 1. `git status` — working tree is clean, all intended changes are committed.
 2. Clean build: remove `dist/` and `*.tsbuildinfo` for the package(s) being released, then rebuild. Never publish from a stale `dist/`.
