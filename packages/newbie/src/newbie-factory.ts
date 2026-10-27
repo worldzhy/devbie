@@ -250,7 +250,13 @@ export class NewbieFactory {
       const heartbeatEndpoint = process.env.HEARTBEAT_ENDPOINT;
       const heartbeatToken = process.env.HEARTBEAT_TOKEN;
       if (heartbeatEndpoint && heartbeatToken) {
-        startHeartbeat({ endpoint: heartbeatEndpoint, token: heartbeatToken });
+        startHeartbeat({
+          endpoint: heartbeatEndpoint,
+          token: heartbeatToken,
+          appVersion: process.env.APP_VERSION,
+          env: process.env.ENVIRONMENT,
+          instanceId: process.env.HOSTNAME,
+        });
       }
 
       // Module-hub self-registration: starts when MODULE_HUB_ENDPOINT and

@@ -1,6 +1,6 @@
 {
   "name": "@devbie/newbie",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "description": "newbie backend framework runtime",
   "license": "MIT",
   "repository": {
@@ -40,7 +40,7 @@
   "dependencies": {
     "@devbie/backend-monitor-sdk": "^1.2.0",
     "@devbie/health-sdk": "^1.1.0",
-    "@devbie/heartbeat-sdk": "^1.1.0",
+    "@devbie/heartbeat-sdk": "^1.2.0",
     "@devbie/modules-state": "^1.0.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
