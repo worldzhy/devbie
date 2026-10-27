@@ -137,7 +137,10 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
             ...drift.added.map((file) => `added: ${file}`),
             ...drift.removed.map((file) => `removed: ${file}`),
           ].join("; ");
-          error(`${label}: local drift detected (${details})`);
+          // Local drift is a normal state: consumers edit assembled modules
+          // and back-port them to the registry. Report as a notice so doctor
+          // does not fail the build during active development.
+          notice(`${label}: local drift detected (${details}); back-port to the registry when ready.`);
         }
       }
     }
