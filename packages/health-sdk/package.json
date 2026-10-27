@@ -1,6 +1,6 @@
 {
   "name": "@devbie/health-sdk",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Framework-agnostic dependency health reporter for newbie-hosted NestJS applications",
   "license": "MIT",
   "repository": {

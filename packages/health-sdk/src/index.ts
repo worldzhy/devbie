@@ -1,3 +1,8 @@
+// Published package version, read at runtime (package.json sits one level
+// above both src/ during development and dist/ in the published tarball).
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+export const VERSION = (require("../package.json") as { version: string }).version;
+
 export { startHealthReporting } from "./health-reporter";
 export { runCheck } from "./check";
 export { KNOWN_INDICATORS } from "./known-indicators";
