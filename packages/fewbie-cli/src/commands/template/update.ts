@@ -5,8 +5,7 @@ import { bold, cyan, green, yellow } from "colorette";
 import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../registry/store";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
-  FRAMEWORK_MARKER_END,
-  FRAMEWORK_MARKER_START,
+  assetMarkers,
   planTemplateUpdate,
   SYNCABLE_ASSETS,
   TemplateAsset,
@@ -60,9 +59,10 @@ async function collectRegistryTargets(): Promise<Set<string>> {
 
 function printChange(change: TemplateChange): void {
   if (change.kind === "missing-markers") {
+    const markers = assetMarkers(change.asset);
     console.warn(
       yellow(
-        `! ${change.asset.path}: framework markers (${FRAMEWORK_MARKER_START} / ${FRAMEWORK_MARKER_END}) ` +
+        `! ${change.asset.path}: framework markers (${markers.start} / ${markers.end}) ` +
           "not found; cannot update this file. Add them back to re-enable template update.",
       ),
     );
