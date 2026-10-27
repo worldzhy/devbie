@@ -1,6 +1,6 @@
 {
   "name": "@devbie/newbie",
-  "version": "1.11.0",
+  "version": "1.11.1",
   "description": "newbie backend framework runtime",
   "license": "MIT",
   "repository": {
@@ -55,9 +55,9 @@
   },
   "peerDependencies": {
     "@nestjs/axios": "^4.0.0 || ^12.0.0",
-    "@nestjs/common": "^11.2.7",
+    "@nestjs/common": "^11.2.7 || ^12.0.0",
     "@nestjs/config": "^4.0.0 || ^12.0.0",
-    "@nestjs/core": "^11.2.7",
+    "@nestjs/core": "^11.2.7 || ^12.0.0",
     "@nestjs/platform-express": "^11.0.0 || ^12.0.0",
     "@nestjs/swagger": "^11.0.0 || ^12.0.0",
     "@nestjs/throttler": "^6.0.0",
