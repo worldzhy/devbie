@@ -6,7 +6,7 @@ import { MODULES_DIR, MODULE_MANIFEST_FILE } from "@devbie/modules-state";
 
 import { REGISTRY_MODULES_DIR } from "../../constants/paths";
 import { CliError, execCapture, trim } from "@devbie/cli-kit";
-import { moduleRootInRegistry, RegistryLocation, resolveRegistry } from "../../lib/registry";
+import { moduleRootInRegistry, RegistryLocation, resolveRegistry, listRegistryKeys } from "../../lib/registry";
 
 export interface ModulesWatchOptions {
   cwd: string;
@@ -43,6 +43,14 @@ async function installedModuleKeys(projectRoot: string): Promise<string[]> {
  */
 async function syncModule(projectRoot: string, registry: RegistryLocation, key: string): Promise<void> {
   const source = moduleRootInRegistry(registry.root, key);
+  // Verify the registry source exists before removing the installed copy;
+  // otherwise a vanished source would leave the project without the module
+  // (mirrors the addModules missing-source guard from modules-copy.ts).
+  try {
+    await fsp.stat(source);
+  } catch {
+    throw new CliError(`Registry source for '${key}' not found at ${source}; skipping sync.`);
+  }
   const target = path.join(projectRoot, MODULES_DIR, key);
   await fsp.rm(target, { recursive: true, force: true });
   await fsp.mkdir(path.dirname(target), { recursive: true });
@@ -174,24 +182,4 @@ export async function runWatch(options: ModulesWatchOptions): Promise<void> {
     console.info("\nStopped watch.");
     process.exit(0);
   });
-}
-
-/** List all module keys in a registry working tree. */
-async function listRegistryKeys(registryRoot: string): Promise<string[]> {
-  const dir = path.resolve(registryRoot, REGISTRY_MODULES_DIR);
-  try {
-    const entries = await fsp.readdir(dir, { withFileTypes: true });
-    const keys: string[] = [];
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const hasManifest = await fsp
-        .access(path.join(dir, entry.name, MODULE_MANIFEST_FILE))
-        .then(() => true)
-        .catch(() => false);
-      if (hasManifest) keys.push(entry.name);
-    }
-    return keys.sort();
-  } catch {
-    return [];
-  }
 }
