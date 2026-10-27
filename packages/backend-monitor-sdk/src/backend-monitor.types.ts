@@ -1,13 +1,13 @@
 /**
  * Public configuration for the built-in backend monitor probe.
  *
- * This is business configuration (which nightwatch instance, which agent
+ * This is business configuration (which monitor instance, which agent
  * token), therefore it is supplied by the project — through
  * BackendMonitorModule.forRoot() in Nest hosts, or directly to the
  * MonitorEventReporter constructor in framework-less ones.
  */
 export interface BackendMonitorOptions {
-  /** Full ingest report URL (e.g. https://nightwatch.example.com/backend-monitor/ingest).
+  /** Full ingest report URL (e.g. https://monitor.example.com/backend-monitor/ingest).
    * The probe is installed only when both `endpoint` and `token` are set;
    * leave them empty to run with zero instrumentation. */
   endpoint: string;

@@ -44,8 +44,8 @@ reuse its `node_modules`.
 
 ## Tag contract
 
-Secrets managed by this toolchain carry the `nightwatch:managed` tag, plus an
-optional `nightwatch:secret-type` tag used by the rotation Lambda for strategy
+Secrets managed by this toolchain carry the `devbie:managed` tag, plus an
+optional `devbie:secret-type` tag used by the rotation Lambda for strategy
 routing. The canonical declaration lives in the `aws-secrets-manager` module
 (`aws-secrets-manager.types.ts`); the constants are mirrored here and in
 `sst/function/common.ts` because neither the module nor the Lambda can import

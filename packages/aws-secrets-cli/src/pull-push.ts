@@ -26,8 +26,8 @@ import type { GlobalOptions } from "@devbie/newbie-cli/lib";
  * package, so the constants are mirrored here. Keep all copies in sync when
  * changing the tag contract.
  */
-const MANAGED_TAG_KEY = "nightwatch:managed";
-const SECRET_TYPE_TAG_KEY = "nightwatch:secret-type";
+const MANAGED_TAG_KEY = "devbie:managed";
+const SECRET_TYPE_TAG_KEY = "devbie:secret-type";
 
 const PLACEHOLDER = "<PLEASE_SET_THIS_VALUE>";
 
@@ -237,7 +237,7 @@ async function getExistingSecret(client: SecretsManagerClient, name: string): Pr
   }
 }
 
-/** Tags marking the secret as managed by the nightwatch plane, plus the type used for rotation routing. */
+/** Tags marking the secret as managed by this toolchain, plus the type used for rotation routing. */
 function managementTags(secretConfig: SecretConfig): { Key: string; Value: string }[] {
   const tags = [{ Key: MANAGED_TAG_KEY, Value: "true" }];
   if (secretConfig.type) tags.push({ Key: SECRET_TYPE_TAG_KEY, Value: secretConfig.type });

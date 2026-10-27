@@ -11,7 +11,7 @@ export const smClient = new SecretsManagerClient({});
  * and cannot import the host module, so the constant is mirrored here. Keep
  * the two in sync when changing the tag contract.
  */
-export const SECRET_TYPE_TAG_KEY = "nightwatch:secret-type";
+export const SECRET_TYPE_TAG_KEY = "devbie:secret-type";
 
 export interface RotationEvent {
   Step: "createSecret" | "setSecret" | "testSecret" | "finishSecret";
