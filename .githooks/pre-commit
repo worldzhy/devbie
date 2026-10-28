@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Lints (fixable only) and formats staged files inside a throwaway Node
 # container, then restages them. Each step runs this repo's own eslint flat
 # config (from eslint.config.*) and prettier config (from package.json
@@ -55,6 +55,14 @@ while IFS= read -r -d '' path; do
 done < "$list_file"
 
 if [ ! -s "$all_list" ]; then
+  exit 0
+fi
+
+# Both lint and format run inside a throwaway Node container. A host that
+# cannot reach Docker (a dev container without the socket, for example) can
+# only skip them; say so out loud, because a silent pass reads as "linted".
+if ! command -v docker >/dev/null 2>&1; then
+  echo "pre-commit: docker unavailable; skipping lint/format (CI enforces them)" >&2
   exit 0
 fi
 
