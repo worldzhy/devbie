@@ -62,10 +62,13 @@ fi
 # set +e so we can capture eslint's exit code before restaging; the global
 # set -e would otherwise abort at the run when unfixable errors exist.
 #
-# Lint and format prefer to run inside a throwaway Node container so the
-# toolchain is pinned regardless of host. When Docker is unavailable (a dev
-# container without the socket), they fall back to the local Node toolchain,
-# which must exist because the pre-flight checks above pass.
+# The execution environment differs across developers, so we probe Docker
+# availability rather than guessing "inside vs outside a container":
+#   - macOS host:     no local Node; Docker Desktop provides node:24-alpine
+#   - dev container:  Node 24 installed; no Docker CLI/socket
+# docker present -> run inside the pinned node:24-alpine image
+# docker absent  -> run with the local Node toolchain (the repo cannot build
+#                   without it, so it must exist whenever we reach this point)
 
 if [ -s "$lint_list" ]; then
   set +e
@@ -88,6 +91,7 @@ if [ -s "$lint_list" ]; then
 fi
 
 # --- Format (repo prettier config) ---------------------------------------
+# Same docker-or-local selection as the lint step above.
 
 if command -v docker >/dev/null 2>&1; then
   docker run --rm --network none \
