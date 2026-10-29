@@ -88,17 +88,17 @@ export function processJsonSchema<T extends JSONSchema4>(jsonSchema: T): T {
     jsonSchema.type = isMultiple ? types : types[0];
   }
 
-  // Mock.toJSONSchema produces `properties` as an array, but JSONSchema4 expects an object.
+  // Mock.toJSONSchema produces `properties` as an array of named schemas, but
+  // JSONSchema4 expects an object keyed by name. The generic `T` cannot prove
+  // the object shape is assignable to `T["properties"]`, so the write goes
+  // through a non-generic view; the value itself is fully typed.
   if (isArray(jsonSchema.properties)) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- narrowing the array to the object shape here is intentional and type-safe at runtime
-    // @ts-ignore
-    jsonSchema.properties = (jsonSchema.properties as JSONSchema4[]).reduce<Defined<JSONSchema4["properties"]>>(
-      (props, js) => {
-        props[js.name] = js;
-        return props;
-      },
-      {},
-    );
+    const named = jsonSchema.properties as Array<JSONSchema4 & { name: string }>;
+    const properties: Defined<JSONSchema4["properties"]> = {};
+    for (const js of named) {
+      properties[js.name] = js;
+    }
+    (jsonSchema as JSONSchema4).properties = properties;
   }
 
   // Trim whitespace from field names.

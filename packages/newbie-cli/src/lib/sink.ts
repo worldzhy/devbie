@@ -108,9 +108,36 @@ export function createSink(cwd: string, dryRun: boolean, options: { check?: bool
         return;
       }
       const target = resolve(toRelative);
-      await fs.rm(target, { recursive: true, force: true });
-      await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.cp(fromAbsolute, target, { recursive: true });
+      const parent = path.dirname(target);
+      await fs.mkdir(parent, { recursive: true });
+      // Copy into a sibling temp dir first, then swap. A failed copy must never
+      // leave the previously installed tree deleted or half-written.
+      const stamp = `${process.pid}-${Date.now()}`;
+      const temp = path.join(parent, `.${path.basename(target)}.tmp-${stamp}`);
+      const backup = path.join(parent, `.${path.basename(target)}.bak-${stamp}`);
+      await fs.rm(temp, { recursive: true, force: true });
+      try {
+        await fs.cp(fromAbsolute, temp, { recursive: true });
+        const hadTarget = await fs.stat(target).then(
+          () => true,
+          () => false,
+        );
+        if (hadTarget) {
+          await fs.rename(target, backup);
+        }
+        try {
+          await fs.rename(temp, target);
+        } catch (swapError) {
+          if (hadTarget) {
+            await fs.rename(backup, target);
+          }
+          throw swapError;
+        }
+        await fs.rm(backup, { recursive: true, force: true });
+      } catch (error) {
+        await fs.rm(temp, { recursive: true, force: true }).catch(() => {});
+        throw error;
+      }
     },
 
     async run(command: string, args: string[], label?: string): Promise<void> {
