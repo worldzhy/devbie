@@ -18,8 +18,9 @@ const logger = new Logger("PortRace");
  *     (a sibling bound first between probe and listen) is caught and retried
  *     instead of crashing the process.
  *  2. On the first occupied probe, SIGKILL holders that belong to a PREVIOUS
- *     process generation. Same-generation siblings (started within seconds of
- *     us) are never killed.
+ *     process generation AND run the same entry script (/proc/<pid>/cmdline).
+ *     Same-generation siblings (started within seconds of us) are never killed,
+ *     and neither is an unrelated service that merely grabbed the same port.
  *  3. If the port never frees:
  *     - held by a same-generation sibling → that sibling is already serving,
  *       stand down and exit(0) cleanly;
@@ -114,7 +115,18 @@ export async function listenWithPortRaceRecovery(
  */
 function standDownIfSiblingWon(port: number): void {
   const holders = findPortHolderPids(port).filter((pid) => pid !== process.pid);
-  if (holders.length > 0 && holders.every((pid) => !isPreviousGeneration(pid))) {
+  if (holders.length === 0) return;
+  // A holder running a different entry script is an unrelated service, not a
+  // sibling of ours: standing down would leave that foreign process serving
+  // our routes, so keep probing instead.
+  const foreign = holders.filter((pid) => matchesEntryScript(pid) === false);
+  if (foreign.length > 0) {
+    logger.warn(
+      `Port ${port} is held by unrelated process(es) [${foreign.join(", ")}] running a different entry script; not standing down.`,
+    );
+    return;
+  }
+  if (holders.every((pid) => !isPreviousGeneration(pid))) {
     logger.log(`A sibling instance [${holders.join(", ")}] is already serving port ${port}; standing down.`);
     process.exit(0);
   }
@@ -188,16 +200,60 @@ function readProcessStartTick(pid: number): number | null {
   }
 }
 
+// Entry script of this process (argv[1]). null for `node -e`, workers and
+// other invocations that carry no script path.
+const selfEntryScript: string | null = process.argv[1] || null;
+
+/** Read /proc/<pid>/cmdline as an argv array, or null when /proc is unavailable. */
+function readProcessCmdline(pid: number): string[] | null {
+  try {
+    return fs
+      .readFileSync(`/proc/${pid}/cmdline`, "utf-8")
+      .split("\0")
+      .filter((part) => part.length > 0);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The script argument of a node process, skipping the binary path plus any
+ * leading flags (`node --enable-source-maps dist/src/main` -> `dist/src/main`).
+ */
+function entryScriptOf(argv: string[]): string | null {
+  for (let i = 1; i < argv.length; i++) {
+    if (!argv[i].startsWith("-")) return argv[i];
+  }
+  return null;
+}
+
+/**
+ * Whether `pid` runs the same entry script as this process. Returns null when
+ * it cannot be determined (no /proc, unreadable cmdline, or this process has
+ * no script path), so callers stay conservative and never kill blindly.
+ */
+function matchesEntryScript(pid: number): boolean | null {
+  if (selfEntryScript === null) return null;
+  const argv = readProcessCmdline(pid);
+  if (argv === null) return null;
+  const script = entryScriptOf(argv);
+  if (script === null) return false;
+  return script === selfEntryScript;
+}
+
 /**
  * Whether the given PID belongs to a previous process generation (started
- * noticeably earlier than us). Conservative: if the age cannot be determined
- * (no /proc, process vanished), returns false so we never kill blindly.
+ * noticeably earlier than us AND running the same entry script). Conservative:
+ * when the age or the command line cannot be determined (no /proc, process
+ * vanished), returns false so we never kill an unrelated process that merely
+ * happens to hold the same port.
  */
 function isPreviousGeneration(pid: number): boolean {
   if (pid === process.pid || selfStartTick === null) return false;
   const tick = readProcessStartTick(pid);
   if (tick === null) return false;
-  return selfStartTick - tick >= STALE_GENERATION_MARGIN_TICKS;
+  if (selfStartTick - tick < STALE_GENERATION_MARGIN_TICKS) return false;
+  return matchesEntryScript(pid) === true;
 }
 
 /**

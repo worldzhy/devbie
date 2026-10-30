@@ -7,11 +7,10 @@
 
 ## P0（未修复）
 
-- [ ] `[安全评审 round2 2026-10-30]` **web-monitor-sdk 默认采集请求体/响应体/URL query**：`packages/web-monitor-sdk/src/core.ts` L410-416（fetch body）、L684-687（XHR body）、L422-423（GET query 含 token）、L524/L555（失败响应全文）。默认开启且无脱敏钩子，登录密码 JSON、重置令牌随性能/错误上报落 ClickHouse。修复：默认不采集 body/query，新增 `captureBody` + `redact` 钩子，responseText 截断。
+（暂无）
 
-## P1（安全评审 round2，devbie 12 条）
+## P1（安全评审 round2，devbie 11 条）
 
-- [ ] `newbie/port-race.ts` L207-221：`isPreviousGeneration` 只比启动时间，SIGKILL 会杀同端口无关进程。修复：读 `/proc/<pid>/cmdline` 校验入口脚本匹配。
 - [ ] `newbie/module-hub/reporter.ts` L96-105：hub 返回的 `reportIntervalSeconds` 未校验直接 `setInterval`，返回 0/NaN 即全宿主毫秒级 ping 风暴。修复：`Number.isFinite` + 下限钳制。
 - [ ] `newbie/utilities/datetime.util.ts` L141-152：数字时区分支把偏移拼到秒后（`3:4:58`），UTC 分支 offset 为空按本地解析。修复：格式化为 `+08:00`，空 offset 回退 `+00:00`。
 - [ ] `newbie-cli/core/env-file.ts` L110-142：`findSectionRange` 假想段格式与 CLI 自生成格式不一致（start 永不成立、end 永远 EOF），upsert 变量落到文件末尾被吞进别模块段。修复：按实际生成格式重写 start/end 判定。
