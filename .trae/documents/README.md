@@ -14,6 +14,12 @@ nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本
 
 - [backlog.md](file:///Users/worldzhy/src/devbie/.trae/documents/backlog.md) — 已确认但未排期的遗留项（只保留未办事项）
 
+## 评审报告（expert-review-*.md）
+
+跨仓评审（框架 + registry + 宿主）的报告落在这里，文件名按 `expert-review-<日期>-roundN.md`；未修项不复制正文，只落到对应仓的 backlog.md。
+
+- [expert-review-2026-10-30-round2.md](file:///Users/worldzhy/src/devbie/.trae/documents/expert-review-2026-10-30-round2.md) — 第二轮全仓评审（14 P0 / 12 关键 P1 已复核）
+
 ## 设计文档（design/）
 
 1. [newbie-framework-split-plan.md](file:///Users/worldzhy/src/devbie/.trae/documents/design/newbie-framework-split-plan.md) — 框架包拆分与中心化管理（设计决议）
