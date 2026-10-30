@@ -6,6 +6,7 @@ import { applyPlanned, planReconcile } from "../../assemble/pipeline";
 import { ENV_PATH } from "../../constants/paths";
 import { CliError } from "@devbie/cli-kit";
 import { SinkFinding } from "../../lib/sink";
+import { assertInteractive } from "../../lib/interactive";
 
 import { createContext, GlobalOptions } from "../shared";
 
@@ -111,6 +112,7 @@ async function runApplyReconcile(options: ModulesApplyOptions): Promise<void> {
   }
 
   if (!options.yes && !options.dryRun) {
+    assertInteractive("apply the module changes");
     const confirmed = await select({
       message,
       choices: [

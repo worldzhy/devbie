@@ -6,6 +6,7 @@ import { expandRegistryClosure } from "../../assemble/module-graph";
 import { applyModuleKeys } from "../../assemble/pipeline";
 import { directDependents } from "../../core/module-closure";
 import { CliError } from "@devbie/cli-kit";
+import { assertInteractive } from "../../lib/interactive";
 
 import { createContext, GlobalOptions } from "../shared";
 
@@ -43,6 +44,7 @@ export async function runRemove(options: ModulesRemoveOptions): Promise<void> {
   }
 
   if (!options.yes && !options.dryRun) {
+    assertInteractive("remove the module(s)");
     const confirmed = await select({
       message: `Do you want to REMOVE ${inverse(options.keys.join(", "))}?`,
       choices: [

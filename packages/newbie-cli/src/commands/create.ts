@@ -33,6 +33,14 @@ export interface ResolvedTemplate {
   root: string;
   /** Human-readable origin for reports. */
   source: string;
+  /** True when `root` is a disposable clone under os.tmpdir(). */
+  temporary?: boolean;
+}
+
+/** Remove a disposable template clone; no-op for explicit/local template roots. */
+export async function cleanupTemplate(template: ResolvedTemplate): Promise<void> {
+  if (!template.temporary) return;
+  await fs.rm(template.root, { recursive: true, force: true }).catch(() => {});
 }
 
 /** Resolve the basic template: explicit path -> git clone of newbie-starter. */
@@ -54,6 +62,7 @@ export async function resolveTemplate(options: TemplateReference): Promise<Resol
   return {
     root: temp,
     source: `${TEMPLATE_REPOSITORY_URL}#${ref ?? "HEAD"}`,
+    temporary: true,
   };
 }
 
@@ -79,27 +88,31 @@ export async function runCreate(options: CreateOptions): Promise<void> {
   }
 
   console.info(cyan(`Creating project '${name}' from the basic template...`));
-  const templateRoot = (await resolveTemplate(options)).root;
+  const template = await resolveTemplate(options);
 
-  if (options.dryRun) {
-    console.info(`[dry-run] copy ${templateRoot} -> ${targetDir}`);
-    console.info(`[dry-run] set package.json name to '${name}'`);
-    if (options.gitInit !== false) console.info("[dry-run] git init");
-    return;
-  }
+  try {
+    if (options.dryRun) {
+      console.info(`[dry-run] copy ${template.root} -> ${targetDir}`);
+      console.info(`[dry-run] set package.json name to '${name}'`);
+      if (options.gitInit !== false) console.info("[dry-run] git init");
+      return;
+    }
 
-  await copyTemplate(templateRoot, targetDir);
+    await copyTemplate(template.root, targetDir);
 
-  const packageJsonPath = path.join(targetDir, "package.json");
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8")) as {
-    name?: string;
-    [key: string]: unknown;
-  };
-  packageJson.name = name;
-  await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+    const packageJsonPath = path.join(targetDir, "package.json");
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8")) as {
+      name?: string;
+      [key: string]: unknown;
+    };
+    packageJson.name = name;
+    await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
-  if (options.gitInit !== false) {
-    await execCapture("git", ["init", "--quiet"], { cwd: targetDir });
+    if (options.gitInit !== false) {
+      await execCapture("git", ["init", "--quiet"], { cwd: targetDir });
+    }
+  } finally {
+    await cleanupTemplate(template);
   }
 
   console.info(green(bold("\n✓ Project created.\n")));

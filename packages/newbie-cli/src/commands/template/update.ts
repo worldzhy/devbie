@@ -18,7 +18,7 @@ import { unifiedDiff } from "../../core/unified-diff";
 import { CliError } from "@devbie/cli-kit";
 import { createSink } from "../../lib/sink";
 import { GlobalOptions } from "../shared";
-import { resolveTemplate, TemplateReference } from "../create";
+import { resolveTemplate, cleanupTemplate, TemplateReference } from "../create";
 
 export interface TemplateUpdateOptions extends GlobalOptions, TemplateReference {
   /** CI gate mode: print the diff and exit non-zero when anything drifts. */
@@ -134,52 +134,58 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
     console.info(cyan(`Scope: ${scope} (${templateFiles.length} template files)`));
   }
 
-  await assertTemplateRegistryComplete(template.root);
-
-  const projectFiles = new Map<string, string | null>();
-  const templateContents = new Map<string, string | null>();
-  for (const file of templateFiles) {
-    projectFiles.set(file.path, await readOrNull(cwd, file.path));
-    templateContents.set(file.path, await readOrNull(template.root, file.path));
-  }
-
-  let changes: TemplateChange[];
   try {
-    changes = planTemplateUpdate(projectFiles, templateContents, templateFiles);
-  } catch (error) {
-    throw new CliError((error as Error).message);
-  }
+    await assertTemplateRegistryComplete(template.root);
 
-  if (changes.length === 0) {
-    const suffix = scope ? ` (scope: ${scope})` : "";
-    console.info(green(bold(`✓ Project template files are up to date with the template${suffix}.`)));
-    return;
-  }
-
-  const actionable = changes.filter((c) => c.kind !== "missing-markers");
-  for (const change of changes) {
-    printChangeDiff(change);
-  }
-
-  console.info(
-    `\n${actionable.length} template file(s) to update: ` +
-      actionable.map((c) => `${c.file.path} (${c.kind})`).join(", "),
-  );
-
-  if (options.check) {
-    const command = scope ? `newbie template update ${scope}` : "newbie template update";
-    throw new CliError(
-      `${changes.length} template file(s) drift from the template ` +
-        `(${actionable.length} auto-fixable). ` +
-        `Run \`${command}\` to apply the template version.`,
-    );
-  }
-
-  for (const change of actionable) {
-    if (change.nextContent !== null) {
-      await sink.writeText(change.file.path, change.nextContent);
+    const projectFiles = new Map<string, string | null>();
+    const templateContents = new Map<string, string | null>();
+    for (const file of templateFiles) {
+      projectFiles.set(file.path, await readOrNull(cwd, file.path));
+      templateContents.set(file.path, await readOrNull(template.root, file.path));
     }
+
+    let changes: TemplateChange[];
+    try {
+      changes = planTemplateUpdate(projectFiles, templateContents, templateFiles);
+    } catch (error) {
+      throw new CliError((error as Error).message);
+    }
+
+    if (changes.length === 0) {
+      const suffix = scope ? ` (scope: ${scope})` : "";
+      console.info(green(bold(`✓ Project template files are up to date with the template${suffix}.`)));
+      return;
+    }
+
+    const actionable = changes.filter((c) => c.kind !== "missing-markers");
+    for (const change of changes) {
+      printChangeDiff(change);
+    }
+
+    console.info(
+      `\n${actionable.length} template file(s) to update: ` +
+        actionable.map((c) => `${c.file.path} (${c.kind})`).join(", "),
+    );
+
+    if (options.check) {
+      const command = scope ? `newbie template update ${scope}` : "newbie template update";
+      throw new CliError(
+        `${changes.length} template file(s) drift from the template ` +
+          `(${actionable.length} auto-fixable). ` +
+          `Run \`${command}\` to apply the template version.`,
+      );
+    }
+
+    for (const change of actionable) {
+      if (change.nextContent !== null) {
+        await sink.writeText(change.file.path, change.nextContent);
+      }
+    }
+  } finally {
+    // The clone under os.tmpdir() is disposable; keep no matter how we exit.
+    await cleanupTemplate(template);
   }
+
   if (options.dryRun) {
     console.info("[dry-run] no files were modified");
   } else {

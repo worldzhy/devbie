@@ -11,6 +11,7 @@ import { diffSnapshots, driftPatchIds } from "../../core/drift";
 import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
 import { CliError, fileExists } from "@devbie/cli-kit";
 import { writeModulesState } from "../../lib/modules-state";
+import { assertInteractive, isInteractive } from "../../lib/interactive";
 
 import { createContext, GlobalOptions } from "../shared";
 
@@ -25,11 +26,6 @@ interface UpdateInspection {
 }
 
 const short = (commit: string | null): string => (commit ? commit.slice(0, 7) : "unknown");
-
-/** Whether the process can prompt the user. */
-function isInteractive(): boolean {
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-}
 
 export interface ModulesUpdateOptions extends GlobalOptions {
   yes?: boolean;
@@ -207,6 +203,7 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   }
 
   if (!options.yes && !options.dryRun) {
+    assertInteractive("update the module copies");
     const confirmed = await select({
       message: `Do you want to UPDATE ${cyan(addedKeys.join(", "))}?`,
       choices: [

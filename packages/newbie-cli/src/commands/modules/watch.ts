@@ -7,6 +7,7 @@ import { MODULES_DIR, MODULE_MANIFEST_FILE } from "@devbie/modules-state";
 import { REGISTRY_MODULES_DIR } from "../../constants/paths";
 import { CliError, execCapture, trim } from "@devbie/cli-kit";
 import { moduleRootInRegistry, RegistryLocation, resolveRegistry, listRegistryKeys } from "../../lib/registry";
+import { createSink, Sink } from "../../lib/sink";
 
 export interface ModulesWatchOptions {
   cwd: string;
@@ -40,10 +41,13 @@ async function installedModuleKeys(projectRoot: string): Promise<string[]> {
  * Copy one module's registry source tree into the project. Mirrors the
  * install pipeline's addModules behaviour but runs outside the full
  * assemble context (env/prisma wiring is left to `newbie modules apply`).
+ *
+ * Goes through the sink so the swap is atomic: a failed copy keeps the
+ * previously installed module instead of leaving it deleted or half-written.
  */
-async function syncModule(projectRoot: string, registry: RegistryLocation, key: string): Promise<void> {
+async function syncModule(sink: Sink, registry: RegistryLocation, key: string): Promise<void> {
   const source = moduleRootInRegistry(registry.root, key);
-  // Verify the registry source exists before removing the installed copy;
+  // Verify the registry source exists before touching the installed copy;
   // otherwise a vanished source would leave the project without the module
   // (mirrors the addModules missing-source guard from modules-copy.ts).
   try {
@@ -51,10 +55,7 @@ async function syncModule(projectRoot: string, registry: RegistryLocation, key: 
   } catch {
     throw new CliError(`Registry source for '${key}' not found at ${source}; skipping sync.`);
   }
-  const target = path.join(projectRoot, MODULES_DIR, key);
-  await fsp.rm(target, { recursive: true, force: true });
-  await fsp.mkdir(path.dirname(target), { recursive: true });
-  await fsp.cp(source, target, { recursive: true });
+  await sink.copy(source, path.join(MODULES_DIR, key));
 }
 
 /** Debounce a callback so rapid successive events trigger only one sync. */
@@ -81,6 +82,64 @@ async function moduleHasUncommittedChanges(registryRoot: string, key: string): P
   } catch {
     return false;
   }
+}
+
+/** Snapshot of every file path + mtime + size under a tree, used by the poll fallback. */
+async function treeSignature(root: string): Promise<string> {
+  const parts: string[] = [];
+  async function walk(dir: string, rel: string): Promise<void> {
+    let entries: import("node:fs").Dirent[];
+    try {
+      entries = await fsp.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const nextRel = rel === "" ? entry.name : `${rel}/${entry.name}`;
+      if (entry.isDirectory()) {
+        parts.push(`d:${nextRel}`);
+        await walk(path.join(dir, entry.name), nextRel);
+      } else if (entry.isFile()) {
+        const stat = await fsp.stat(path.join(dir, entry.name)).catch(() => null);
+        if (stat) parts.push(`f:${nextRel}:${stat.mtimeMs}:${stat.size}`);
+      }
+    }
+  }
+  await walk(root, "");
+  return parts.join("\n");
+}
+
+interface TreeWatcher {
+  close(): void;
+}
+
+/**
+ * Watch a directory tree recursively.
+ *
+ * `fs.watch({ recursive: true })` throws ERR_FEATURE_UNAVAILABLE_ON_PLATFORM on
+ * platforms without native recursive support (Linux before Node 20). Fall back
+ * to polling the tree signature there instead of crashing the dev loop.
+ */
+async function watchTree(root: string, onChange: () => void, onError: (error: Error) => void): Promise<TreeWatcher> {
+  try {
+    const watcher = fs.watch(root, { recursive: true }, () => onChange());
+    watcher.on("error", onError);
+    return { close: () => watcher.close() };
+  } catch (error) {
+    // Only the platform gap justifies polling; anything else (EACCES, ENOSPC…)
+    // must surface instead of degrading silently.
+    if ((error as NodeJS.ErrnoException).code !== "ERR_FEATURE_UNAVAILABLE_ON_PLATFORM") throw error;
+  }
+
+  let last = await treeSignature(root);
+  const timer = setInterval(() => {
+    void treeSignature(root).then((current) => {
+      if (current === last) return;
+      last = current;
+      onChange();
+    });
+  }, 1000);
+  return { close: () => clearInterval(timer) };
 }
 
 export async function runWatch(options: ModulesWatchOptions): Promise<void> {
@@ -146,7 +205,8 @@ export async function runWatch(options: ModulesWatchOptions): Promise<void> {
     );
   }
 
-  const watchers: fs.FSWatcher[] = [];
+  const sink = createSink(projectRoot, false);
+  const watchers: TreeWatcher[] = [];
 
   for (const key of watchKeys) {
     const sourceDir = moduleRootInRegistry(registry.root, key);
@@ -158,7 +218,7 @@ export async function runWatch(options: ModulesWatchOptions): Promise<void> {
     }
 
     const sync = debounce(() => {
-      syncModule(projectRoot, registry, key)
+      syncModule(sink, registry, key)
         .then(() => {
           console.info(`${green("↻")} ${key} synced`);
         })
@@ -167,10 +227,7 @@ export async function runWatch(options: ModulesWatchOptions): Promise<void> {
         });
     }, 150);
 
-    const watcher = fs.watch(sourceDir, { recursive: true }, (_event, filename) => {
-      if (filename) sync();
-    });
-    watcher.on("error", (err) => {
+    const watcher = await watchTree(sourceDir, sync, (err) => {
       console.warn(yellow(`  ! watcher for ${key} error: ${err.message}`));
     });
     watchers.push(watcher);
