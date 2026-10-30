@@ -94,6 +94,23 @@ describe("assembleNestJsModules", () => {
     assert.match(config, /NAME: "account"/);
   });
 
+  it("only unwraps strings that are real process expressions", async () => {
+    const cwd = await makeProject({
+      account: {
+        "config-service": {
+          MODE: "process-mode",
+          NODE_ENV: "process.env.NODE_ENV",
+        },
+      },
+    });
+
+    await assemble(cwd, ["account"]);
+
+    const config = await readOut(cwd, "src/modules/modules.config.ts");
+    assert.match(config, /MODE: "process-mode"/);
+    assert.match(config, /NODE_ENV: process\.env\.NODE_ENV/);
+  });
+
   it("reports no drift when the written files are checked again", async () => {
     const cwd = await makeProject({ account: {} });
 

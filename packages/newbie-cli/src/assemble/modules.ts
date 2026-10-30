@@ -74,8 +74,10 @@ function configValueUsesHelper(value: unknown, helper: "bool" | "int"): boolean 
 function configTemplate(configs: Record<string, unknown>): string {
   // The manifest stores runtime expressions as plain strings ("process.env.X");
   // unwrap the quotes so they become real TS expressions in the generated file.
+  // The `process.` requirement keeps ordinary strings such as "process-mode"
+  // from being turned into (invalid) code.
   const body = JSON.stringify(configs, null, 2)
-    .replace(/("|')(process.*?)\1/g, "$2")
+    .replace(/("|')(process\.[^"']*?)\1/g, "$2")
     .replace(/("|')(bool\(process.*?)\1/g, "$2")
     .replace(/("|')(int\(process.*?)\1/g, "$2");
 

@@ -53,6 +53,8 @@ describe("removeEnvKeys", () => {
 });
 
 describe("upsertEnvSection", () => {
+  const deco = "# ----------------------------------------------------------------------------------";
+
   it("appends a new titled section", () => {
     const lines = upsertEnvSection(parseEnv("APP_NAME=Newbie\n"), "Account", {
       ACCOUNT_REDIS_HOST: "",
@@ -60,6 +62,19 @@ describe("upsertEnvSection", () => {
     const text = serializeEnv(lines);
     assert.ok(text.includes("# ! Account variables"));
     assert.ok(text.includes("ACCOUNT_REDIS_HOST="));
+  });
+
+  it("adds missing keys to the existing section, not the file tail", () => {
+    const lines = upsertEnvSection(
+      parseEnv(
+        [deco, "# ! Alpha variables", deco, "ALPHA_A=1", "", deco, "# ! Zeta variables", deco, "ZETA_A=1"].join("\n"),
+      ),
+      "Alpha",
+      { ALPHA_B: "2" },
+    );
+    const text = serializeEnv(lines);
+    assert.ok(text.indexOf("ALPHA_A=1") < text.indexOf("ALPHA_B=2"));
+    assert.ok(text.indexOf("ALPHA_B=2") < text.indexOf("# ! Zeta variables"));
   });
 
   it("is idempotent and never overwrites existing keys", () => {
@@ -73,11 +88,35 @@ describe("upsertEnvSection", () => {
 });
 
 describe("pruneEmptySections", () => {
+  const deco = "# ----------------------------------------------------------------------------------";
+
   it("removes section blocks left without entries", () => {
     const lines = pruneEmptySections(
       upsertEnvSection(parseEnv(""), "Account", { A: "1" }).filter((line) => line.kind !== "entry" || line.key !== "A"),
     );
     assert.ok(!serializeEnv(lines).includes("Account variables"));
+  });
+
+  it("removes an empty middle section without eating neighbouring sections", () => {
+    const lines = pruneEmptySections(
+      parseEnv(
+        [
+          "APP_NAME=Newbie",
+          "",
+          deco,
+          "# ! Account variables",
+          deco,
+          "",
+          deco,
+          "# ! Zeta variables",
+          deco,
+          "ZETA_A=1",
+        ].join("\n"),
+      ),
+    );
+    const text = serializeEnv(lines);
+    assert.ok(!text.includes("Account variables"));
+    assert.equal(text, ["APP_NAME=Newbie", "", deco, "# ! Zeta variables", deco, "ZETA_A=1"].join("\n") + "\n");
   });
 });
 

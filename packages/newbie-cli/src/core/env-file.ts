@@ -107,33 +107,36 @@ export function removeEnvKeys(lines: EnvLine[], keys: ReadonlySet<string>): EnvL
   return lines.filter((line) => line.kind !== "entry" || !keys.has(line.key));
 }
 
+/**
+ * Index where a section block begins. `sectionHeader()` renders a block as
+ * `blank, decoration, "# ! <title> variables", decoration, entries`, so the
+ * leading blank (when present) and the decoration above the title belong to
+ * the block and must move/delete together with it.
+ */
+function sectionBlockStart(lines: EnvLine[], titleIndex: number): number {
+  const before = lines[titleIndex - 1];
+  if (before?.kind === "comment" && DECORATION_RE.test(before.text)) {
+    const earlier = lines[titleIndex - 2];
+    return earlier?.kind === "blank" ? titleIndex - 2 : titleIndex - 1;
+  }
+  return titleIndex;
+}
+
 function findSectionRange(lines: EnvLine[], title: string): { start: number; end: number } | null {
   const titleIndex = lines.findIndex(
     (line) => line.kind === "comment" && line.text.match(SECTION_TITLE_RE)?.[1] === title,
   );
   if (titleIndex === -1) return null;
 
-  let start = titleIndex;
-  if (
-    titleIndex - 2 >= 0 &&
-    lines[titleIndex - 1].kind === "comment" &&
-    DECORATION_RE.test((lines[titleIndex - 1] as { text: string }).text) &&
-    lines[titleIndex - 2].kind === "comment" &&
-    DECORATION_RE.test((lines[titleIndex - 2] as { text: string }).text)
-  ) {
-    start = titleIndex - 2;
-  }
+  const start = sectionBlockStart(lines, titleIndex);
 
+  // The block ends where the next section block starts, so entries appended to
+  // this section never land inside a following section's body.
   let end = lines.length;
   for (let i = titleIndex + 1; i < lines.length; i++) {
     const candidate = lines[i];
-    if (
-      candidate.kind === "comment" &&
-      DECORATION_RE.test(candidate.text) &&
-      lines[i + 2]?.kind === "comment" &&
-      SECTION_TITLE_RE.test((lines[i + 2] as { text: string }).text)
-    ) {
-      end = i;
+    if (candidate.kind === "comment" && SECTION_TITLE_RE.test(candidate.text)) {
+      end = sectionBlockStart(lines, i);
       break;
     }
   }
@@ -207,9 +210,11 @@ export function pruneEmptySections(lines: EnvLine[]): EnvLine[] {
     if (!range) continue;
     const body = next.slice(range.start, range.end);
     if (!body.some((line) => line.kind === "entry")) {
+      // The block's own leading blank is removed with it; only swallow the
+      // separator blank when the block itself did not start with one.
+      const startedWithBlank = next[range.start]?.kind === "blank";
       next = [...next.slice(0, range.start), ...next.slice(range.end)];
-      // Also swallow a single separating blank line directly after the block.
-      if (next[range.start]?.kind === "blank") {
+      if (!startedWithBlank && next[range.start]?.kind === "blank") {
         next = [...next.slice(0, range.start), ...next.slice(range.start + 1)];
       }
     }
