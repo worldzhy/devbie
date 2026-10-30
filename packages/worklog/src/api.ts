@@ -32,6 +32,9 @@ const MAX_SESSIONS_PER_BATCH = 50;
 const MAX_MESSAGES_PER_SESSION = 2_000;
 const MAX_DOCUMENTS_PER_BATCH = 100;
 
+/** A hung ingest endpoint must not stall the whole reporting run. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 /** Server rejected the installation token (HTTP 401). */
 export class WorklogAuthError extends Error {}
 
@@ -120,6 +123,7 @@ export class WorklogApi {
         authorization: `Bearer ${this.token}`,
       },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (response.status === 401) {
       this.rejected = true;
