@@ -4,7 +4,10 @@
  * addressed by their PostgreSQL namespace name (`module/<key>`).
  */
 
-const DATASOURCE_SCHEMAS_RE = /(datasource\s+db\s*\{(?:.|\n|\r)*schemas\s*=\s*)(\[.*?\])/;
+// Bounded to a single datasource block: `[^}]*` stops at the block's closing
+// brace, so a greedy scan cannot drift into a later block or comment that
+// happens to mention `schemas =`.
+const DATASOURCE_SCHEMAS_RE = /(datasource\s+[A-Za-z_][A-Za-z0-9_]*\s*\{[^}]*schemas\s*=\s*)(\[[^\]]*\])/;
 
 export function updateDatasourceSchemas(content: string, addedPaths: string[], removedPaths: string[]): string {
   return content.replace(DATASOURCE_SCHEMAS_RE, (_whole, prefix: string, arrayLiteral: string) => {
