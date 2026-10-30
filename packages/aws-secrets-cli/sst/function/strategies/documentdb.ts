@@ -30,9 +30,8 @@ export class DocumentDbStrategy implements RotationStrategy {
   async setSecret(secretId: string, token: string, pendingDict: any, currentDict: any): Promise<void> {
     const url = `mongodb://${currentDict.username}:${currentDict.password}@${currentDict.host}:${currentDict.port}/${currentDict.dbname || "test"}?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
     const client = new MongoClient(url, {
-      tlsCAFile: "/opt/rds-combined-ca-bundle.pem",
       tls: true,
-      tlsAllowInvalidCertificates: true,
+      ...tlsCaOptions(),
     });
     await client.connect();
     const db = client.db(currentDict.dbname || "test");
@@ -44,8 +43,8 @@ export class DocumentDbStrategy implements RotationStrategy {
   }
 
   async testSecret(secretId: string, token: string, pendingDict: any): Promise<void> {
-    const url = `mongodb://${pendingDict.username}:${pendingDict.password}@${pendingDict.host}:${pendingDict.port}/${pendingDict.dbname || "test"}?tls=true&tlsAllowInvalidCertificates=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
-    const client = new MongoClient(url);
+    const url = `mongodb://${pendingDict.username}:${pendingDict.password}@${pendingDict.host}:${pendingDict.port}/${pendingDict.dbname || "test"}?tls=true&replicaSet=rs0&readPreference=secondaryPreferred&retryWrites=false`;
+    const client = new MongoClient(url, tlsCaOptions());
     await client.connect();
     await client.db().command({ ping: 1 });
     await client.close();
@@ -61,4 +60,16 @@ export class DocumentDbStrategy implements RotationStrategy {
       }),
     );
   }
+}
+
+/**
+ * TLS options for DocumentDB. Certificate verification stays enabled — a
+ * rotation Lambda must never accept a forged certificate. The old hardcoded
+ * `/opt/rds-combined-ca-bundle.pem` is neither shipped with the Lambda nor a
+ * current bundle, so the runtime's system trust store (Amazon Trust Services
+ * roots) is used by default; a bundled CA file can be supplied through
+ * DOCUMENTDB_CA_FILE when the cluster still uses a legacy CA.
+ */
+function tlsCaOptions(): { tlsCAFile?: string } {
+  return process.env.DOCUMENTDB_CA_FILE ? { tlsCAFile: process.env.DOCUMENTDB_CA_FILE } : {};
 }

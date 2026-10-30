@@ -10,6 +10,11 @@ export default $config({
     };
   },
   async run() {
+    // `deploy-rotation` deploys with the AWS account id as the SST stage, so the
+    // IAM ARNs can be scoped to that account. A manual `sst deploy --stage
+    // production` falls back to a wildcard account segment.
+    const accountId = /^\d{12}$/.test($app.stage) ? $app.stage : "*";
+
     // Create the Secrets Manager polling Lambda function
     const rotationFunction = new sst.aws.Function("SecretsManagerRotation", {
       handler: "function/index.handler",
@@ -26,9 +31,21 @@ export default $config({
             "secretsmanager:GetSecretValue",
             "secretsmanager:PutSecretValue",
             "secretsmanager:UpdateSecretVersionStage",
-            "secretsmanager:GetRandomPassword",
           ],
+          resources: [`arn:aws:secretsmanager:*:${accountId}:secret:*`],
+        },
+        {
+          // GetRandomPassword does not operate on a specific secret, so IAM
+          // requires the wildcard resource for this action.
+          actions: ["secretsmanager:GetRandomPassword"],
           resources: ["*"],
+        },
+        {
+          // AwsApiKeyStrategy derives the IAM username from the current key's
+          // STS identity and rotates only that user's access keys, so the grant
+          // is limited to IAM users instead of every IAM resource.
+          actions: ["iam:CreateAccessKey", "iam:UpdateAccessKey", "iam:DeleteAccessKey"],
+          resources: [`arn:aws:iam::${accountId}:user/*`],
         },
       ],
     });
