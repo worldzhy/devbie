@@ -26,6 +26,12 @@ import { readModuleSnapshot, type ModuleSnapshotEntry } from "./snapshot";
 const REPORT_TIMEOUT_MS = 10_000;
 /** Default ping interval when the hub response omits reportIntervalSeconds. */
 const DEFAULT_PING_INTERVAL_MS = 60_000;
+/**
+ * Lower bound for a hub-provided ping interval. A hub returning a tiny,
+ * zero or negative `reportIntervalSeconds` must not turn every host into a
+ * millisecond-level ping storm.
+ */
+const MIN_PING_INTERVAL_MS = 5_000;
 
 export interface ModuleHubReportOptions {
   /** Full module-hub report URL, e.g. https://api.example.com/module-hub/report. */
@@ -49,6 +55,17 @@ export interface ModuleHubReportHandle {
 }
 
 const GLOBAL_KEY = Symbol.for("@devbie/newbie:module-hub-reporter");
+
+/**
+ * Turns an untrusted hub-supplied `reportIntervalSeconds` into a safe
+ * interval in milliseconds, or `null` when the value is not a finite number.
+ */
+function resolvePingIntervalMs(reportIntervalSeconds: unknown): number | null {
+  if (typeof reportIntervalSeconds !== "number" || !Number.isFinite(reportIntervalSeconds)) {
+    return null;
+  }
+  return Math.max(MIN_PING_INTERVAL_MS, Math.round(reportIntervalSeconds * 1000));
+}
 
 /**
  * Starts the module-hub reporting loop.
@@ -95,12 +112,10 @@ export function startModuleHubReporting(options: ModuleHubReportOptions): Module
    */
   async function sendPing(): Promise<void> {
     const response = await send({ kind: "ping" });
-    if (response?.reportIntervalSeconds) {
-      const newInterval = response.reportIntervalSeconds * 1000;
-      if (newInterval !== pingIntervalMs) {
-        pingIntervalMs = newInterval;
-        schedulePing();
-      }
+    const newInterval = resolvePingIntervalMs(response?.reportIntervalSeconds);
+    if (newInterval !== null && newInterval !== pingIntervalMs) {
+      pingIntervalMs = newInterval;
+      schedulePing();
     }
   }
 
@@ -141,8 +156,9 @@ export function startModuleHubReporting(options: ModuleHubReportOptions): Module
       modules,
     });
 
-    if (response?.reportIntervalSeconds) {
-      pingIntervalMs = response.reportIntervalSeconds * 1000;
+    const intervalFromFull = resolvePingIntervalMs(response?.reportIntervalSeconds);
+    if (intervalFromFull !== null) {
+      pingIntervalMs = intervalFromFull;
     }
 
     // Start the ping loop now that we know the interval (or the default).

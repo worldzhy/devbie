@@ -145,6 +145,23 @@ describe("startModuleHubReporting", () => {
     spy.restore();
   });
 
+  it("clamps a bogus reportIntervalSeconds instead of flooding pings", async () => {
+    const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: -5 }), { status: 200 }));
+    const handle = startModuleHubReporting({
+      endpoint: "http://localhost:3000",
+      token: "tok",
+      projectRoot: root,
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    // A negative/zero interval must not collapse into a ~1ms ping loop.
+    assert.equal(spy.calls.length, 1);
+
+    handle.stop();
+    spy.restore();
+  });
+
   it("stops the ping interval when stop() is called", async () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
     const handle = startModuleHubReporting({
