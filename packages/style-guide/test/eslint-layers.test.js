@@ -87,6 +87,14 @@ describe("eslint layers", () => {
     }
   });
 
+  it("base ignores minified vendor bundles", () => {
+    // Minified files are machine output — vendor bundles copied into a repo
+    // (docs microsites under public/, for example). Linting them yields
+    // thousands of meaningless violations, so the ignore lives in the shared
+    // layer and consumers need not repeat it in their own config.
+    assert.ok(flatten(base).some((entry) => entry.ignores?.includes("**/*.min.js")));
+  });
+
   it("nest carries the typed Nest rules and requires a TypeScript project", () => {
     const ids = ruleIds(nest);
     assert.ok(ids.includes("@darraghor/nestjs-typed/injectable-should-be-provided"));
