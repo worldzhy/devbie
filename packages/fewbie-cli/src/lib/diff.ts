@@ -24,6 +24,18 @@ interface DiffLine {
   text: string;
 }
 
+/**
+ * Cap on DP cells (old lines × new lines). The LCS table is O(m×n); without a
+ * guard a pathological file pair can exhaust memory and hang template updates.
+ * Beyond the cap we emit a coarse replace-all diff, which is still valid.
+ */
+const MAX_LCS_CELLS = 1_000_000;
+
+/** Coarse fallback: every old line removed, every new line added. */
+function coarseDiff(a: string[], b: string[]): DiffLine[] {
+  return [...a.map((text): DiffLine => ({ type: "-", text })), ...b.map((text): DiffLine => ({ type: "+", text }))];
+}
+
 /** Backtrack through the LCS table to produce the edit script. */
 function backtrack(dp: number[][], a: string[], b: string[]): DiffLine[] {
   const result: DiffLine[] = [];
@@ -65,8 +77,7 @@ export function unifiedDiff(oldContent: string, newContent: string, oldLabel: st
 
   if (a.join("\n") === b.join("\n")) return "";
 
-  const dp = lcs(a, b);
-  const lines = backtrack(dp, a, b);
+  const lines = a.length * b.length > MAX_LCS_CELLS ? coarseDiff(a, b) : backtrack(lcs(a, b), a, b);
 
   const out: string[] = [];
   out.push(`--- ${oldLabel}`);

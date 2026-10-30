@@ -144,8 +144,13 @@ export async function resolveInstallSet(root: string, names: string[]): Promise<
       throw new CliError(`Circular registry dependency involving '${name}'.`);
     }
     visiting.add(name);
-    const loaded = await loadItem(root, name).catch(() => {
-      throw new CliError(`Registry item '${name}' not found. Run 'fewbie modules add <name>' with a valid name.`);
+    const loaded = await loadItem(root, name).catch((error: unknown) => {
+      // Only a genuinely missing item becomes "not found"; IO/parse/validation
+      // failures must surface with their own message instead of being masked.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+        throw new CliError(`Registry item '${name}' not found. Run 'fewbie modules add <name>' with a valid name.`);
+      }
+      throw error;
     });
     for (const dep of loaded.manifest.registryDependencies ?? []) {
       await visit(dep);
