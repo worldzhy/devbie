@@ -15,7 +15,7 @@
 
 > 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
 
-## P2（安全评审 round2，按仓拆分）
+## P2（安全评审 round2，devbie 18 条）
 
 ### devbie
 
@@ -38,51 +38,7 @@
 - [ ] `fewbie-cli`：非 TTY 默认确认破坏性操作。修复：默认拒绝。
 - [ ] `fewbie-cli/lib/diff.ts`：LCS O(m×n) 无护栏 → 大文件卡死。修复：规模上限或换 Myers。
 
-### newbie-modules
-
-- [ ] `account`：审批子网 token 可重放。修复：一次性消费或绑定状态校验。
-- [ ] `account`：验证码 validate→写→inactivate 三步非原子 → 一码两用。修复：单事务条件更新。
-- [ ] `llm/management/llm-connection.service.ts` L128：`includes("****")` 判掩码 → 真密钥含 `****` 被静默丢弃。修复：显式 mask 标记。
-- [ ] `tencent-cos`：长期明文密钥 + 代码兜底默认值。修复：走凭证链、删除默认值。
-- [ ] `aws-cloudformation`：示例 stack 内嵌 `postgres/postgres` 弱口令与真实 RDS 地址。修复：改占位符。
-- [ ] `audit/http-access.interceptor.ts` L196：无条件信任客户端 XFF 首跳 → 审计 IP 可伪造。修复：trust proxy + `req.ip`。
-- [ ] `copilot`：把 ClickHouse/Prisma/Lark 原始 message 回喂模型。修复：统一错误摘要。
-- [ ] `copilot`：`lark.cards` Map 只写不删 → 内存泄漏。修复：按会话/容量清理。
-- [ ] `copilot`：会话/消息/replay 三处无上限。修复：分页/截断。
-- [ ] `evaluation`：publishVersion `count→updateMany` 不在事务内 → 可发 0 criteria 版本。修复：事务内校验。
-- [ ] `task-management`：状态机 check-then-act TOCTOU。修复：条件更新（`updateMany where status`）。
-- [ ] `security-evaluation`：intel 单 run 通知无上限 → 刷屏。修复：分页/上限。
-- [ ] `security-evaluation`：`findingSummary` 全量载入内存。修复：分页聚合或增量统计。
-- [ ] `aws-cloudwatch`：EC2 `deleteMany` 丢 `projectId` 条件 → 删掉他项目行。修复：补 `projectId`。
-- [ ] `googleapis/google-drive`：删除授权先删本地后调远端 → 远端失败后残留失管。修复：先远端后本地。
-- [ ] `saas`：team id 去重查错表。修复：按 team 归属校验。
-- [ ] `redis`：无 `onModuleDestroy` → 连接泄漏。修复：实现销毁钩子。
-- [ ] `elasticsearch`：无 `onModuleDestroy`。修复：同上。
-- [ ] `pdf/pdf.service.ts` L17：`getPdfPageCount` 全页渲染 → OOM。修复：只读页树。
-- [ ] `xlsx`：monkey-patch 全局 `console` + 无 zip bomb 防护。修复：局部 logger + 解压体积上限。
-- [ ] `health`：HTTP 请求无超时。修复：`AbortSignal.timeout`。
-
-### nightwatch-backend
-
-- [ ] `src/application/project/members/project-member.service.ts`：最后 OWNER 保护 check-then-act → 并发可移除全部 OWNER。修复：事务内 count+update。
-- [ ] `src/application/project/dashboard`：`ensureDefaults` 并发重复播种。修复：唯一约束或幂等 upsert。
-- [ ] `src/application/copilot/transports/web/chat.controller.ts`：把 SDK 原始 message 回客户端。修复：统一错误码 + 摘要。
-- [ ] `src/application/chat-binding`：删除契约不一致（不存在也返回 `success:true`）。修复：返回 404/失败。
-- [ ] `src/application/chat-binding/notification-chat-binding.service.ts`：读写竞争 P2002 未处理。修复：捕获并重试/幂等。
-- [ ] `src/application/backups`：每次 GET 下载全部历史 manifest。修复：按需/分页读取。
-- [ ] `src/application/jdy`：Kingdee `HttpModule` 无 timeout。修复：配置超时。
-
-### nightwatch-frontend
-
-- [ ] `src/hooks/use-oauth-callback.ts` L48：NaN `expiresIn` 静默吞 → 主动刷新永不启动。修复：解析校验 + 回退。
-- [ ] `src/app/(dashboard)/layout`：登出只删 access token key，残留 `expires-at`。修复：统一清理。
-- [ ] `src/store/use-login-info-store.ts`：partialize 把 `refreshToken` 持久化进 localStorage（死代码带安全陷阱）。修复：剔除 token。
-- [ ] `src/app/(dashboard)/projects/[projectId]/(security)/secrets` 页：掩码长度泄露明文长度；删除弹双 toast。修复：固定掩码 + 单提示。
-- [ ] `.../security-evaluation` 页：200 条 asset 静默截断。修复：分页或明示上限。
-- [ ] `.../security-evaluation` 页：错误态显示为空态。修复：区分空/错态。
-- [ ] `.../security-evaluation` 页：Sheet 状态跨 asset 残留。修复：切换时重置。
-- [ ] `.../(monitoring)/servers`、`databases` 页：sync 无 `onError`。修复：补错误态。
-- [ ] `.../web-monitor/errors` 页：多余 `setTimeout` refetch。修复：删除冗余刷新。
+> 其他仓的 P2 条目已按仓登记到各自 backlog：newbie-modules 20 条、nightwatch-backend 7 条、nightwatch-frontend 9 条。本文件只保留 devbie 自身条目。
 
 ## 其他
 
