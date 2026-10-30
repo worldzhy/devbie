@@ -31,7 +31,7 @@ class CommonPagination {
 export class CommonListRequestDto {
   @ApiPropertyOptional({
     type: Number,
-    description: "Page size, the number of items per page. Defaults to 20 when omitted.",
+    description: "Page size, the number of items per page. Defaults to 20 when omitted; capped at 1000.",
   })
   @IsOptional()
   @IsNumber()

@@ -1,7 +1,7 @@
 import { ArgumentMetadata, BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 import { ORDER_BY_FORMAT } from "../exceptions/errors.constants";
 
-/** Convert a string like "name asc, address desc" to { name: "asc", address: "desc" } */
+/** Convert a string like "name:asc, address:desc" to { name: "asc", address: "desc" } */
 @Injectable()
 export class OrderByPipe implements PipeTransform {
   transform(value: string, _metadata: ArgumentMetadata): Record<string, "asc" | "desc"> | undefined {
