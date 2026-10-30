@@ -18,7 +18,8 @@ export class HttpMiddleware implements NestMiddleware {
         date: startDate,
         duration: new Date().getTime() - startDate.getTime(),
         method: request.method,
-        originalUrl: request.originalUrl,
+        // Path only: query strings routinely carry tokens and one-time codes.
+        path: request.path,
         status: response.statusCode,
       };
 

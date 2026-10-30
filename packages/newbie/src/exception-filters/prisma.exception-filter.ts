@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus } from "@nestjs/common";
+import { ArgumentsHost, Catch, ExceptionFilter, HttpStatus, Logger } from "@nestjs/common";
 import { Response } from "express";
 import {
   PrismaClientKnownRequestError,
@@ -31,6 +31,8 @@ enum PrismaExceptionCode {
   PrismaClientValidationError,
 )
 export class PrismaExceptionFilter implements ExceptionFilter {
+  private static readonly logger = new Logger("PrismaExceptionFilter");
+
   catch(exception: unknown, host: ArgumentsHost) {
     const response = host.switchToHttp().getResponse<Response>();
     // Fail closed: a branch that does not assign a status is a server fault,
@@ -63,10 +65,13 @@ export class PrismaExceptionFilter implements ExceptionFilter {
        * PrismaClientUnknownRequestError
        * Engine returns an error related to a request that does not have an error code.
        * No client-fixable error code means a server-side fault: respond 500.
+       * The engine message can embed connection/DSN details, so it stays in the
+       * server log and the client only gets a stable sentence.
        */
+      PrismaExceptionFilter.logger.error(`Unhandled Prisma request error: ${exception.message}`);
       response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         code: PrismaExceptionCode.PrismaClientUnknownRequestError,
-        error: { message: exception.message },
+        error: { message: "Database request failed; please retry the request." },
         data: null,
       });
     } else if (exception instanceof PrismaClientInitializationError) {
