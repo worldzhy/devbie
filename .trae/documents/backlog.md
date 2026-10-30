@@ -11,18 +11,9 @@
 
 ## P1（安全评审 round2，devbie 11 条）
 
-- [ ] `newbie/module-hub/reporter.ts` L96-105：hub 返回的 `reportIntervalSeconds` 未校验直接 `setInterval`，返回 0/NaN 即全宿主毫秒级 ping 风暴。修复：`Number.isFinite` + 下限钳制。
-- [ ] `newbie/utilities/datetime.util.ts` L141-152：数字时区分支把偏移拼到秒后（`3:4:58`），UTC 分支 offset 为空按本地解析。修复：格式化为 `+08:00`，空 offset 回退 `+00:00`。
-- [ ] `newbie-cli/core/env-file.ts` L110-142：`findSectionRange` 假想段格式与 CLI 自生成格式不一致（start 永不成立、end 永远 EOF），upsert 变量落到文件末尾被吞进别模块段。修复：按实际生成格式重写 start/end 判定。
-- [ ] `newbie-cli/assemble/modules.ts` L77-80：去引号正则 `("|')(process.*?)\1` 无守卫，普通字符串 `"process-mode"` 被改写成生成代码。修复：要求 `process.` 前缀。
-- [ ] `newbie-cli/assemble/dependencies.ts` L86-94：`npm uninstall` 不区分依赖归属，会删宿主手工加的同名依赖。修复：modules.json 记录 CLI 安装集合，只卸载有记录项。
-- [ ] `worklog documents.ts` L49 + `send.ts` L101-104 + `cli.ts` L184-190：文档 hash 上传前写入 state 且失败仍 `saveState`，上传失败文档永久跳过。修复：hash 移到 `reportDocuments` 成功后提交。
-- [ ] `worklog transcript.ts` L63-67 + `send.ts`：垃圾 timestamp → NaN durationMs 致 400，且无 per-file 隔离，一个毒文件堵住全部上报。修复：时间戳校验 + 单文件 try/catch。
-- [ ] `web-monitor-sdk/core.ts` L494-501：`console.error(单参 Error)` 被 SDK 拦截后 return，不转发原 console，宿主调试信息被吞。修复：删 return。
-- [ ] `web-monitor-sdk/core.ts` L335-370：fetch 拦截对每个响应 `clone().text()`，SSE/流式响应永不 settle，大文件双倍内存。修复：不读 body，用 PerformanceResourceTiming。
-- [ ] `web-monitor-sdk/core.ts` L650-652：一次上报失败 `apiDead` 永久置真，整会话后续上报全丢。修复：可恢复退避，仅 4xx 熔断。
-- [ ] `aws-secrets-cli/sst.config.ts` L22-33：Lambda 缺 `iam:CreateAccessKey`，AWS_API_KEY 轮转必然 AccessDenied；secretsmanager `resources:["*"]` 过宽。修复：补 iam 权限限定 user arn，加标签条件。
-- [ ] `aws-secrets-cli/documentdb.ts` L33-35：硬编码已退役 CA bundle 路径（未打包进 Lambda，ENOENT）+ `tlsAllowInvalidCertificates:true`。修复：打包当前 CA bundle、删 AllowInvalid。
+（暂无）
+
+> 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
 
 ## P2（安全评审 round2 跨仓主题，待拆分到各仓）
 
