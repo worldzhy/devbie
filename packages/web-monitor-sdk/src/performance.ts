@@ -1,3 +1,5 @@
+import { reportUrl } from "./utils";
+
 /**
  * SDK error reporting slot. Injected by core during init via
  * setSdkErrorReporter; performance must not import core (circular import).
@@ -108,7 +110,9 @@ export function perforResource({ conf, opt }: { conf: any; opt: any }): boolean 
     if (!opt.isAjax && (item.initiatorType === "xmlhttprequest" || item.initiatorType === "fetch")) return;
     if (!opt.isResource && item.initiatorType !== "xmlhttprequest" && item.initiatorType !== "fetch") return;
     const json: any = {
-      name: item.name,
+      // Performance entries carry the full URL, including query strings that
+      // routinely hold tokens. Strip them unless capture was explicitly enabled.
+      name: reportUrl(item.name, !!opt.captureBody, opt.redact),
       method: "GET",
       type: item.initiatorType,
       duration: Number(item.duration.toFixed(2)) || 0,

@@ -1,6 +1,6 @@
 import { StackTrace, computeStackTrace } from "./common/tracekit";
 import { ERRORAPIS, ERRORTYPES, getConsoleErrorMsg, isObject } from "./common/utils";
-import { filterResourceError, getHeaderMap, randomString } from "./utils";
+import { filterResourceError, getHeaderMap, randomString, reportUrl, sanitizeText } from "./utils";
 import { markDevice, markUser, markUv } from "./identity";
 import {
   clearPerformanceResourceList,
@@ -92,6 +92,11 @@ function Performance(options: InitOptions): void {
     traceIdHeaderName: "x-trace-id",
     isTraceId: false,
     customsThrottleMs: 1000,
+    // Request bodies and query strings routinely carry passwords and reset
+    // tokens, so capture is opt-in. Without capture, `options` stays empty and
+    // reported URLs are stripped of their query string and fragment.
+    captureBody: false,
+    maxResponseTextLength: 1024,
     ...options,
   };
   opt.filterUrls = opt.filterUrls.concat(alwaysFilteredUrls);
@@ -189,7 +194,10 @@ function Performance(options: InitOptions): void {
           defaults.method = ajax.args.method;
           defaults.options = ajax.args.options || "";
           if (_traceId) defaults.traceId = _traceId;
-          defaults.data = { resourceUrl: xhr.responseURL, status: code };
+          defaults.data = {
+            resourceUrl: reportUrl(xhr.responseURL, opt.captureBody, opt.redact),
+            status: code,
+          };
           conf.errorList.push(defaults);
         }
       }
@@ -322,7 +330,7 @@ function Performance(options: InitOptions): void {
         .apply(this, args)
         .then((originRes: Response) => {
           if (req.type === "report-data") return originRes;
-          const url = originRes.url ? originRes.url.split("?")[0] : "";
+          const url = reportUrl(originRes.url || "", opt.captureBody, opt.redact);
           let _traceId: string | null = null;
           if (conf.opt.isTraceId) {
             _traceId = originRes.headers.get(conf.opt.traceIdHeaderName) || null;
@@ -396,6 +404,16 @@ function Performance(options: InitOptions): void {
     };
   }
 
+  /**
+   * Record a request body/query string for reporting. Returns an empty string
+   * unless captureBody is enabled, and always runs the redact hook + truncation
+   * so sensitive payloads never reach the report verbatim.
+   */
+  function captureOptions(value: unknown, kind: "query" | "body"): string {
+    if (!opt.captureBody || value === null || value === undefined || value === "") return "";
+    return sanitizeText(value, kind, opt.maxResponseTextLength, opt.redact);
+  }
+
   function fetArg(arg: any[]) {
     const result: any = { method: "GET", type: "fetchrequest" };
     const args = Array.prototype.slice.apply(arg);
@@ -407,20 +425,21 @@ function Performance(options: InitOptions): void {
         } else if (typeof args[0] === "object") {
           result.url = args[0].url;
           result.method = args[0].method;
-          if (args[0].body) result.options = args[0].body;
+          if (args[0].body) result.options = captureOptions(args[0].body, "body");
         }
       } else {
         result.url = args[0];
         result.method = args[1].method || "GET";
         result.type = args[1].type || "fetchrequest";
-        if (args[1].body) result.options = args[1].body;
+        if (args[1].body) result.options = captureOptions(args[1].body, "body");
       }
       if (result.method.toLocaleUpperCase() === "GET") {
         // Only the query string is extracted as options; result.url keeps the
         // full URL (including query) so it can be matched against the browser
-        // performance entry name in initPerformanceObserver.
+        // performance entry name in initPerformanceObserver. The query itself
+        // is captured only when captureBody is enabled.
         const [, options] = result.url.split("?");
-        result.options = options || "";
+        result.options = captureOptions(options, "query");
       }
     } catch {
       // Malformed fetch arguments fall back to the GET default below.
@@ -522,7 +541,7 @@ function Performance(options: InitOptions): void {
     let msg = "ajax request error";
     try {
       if (ajax.xhr && ajax.xhr.responseText) {
-        msg = ajax.xhr.responseText;
+        msg = sanitizeText(ajax.xhr.responseText, "response", opt.maxResponseTextLength, opt.redact);
       } else if (ajax.statusText) {
         msg = ajax.statusText;
       }
@@ -541,7 +560,7 @@ function Performance(options: InitOptions): void {
       if (_traceId) defaults.traceId = _traceId;
     }
     defaults.data = {
-      resourceUrl: ajax.args.url,
+      resourceUrl: reportUrl(ajax.args.url, opt.captureBody, opt.redact),
       text: msg,
       status: ajax.status,
     };
@@ -552,7 +571,7 @@ function Performance(options: InitOptions): void {
     const defaults = Object.assign({}, errorEntryTemplate);
     let msg = "fetch request error";
     if (resData) {
-      msg = resData;
+      msg = sanitizeText(resData, "response", opt.maxResponseTextLength, opt.redact);
     } else if ((res as any).statusText) {
       msg = (res as any).statusText;
     }
@@ -568,7 +587,7 @@ function Performance(options: InitOptions): void {
       // headers.get() can throw for opaque/cross-origin responses; traceId
       // stays null.
     }
-    defaults.data = { resourceUrl: req.url, status: res.status };
+    defaults.data = { resourceUrl: reportUrl(req.url, opt.captureBody, opt.redact), status: res.status };
     conf.errorList.push(defaults);
   }
 
@@ -681,10 +700,10 @@ function Performance(options: InitOptions): void {
         },
         send: function (data: any[]) {
           if (this.args && data && data.length > 0) {
-            if (typeof data[0] === "string") this.args.options = data[0];
+            if (typeof data[0] === "string") this.args.options = captureOptions(data[0], "body");
             else {
               if (data[0] !== null && data[0] !== undefined) {
-                this.args.options = Object.prototype.toString.apply(data[0]);
+                this.args.options = captureOptions(data[0], "body");
               }
             }
           }

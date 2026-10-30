@@ -7,6 +7,9 @@ const _monitor = webMonitorSdk({
   appId,
   api: "http://localhost/report",
   token: "token_test",
+  // This suite asserts the legacy opt-in behaviour: bodies/queries are only
+  // recorded when captureBody is explicitly enabled.
+  captureBody: true,
 });
 
 // Start a server to receive requests

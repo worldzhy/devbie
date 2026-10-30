@@ -68,7 +68,10 @@ test("web api: XMLHttpRequest", async () => {
     }
   }
   await waitFor(() => reportTypeAjax, 8000);
-  expect(reportTypeAjax.resourceList[0].name).toEqual(requestAddress);
+  // Capture is off by default: the reported URL must not leak its query string
+  // (which routinely carries tokens), and options stays empty.
+  expect(reportTypeAjax.resourceList[0].name).toEqual(requestAddress.split("?")[0]);
+  expect(reportTypeAjax.resourceList[0].options).toEqual("");
   expect(reportTypeAjax.markUser.length).toBeGreaterThan(0);
   expect(reportTypeAjax.markUv.length).toBeGreaterThan(0);
 }, 20000);
