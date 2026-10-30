@@ -32,7 +32,7 @@
 - 错误处理/信息泄露：newbie Prisma filter 把引擎原始报错回客户端；http 访问日志记完整 query（重置 token 落盘）；copilot 多处把 ClickHouse/Prisma/Lark 原始 message 回喂模型或回客户端；chat-binding 删除契约不一致。
 - 竞态/事务：project-member 最后 OWNER 保护 check-then-act；dashboard ensureDefaults 并发重复播种；evaluation publishVersion 不在事务内可发 0 criteria 版本；task-management 状态机 TOCTOU；notification-chat-binding P2002 未处理。
 - 无界增长/资源：copilot lark.cards Map 只写不删；backups 每次 GET 下载全部历史 manifest；security-evaluation intel 单 run 通知无上限；findingSummary 全量载入内存；fewbie diff LCS 无护栏；redis/elasticsearch 无 onModuleDestroy；pdf 全页渲染 OOM；xlsx 无 zip bomb 防护；health/heartbeat-sdk/worklog/jdy 多处 fetch 无超时。
-- 正确性小 bug：newbie where.pipe 冒号值被改写成嵌套对象；order-by.pipe 文档与实现不一致；分页无 pageSize 上限；graceful-shutdown 只断连不退出；aws-cloudwatch EC2 deleteMany 丢 projectId 条件；google-drive 先删本地后调远端；saas team id 去重查错表；前端 secrets 掩码长度泄露明文长度；security-evaluation 页 200 条 asset 静默截断、错误态显示为空态。
+- 正确性小 bug：newbie where.pipe 冒号值被改写成嵌套对象；order-by.pipe 文档与实现不一致；分页无 pageSize 上限；graceful-shutdown 只断连不退出；aws-cloudwatch EC2 deleteMany 丢 projectId 条件；google-drive 先删本地后调远端；前端 secrets 掩码长度泄露明文长度；security-evaluation 页 200 条 asset 静默截断、错误态显示为空态。
 - CLI 健壮性：newbie-cli watch 路径非原子绕过 sink、fs.watch recursive 在 Linux 崩溃；create/template-update clone 临时目录不清理；prisma-schema DATASOURCE_SCHEMAS_RE 贪婪匹配漂移；非 TTY 确认提示抛异常；registry ref 未校验；fewbie manifest target 无路径边界校验、loadItem catch 吞错误、非 TTY 默认确认破坏性操作。
 
 ## 其他
