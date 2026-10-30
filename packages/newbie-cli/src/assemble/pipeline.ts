@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { cyan } from "colorette";
 import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON, ModulesState, moduleKeys } from "@devbie/modules-state";
+import type { ManagedDependencies } from "@devbie/modules-state";
 
 import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
@@ -58,6 +59,15 @@ function describeClosureAdditions(
 
 function step(title: string): void {
   console.info(`\n${cyan("→")} ${title}`);
+}
+
+/** True when the recorded CLI-owned dependency set would not change. */
+function sameManagedDependencies(previous: ManagedDependencies | undefined, next: ManagedDependencies): boolean {
+  const normalize = (value: ManagedDependencies | undefined) => ({
+    dependencies: [...(value?.dependencies ?? [])].sort(),
+    devDependencies: [...(value?.devDependencies ?? [])].sort(),
+  });
+  return JSON.stringify(normalize(previous)) === JSON.stringify(normalize(next));
 }
 
 /** Folder names currently present under src/modules (with a manifest). */
@@ -151,14 +161,19 @@ export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Pr
   await applyDeployRenders(sink, await planDeployRenders({ cwd, sink, issues, enabledKeys }));
 
   step("Update package dependencies");
-  await assembleDependencies({
+  const managedDependencies = await assembleDependencies({
     cwd,
     sink,
     issues,
     added,
     removed,
     enabled: enabledKeys,
+    managed: ctx.state.managedDependencies,
   });
+  if (!sink.dryRun && !sameManagedDependencies(ctx.state.managedDependencies, managedDependencies)) {
+    ctx.state = { ...ctx.state, managedDependencies };
+    await writeModulesState(cwd, sink, ctx.state);
+  }
 
   if (removed.length > 0) {
     step("Delete module directories");

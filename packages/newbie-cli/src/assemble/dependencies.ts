@@ -1,7 +1,14 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { planDependencyInstalls, planDependencyRemovals } from "../core/dependency-plan";
+import type { ManagedDependencies } from "@devbie/modules-state";
+
+import {
+  filterManagedRemovals,
+  installSpecName,
+  planDependencyInstalls,
+  planDependencyRemovals,
+} from "../core/dependency-plan";
 import { PACKAGE_JSON_PATH } from "../constants/paths";
 import { ModuleManifest } from "../core/module-manifest";
 import { IssueBag, reportIssue } from "../lib/issues";
@@ -38,8 +45,11 @@ export async function assembleDependencies(params: {
   added: string[];
   removed: string[];
   enabled: string[];
-}): Promise<void> {
-  const { cwd, sink, issues, removed, enabled } = params;
+  /** Packages this CLI installed earlier; only they may be uninstalled. */
+  managed?: ManagedDependencies;
+}): Promise<ManagedDependencies> {
+  const { cwd, sink, issues, removed, enabled, managed } = params;
+  const emptyManaged: ManagedDependencies = { dependencies: [], devDependencies: [] };
 
   // [step 1] Reconcile dependencies of ALL enabled modules against
   // package.json. Scoping this to the enabled set (instead of only newly
@@ -56,7 +66,7 @@ export async function assembleDependencies(params: {
     installed = JSON.parse(await fs.readFile(path.resolve(cwd, PACKAGE_JSON_PATH), "utf8"));
   } catch {
     reportIssue(issues, sink, `Missing ${PACKAGE_JSON_PATH}; skipping module dependency reconciliation.`);
-    return;
+    return managed ?? emptyManaged;
   }
 
   const {
@@ -82,14 +92,28 @@ export async function assembleDependencies(params: {
     await sink.run("npm", ["install", "--save-dev", ...addDevSpecs], "npm install --save-dev");
   }
 
-  // [step 2] Uninstall deps that were only owned by removed modules.
+  // [step 2] Uninstall deps that were only owned by removed modules — and
+  // only when this CLI installed them. A dependency the host declared itself
+  // is never touched, even if a removed module named the same package.
   const removedDeclarations = await loadManifests(cwd, issues, sink, removed, "removed");
   const { dependencies: removeDeps, devDependencies: removeDevDeps } = planDependencyRemovals(
     removedDeclarations,
     enabledDeclarations,
   );
+  const uninstallNames = filterManagedRemovals({ dependencies: removeDeps, devDependencies: removeDevDeps }, managed);
 
-  if (removeDeps.length > 0 || removeDevDeps.length > 0) {
-    await sink.run("npm", ["uninstall", ...removeDeps, ...removeDevDeps], "npm uninstall");
+  if (uninstallNames.length > 0) {
+    await sink.run("npm", ["uninstall", ...uninstallNames], "npm uninstall");
   }
+
+  // Track the CLI-owned set: installed names are added, uninstalled ones drop
+  // out. This is what makes a later removal safe across runs.
+  const dropped = new Set(uninstallNames);
+  const merge = (previous: readonly string[], added: readonly string[]): string[] =>
+    [...new Set([...previous, ...added])].filter((name) => !dropped.has(name)).sort();
+  const previous = managed ?? emptyManaged;
+  return {
+    dependencies: merge(previous.dependencies, addSpecs.map(installSpecName)),
+    devDependencies: merge(previous.devDependencies, addDevSpecs.map(installSpecName)),
+  };
 }

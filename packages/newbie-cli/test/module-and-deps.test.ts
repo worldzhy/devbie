@@ -4,6 +4,8 @@ import { describe, it } from "node:test";
 import {
   buildInstallSpecs,
   type DependencyDecls,
+  filterManagedRemovals,
+  installSpecName,
   planDependencyInstalls,
   planDependencyRemovals,
 } from "../src/core/dependency-plan";
@@ -30,6 +32,22 @@ describe("planDependencyRemovals", () => {
       dependencies: ["onlyB"],
       devDependencies: ["td"],
     });
+  });
+});
+
+describe("installSpecName / filterManagedRemovals", () => {
+  it("strips the range from install specs while keeping npm scopes", () => {
+    assert.equal(installSpecName("pkg@^1.0.0"), "pkg");
+    assert.equal(installSpecName("@scope/pkg@^2.0.0"), "@scope/pkg");
+    assert.equal(installSpecName("pkg"), "pkg");
+  });
+
+  it("only uninstalls packages the CLI itself installed", () => {
+    const removals = { dependencies: ["cli-owned", "host-owned"], devDependencies: ["cli-dev"] };
+    const managed = { dependencies: ["cli-owned"], devDependencies: ["cli-dev"] };
+    assert.deepEqual(filterManagedRemovals(removals, managed), ["cli-owned", "cli-dev"]);
+    // No record (legacy modules.json): uninstall nothing rather than risk a host dependency.
+    assert.deepEqual(filterManagedRemovals(removals, undefined), []);
   });
 });
 
