@@ -83,11 +83,25 @@ function isBuilt(item: RegistryManifest | BuiltRegistryItem): item is BuiltRegis
   return Array.isArray(item.files) && item.files.length > 0 && typeof item.files[0] === "object";
 }
 
+/**
+ * Manifest targets are project-relative by contract; an absolute path or a
+ * `..` segment would let an item write outside the project root.
+ */
+function assertProjectRelativeTarget(itemName: string, target: string): void {
+  if (!target || path.isAbsolute(target) || target.split(/[/\\]/).includes("..")) {
+    throw new CliError(
+      `Registry item '${itemName}' declares an unsafe file target '${target}': ` +
+        "targets must be relative and stay inside the project.",
+    );
+  }
+}
+
 /** Load one registry item, normalizing authored and built forms. */
 export async function loadItem(root: string, name: string): Promise<LoadedItem> {
   const item = await readItemFile(root, name);
 
   if (isBuilt(item)) {
+    for (const file of item.files) assertProjectRelativeTarget(name, file.path);
     return {
       manifest: {
         name: item.name,
@@ -107,6 +121,7 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
   }
 
   const manifest = item;
+  for (const relative of manifest.files) assertProjectRelativeTarget(name, relative);
   const files = manifest.files.map((relative) => ({
     target: relative,
     source: path.join(root, name, relative),

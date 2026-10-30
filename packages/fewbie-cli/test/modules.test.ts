@@ -9,6 +9,7 @@ import { runApply } from "../src/commands/modules/apply";
 import { runRemove } from "../src/commands/modules/remove";
 import { runUpdate } from "../src/commands/modules/update";
 import { MODULES_FILE, readModulesFile } from "../src/lib/modules-file";
+import { loadItem } from "../src/registry/store";
 
 async function makeProject(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-modules-"));
@@ -126,5 +127,37 @@ describe("fewbie modules", () => {
 
     await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true, force: true });
     assert.notEqual(await read(root, "src/components/page-header.tsx"), "// template copy\n");
+  });
+});
+
+describe("registry manifest targets", () => {
+  it("rejects file targets that escape the project root", async () => {
+    const registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-"));
+    after(async () => fs.rm(registryRoot, { recursive: true, force: true }));
+    const itemDir = path.join(registryRoot, "escape");
+    await fs.mkdir(itemDir);
+    await fs.writeFile(
+      path.join(itemDir, "item.json"),
+      JSON.stringify({ name: "escape", type: "registry:component", title: "Escape", files: ["../../outside.ts"] }),
+    );
+
+    await assert.rejects(loadItem(registryRoot, "escape"), /unsafe file target/);
+  });
+
+  it("accepts normal project-relative targets", async () => {
+    const registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-"));
+    after(async () => fs.rm(registryRoot, { recursive: true, force: true }));
+    const itemDir = path.join(registryRoot, "ok");
+    await fs.mkdir(itemDir);
+    await fs.writeFile(
+      path.join(itemDir, "item.json"),
+      JSON.stringify({ name: "ok", type: "registry:component", title: "Ok", files: ["src/components/ok.tsx"] }),
+    );
+
+    const item = await loadItem(registryRoot, "ok");
+    assert.deepEqual(
+      item.files.map((file) => file.target),
+      ["src/components/ok.tsx"],
+    );
   });
 });
