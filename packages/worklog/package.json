@@ -1,6 +1,6 @@
 {
   "name": "@devbie/worklog",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Member-side worklog agent for work-evaluation: sends your declared workspaces, agent sessions and documents — only the paths you declare are ever read",
   "license": "MIT",
   "repository": {
