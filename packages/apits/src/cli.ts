@@ -1,16 +1,17 @@
+#!/usr/bin/env node
 import { register } from "tsx/cjs/api";
 import fs from "fs-extra";
 import path from "path";
 import prompt from "prompts";
 import yargs from "yargs";
-import { Config } from "../types";
-import { dedent } from "../utils/vtilsLite";
+import { Config } from "./types";
+import { dedent } from "./utils/dedent";
 import { Generator } from "./generator";
 import chalk from "chalk";
-import * as conso from "../utils/console";
-import { formatContent } from "../utils/utils";
-import { spinnerInstance } from "../utils/spinner";
-import { asyncFnArrayOrderRun, defineConfig } from "../utils/helpers";
+import * as logger from "./utils/logger";
+import { formatContent } from "./utils/format";
+import { spinner } from "./utils/spinner";
+import { runSequentially, defineConfig } from "./helpers";
 
 // Register the tsx loader so apits.config.ts / apits.config.local.ts can be
 // required at runtime. tsx transpiles via esbuild (no type-checking) and
@@ -185,7 +186,7 @@ async function resolveConfigs(
 
 /** Print an actionable hint when no input is available. */
 function printNoInputHint() {
-  conso.error(
+  logger.error(
     [
       "No OpenAPI input found. Use one of:",
       "",
@@ -205,7 +206,7 @@ export async function genConfig(prefill?: { input?: string }) {
   const configTSFile = path.join(cwd, "apits.config.ts");
 
   if (await fs.pathExists(configTSFile)) {
-    conso.tips(`Config file already exists: ${configTSFile}`);
+    logger.tips(`Config file already exists: ${configTSFile}`);
     const answers = await prompt({
       message: "Overwrite existing config file?",
       name: "override",
@@ -231,7 +232,7 @@ export async function genConfig(prefill?: { input?: string }) {
 
   // User cancelled the questionnaire (Ctrl+C / empty input).
   if (!configAnswers || !configAnswers.input) {
-    return conso.tips("Cancelled, config file not written");
+    return logger.tips("Cancelled, config file not written");
   }
 
   const nameLine = configAnswers?.name ? `  name: '${configAnswers.name}',\n` : "";
@@ -251,7 +252,7 @@ export async function genConfig(prefill?: { input?: string }) {
       }])
     `),
   );
-  conso.success("Config file written");
+  logger.success("Config file written");
 }
 
 async function startGenerate(config: Config, index = 0) {
@@ -259,21 +260,21 @@ async function startGenerate(config: Config, index = 0) {
 
   const label = chalk.green(`${config.input} elapsed`);
   console.time(label);
-  spinnerInstance.start();
+  spinner.start();
   const generator = new Generator(config);
   const output = await generator.generate();
   await generator.write(output);
-  spinnerInstance.clear();
-  conso.log(chalk.yellowBright(`\n${index + 1}.-------------------------`));
-  conso.success(`Code generated, output: ${outputDir}`);
+  spinner.clear();
+  logger.log(chalk.yellowBright(`\n${index + 1}.-------------------------`));
+  logger.success(`Code generated, output: ${outputDir}`);
   console.timeEnd(label);
-  conso.log(chalk.yellowBright("---------------------------\n"));
+  logger.log(chalk.yellowBright("---------------------------\n"));
   return true;
 }
 
 /** Run generation once for every resolved config. */
 async function runAll(configs: Config[]) {
-  await asyncFnArrayOrderRun(
+  await runSequentially(
     configs.map((configItem, index) => {
       return async () => {
         await startGenerate(configItem, index);
@@ -290,7 +291,7 @@ function watchConfigs(configs: Config[]) {
   const localConfigs = configs.filter((item) => !isHttpInput(item.input));
 
   if (localConfigs.length === 0) {
-    conso.tips("--watch only supports local files; remote URLs are ignored");
+    logger.tips("--watch only supports local files; remote URLs are ignored");
     return;
   }
 
@@ -328,17 +329,17 @@ function watchConfigs(configs: Config[]) {
         const configItem = localConfigs.find((c) => path.resolve(c.input) === filePath);
         if (!configItem) return;
         const idx = localConfigs.indexOf(configItem);
-        conso.tips(`Detected change, regenerating: ${filePath}`);
+        logger.tips(`Detected change, regenerating: ${filePath}`);
         try {
           await startGenerate(configItem, idx);
         } catch (err) {
-          conso.error(`Regeneration failed: ${(err as Error).message || err}`);
+          logger.error(`Regeneration failed: ${(err as Error).message || err}`);
         }
       }, 200),
     );
   }
 
-  conso.tips(`Watching ${localConfigs.length} local document(s), Ctrl+C to exit`);
+  logger.tips(`Watching ${localConfigs.length} local document(s), Ctrl+C to exit`);
 }
 
 export async function start(flags: GenFlags = {}) {
@@ -353,30 +354,30 @@ export async function start(flags: GenFlags = {}) {
       printNoInputHint();
       return;
     }
-    spinnerInstance.stop();
-    conso.error(`Config resolution failed: ${(err as Error).message || err}`);
+    spinner.stop();
+    logger.error(`Config resolution failed: ${(err as Error).message || err}`);
     return;
   }
 
-  conso.tips(
+  logger.tips(
     resolved.source === "cli" ? `Using CLI input: ${flags.input}` : `Found config file: ${resolved.configFile}`,
   );
 
   try {
-    spinnerInstance.start("Generating code...\n");
+    spinner.start("Generating code...\n");
     await runAll(resolved.configs);
-    spinnerInstance.stop();
+    spinner.stop();
   } catch (err) {
-    spinnerInstance.stop();
-    conso.error("Execution failed:");
-    conso.error(`Error: ${(err as Error).message || err}`);
+    spinner.stop();
+    logger.error("Execution failed:");
+    logger.error(`Error: ${(err as Error).message || err}`);
     if ((err as Error).stack) {
-      conso.error(`Stack: ${(err as Error).stack}`);
+      logger.error(`Stack: ${(err as Error).stack}`);
     }
     if ((err as any).cause) {
-      conso.error(`Cause: ${(err as any).cause}`);
+      logger.error(`Cause: ${(err as any).cause}`);
     }
-    return conso.error("Code generation failed, see error details above");
+    return logger.error("Code generation failed, see error details above");
   }
 
   console.timeEnd(timeLabel);
@@ -483,4 +484,9 @@ export default class CLI {
         .help()
     );
   }
+}
+
+// Self-execute when invoked as the `apits` bin (bin points at dist/cli.js directly).
+if (require.main === module) {
+  new CLI().run(process.argv.slice(2));
 }

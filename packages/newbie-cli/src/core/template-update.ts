@@ -26,7 +26,7 @@
 import { compareStrings, MODULES_MARKER_END, MODULES_MARKER_START } from "./env-file";
 
 /** Comment prefix of the @@newbie-framework markers in a given file type. */
-export type MarkerSyntax = "//" | "#";
+export type MarkerSyntax = "//" | "#" | "<!--";
 
 export interface FrameworkMarkers {
   start: string;
@@ -35,6 +35,9 @@ export interface FrameworkMarkers {
 
 /** Marker lines of a file that carries a @@newbie-framework block. */
 export function frameworkMarkers(syntax: MarkerSyntax = "//"): FrameworkMarkers {
+  if (syntax === "<!--") {
+    return { start: "<!-- @@newbie-framework-start -->", end: "<!-- @@newbie-framework-end -->" };
+  }
   return {
     start: `${syntax} @@newbie-framework-start`,
     end: `${syntax} @@newbie-framework-end`,
@@ -62,7 +65,7 @@ export interface TemplateFile {
 }
 
 /**
- * Full ownership registry of the 31 tracked starter-template files
+ * Full ownership registry of the 35 tracked starter-template files
  * (package-lock.json is per-project by nature and excluded, see
  * TEMPLATE_SCAN_IGNORED_FILES).
  */
@@ -99,6 +102,9 @@ export const TEMPLATE_FILES: readonly TemplateFile[] = [
     // `schemas` is rendered by reconcileDatasourceSchemas (module namespaces).
     rendered: { kind: "line", pattern: /^\s*schemas\s*=.*$/m },
   },
+  // Agent entry contract (ADR-031): the framework block carries the usage
+  // contract; project-specific instructions live outside the markers.
+  { path: "AGENTS.md", ownership: "framework-marker-block", markerSyntax: "<!--" },
 
   // Assembly products; rendered by `newbie modules apply` / `newbie modules update`.
   { path: "src/modules/modules.config.ts", ownership: "generated" },
@@ -110,6 +116,7 @@ export const TEMPLATE_FILES: readonly TemplateFile[] = [
   { path: ".githooks/pre-commit", ownership: "template-shipped-host-owned" },
   { path: ".githooks/commit-msg", ownership: "template-shipped-host-owned" },
   { path: "README.md", ownership: "template-shipped-host-owned" },
+  { path: "CLAUDE.md", ownership: "template-shipped-host-owned" },
   { path: ".prettierignore", ownership: "template-shipped-host-owned" },
   { path: "eslint.config.mjs", ownership: "template-shipped-host-owned" },
   { path: "prisma/seed.ts", ownership: "template-shipped-host-owned" },

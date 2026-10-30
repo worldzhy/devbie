@@ -1,8 +1,13 @@
 {
   "name": "@devbie/newbie-cli",
-  "version": "1.13.0",
+  "version": "1.14.2",
   "description": "newbie backend framework CLI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/newbie-cli"
+  },
   "author": "worldzhy",
   "bin": {
     "newbie": "dist/index.js"

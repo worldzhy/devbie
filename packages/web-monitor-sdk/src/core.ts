@@ -12,7 +12,19 @@ import {
 } from "./performance";
 import { InitOptions, PerformanceOptions, ReportType } from "./types";
 
-const sdk_version = "rollup.replace.WEB_VERSION";
+// Published package version, read at runtime. Bundlers inline package.json
+// when they encounter this require, so the real semver ships in the dist
+// bundle instead of the old rollup placeholder.
+declare const require: (id: string) => { version: string };
+const sdk_version = require("../package.json").version;
+
+// Idempotency markers: the SDK wraps global browser APIs (fetch, XHR, error
+// listeners) exactly once. A second Performance() call (e.g. HMR re-eval or
+// duplicate import) must not re-wrap them, otherwise every event is reported
+// twice and the patched fetch nests on itself.
+const INITIALIZED_KEY = Symbol.for("@devbie/web-monitor-sdk:initialized");
+const FETCH_PATCHED_KEY = Symbol.for("@devbie/web-monitor-sdk:fetch-patched");
+const ERROR_PATCHED_KEY = Symbol.for("@devbie/web-monitor-sdk:error-patched");
 
 let reportData: (type?: ReportType) => void;
 let reportCustomsNow: () => void;
@@ -55,6 +67,12 @@ const ErrorInstanceReport = function (error: StackTrace, api: string): void {
 };
 
 function Performance(options: InitOptions): void {
+  // Idempotent init: a second call is a no-op so HMR / duplicate imports do
+  // not re-wrap global APIs or double-report every event.
+  const globalScope = globalThis as Record<symbol, unknown>;
+  if (globalScope[INITIALIZED_KEY]) return;
+  globalScope[INITIALIZED_KEY] = true;
+
   if (!options.appId || !options.api || !options.token) throw new Error("appId, api or token is not defined");
   /**
    * URLs always excluded from AJAX/resource collection, on top of the
@@ -285,6 +303,9 @@ function Performance(options: InitOptions): void {
   }
 
   function _fetch() {
+    const win = window as unknown as Record<symbol, boolean> & { fetch?: typeof fetch };
+    if (win[FETCH_PATCHED_KEY]) return;
+    win[FETCH_PATCHED_KEY] = true;
     if (!window.fetch) return;
     const _fetch = fetch;
     (window as any).fetch = function (...args: any[]) {
@@ -408,6 +429,9 @@ function Performance(options: InitOptions): void {
   }
 
   function _error() {
+    const win = window as unknown as Record<symbol, boolean>;
+    if (win[ERROR_PATCHED_KEY]) return;
+    win[ERROR_PATCHED_KEY] = true;
     window.addEventListener(
       "error",
       (e: any) => {
@@ -615,7 +639,7 @@ function Performance(options: InitOptions): void {
       (navigator as any).sendBeacon(api, body);
       return;
     }
-    if (window.fetch) {
+    if (typeof window.fetch === "function") {
       setTimeout(() => {
         fetch(api, {
           method: "POST",

@@ -6,8 +6,8 @@ import { ParsedPath } from "path";
 /** Returns the client import snippet placed at the top of each generated file. */
 export type ClientImportTemplate = () => string;
 
-/** Interface definition */
-export interface Interface {
+/** A single API operation parsed from the OpenAPI document. */
+export interface ApiInterface {
   /** Interface name */
   title: string;
   /** Request path */
@@ -15,7 +15,7 @@ export interface Interface {
   /** Request method, HEAD and OPTIONS are handled like GET, others like POST */
   method: Method;
   /** Path parameters */
-  req_params: Array<{
+  pathParams: Array<{
     /** Name */
     name: string;
     /** Description */
@@ -26,7 +26,7 @@ export interface Interface {
     type?: RequestParamType;
   }>;
   /** GET only: query string */
-  req_query: Array<{
+  queryParams: Array<{
     /** Name */
     name: string;
     /** Description */
@@ -39,11 +39,9 @@ export interface Interface {
     type?: RequestQueryType;
   }>;
   /** POST only: request content type. No special handling needed for text, file, raw. */
-  req_body_type: RequestBodyType;
-  /** Whether it is json schema when `req_body_type = json` */
-  req_body_is_json_schema: boolean;
-  /** Request content when `req_body_type = form` */
-  req_body_form: Array<{
+  requestBodyType: RequestBodyType;
+  /** Request content when `requestBodyType = form` */
+  requestBodyForm: Array<{
     /** Name */
     name: string;
     /** Type */
@@ -66,32 +64,15 @@ export interface Interface {
   /**
    * Whether the form body is `multipart/form-data` (true) or
    * `application/x-www-form-urlencoded` (false). Only set when
-   * `req_body_type = form`.
+   * `requestBodyType = form`.
    */
-  req_body_multipart?: boolean;
-  /**
-   * JSON Schema fragment describing dynamic form fields (the
-   * `additionalProperties` of a multipart request schema). Used for
-   * runtime-named upload fields such as `evidence_0`, `evidence_1`, ...
-   */
-  req_body_additional?: Record<string, any>;
-  /** Request content when `req_body_type = json` */
-  req_body_other: string;
+  requestBodyMultipart?: boolean;
+  /** JSON-stringified request body schema when `requestBodyType = json` */
+  requestBodySchema: string;
   /** Response data type */
-  res_body_type: ResponseBodyType;
-  /** Whether it is json schema when `res_body_type = json` */
-  res_body_is_json_schema: boolean;
-  /** Response data */
-  res_body: string;
-  [key: string]: any;
-}
-
-/** Category information */
-export interface Category {
-  /** Category name */
-  name: string;
-  /** Category description */
-  desc: string;
+  responseBodyType: ResponseBodyType;
+  /** Response data (JSON-stringified schema, or the raw description when no schema exists) */
+  responseBody: string;
 }
 
 /** Request method */
@@ -167,8 +148,8 @@ export enum ResponseBodyType {
   raw = "raw",
 }
 
-/** Extended interface definition */
-export interface ExtendedInterface extends Interface {
+/** ApiInterface enriched with the parsed request path. */
+export interface ExtendedApiInterface extends ApiInterface {
   parsedPath: ParsedPath;
 }
 
@@ -263,8 +244,8 @@ export interface ApiConfig {
   client?: boolean;
 }
 
-/** Combined configuration. */
-export type SyntheticalConfig = Partial<
+/** Generator config resolved with the document's `components` for `$ref` lookups. */
+export type ResolvedConfig = Partial<
   ApiConfig & {
     components: OpenAPIV3.Document["components"];
   }
@@ -356,6 +337,6 @@ export interface RequestFunctionTemplateProps {
   baseURL?: string;
   requestFunctionName: string;
   requestDataTypeName: string;
-  extendedInterfaceInfo: ExtendedInterface;
+  extendedInterfaceInfo: ExtendedApiInterface;
   responseDataTypeName: string;
 }

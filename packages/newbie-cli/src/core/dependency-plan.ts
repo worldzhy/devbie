@@ -10,13 +10,13 @@ export interface DependencyDecls {
 }
 
 export function planDependencyRemovals(
-  removedDecls: DependencyDecls[],
-  enabledDecls: DependencyDecls[],
+  removedDeclarations: DependencyDecls[],
+  enabledDeclarations: DependencyDecls[],
 ): { dependencies: string[]; devDependencies: string[] } {
   const keptDependencies = new Set<string>();
   const keptDevDependencies = new Set<string>();
 
-  for (const decl of enabledDecls) {
+  for (const decl of enabledDeclarations) {
     Object.keys(decl.dependencies ?? {}).forEach((name) => keptDependencies.add(name));
     Object.keys(decl.devDependencies ?? {}).forEach((name) => keptDevDependencies.add(name));
   }
@@ -24,7 +24,7 @@ export function planDependencyRemovals(
   const removedDependencies = new Set<string>();
   const removedDevDependencies = new Set<string>();
 
-  for (const decl of removedDecls) {
+  for (const decl of removedDeclarations) {
     for (const name of Object.keys(decl.dependencies ?? {})) {
       if (!keptDependencies.has(name)) removedDependencies.add(name);
     }
@@ -77,7 +77,7 @@ export interface DependencyConflict {
  * can surface them instead of letting npm pick a silent winner.
  */
 export function planDependencyInstalls(
-  enabledDecls: DependencyDecls[],
+  enabledDeclarations: DependencyDecls[],
   installed: DependencyDecls,
 ): {
   dependencies: string[];
@@ -90,7 +90,7 @@ export function planDependencyInstalls(
   ) => {
     // name -> declared ranges (insertion order preserved, de-duplicated).
     const ranges = new Map<string, Set<string>>();
-    for (const decl of enabledDecls) {
+    for (const decl of enabledDeclarations) {
       for (const [name, range] of Object.entries(pick(decl) ?? {})) {
         if (!ranges.has(name)) ranges.set(name, new Set<string>());
         ranges.get(name)!.add(range);

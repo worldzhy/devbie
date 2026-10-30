@@ -63,4 +63,7 @@ export function httpServer(config) {
     }
   });
   server.listen(config.port);
+  // Allow the jest worker to exit despite the listening socket; leaked
+  // servers otherwise keep workers (and their ports) alive across suites.
+  server.unref();
 }

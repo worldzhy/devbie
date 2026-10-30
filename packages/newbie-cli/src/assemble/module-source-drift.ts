@@ -13,9 +13,8 @@ import { moduleRootInRegistry } from "../lib/registry";
  * The installed copy under `src/modules/<key>` is registry-owned wholesale
  * (ADR-019: module sources must stay byte-identical to the host copy, the
  * diff-empty back-port rule). This plan is the read-only side of the
- * `assemble --check` drift gate (ADR-021): nothing here can repair the
- * drift, because the fix lives in whichever repository carries the newer
- * version.
+ * `modules update --check` drift gate (ADR-021, refined by ADR-024): nothing here can repair the drift, because the fix
+ * lives in whichever repository carries the newer version.
  */
 export interface ModuleSourceDrift {
   key: string;

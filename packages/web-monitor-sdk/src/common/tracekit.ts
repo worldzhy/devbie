@@ -42,7 +42,7 @@ const reactMinifiedRegexp = /Minified React error #\d+;/i;
 /** JSDoc */
 
 export function computeStackTrace(ex: any): StackTrace {
-  let stack = null;
+  let stack: StackTrace | null = null;
   let popSize = 0;
 
   if (ex) {
@@ -89,7 +89,7 @@ function computeStackTraceFromStackProp(ex: any): StackTrace | null {
     return null;
   }
 
-  const stack = [];
+  const stack: StackFrame[] = [];
   const lines = ex.stack.split("\n");
   let isEval;
   let submatch;
@@ -181,11 +181,11 @@ function computeStackTraceFromStacktraceProp(ex: any): StackTrace | null {
   const opera11Regex =
     / line (\d+), column (\d+)\s*(?:in (?:<anonymous function: ([^>]+)>|([^)]+))\((.*)\))? in (.*):\s*$/i;
   const lines = stacktrace.split("\n");
-  const stack = [];
+  const stack: StackFrame[] = [];
   let parts;
 
   for (let line = 0; line < lines.length; line += 2) {
-    let element = null;
+    let element: StackFrame | null = null;
     if ((parts = opera10Regex.exec(lines[line]))) {
       element = {
         url: parts[2],

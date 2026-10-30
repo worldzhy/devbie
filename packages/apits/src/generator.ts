@@ -3,35 +3,28 @@ import fs from "fs-extra";
 import path from "path";
 import yaml from "js-yaml";
 import JSON5 from "json5";
-import * as conso from "../utils/console";
+import * as logger from "./utils/logger";
 import got from "got";
 import { OpenAPIV3 } from "openapi-types";
-import { openApiToInterfaces } from "../utils/openApiToInterfaces";
-import { dedent } from "../utils/vtilsLite";
+import { openApiToInterfaces } from "./openApiToInterfaces";
+import { dedent } from "./utils/dedent";
 import {
   Config,
-  ExtendedInterface,
-  Interface,
+  ExtendedApiInterface,
+  ApiInterface,
   ApiConfig,
-  SyntheticalConfig,
+  ResolvedConfig,
   RequestBodyType,
   RequestFunctionTemplateProps,
-} from "../types";
-import {
-  getRequestDataJsonSchema,
-  getResponseDataJsonSchema,
-  jsonSchemaToTsCode,
-  formatContent,
-  topNotesContent,
-} from "../utils/utils";
-import { getOutputFilePath } from "../utils/getOutputPath";
+} from "./types";
+import { getRequestDataJsonSchema, getResponseDataJsonSchema, jsonSchemaToTsCode } from "./jsonSchemaToTsCode";
+import { formatContent, generatedFileBanner } from "./utils/format";
+import { getOutputFilePath } from "./utils/outputPath";
 import writeRequestClient from "./writeRequestClient";
 
 interface OutputFileList {
   [outputFilePath: string]: {
-    projectId: string;
-    categoryId: string;
-    syntheticalConfig: SyntheticalConfig;
+    config: ResolvedConfig;
     content: string[];
   };
 }
@@ -90,11 +83,11 @@ function isDegradedRequestType(typeCode: string): boolean {
 const DEFAULT_CLIENT_CONFIG_TYPE = "AxiosRequestConfig";
 
 // Default request function body template.
-function defaultRequestFunctionTemplate(props: RequestFunctionTemplateProps, config?: SyntheticalConfig): string {
+function defaultRequestFunctionTemplate(props: RequestFunctionTemplateProps, config?: ResolvedConfig): string {
   const { baseURL, requestFunctionName, requestDataTypeName, responseDataTypeName, extendedInterfaceInfo } = props;
   const clientConfigType = config?.clientConfigType || DEFAULT_CLIENT_CONFIG_TYPE;
-  const { req_params, req_query, req_body_type, req_body_multipart, req_body_form } = extendedInterfaceInfo;
-  const hasData = req_params.length || req_query.length || (Array.isArray(req_body_form) && req_body_form.length);
+  const { pathParams, queryParams, requestBodyType, requestBodyMultipart, requestBodyForm } = extendedInterfaceInfo;
+  const hasData = pathParams.length || queryParams.length || (Array.isArray(requestBodyForm) && requestBodyForm.length);
   const method = extendedInterfaceInfo.method.toLowerCase();
   let finalBaseUrl = "";
   if (baseURL?.match(/^\[code\]:/)) {
@@ -109,8 +102,8 @@ function defaultRequestFunctionTemplate(props: RequestFunctionTemplateProps, con
   // URLSearchParams at runtime so the underlying client (axios / fetch)
   // auto-sets the correct Content-Type with boundary. Without this, POST
   // form bodies are sent as JSON and the backend never receives the files.
-  const isForm = req_body_type === RequestBodyType.form;
-  const isMultipart = isForm && req_body_multipart === true;
+  const isForm = requestBodyType === RequestBodyType.form;
+  const isMultipart = isForm && requestBodyMultipart === true;
   const formBuilder = isForm
     ? `const form = new ${isMultipart ? "FormData" : "URLSearchParams"}();
     Object.entries(data).forEach(([k, v]) => {
@@ -236,9 +229,7 @@ export class Generator {
 
     if (categoryCode.length > 0) {
       outputFileList[catOutputFilePath] = {
-        projectId: typesName,
-        categoryId: typesName,
-        syntheticalConfig: this.config,
+        config: this.config,
         content: categoryCode,
       };
     }
@@ -263,13 +254,13 @@ export class Generator {
     // multiple files are generated.
     return Promise.all(
       Object.keys(outputFileList).map(async (outputFilePath) => {
-        const { content, syntheticalConfig } = outputFileList[outputFilePath];
+        const { content } = outputFileList[outputFilePath];
 
         // Rewrite `.jsx?` extensions to `.tsx?`.
         const resolvedPath = outputFilePath.replace(/\.js(x)?$/, ".ts$1");
 
-        const clientImportTemplate = syntheticalConfig.clientImportTemplate || defaultClientImportTemplate;
-        const clientConfigType = syntheticalConfig.clientConfigType || DEFAULT_CLIENT_CONFIG_TYPE;
+        const clientImportTemplate = config.clientImportTemplate || defaultClientImportTemplate;
+        const clientConfigType = config.clientConfigType || DEFAULT_CLIENT_CONFIG_TYPE;
         // With the default config type the generated functions reference
         // AxiosRequestConfig, so its type-only import must accompany the
         // client import. Custom config types must be imported by the
@@ -278,7 +269,7 @@ export class Generator {
           clientConfigType === DEFAULT_CLIENT_CONFIG_TYPE ? "import type { AxiosRequestConfig } from 'axios';" : "";
 
         const rawOutputContent = dedent`
-          ${topNotesContent()}
+          ${generatedFileBanner()}
           ${clientImportTemplate(config)}
           ${clientConfigImport}
 
@@ -292,7 +283,7 @@ export class Generator {
   }
 
   /** Generate a request function name from the extended interface info. */
-  requestFunctionNameGen(extendedInterfaceInfo: ExtendedInterface): string {
+  requestFunctionNameGen(extendedInterfaceInfo: ExtendedApiInterface): string {
     const path = extendedInterfaceInfo.parsedPath.dir;
     // The same path may be used with different HTTP methods.
     const method = extendedInterfaceInfo.method;
@@ -301,8 +292,8 @@ export class Generator {
   }
 
   /** Generate TypeScript code (types + request function) for a single API. */
-  async generateInterfaceCode(syntheticalConfig: SyntheticalConfig, interfaceInfo: Interface) {
-    const extendedInterfaceInfo: ExtendedInterface = {
+  async generateInterfaceCode(resolvedConfig: ResolvedConfig, interfaceInfo: ApiInterface) {
+    const extendedInterfaceInfo: ExtendedApiInterface = {
       ...interfaceInfo,
       parsedPath: path.parse(interfaceInfo.path),
     };
@@ -313,7 +304,7 @@ export class Generator {
     // Request parameters type.
 
     const requestDataType = await jsonSchemaToTsCode(
-      { ...requestDataJsonSchema, components: syntheticalConfig.components },
+      { ...requestDataJsonSchema, components: resolvedConfig.components },
       requestDataTypeName,
     );
     // Surface request-body type degradation instead of silently shipping a
@@ -321,7 +312,7 @@ export class Generator {
     // `@ApiBody({type: XxxDto})`, inline `@Body() body: {...}` literal, or a
     // Prisma type bound to `@Body()`.
     if (isDegradedRequestType(requestDataType)) {
-      conso.warn(
+      logger.warn(
         `[apits] Request type degraded for ` +
           `${extendedInterfaceInfo.method.toUpperCase()} ${extendedInterfaceInfo.path} — ` +
           `check backend @Body()/@ApiBody decorator. Generated:\n${requestDataType}`,
@@ -329,7 +320,7 @@ export class Generator {
     }
     const responseDataJsonSchema = getResponseDataJsonSchema(extendedInterfaceInfo);
     const responseDataType = await jsonSchemaToTsCode(
-      { ...responseDataJsonSchema, components: syntheticalConfig.components },
+      { ...responseDataJsonSchema, components: resolvedConfig.components },
       responseDataTypeName,
     );
 
@@ -344,7 +335,7 @@ export class Generator {
       `;
     };
     const requestFunctionTemplate = defaultRequestFunctionTemplate;
-    const baseURL = syntheticalConfig.baseURL;
+    const baseURL = resolvedConfig.baseURL;
     let baseUrl;
     try {
       baseUrl =
@@ -354,7 +345,7 @@ export class Generator {
             ? baseURL(extendedInterfaceInfo.path)
             : "";
     } catch (e) {
-      conso.error(e);
+      logger.error(e);
     }
 
     const code = dedent`
@@ -374,7 +365,7 @@ export class Generator {
               responseDataTypeName,
               extendedInterfaceInfo,
             },
-            syntheticalConfig,
+            resolvedConfig,
           )}
         `}
     `;

@@ -13,8 +13,15 @@ import {
 const frameworkAsset: TemplateAsset = { path: "next.config.ts", ownership: "framework" };
 const mixedAsset: TemplateAsset = { path: "src/app/globals.css", ownership: "mixed" };
 
+const HTML_MARKERS = { start: "<!-- fewbie:framework:start -->", end: "<!-- fewbie:framework:end -->" };
+const agentsAsset: TemplateAsset = { path: "AGENTS.md", ownership: "mixed", markers: HTML_MARKERS };
+
 function globalsCss(block: string, host = ":root { --host: 1; }"): string {
   return `@import "tailwindcss";\n\n${host}\n\n${FRAMEWORK_MARKER_START}\n${block}\n${FRAMEWORK_MARKER_END}\n`;
+}
+
+function agentsMd(block: string, host = "# Project notes"): string {
+  return `# Agents\n\n${HTML_MARKERS.start}\n${block}\n${HTML_MARKERS.end}\n\n${host}\n`;
 }
 
 describe("marker blocks", () => {
@@ -34,6 +41,14 @@ describe("marker blocks", () => {
     assert.ok(replaced !== null);
     assert.match(replaced, /--primary: new;/);
     assert.match(replaced, /--host: 42;/);
+  });
+
+  it("honors a per-asset marker pair", () => {
+    const content = agentsMd("Use the CLI.");
+    const block = extractMarkerBlock(content, HTML_MARKERS);
+    assert.equal(block, `${HTML_MARKERS.start}\nUse the CLI.\n${HTML_MARKERS.end}`);
+    // The default CSS markers do not match an HTML-marked file.
+    assert.equal(extractMarkerBlock(content), null);
   });
 });
 
@@ -81,6 +96,30 @@ describe("planTemplateUpdate", () => {
       new Map([["src/app/globals.css", ":root { --primary: old; }"]]),
       new Map([["src/app/globals.css", globalsCss("--primary: new;")]]),
       [mixedAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "missing-markers");
+    assert.equal(changes[0].nextContent, null);
+  });
+
+  it("updates only the custom-marked block of a mixed file and keeps host content", () => {
+    const changes = planTemplateUpdate(
+      new Map([["AGENTS.md", agentsMd("Old contract.")]]),
+      new Map([["AGENTS.md", agentsMd("New contract.")]]),
+      [agentsAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "update");
+    assert.match(changes[0].nextContent ?? "", /New contract\./);
+    assert.match(changes[0].nextContent ?? "", /# Project notes/);
+    assert.ok((changes[0].nextContent ?? "").includes(HTML_MARKERS.start));
+  });
+
+  it("reports a project AGENTS.md without the HTML markers instead of guessing", () => {
+    const changes = planTemplateUpdate(
+      new Map([["AGENTS.md", "# Agents\n\nHand-written notes.\n"]]),
+      new Map([["AGENTS.md", agentsMd("New contract.")]]),
+      [agentsAsset],
     );
     assert.equal(changes.length, 1);
     assert.equal(changes[0].kind, "missing-markers");

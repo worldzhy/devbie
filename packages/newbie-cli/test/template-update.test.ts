@@ -14,8 +14,9 @@ import {
 
 const SLASH = "//";
 const HASH = "#";
+const HTML = "<!--";
 
-function frameworkBlock(syntax: "//" | "#" = SLASH): string {
+function frameworkBlock(syntax: "//" | "#" | "<!--" = SLASH): string {
   const markers = frameworkMarkers(syntax);
   return `${markers.start}\nFRAMEWORK BODY\n${markers.end}`;
 }
@@ -32,6 +33,7 @@ const TEMPLATE_CONTENT: Readonly<Record<string, string>> = {
   ".gitignore": `${frameworkBlock(HASH)}\nHOST_IGNORE\n`,
   "prisma/schema.prisma": `// header\n${PRISMA_BLOCK}\nmodel User {\n  id Int @id\n}\n`,
   "deploy/Caddyfile.tmpl": `site {\n# @@newbie-modules-start\n# @@newbie-modules-end\n}\n`,
+  "AGENTS.md": `# Agents\n${frameworkBlock(HTML)}\n`,
 };
 
 function templateContentFor(file: TemplateFile): string {
@@ -55,7 +57,7 @@ function identicalMaps(): {
 
 describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
   it("classifies every shipped template file exactly once", () => {
-    assert.equal(TEMPLATE_FILES.length, 33);
+    assert.equal(TEMPLATE_FILES.length, 35);
     const paths = TEMPLATE_FILES.map((file) => file.path);
     assert.equal(new Set(paths).size, paths.length, "duplicate registry path");
   });
@@ -63,9 +65,9 @@ describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
   it("carries the documented per-ownership counts", () => {
     const count = (ownership: string) => TEMPLATE_FILES.filter((f) => f.ownership === ownership).length;
     assert.equal(count("framework-whole-file"), 13);
-    assert.equal(count("framework-marker-block"), 3);
+    assert.equal(count("framework-marker-block"), 4);
     assert.equal(count("generated"), 3);
-    assert.equal(count("template-shipped-host-owned"), 14);
+    assert.equal(count("template-shipped-host-owned"), 15);
   });
 
   it("ships the framework deploy stack as whole-file entries", () => {
@@ -86,7 +88,10 @@ describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
 
   it("declares a marker syntax for every marker-block entry", () => {
     for (const file of TEMPLATE_FILES.filter((f) => f.ownership === "framework-marker-block")) {
-      assert.ok(file.markerSyntax === "//" || file.markerSyntax === "#", `${file.path} lacks markerSyntax`);
+      assert.ok(
+        file.markerSyntax === "//" || file.markerSyntax === "#" || file.markerSyntax === "<!--",
+        `${file.path} lacks markerSyntax`,
+      );
     }
   });
 
@@ -115,6 +120,10 @@ describe("extractMarkerBlock", () => {
 
   it("supports the # syntax of .env.example / .gitignore", () => {
     assert.equal(extractMarkerBlock(`header\n${frameworkBlock(HASH)}\n`, HASH), frameworkBlock(HASH));
+  });
+
+  it("supports the <!-- --> syntax of AGENTS.md", () => {
+    assert.equal(extractMarkerBlock(`header\n${frameworkBlock(HTML)}\n`, HTML), frameworkBlock(HTML));
   });
 
   it("returns null when a marker is missing or inverted", () => {

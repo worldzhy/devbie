@@ -1,11 +1,22 @@
 {
   "name": "@devbie/web-monitor-sdk",
-  "version": "1.1.3",
+  "version": "1.4.0",
   "description": "Browser-side web monitoring SDK: PV, AJAX, resource, JS error and custom event reporting. No heartbeat, no credential logic.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/web-monitor-sdk"
+  },
   "author": "worldzhy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "dist"
   ],
@@ -13,32 +24,24 @@
     "access": "public"
   },
   "scripts": {
-    "build": "rollup -c rollup.config.js && npm run build:types",
-    "build:types": "rollup -c rollup.dts.config.js",
-    "clean": "rimraf dist",
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist tsconfig.tsbuildinfo",
     "test": "jest",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.10",
-    "@babel/plugin-transform-runtime": "^7.13.10",
-    "@babel/plugin-transform-spread": "^7.12.1",
-    "@babel/preset-env": "^7.12.11",
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
     "@babel/preset-typescript": "^7.26.0",
-    "@babel/runtime": "^7.26.0",
-    "@rollup/plugin-babel": "^5.2.2",
-    "@rollup/plugin-replace": "^3.0.0",
-    "@types/jest": "^26.0.22",
-    "jest": "^26.6.3",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "jest-environment-jsdom": "^30.0.0",
     "node-fetch": "^2.6.1",
-    "rollup": "^2.35.1",
-    "rollup-plugin-dts": "^4.2.3",
-    "rollup-plugin-node-resolve": "^5.2.0",
-    "rollup-plugin-typescript": "^1.0.1",
-    "typescript": "^4.2.3",
+    "rimraf": "^6.1.3",
+    "typescript": "^5.9.3",
     "xmlhttprequest": "^1.8.0"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   }
 }

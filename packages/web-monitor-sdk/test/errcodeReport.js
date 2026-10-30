@@ -1,7 +1,7 @@
 /** Simple test cases live directly in this file; larger ones can be split into separate files */
 import "./mock/web.env";
 import { mockErrcodeReportApi, mockPerformanceResource } from "./mock/mock";
-import { overrideFetch, httpServer } from "./mock/utils";
+import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
 const appId = "appid_test";
 // Start a server to receive requests
@@ -25,10 +25,14 @@ const _monitor = webMonitorSdk({
 /**
  * errcodeReport
  */
+let pageReportArrived = false;
 let errcodeReportData;
 // Override to avoid actually sending report data
 overrideFetch(function () {
   const body = JSON.parse(arguments[1].body);
+  if (body.type === "PagePerf") {
+    pageReportArrived = true;
+  }
   // ajax and errcodeReport fire together
   if (body.type === "AjaxPerf") {
     errcodeReportData = body;
@@ -36,18 +40,20 @@ overrideFetch(function () {
 });
 
 /** options.errcodeReport custom business API error reporting */
-test("web options: errcodeReport", (done) => {
+test("web options: errcodeReport", async () => {
+  // In an already-loaded document the initial page report fires first; only
+  // ajax traffic after it is collected into an AjaxPerf report.
+  await waitFor(() => pageReportArrived, 8000);
+
   fetch(mockErrcodeReportApi.api, {
     method: "GET",
   }).then((_res) => {});
   // After sending requests, simulate the browser performance data observer
   window.mockPerformanceEntriesAdd(mockPerformanceResource.fetchErrcode);
-  setTimeout(() => {
-    expect(errcodeReportData.resourceList.length).toEqual(1);
-    expect(errcodeReportData.errorList.length).toEqual(1);
-    expect(errcodeReportData.errorList[0].msg).toEqual(mockErrcodeReportApi.res.errmsg);
-    expect(errcodeReportData.errorList[0].data.status).toEqual(mockErrcodeReportApi.res.errcode);
 
-    done();
-  }, 3000);
-});
+  await waitFor(() => errcodeReportData, 8000);
+  expect(errcodeReportData.resourceList.length).toEqual(1);
+  expect(errcodeReportData.errorList.length).toEqual(1);
+  expect(errcodeReportData.errorList[0].msg).toEqual(mockErrcodeReportApi.res.errmsg);
+  expect(errcodeReportData.errorList[0].data.status).toEqual(mockErrcodeReportApi.res.errcode);
+}, 20000);

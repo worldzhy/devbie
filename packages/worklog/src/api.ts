@@ -52,7 +52,7 @@ export class WorklogApi {
   async reportWorkspaces(workspaces: WorklogWorkspaceConfig[]): Promise<void> {
     for (let index = 0; index < workspaces.length; index += MAX_WORKSPACES_PER_BATCH) {
       const batch = workspaces.slice(index, index + MAX_WORKSPACES_PER_BATCH);
-      await this.post("/people/evidence/workspaces", {
+      await this.post("/work-evaluation/evidence/workspaces", {
         workspaces: batch.map((workspace) => ({
           workspaceKey: workspace.workspaceKey,
           rootPath: workspace.rootPath,
@@ -64,7 +64,7 @@ export class WorklogApi {
   async reportSessions(sessions: UploadSession[]): Promise<void> {
     for (let index = 0; index < sessions.length; index += MAX_SESSIONS_PER_BATCH) {
       const batch = sessions.slice(index, index + MAX_SESSIONS_PER_BATCH);
-      await this.post("/people/evidence/sessions", {
+      await this.post("/work-evaluation/evidence/sessions", {
         sessions: batch.map((session) => ({
           workspaceKey: session.workspaceKey,
           externalSessionId: session.externalSessionId,
@@ -95,7 +95,7 @@ export class WorklogApi {
   async reportDocuments(documents: UploadDocument[]): Promise<void> {
     for (let index = 0; index < documents.length; index += MAX_DOCUMENTS_PER_BATCH) {
       const batch = documents.slice(index, index + MAX_DOCUMENTS_PER_BATCH);
-      await this.post("/people/evidence/documents", {
+      await this.post("/work-evaluation/evidence/documents", {
         documents: batch.map((document) => ({
           workspaceKey: document.workspaceKey,
           title: document.title,

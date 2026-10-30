@@ -14,6 +14,7 @@ import { listenWithPortRaceRecovery } from "./port-race";
 import { registerGracefulShutdown } from "./graceful-shutdown";
 import { startModuleHubReporting } from "./module-hub/reporter";
 import { AllowAnyOriginRegistry } from "./cors/allow-any-origin.registry";
+import { resolveFrameworkEnv } from "./utilities/framework-env.util";
 
 const logger = new Logger("NewbieFactory");
 
@@ -125,14 +126,13 @@ export class NewbieFactory {
    *   NewbieFactory.create(ApplicationModule, {swagger: {title: 'My API'}})
    */
   static async create(rootModule: unknown, options: NewbieAppOptions = {}): Promise<NewbieBootstrapResult | void> {
-    const rawEnvironment = options.environment ?? process.env.ENVIRONMENT ?? "development";
-    const environment: NewbieEnvironment =
-      rawEnvironment === "production" || rawEnvironment === "development" ? rawEnvironment : "development";
-    if (rawEnvironment !== "production" && rawEnvironment !== "development") {
-      logger.warn(`Invalid ENVIRONMENT "${rawEnvironment}"; falling back to "development"`);
-    }
-    const port = options.port ?? (parseInt(process.env.PORT ?? "", 10) || 3000);
-    const corsAllowedOrigins = options.corsAllowedOrigins ?? (process.env.ALLOWED_ORIGINS ?? "").split(",");
+    // Resolve env-derived framework values from a single shared helper so
+    // bootstrap and the ConfigService `framework` namespace never drift
+    // apart on defaults or parsing. `options.*` overrides take precedence.
+    const env = resolveFrameworkEnv();
+    const environment: NewbieEnvironment = options.environment ?? env.environment;
+    const port = options.port ?? env.port;
+    const corsAllowedOrigins = options.corsAllowedOrigins ?? env.allowedOrigins;
     const bodyLimit = options.bodyLimit ?? "10mb";
     const requestTimeout = options.requestTimeout ?? 60_000;
     const portRaceRecovery = options.portRaceRecovery ?? environment !== "production";
@@ -250,7 +250,13 @@ export class NewbieFactory {
       const heartbeatEndpoint = process.env.HEARTBEAT_ENDPOINT;
       const heartbeatToken = process.env.HEARTBEAT_TOKEN;
       if (heartbeatEndpoint && heartbeatToken) {
-        startHeartbeat({ endpoint: heartbeatEndpoint, token: heartbeatToken });
+        startHeartbeat({
+          endpoint: heartbeatEndpoint,
+          token: heartbeatToken,
+          appVersion: process.env.APP_VERSION,
+          env: process.env.ENVIRONMENT,
+          instanceId: process.env.HOSTNAME,
+        });
       }
 
       // Module-hub self-registration: starts when MODULE_HUB_ENDPOINT and

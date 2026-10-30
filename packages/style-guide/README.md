@@ -1,7 +1,7 @@
 # @devbie/style-guide
 
 Single source of truth for code style across the devbie ecosystem
-(newbie / fewbie / nightwatch / apits). See ADR-010 in `worldzhy/devbie`.
+(newbie / fewbie / apits). See ADR-010 in `worldzhy/devbie`.
 
 ## Exports
 
@@ -20,12 +20,12 @@ SDKs.
 
 ## Coverage: which entry each repo uses
 
-| Repo                                | Composition                                 |
-| ----------------------------------- | ------------------------------------------- |
-| devbie monorepo root                | `base` + `nest` scoped to `packages/newbie` |
-| newbie-starter, nightwatch-backend  | `base` + `nest`                             |
-| fewbie-starter, nightwatch-frontend | `base` + `next`                             |
-| newbie-modules                      | `base` + `nest`                             |
+| Repo                 | Composition                                 |
+| -------------------- | ------------------------------------------- |
+| devbie monorepo root | `base` + `nest` scoped to `packages/newbie` |
+| newbie-starter       | `base` + `nest`                             |
+| fewbie-starter       | `base` + `next`                             |
+| newbie-modules       | `base` + `nest`                             |
 
 Two structural facts drive this table:
 

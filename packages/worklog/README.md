@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/npm/l/@devbie/worklog?style=flat-square)](https://github.com/worldzhy/devbie/blob/dev/LICENSE)
 [![node](https://img.shields.io/node/v/@devbie/worklog?style=flat-square)](https://www.npmjs.com/package/@devbie/worklog)
 
-Member-side worklog agent for the team's people-evaluation. It reports the
+Member-side worklog agent for the team's work-evaluation. It reports the
 workspaces you declare — and nothing else — so your work is visible to the
 evaluation without anyone reading your disk.
 

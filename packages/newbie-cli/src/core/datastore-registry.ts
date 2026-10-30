@@ -11,7 +11,7 @@
  * framework compose file the same way.
  *
  * Values mirror the module-derived services previously hand-written in
- * deploy/compose.prod.yml (newbie-starter / nightwatch are byte-identical).
+ * deploy/compose.prod.yml (identical across hosts).
  */
 
 export interface ComposeHealthcheck {

@@ -1,16 +1,15 @@
-import { castArray, forOwn, isArray, isEmpty, isObject } from "./vtilsLite";
+import { castArray, forOwn, isArray, isEmpty, isObject } from "./utils/collections";
 import { compile } from "json-schema-to-typescript";
-import type { Defined } from "./vtilsLite";
-import { format as prettierFormat, resolveConfig } from "prettier";
+import type { Defined } from "./utils/collections";
 import {
-  Interface,
+  ApiInterface,
   PropDefinition,
   PropDefinitions,
   RequestBodyType,
   RequestFormItemType,
   Required,
   ResponseBodyType,
-} from "../types";
+} from "./types";
 import { JSONSchema4, JSONSchema4TypeName } from "json-schema";
 
 /**
@@ -89,17 +88,17 @@ export function processJsonSchema<T extends JSONSchema4>(jsonSchema: T): T {
     jsonSchema.type = isMultiple ? types : types[0];
   }
 
-  // Mock.toJSONSchema produces `properties` as an array, but JSONSchema4 expects an object.
+  // Mock.toJSONSchema produces `properties` as an array of named schemas, but
+  // JSONSchema4 expects an object keyed by name. The generic `T` cannot prove
+  // the object shape is assignable to `T["properties"]`, so the write goes
+  // through a non-generic view; the value itself is fully typed.
   if (isArray(jsonSchema.properties)) {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment -- narrowing the array to the object shape here is intentional and type-safe at runtime
-    // @ts-ignore
-    jsonSchema.properties = (jsonSchema.properties as JSONSchema4[]).reduce<Defined<JSONSchema4["properties"]>>(
-      (props, js) => {
-        props[js.name] = js;
-        return props;
-      },
-      {},
-    );
+    const named = jsonSchema.properties as Array<JSONSchema4 & { name: string }>;
+    const properties: Defined<JSONSchema4["properties"]> = {};
+    for (const js of named) {
+      properties[js.name] = js;
+    }
+    (jsonSchema as JSONSchema4).properties = properties;
   }
 
   // Trim whitespace from field names.
@@ -361,13 +360,13 @@ export async function jsonSchemaToTsCode(jsonSchema: JSONSchema4, typeName: stri
   return code.replace(fakeTypeName, typeName).trim();
 }
 
-export function getRequestDataJsonSchema(interfaceInfo: Interface): JSONSchema4 {
+export function getRequestDataJsonSchema(interfaceInfo: ApiInterface): JSONSchema4 {
   let jsonSchema!: JSONSchema4;
 
-  switch (interfaceInfo.req_body_type) {
+  switch (interfaceInfo.requestBodyType) {
     case RequestBodyType.form:
       jsonSchema = propDefinitionsToJsonSchema(
-        interfaceInfo.req_body_form.map<PropDefinition>((item) => ({
+        interfaceInfo.requestBodyForm.map<PropDefinition>((item) => ({
           name: item.name,
           required: item.required === Required.true,
           type: (item.type === RequestFormItemType.file ? "file" : "string") as any,
@@ -381,8 +380,8 @@ export function getRequestDataJsonSchema(interfaceInfo: Interface): JSONSchema4 
       );
       break;
     case RequestBodyType.json:
-      if (interfaceInfo.req_body_other) {
-        jsonSchema = jsonSchemaStringToJsonSchema(interfaceInfo.req_body_other);
+      if (interfaceInfo.requestBodySchema) {
+        jsonSchema = jsonSchemaStringToJsonSchema(interfaceInfo.requestBodySchema);
       }
       break;
     default:
@@ -410,9 +409,9 @@ export function getRequestDataJsonSchema(interfaceInfo: Interface): JSONSchema4 
     delete (jsonSchema as any).tsType;
   }
 
-  if (isArray(interfaceInfo.req_query) && interfaceInfo.req_query.length) {
+  if (isArray(interfaceInfo.queryParams) && interfaceInfo.queryParams.length) {
     const queryJsonSchema = propDefinitionsToJsonSchema(
-      interfaceInfo.req_query.map<PropDefinition>((item) => ({
+      interfaceInfo.queryParams.map<PropDefinition>((item) => ({
         name: item.name,
         required: item.required === Required.true,
         type: item.type || "any", // `object` resolves to `{}`, which causes declaration issues, so strip it for now
@@ -434,9 +433,9 @@ export function getRequestDataJsonSchema(interfaceInfo: Interface): JSONSchema4 
     }
   }
 
-  if (isArray(interfaceInfo.req_params) && interfaceInfo.req_params.length) {
+  if (isArray(interfaceInfo.pathParams) && interfaceInfo.pathParams.length) {
     const paramsJsonSchema = propDefinitionsToJsonSchema(
-      interfaceInfo.req_params.map<PropDefinition>((item) => ({
+      interfaceInfo.pathParams.map<PropDefinition>((item) => ({
         name: item.name,
         required: true,
         type: item.type || "string",
@@ -461,13 +460,13 @@ export function getRequestDataJsonSchema(interfaceInfo: Interface): JSONSchema4 
   return jsonSchema;
 }
 
-export function getResponseDataJsonSchema(interfaceInfo: Interface): JSONSchema4 {
+export function getResponseDataJsonSchema(interfaceInfo: ApiInterface): JSONSchema4 {
   let jsonSchema: JSONSchema4 = {};
 
-  switch (interfaceInfo.res_body_type) {
+  switch (interfaceInfo.responseBodyType) {
     case ResponseBodyType.json:
-      if (interfaceInfo.res_body) {
-        jsonSchema = jsonSchemaStringToJsonSchema(interfaceInfo.res_body);
+      if (interfaceInfo.responseBody) {
+        jsonSchema = jsonSchemaStringToJsonSchema(interfaceInfo.responseBody);
       }
       break;
     default:
@@ -476,43 +475,4 @@ export function getResponseDataJsonSchema(interfaceInfo: Interface): JSONSchema4
   }
 
   return jsonSchema;
-}
-
-/**
- * Format generated code with prettier.
- *
- * When the output file path is known, the consumer project's own prettier
- * config is resolved from it (resolveConfig walks up from the file location),
- * so generated code lands clean under the consumer's `prettier --check`. When
- * the consumer has no config, pure prettier defaults are used, mirroring what
- * the consumer's own prettier would produce. `filepath` is always set so
- * prettier infers the parser from the extension and applies any matching
- * `overrides` from the consumer config.
- *
- * @param content code to format
- * @param filePath output file path used to resolve the consumer config
- * @returns formatted code
- * @see https://prettier.io/docs/en/options.html
- */
-export async function formatContent(content: string, filePath?: string): Promise<string> {
-  if (!filePath) {
-    // No path to resolve a config from: format with pure prettier defaults.
-    // prettier 3 made `format` asynchronous; callers must await the result.
-    return prettierFormat(content, { parser: "babel-ts" });
-  }
-  const consumerConfig = (await resolveConfig(filePath)) ?? {};
-  return prettierFormat(content, { ...consumerConfig, filepath: filePath });
-}
-
-/**
- * Generate the banner comment placed at the top of every generated file.
- * @returns banner comment
- */
-export function topNotesContent(): string {
-  return `
-  /**
-   * Created By @devbie/apits
-   */
-
-  `;
 }

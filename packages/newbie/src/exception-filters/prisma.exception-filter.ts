@@ -43,7 +43,11 @@ export class PrismaExceptionFilter implements ExceptionFilter {
      */
     if (exception instanceof PrismaClientKnownRequestError) {
       const { code, message } = exception;
-      if (code.startsWith("P2")) {
+      if (code === "P2025") {
+        // Record(s) required by the operation were not found — a client-visible
+        // "does not exist", not a malformed request.
+        statusCode = HttpStatus.NOT_FOUND;
+      } else if (code.startsWith("P2")) {
         statusCode = HttpStatus.BAD_REQUEST;
       } else {
         statusCode = HttpStatus.INTERNAL_SERVER_ERROR;

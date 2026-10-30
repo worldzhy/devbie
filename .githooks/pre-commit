@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Lints (fixable only) and formats staged files inside a throwaway Node
 # container, then restages them. Each step runs this repo's own eslint flat
 # config (from eslint.config.*) and prettier config (from package.json
@@ -60,15 +60,27 @@ fi
 
 # --- Lint (--fix, repo eslint flat config) -------------------------------
 # set +e so we can capture eslint's exit code before restaging; the global
-# set -e would otherwise abort at the docker run when unfixable errors exist.
+# set -e would otherwise abort at the run when unfixable errors exist.
+#
+# The execution environment differs across developers, so we probe Docker
+# availability rather than guessing "inside vs outside a container":
+#   - macOS host:     no local Node; Docker Desktop provides node:24-alpine
+#   - dev container:  Node 24 installed; no Docker CLI/socket
+# docker present -> run inside the pinned node:24-alpine image
+# docker absent  -> run with the local Node toolchain (the repo cannot build
+#                   without it, so it must exist whenever we reach this point)
 
 if [ -s "$lint_list" ]; then
   set +e
-  docker run --rm --network none \
-    -v "$repo_root":/workspace -w /workspace \
-    -v "$lint_list":/tmp/lint_list:ro \
-    node:24-alpine \
-    sh -c 'cat /tmp/lint_list | xargs -0 node node_modules/eslint/bin/eslint.js --fix'
+  if command -v docker >/dev/null 2>&1; then
+    docker run --rm --network none \
+      -v "$repo_root":/workspace -w /workspace \
+      -v "$lint_list":/tmp/lint_list:ro \
+      node:24-alpine \
+      sh -c 'cat /tmp/lint_list | xargs -0 node node_modules/eslint/bin/eslint.js --fix'
+  else
+    cat "$lint_list" | xargs -0 node node_modules/eslint/bin/eslint.js --fix
+  fi
   lint_exit=$?
   set -e
   xargs -0 < "$lint_list" git add --
@@ -79,21 +91,30 @@ if [ -s "$lint_list" ]; then
 fi
 
 # --- Format (repo prettier config) ---------------------------------------
+# Same docker-or-local selection as the lint step above.
 
-if ! docker run --rm --network none \
-  -v "$repo_root":/workspace -w /workspace \
-  -v "$all_list":/tmp/all_list:ro \
-  node:24-alpine \
-  sh -c '
-    set -e
-    spec=$(node -p "const p = require(\"./package.json\"); typeof p.prettier === \"string\" ? p.prettier : \"\"")
-    if [ -n "$spec" ]; then
-      node -e "require.resolve(process.argv[1])" "$spec"
-    fi
-    cat /tmp/all_list | xargs -0 node node_modules/prettier/bin/prettier.cjs --write
-  '; then
+if command -v docker >/dev/null 2>&1; then
+  docker run --rm --network none \
+    -v "$repo_root":/workspace -w /workspace \
+    -v "$all_list":/tmp/all_list:ro \
+    node:24-alpine \
+    sh -c '
+      set -e
+      spec=$(node -p "const p = require(\"./package.json\"); typeof p.prettier === \"string\" ? p.prettier : \"\"")
+      if [ -n "$spec" ]; then
+        node -e "require.resolve(process.argv[1])" "$spec"
+      fi
+      cat /tmp/all_list | xargs -0 node node_modules/prettier/bin/prettier.cjs --write
+    '
+else
+  spec=$(node -p "const p = require('./package.json'); typeof p.prettier === 'string' ? p.prettier : ''")
+  if [ -n "$spec" ]; then
+    node -e "require.resolve(process.argv[1])" "$spec"
+  fi
+  cat "$all_list" | xargs -0 node node_modules/prettier/bin/prettier.cjs --write
+fi || {
   echo "pre-commit: formatter failed; commit blocked" >&2
   exit 1
-fi
+}
 
 xargs -0 < "$all_list" git add --

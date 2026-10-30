@@ -15,6 +15,13 @@ function globalsCss(block: string, host: string): string {
   return `@import "tailwindcss";\n\n${host}\n\n${FRAMEWORK_MARKER_START}\n${block}\n${FRAMEWORK_MARKER_END}\n`;
 }
 
+function agentsMd(block: string, host: string): string {
+  return (
+    `# Agents\n\n<!-- fewbie:framework:start -->\n${block}\n<!-- fewbie:framework:end -->\n` +
+    (host === "" ? "" : `\n${host}\n`)
+  );
+}
+
 async function writeFile(root: string, relativePath: string, content: string): Promise<void> {
   await fs.mkdir(path.dirname(path.join(root, relativePath)), { recursive: true });
   await fs.writeFile(path.join(root, relativePath), content);
@@ -26,6 +33,7 @@ async function makeTemplate(): Promise<string> {
   await writeFile(root, "next.config.ts", "// template next config\n");
   await writeFile(root, "src/lib/utils.ts", "export const cn = () => '';\n");
   await writeFile(root, "src/app/globals.css", globalsCss("--primary: template;", ""));
+  await writeFile(root, "AGENTS.md", agentsMd("Template contract.", ""));
   // Host-owned: template update must never copy this.
   await writeFile(root, "src/app/page.tsx", "// template page\n");
   return root;
@@ -36,6 +44,7 @@ async function makeProject(): Promise<string> {
   await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fixture" }, null, 2));
   await writeFile(root, "next.config.ts", "// host next config\n");
   await writeFile(root, "src/app/globals.css", globalsCss("--primary: host;", ":root { --host: 42; }"));
+  await writeFile(root, "AGENTS.md", agentsMd("Stale contract.", "## Project rules\n\nKeep me."));
   await writeFile(root, "src/app/page.tsx", "// host page\n");
   return root;
 }
@@ -71,6 +80,11 @@ describe("fewbie template update", () => {
     assert.match(globals, /--primary: template;/);
     assert.match(globals, /--host: 42;/);
     assert.ok(await fs.stat(path.join(project, "src/lib/utils.ts")));
+    // Mixed AGENTS.md: the framework block is updated, the host area is kept.
+    const agents = await fs.readFile(path.join(project, "AGENTS.md"), "utf8");
+    assert.match(agents, /Template contract\./);
+    assert.doesNotMatch(agents, /Stale contract\./);
+    assert.match(agents, /## Project rules\n\nKeep me\./);
     // Host-owned file stays untouched even though the template ships one.
     assert.equal(await fs.readFile(path.join(project, "src/app/page.tsx"), "utf8"), "// host page\n");
   });
@@ -89,6 +103,22 @@ describe("fewbie template update", () => {
       /drift from the template/,
     );
     assert.equal(await fs.readFile(path.join(project, "src/app/globals.css"), "utf8"), ":root { --primary: host; }\n");
+  });
+
+  it("reports drift for a project AGENTS.md that lost its markers, without touching it", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await writeFile(project, "AGENTS.md", "# Agents\n\nHand-written notes.\n");
+
+    await assert.rejects(
+      runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
+      /drift from the template/,
+    );
+    assert.equal(await fs.readFile(path.join(project, "AGENTS.md"), "utf8"), "# Agents\n\nHand-written notes.\n");
   });
 
   it("restricts the scope to the requested path prefixes", async () => {

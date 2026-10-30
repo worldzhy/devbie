@@ -31,7 +31,7 @@ export async function readModulesState(cwd: string): Promise<ModulesState> {
   }
 }
 
-/** Create an empty modules.json on first use (config/interactive flows). */
+/** Create an empty modules.json on first use. */
 export async function ensureModulesState(cwd: string, sink: Sink): Promise<void> {
   if (await stateExists(cwd)) return;
   await sink.writeJson(MODULES_JSON, createEmptyModulesState());

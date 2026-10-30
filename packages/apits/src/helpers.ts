@@ -1,5 +1,5 @@
 import type { AppendOptions } from "form-data";
-import type { Config, RequestConfig, RequestFunctionParams } from "../types";
+import type { Config, RequestConfig, RequestFunctionParams } from "./types";
 
 /**
  * Normalize user configuration into a config array and apply built-in
@@ -182,16 +182,12 @@ export function prepare(requestConfig: RequestConfig, requestData: any): Request
 }
 
 /**
- * Execute async function queue sequentially
- * @param fns
- * @param results
- * @returns
+ * Execute an async function queue sequentially.
  */
-export const asyncFnArrayOrderRun = async <T = any>(fns: (() => Promise<T>)[], results?: T[]) => {
-  if (fns.length) {
-    const res = await fns[0]();
-    const res1: T[] = await asyncFnArrayOrderRun(fns.slice(1), [...(results || []), res]);
-    return res1;
+export async function runSequentially<T = any>(fns: (() => Promise<T>)[]): Promise<T[]> {
+  const results: T[] = [];
+  for (const fn of fns) {
+    results.push(await fn());
   }
-  return results || [];
-};
+  return results;
+}

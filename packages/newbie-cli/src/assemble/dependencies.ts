@@ -46,7 +46,7 @@ export async function assembleDependencies(params: {
   // added modules) makes the step idempotent and resumable: dependencies
   // missing because a previous run aborted mid-pipeline are installed on the
   // next run even when nothing new is added.
-  const enabledDecls = await loadManifests(cwd, issues, sink, enabled, "enabled");
+  const enabledDeclarations = await loadManifests(cwd, issues, sink, enabled, "enabled");
 
   let installed: {
     dependencies?: Record<string, string>;
@@ -63,7 +63,7 @@ export async function assembleDependencies(params: {
     dependencies: addSpecs,
     devDependencies: addDevSpecs,
     conflicts,
-  } = planDependencyInstalls(enabledDecls, installed);
+  } = planDependencyInstalls(enabledDeclarations, installed);
 
   for (const conflict of conflicts) {
     reportIssue(
@@ -83,10 +83,10 @@ export async function assembleDependencies(params: {
   }
 
   // [step 2] Uninstall deps that were only owned by removed modules.
-  const removedDecls = await loadManifests(cwd, issues, sink, removed, "removed");
+  const removedDeclarations = await loadManifests(cwd, issues, sink, removed, "removed");
   const { dependencies: removeDeps, devDependencies: removeDevDeps } = planDependencyRemovals(
-    removedDecls,
-    enabledDecls,
+    removedDeclarations,
+    enabledDeclarations,
   );
 
   if (removeDeps.length > 0 || removeDevDeps.length > 0) {

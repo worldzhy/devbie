@@ -68,9 +68,9 @@ export async function handler(event: RotationEvent): Promise<void> {
 }
 
 async function getStrategy(secretId: string): Promise<RotationStrategy> {
-  // Strategy routing reads the `nightwatch:secret-type` tag (the tag contract
-  // managed by the nightwatch plane and the newbie CLI); only the RDS engine
-  // hint still comes from the value payload.
+  // Strategy routing reads the `devbie:secret-type` tag (the tag contract
+  // managed by the aws-secrets-manager module and the newbie CLI); only the
+  // RDS engine hint still comes from the value payload.
   const description = await smClient.send(new DescribeSecretCommand({ SecretId: secretId }));
   const type = description.Tags?.find((tag) => tag.Key === SECRET_TYPE_TAG_KEY)?.Value;
 

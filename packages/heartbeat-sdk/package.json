@@ -1,8 +1,13 @@
 {
   "name": "@devbie/heartbeat-sdk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Framework-agnostic heartbeat client for installation liveness reporting",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/worldzhy/devbie.git",
+    "directory": "packages/heartbeat-sdk"
+  },
   "author": "worldzhy",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -32,6 +37,6 @@
     "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   }
 }

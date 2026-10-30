@@ -19,6 +19,14 @@
 export const FRAMEWORK_MARKER_START = "/* fewbie:framework:start */";
 export const FRAMEWORK_MARKER_END = "/* fewbie:framework:end */";
 
+/** Marker pair delimiting the framework-owned block of a mixed file. */
+export interface TemplateMarkers {
+  start: string;
+  end: string;
+}
+
+const DEFAULT_MARKERS: TemplateMarkers = { start: FRAMEWORK_MARKER_START, end: FRAMEWORK_MARKER_END };
+
 export type TemplateOwnership = "framework" | "mixed" | "host";
 
 export interface TemplateAsset {
@@ -26,6 +34,13 @@ export interface TemplateAsset {
   path: string;
   ownership: TemplateOwnership;
   note?: string;
+  /** Marker pair of a mixed file; defaults to the CSS comment markers. */
+  markers?: TemplateMarkers;
+}
+
+/** Marker pair of an asset: the explicit override or the default CSS markers. */
+export function assetMarkers(asset: TemplateAsset): TemplateMarkers {
+  return asset.markers ?? DEFAULT_MARKERS;
 }
 
 export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
@@ -46,6 +61,12 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
     ownership: "mixed",
     note: "design tokens live inside the marker block; host-specific tokens stay outside it",
   },
+  {
+    path: "AGENTS.md",
+    ownership: "mixed",
+    note: "the framework block carries the agent usage contract; project instructions stay outside it",
+    markers: { start: "<!-- fewbie:framework:start -->", end: "<!-- fewbie:framework:end -->" },
+  },
 
   // Host-owned: distributed once by create, then never touched by template update.
   { path: "src/app/layout.tsx", ownership: "host" },
@@ -54,7 +75,6 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: "package.json", ownership: "host" },
   { path: "README.md", ownership: "host" },
   { path: "next-env.d.ts", ownership: "host" },
-  { path: "AGENTS.md", ownership: "host" },
   { path: "CLAUDE.md", ownership: "host" },
 ];
 
@@ -66,16 +86,20 @@ export function isSyncableAsset(asset: TemplateAsset): boolean {
 export const SYNCABLE_ASSETS: readonly TemplateAsset[] = TEMPLATE_ASSETS.filter(isSyncableAsset);
 
 /** Extract the framework marker block (markers included); null when absent. */
-export function extractMarkerBlock(content: string): string | null {
-  const start = content.indexOf(FRAMEWORK_MARKER_START);
-  const end = content.indexOf(FRAMEWORK_MARKER_END);
+export function extractMarkerBlock(content: string, markers: TemplateMarkers = DEFAULT_MARKERS): string | null {
+  const start = content.indexOf(markers.start);
+  const end = content.indexOf(markers.end);
   if (start === -1 || end === -1 || end < start) return null;
-  return content.slice(start, end + FRAMEWORK_MARKER_END.length);
+  return content.slice(start, end + markers.end.length);
 }
 
 /** Replace the framework marker block inside `content`; null when absent. */
-export function replaceMarkerBlock(content: string, block: string): string | null {
-  const current = extractMarkerBlock(content);
+export function replaceMarkerBlock(
+  content: string,
+  block: string,
+  markers: TemplateMarkers = DEFAULT_MARKERS,
+): string | null {
+  const current = extractMarkerBlock(content, markers);
   if (current === null) return null;
   return content.replace(current, block);
 }
@@ -83,7 +107,7 @@ export function replaceMarkerBlock(content: string, block: string): string | nul
 /** Content compared for an asset: the marker block for mixed files. */
 function comparable(asset: TemplateAsset, content: string): string {
   if (asset.ownership !== "mixed") return content;
-  const block = extractMarkerBlock(content);
+  const block = extractMarkerBlock(content, assetMarkers(asset));
   if (block === null) {
     throw new Error(`Template ${asset.path} is missing the framework block.`);
   }
@@ -135,14 +159,14 @@ export function planTemplateUpdate(
     }
 
     if (asset.ownership === "mixed") {
-      const templateBlock = extractMarkerBlock(templateContent);
+      const markers = assetMarkers(asset);
+      const templateBlock = extractMarkerBlock(templateContent, markers);
       if (templateBlock === null) {
         throw new Error(
-          `Template ${asset.path} is missing the framework markers ` +
-            `(${FRAMEWORK_MARKER_START} / ${FRAMEWORK_MARKER_END}).`,
+          `Template ${asset.path} is missing the framework markers ` + `(${markers.start} / ${markers.end}).`,
         );
       }
-      const projectBlock = extractMarkerBlock(projectContent);
+      const projectBlock = extractMarkerBlock(projectContent, markers);
       if (projectBlock === null) {
         changes.push({
           asset,
@@ -157,7 +181,7 @@ export function planTemplateUpdate(
         changes.push({
           asset,
           kind: "update",
-          nextContent: replaceMarkerBlock(projectContent, templateBlock),
+          nextContent: replaceMarkerBlock(projectContent, templateBlock, markers),
           currentComparable: projectBlock,
           templateComparable: templateBlock,
         });

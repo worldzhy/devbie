@@ -1,6 +1,6 @@
 {
   "name": "@devbie/apits",
-  "version": "1.0.5",
+  "version": "1.2.0",
   "author": "worldzhy",
   "license": "MIT",
   "repository": {
@@ -8,29 +8,25 @@
     "url": "git+https://github.com/worldzhy/devbie.git",
     "directory": "packages/apits"
   },
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.mjs",
-  "types": "./dist/cjs/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "bin": {
-    "apits": "bin/apits"
+    "apits": "dist/cli.js"
   },
   "files": [
-    "bin",
     "dist"
   ],
   "scripts": {
-    "build": "father build",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "gen": "rm -rf ./api & tsx test/gen.ts --type-check false gen",
-    "gen:api-1": "tsx test/gen.ts --type-check false gen -n api-1",
-    "init": "tsx test/gen.ts --type-check false init",
-    "lint": "eslint",
-    "lint:fix": "eslint --fix",
-    "publishOnly": "npm run build",
-    "requestTest": "tsx watch test/requestTest.ts --type-check false",
-    "test": "tsx test/index.ts",
-    "test2": "tsx watch test/json-schema-to-typescript.ts --type-check false"
+    "build": "tsc -p tsconfig.json && chmod +x dist/cli.js",
+    "clean": "rimraf dist",
+    "test": "node --import tsx --test test/*.test.ts",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "chalk": "^4.1.1",
@@ -47,20 +43,22 @@
     "prettier": "^3.9.9",
     "prompts": "^2.0.4",
     "tsx": "^4.20.5",
-    "typescript": "^5",
     "yargs": "^16.2.0"
   },
   "devDependencies": {
     "@types/fs-extra": "^5.0.4",
     "@types/json-schema": "^7.0.15",
     "@types/json5": "^0.0.30",
-    "@types/node": "^18.7.14",
+    "@types/node": "^22.20.5",
     "@types/prompts": "^1.0.4",
     "@types/yargs": "^16.0.1",
-    "father": "^4"
+    "rimraf": "^6.1.3",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
+    "access": "public"
   }
 }
