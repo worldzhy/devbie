@@ -100,15 +100,15 @@ fewbie 与 @devbie/newbie **根本分野**，不照抄后端的重 npm 包模式
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | `fewbie create`          | 模板仓库 + design token                                                                                                                                     | Next.js + Tailwind + shadcn 骨架      |
 | `fewbie modules add <component>` | 组件模板库                                                                                                                                                  | `components/fewbie/*.tsx`             |
-| `fewbie apits`           | `apits-gen@^1.0.0`（bin `apits`；2026-10-05 落实决议 #4 切换正式包名，bin/配置 schema 零改动，旧 unscoped 包废弃；作为 devDependency 按需引入，**不重写**） | `src/api/_gen/api.ts`（生成物归项目） |
+| `fewbie apits`           | `apits-gen@^1.0.0`（bin `apits`；作为项目 devDependency 按需引入，**不重写**）。注：该指针尚未迁移，规范制品已是 `@devbie/apits`（ADR-015） | `src/api/_gen/api.ts`（生成物归项目） |
 | `fewbie doctor`          | 项目扫描                                                                                                                                                    | v0 可读性检测、token 一致性、依赖检查 |
 | `fewbie modules update`  | git diff                                                                                                                                                    | 组件 / token 升级 diff PR             |
 
 命令原名 `init`，2026-10-20 更名 `create`，与后端 `newbie create` 对齐同一动词（两命令由同一条模板解析链孪生而来；原 `init` 与 shadcn `init`（在既有项目内初始化）语义撞词，而 fewbie `create` 语义是从模板建新项目）。下文保留日期标注的历史决策/里程碑记录中的旧名，不改写。
 
-关键决策：**生成器保持独立 npm 包**，fewbie CLI 仅作 thin wrapper（`fewbie apits`）。理由：
+关键决策：**生成器不重写**，fewbie CLI 仅作 thin wrapper（`fewbie apits`）。理由：
 
-- 它是独立项目（npm 包名 `apits-gen`，不属 `@devbie` scope；2026-10-05 核实 1.0.0 已发布，bin 命令 `apits`、配置文件 `apits.config.ts`，字段 `input`/`output`/`name`/`baseURL`/`clientImportTemplate` 全部兼容）。消费沿革：2026-09-26 起暂用旧 unscoped 包 `open-api-typescript-request-generator@0.0.7-alpha.0`（当时拟用名 `apits-gen` 在 npm 尚不存在），1.0.0 发布后按决议 #4 切换。重写是浪费。
+- 生成器本体已按 ADR-015 并入本仓 `packages/apits`，规范制品为 `@devbie/apits`（bin 与配置文件不变）；但 scaffold 仍指向未迁移的 unscoped `apits-gen@^1.0.0`（2026-10-05 切换时的正式包名），退役该指针是 ADR-015 遗留的独立决议。消费沿革：2026-09-26 起暂用旧 unscoped 包 `open-api-typescript-request-generator@0.0.7-alpha.0`（当时拟用名 `apits-gen` 在 npm 尚不存在），1.0.0 发布后按决议 #4 切换。重写是浪费。
 - 生成器是开发期工具不是运行时，工具就该是 CLI。
 - 生成物归项目（`src/api/_gen/api.ts`，函数按 `method+path` 派生命名），符合 shadcn 哲学——用户拥有源码。
 
@@ -169,7 +169,7 @@ fewbie monorepo（~/src/fewbie，npm workspaces）
 │   ├── src/                    命令实现
 │   │   ├── create              clone fewbie 模板仓库（与 newbie create 同解析链，可 pin tag）
 │   │   ├── modules add <name>      从 registry 复制组件/util 源码到项目
-│   │   ├── apits              thin wrapper → apits-gen 生成器（OpenAPI → TS 请求代码）
+│   │   ├── apits              thin wrapper → apits-gen 生成器（OpenAPI → TS 请求代码；待切 @devbie/apits）
 │   │   ├── doctor              v0 可读性 / token 一致性 / 依赖检查
 │   │   └── modules update      组件/token 升级（默认写入，--check 门禁）
 │   └── registry/               组件/util 单一真源（shadcn registry 兼容）
