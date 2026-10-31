@@ -17,7 +17,9 @@
 
 ## P2
 
-- [ ] `@devbie/fewbie-cli@1.4.2` 发版：apits 1.2.1（bin 直指 `dist/cli.js`）已于 2026-10-31 发布；fewbie 脚手架 spec 已收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（覆盖存量 1.2.0 wrapper），源码与测试就绪（E2E 生成通过），待 `npm publish`。
+（暂无）
+
+> `@devbie/apits@1.2.1` 与 `@devbie/fewbie-cli@1.4.2` 于 2026-10-31 发布（`fd0ab734`、`b0299e82`）：apits 的 bin 直指 `dist/cli.js`（shebang + 自执行守卫，替代 1.2.0 的 `bin/apits` wrapper）；fewbie 脚手架 spec 收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（存量 1.2.0 安装继续可用）。端到端验证：临时项目用已发布的 `npx @devbie/fewbie-cli@1.4.2 apits` 成功安装 `@devbie/apits@1.2.1` 并生成 `src/api/_gen/api.ts`。
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
