@@ -17,7 +17,7 @@
 
 ## P2
 
-- [ ] `fewbie apits` 脚手架仍指向未迁移的 unscoped `apits-gen@^1.0.0`，规范制品已是 `@devbie/apits`（ADR-015 遗留决议）：切换 `packages/fewbie-cli/src/commands/apits-templates.ts` 的包名/版本常量与 bin 路径，并核对 `apits.config.ts` schema 兼容；需发 fewbie-cli 新版本并让模板仓跟进。
+- [ ] `@devbie/fewbie-cli@1.4.2` 发版：`fewbie apits` 脚手架已从 `apits-gen@^1.0.0` 切到 `@devbie/apits@^1.2.0`（bin 路径按已安装包的 `bin` 字段解析，兼容 `bin/apits` 与 `dist/cli.js`），源码与测试已就绪（E2E 生成通过），待 `npm publish` 后模板仓 `fewbie-starter` 无需改动、仅需消费仓重新执行 `fewbie apits` 生效。
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 

@@ -161,7 +161,8 @@ Ownership follows ADR-025:
 
 Generate typed API request code from an OpenAPI document (a URL or a local
 JSON/YAML file). On the first run the command scaffolds `apits.config.ts`;
-subsequent runs generate the typed request layer via the apits generator.
+subsequent runs generate the typed request layer via the `@devbie/apits`
+generator, installed into the project as a dev dependency.
 
 | Option              | Description                                              |
 | ------------------- | -------------------------------------------------------- |

@@ -5,13 +5,12 @@
 /**
  * The apits generator is consumed as a project dev dependency (not bundled
  * with the CLI) so users own the tool version and can rerun it manually.
- * `apits-gen@1.0.0` is the released line carrying the rewritten config
- * schema (`input`/`output`/`clientImportTemplate`); the legacy unscoped
- * `open-api-typescript-request-generator` package is abandoned.
+ * The canonical artifact is `@devbie/apits` (merged into this monorepo by
+ * ADR-015, bin also named `apits`); the legacy unscoped `apits-gen` line and
+ * `open-api-typescript-request-generator` are no longer scaffolded.
  */
-export const GENERATOR_PACKAGE_NAME = "apits-gen";
-export const GENERATOR_PACKAGE_SPEC = "apits-gen@^1.0.0";
-export const GENERATOR_BIN_RELATIVE = "node_modules/apits-gen/bin/apits";
+export const GENERATOR_PACKAGE_NAME = "@devbie/apits";
+export const GENERATOR_PACKAGE_SPEC = "@devbie/apits@^1.2.0";
 
 export const CONFIG_PROJECT_PATH = "apits.config.ts";
 export const API_CLIENT_PROJECT_PATH = "src/lib/api-client.ts";

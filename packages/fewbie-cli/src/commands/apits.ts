@@ -11,7 +11,6 @@ import {
   CONFIG_PROJECT_PATH,
   DEFAULT_GENERATED_NAME,
   DEFAULT_OUTPUT_DIR,
-  GENERATOR_BIN_RELATIVE,
   GENERATOR_PACKAGE_NAME,
   GENERATOR_PACKAGE_SPEC,
   PUBLIC_BASE_URL_ENV,
@@ -46,6 +45,19 @@ async function exists(target: string): Promise<boolean> {
 
 async function readPackageJson(projectRoot: string): Promise<PackageJson> {
   return JSON.parse(await fs.readFile(path.join(projectRoot, "package.json"), "utf8")) as PackageJson;
+}
+
+/** Resolve the installed generator bin through its own package manifest. */
+async function resolveGeneratorBin(projectRoot: string): Promise<string | undefined> {
+  const packageDir = path.join(projectRoot, "node_modules", GENERATOR_PACKAGE_NAME);
+  let manifest: { bin?: string | Record<string, string> };
+  try {
+    manifest = JSON.parse(await fs.readFile(path.join(packageDir, "package.json"), "utf8"));
+  } catch {
+    return undefined;
+  }
+  const bin = typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.apits;
+  return bin ? path.join(packageDir, bin) : undefined;
 }
 
 /** Run the project-local generator binary through the current Node runtime. */
@@ -119,9 +131,9 @@ export async function runApits(options: ApitsOptions): Promise<void> {
     await execLive("npm", ["install", "-D", GENERATOR_PACKAGE_SPEC], { cwd: projectRoot });
   }
 
-  const binPath = path.join(projectRoot, GENERATOR_BIN_RELATIVE);
-  if (!(await exists(binPath))) {
-    throw new CliError(`Generator binary not found at ${GENERATOR_BIN_RELATIVE}. Run 'npm install' and retry.`);
+  const binPath = await resolveGeneratorBin(projectRoot);
+  if (!binPath || !(await exists(binPath))) {
+    throw new CliError(`Generator binary not found for ${GENERATOR_PACKAGE_NAME}. Run 'npm install' and retry.`);
   }
 
   const genArgs = [binPath, "gen"];
