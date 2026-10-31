@@ -56,4 +56,14 @@ describe("unifiedDiff", () => {
     assert.ok(diff.includes("-x15"));
     assert.ok(diff.includes("+X15"));
   });
+
+  it("falls back to a coarse diff instead of an unbounded LCS table", () => {
+    const before = Array.from({ length: 1200 }, (_, i) => `old ${i}`).join("\n");
+    const after = Array.from({ length: 1200 }, (_, i) => `new ${i}`).join("\n");
+    const started = Date.now();
+    const diff = unifiedDiff(before, after, "a/f", "b/f");
+    assert.ok(Date.now() - started < 5000, "diff must not hang on pathological input");
+    assert.ok(diff.includes("-old 0"));
+    assert.ok(diff.includes("+new 0"));
+  });
 });

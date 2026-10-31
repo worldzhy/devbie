@@ -34,9 +34,24 @@ describe("scanDocuments symlink policy", () => {
     const documents = scanDocuments(configFor(rootPath), state);
 
     assert.deepEqual(
-      documents.map((document) => document.refPath),
+      documents.map((document) => document.upload.refPath),
       ["docs/real.md"],
     );
+  });
+
+  it("does not commit document hashes itself; the caller does after a successful upload", () => {
+    const base = mkdtempSync(join(tmpdir(), "worklog-docs-"));
+    const rootPath = join(base, "repo");
+    mkdirSync(join(rootPath, "docs"), { recursive: true });
+    writeFileSync(join(rootPath, "docs", "real.md"), "real document");
+
+    const state = { files: {}, documents: {} };
+    const documents = scanDocuments(configFor(rootPath), state);
+
+    assert.equal(documents.length, 1);
+    assert.ok(documents[0].hash.length > 0);
+    // A failed upload must leave the state untouched so the next run retries.
+    assert.deepEqual(state.documents, {});
   });
 
   it("skips a declared directory that is itself a symlink", () => {

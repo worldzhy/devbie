@@ -23,6 +23,30 @@ export const REGISTRY_REF_ENV = "NEWBIE_MODULES_REF";
 const DEFAULT_LOCAL_REGISTRY = path.join(os.homedir(), "src", "newbie-modules");
 const CACHE_DIR = path.join(os.homedir(), ".newbie", "registry");
 
+/**
+ * A ref is handed to `git checkout` as an argument, so anything starting with
+ * `-` would be parsed as an option (e.g. `--orphan`) instead of a revision.
+ * Accept only plain branch/tag/commit names.
+ */
+const REGISTRY_REF_RE = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
+
+/** Whether NEWBIE_MODULES_REF is safe to pass to git as a revision. */
+export function isValidRegistryRef(ref: string): boolean {
+  return REGISTRY_REF_RE.test(ref) && !ref.includes("..") && !ref.endsWith("/");
+}
+
+/** Read NEWBIE_MODULES_REF, rejecting values git could interpret as options. */
+function registryRefFromEnv(): string | undefined {
+  const ref = process.env[REGISTRY_REF_ENV];
+  if (!ref) return undefined;
+  if (!isValidRegistryRef(ref)) {
+    throw new CliError(
+      `Invalid ${REGISTRY_REF_ENV} value '${ref}': expected a branch, tag, or commit name (no leading '-' and no '..').`,
+    );
+  }
+  return ref;
+}
+
 export interface RegistryLocation {
   /** Absolute path of a usable registry working tree. */
   root: string;
@@ -108,8 +132,8 @@ export async function resolveRegistry(options?: { fetch?: boolean }): Promise<Re
     };
   }
 
-  const ref = process.env[REGISTRY_REF_ENV];
   if (options?.fetch) {
+    const ref = registryRefFromEnv();
     const sourceCommit = await updateCachedClone(ref);
     return { root: CACHE_DIR, url: REGISTRY_URL, sourceCommit, local: false };
   }

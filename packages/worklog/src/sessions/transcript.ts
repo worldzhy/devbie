@@ -19,6 +19,16 @@ const FILE_EDIT_TOOLS = new Set([
   "str_replace_editor",
 ]);
 
+/**
+ * Accepts only timestamps `Date` can actually parse. Garbage values in a
+ * transcript would otherwise produce an invalid `startedAt`/`endedAt`, and the
+ * resulting NaN `durationMs` is rejected by the server (HTTP 400).
+ */
+function parsableTimestamp(value: string | null): string | null {
+  if (!value) return null;
+  return Number.isNaN(Date.parse(value)) ? null : value;
+}
+
 /** Claude Code and Codex both write raw JSONL; only the line shape differs. */
 function normalizeRecord(record: Record<string, unknown>): NormalizedRecord | null {
   return record.message === undefined ? normalizeCodexRecord(record) : normalizeClaudeRecord(record);
@@ -60,7 +70,7 @@ export function readTranscriptDelta(filePath: string, offset: number, nextSeq: n
     if (!workspaceRootPath && cwd) workspaceRootPath = cwd;
     const sessionId = stringOrNull(record.sessionId) ?? stringOrNull(record.session_id);
     if (!externalSessionId && sessionId) externalSessionId = sessionId;
-    const timestamp = stringOrNull(record.timestamp) ?? stringOrNull(record.created_at);
+    const timestamp = parsableTimestamp(stringOrNull(record.timestamp) ?? stringOrNull(record.created_at));
     if (timestamp) {
       startedAt = startedAt ?? timestamp;
       endedAt = timestamp;

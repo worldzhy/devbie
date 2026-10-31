@@ -52,10 +52,11 @@ export function httpServer(config) {
         });
         fs.createReadStream(filePath).pipe(res);
       } else {
-        res.setHeader("Content-Type", "application/json");
+        res.statusCode = config.statusCode || 200;
+        res.setHeader("Content-Type", config.contentType || "application/json");
         res.setHeader("x-qexr-trace-id", "Cxaq1.adc");
         res.setHeader("access-control-expose-headers", "x-qexr-trace-id");
-        res.end(JSON.stringify(config.res));
+        res.end(config.body !== undefined ? config.body : JSON.stringify(config.res));
       }
     } else {
       res.statusCode = 404;

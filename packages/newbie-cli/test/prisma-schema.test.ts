@@ -54,6 +54,12 @@ describe("updateDatasourceSchemas", () => {
     const broken = 'datasource db {\n  provider = "postgresql"\n  schemas =\n}\n';
     assert.equal(updateDatasourceSchemas(broken, ["x"], []), broken);
   });
+
+  it("does not drift into a later block that mentions schemas", () => {
+    const content = 'datasource db {\n  provider = "postgresql"\n}\n\n// schemas = ["module/x"]\n';
+    assert.equal(updateDatasourceSchemas(content, ["module/account"], []), content);
+    assert.equal(readDatasourceSchemas(content), null);
+  });
 });
 
 describe("reconcileDatasourceSchemas", () => {

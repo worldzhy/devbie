@@ -2,6 +2,26 @@ import { BadRequestException, Injectable, PipeTransform } from "@nestjs/common";
 import { parseObjectLiteral } from "../utilities/parse-object-literal.util";
 import { WHERE_PIPE_FORMAT } from "../exceptions/errors.constants";
 
+const OPERATORS = [
+  "lt",
+  "lte",
+  "gt",
+  "gte",
+  "equals",
+  "not",
+  "contains",
+  "startsWith",
+  "endsWith",
+  "every",
+  "some",
+  "none",
+];
+
+// Only relation operators expect a nested `field:value` operand; scalar
+// operators keep the raw string, so a legitimate colon in the value
+// (e.g. "contains foo:bar") is not rewritten into an object.
+const RELATION_OPERATORS = new Set(["every", "some", "none"]);
+
 /** Convert a string like "id: 12, b: 'Anand'" to { id: 12, name: "Anand" } */
 @Injectable()
 export class WherePipe implements PipeTransform {
@@ -27,32 +47,18 @@ export class WherePipe implements PipeTransform {
           }
         }
 
-        const operators = [
-          "lt",
-          "lte",
-          "gt",
-          "gte",
-          "equals",
-          "not",
-          "contains",
-          "startsWith",
-          "endsWith",
-          "every",
-          "some",
-          "none",
-        ];
-        for (const val of operators) {
-          if (rawValue.startsWith(`${val} `)) {
-            const data: Record<string, any> = {};
-            data[val] = rawValue.replace(`${val} `, "");
-            if (data[val].includes(":") && !data[val].endsWith(":")) {
-              const record: Record<string, any> = {};
-              record[data[val].split(":")[0].trim()] = data[val].split(":")[1].trim();
-              data[val] = record;
+        for (const val of OPERATORS) {
+          if (!rawValue.startsWith(`${val} `)) continue;
+          const operand = rawValue.slice(val.length + 1).trim();
+          let value: unknown = operand;
+          if (RELATION_OPERATORS.has(val)) {
+            const [nestedKey, nestedValue, ...rest] = operand.split(":");
+            if (nestedKey && nestedValue && rest.length === 0 && /^[A-Za-z_][A-Za-z0-9_]*$/.test(nestedKey)) {
+              value = { [nestedKey]: nestedValue };
             }
-            items[ruleKey] = data;
-            break;
           }
+          items[ruleKey] = { [val]: value };
+          break;
         }
 
         if (ruleValue != null && ruleValue !== "") items[ruleKey] = items[ruleKey] || ruleValue;

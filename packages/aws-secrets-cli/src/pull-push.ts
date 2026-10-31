@@ -79,6 +79,22 @@ function setEntry(lines: EnvLine[], key: string, value: string): void {
   lines.push({ kind: "entry", key, value });
 }
 
+/**
+ * Replace .env atomically with owner-only permissions: write a sibling temp file
+ * then rename over the target, so a crash or concurrent reader never sees a
+ * half-written file (and the new inode lands 0600 instead of inheriting umask).
+ */
+async function writeEnvAtomic(target: string, content: string): Promise<void> {
+  const temp = `${target}.${process.pid}.tmp`;
+  try {
+    await fs.writeFile(temp, content, { encoding: "utf8", mode: 0o600 });
+    await fs.rename(temp, target);
+  } catch (error) {
+    await fs.rm(temp, { force: true }).catch(() => {});
+    throw error;
+  }
+}
+
 /* ------------------------------------------------------------------ pull -- */
 
 interface ParsedSecret {
@@ -202,7 +218,7 @@ export async function runSecretsPull(options: SecretsCommandOptions): Promise<vo
       console.info(yellow("Write cancelled"));
       return;
     }
-    await fs.writeFile(envTarget, next, "utf8");
+    await writeEnvAtomic(envTarget, next);
     console.info(green(`✓ Updated ${ENV_PATH}`));
   }
 

@@ -100,6 +100,22 @@ describe("session transcript delta reader", () => {
     assert.equal(parsed.aggregate.endedAt, "2026-10-02T10:00:00.000Z");
   });
 
+  it("ignores unparsable timestamps so durationMs cannot become NaN", () => {
+    const line = JSON.stringify({
+      type: "user",
+      sessionId: "session-bad-time",
+      timestamp: "not-a-date",
+      message: { role: "user", content: "hello" },
+    });
+
+    const { parsed } = readTranscriptDelta(transcriptFile([line]), 0, 0);
+
+    assert.equal(parsed.messages.length, 1);
+    assert.equal(parsed.messages[0].createdAt, undefined);
+    assert.ok(!Number.isNaN(Date.parse(parsed.aggregate.startedAt)));
+    assert.ok(!Number.isNaN(Date.parse(parsed.aggregate.endedAt)));
+  });
+
   it("returns nothing new when the file has not grown", () => {
     const file = transcriptFile(claudeRecords);
     const first = readTranscriptDelta(file, 0, 0);

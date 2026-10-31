@@ -1,10 +1,10 @@
 # Devbie 框架设计文档
 
-本工作区包含 newbie（后端框架）、fewbie（前端框架）、apits-gen（codegen 工具）的设计文档。
+本工作区包含 newbie（后端框架）、fewbie（前端框架）、apits（codegen 工具）的设计文档。
 
 nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本文档集。
 
-文档按设计文档三分治组织：Living 设计文档在 `design/`、ADR 在 `decisions/`、已交付工作产物归档在 `../specs/`。
+文档按设计文档四分治组织：Living 设计文档在 `design/`、ADR 在 `decisions/`、已交付工作产物归档在 `../specs/`、跨仓评审报告留在本目录（`expert-review-*.md`）。
 
 ## 模板
 
@@ -13,6 +13,20 @@ nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本
 ## 待办登记
 
 - [backlog.md](file:///Users/worldzhy/src/devbie/.trae/documents/backlog.md) — 已确认但未排期的遗留项（只保留未办事项）
+
+## 评审报告（expert-review-*.md）
+
+跨仓评审（框架 + registry + 宿主）的报告落在这里；单仓评审落该仓 `.trae/documents/`。文件名统一为 `expert-review-<日期>-roundN.md`。
+
+规则：
+
+- 报告是时点快照，只留结论与位置；某项是否还开着，以各仓 `backlog.md` 为准。
+- 未修项在每个仓的 `backlog.md` 各记一行（不含报告正文），办结即删。
+- 某轮全部关闭后报告不删除，也不移入 `../specs/`。
+
+已收录：
+
+- [expert-review-2026-10-30-round2.md](file:///Users/worldzhy/src/devbie/.trae/documents/expert-review-2026-10-30-round2.md) — 第二轮全仓评审（14 P0 / 12 关键 P1 已复核）
 
 ## 设计文档（design/）
 

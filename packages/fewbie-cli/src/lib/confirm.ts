@@ -12,9 +12,17 @@ export interface ConfirmOptions {
   dryRun?: boolean;
 }
 
-/** Ask for confirmation; non-interactive and `--yes` runs proceed directly. */
+/**
+ * Ask for confirmation. Mutations must be explicit: a non-interactive session
+ * (CI, pipes, sandboxes) declines unless `--yes` was passed, because inquirer
+ * cannot prompt there and silently proceeding would apply unrequested writes.
+ */
 export async function confirm(message: string, options: ConfirmOptions = {}): Promise<boolean> {
-  if (options.yes || options.dryRun || !isInteractive()) return true;
+  if (options.yes || options.dryRun) return true;
+  if (!isInteractive()) {
+    console.info("[info] Non-interactive session: pass --yes to confirm.");
+    return false;
+  }
   const answer = await select({
     message,
     choices: [

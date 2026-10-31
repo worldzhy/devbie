@@ -1,6 +1,7 @@
 export { MODULES_DIR, MODULES_JSON, MODULE_MANIFEST_FILE } from "./paths";
 export {
   createEmptyModulesState,
+  ManagedDependencies,
   ModuleRecord,
   ModulesState,
   moduleKeys,

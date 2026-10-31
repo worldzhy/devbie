@@ -1,3 +1,4 @@
+import { globalIgnores } from "eslint/config";
 import tseslint from "typescript-eslint";
 import prettierConfig from "eslint-config-prettier";
 
@@ -15,7 +16,10 @@ import prettierConfig from "eslint-config-prettier";
  * composing a layer on top still ends on the formatting-rule shutdown.
  *
  * Repo-specific rules and ignores belong in the consumer's own
- * eslint.config.mjs, spread after this entry.
+ * eslint.config.mjs, spread after this entry. Only universal generated
+ * artifacts are ignored here: minified bundles are machine output, not
+ * authored code, so no repository can meaningfully lint them. This mirrors
+ * the `*.min.js` entry the starters carry in `.prettierignore`.
  */
 export default [
   ...tseslint.configs.recommended,
@@ -41,4 +45,5 @@ export default [
     },
   },
   prettierConfig,
+  globalIgnores(["**/*.min.js"]),
 ];

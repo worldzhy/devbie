@@ -9,13 +9,24 @@ import type { UploadDocument } from "./api";
 
 const DOCUMENT_EXTENSIONS = new Set([".md", ".markdown", ".txt"]);
 
+/** One changed document plus the state entry to commit after a successful upload. */
+export interface ScannedDocument {
+  /** Absolute file path, the key in `state.documents`. */
+  filePath: string;
+  hash: string;
+  upload: UploadDocument;
+}
+
 /**
  * Declared-layer document scan (ADR-029 §8, ADR-030). Only declared
  * workspaces are walked; anything else on the machine is never visited.
  * A document is re-uploaded only when its content hash changes.
+ *
+ * This function never mutates `state`: the hash is committed by the caller
+ * only after the upload succeeds, so a failed upload is retried next run.
  */
-export function scanDocuments(config: WorklogConfig, state: WorklogState): UploadDocument[] {
-  const documents: UploadDocument[] = [];
+export function scanDocuments(config: WorklogConfig, state: WorklogState): ScannedDocument[] {
+  const documents: ScannedDocument[] = [];
 
   for (const workspace of config.workspaces) {
     for (const directory of config.documentDirectories) {
@@ -40,13 +51,16 @@ export function scanDocuments(config: WorklogConfig, state: WorklogState): Uploa
         if (state.documents[filePath]?.hash === hash) continue;
 
         documents.push({
-          workspaceKey: workspace.workspaceKey,
-          title: basename(filePath),
-          refPath,
-          content: redact(content),
-          capturedAt: stats.mtime.toISOString(),
+          filePath,
+          hash,
+          upload: {
+            workspaceKey: workspace.workspaceKey,
+            title: basename(filePath),
+            refPath,
+            content: redact(content),
+            capturedAt: stats.mtime.toISOString(),
+          },
         });
-        state.documents[filePath] = { hash, workspaceKey: workspace.workspaceKey };
       }
     }
   }

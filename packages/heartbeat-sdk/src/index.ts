@@ -27,6 +27,9 @@ export interface HeartbeatHandle {
 
 const GLOBAL_KEY = Symbol.for("@devbie/heartbeat-sdk:active");
 
+/** Upper bound on a single heartbeat POST so a hung endpoint cannot stall the loop. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 /**
  * Starts a heartbeat loop that POSTs to `endpoint` (the full report URL)
  * immediately and then every `intervalMs` (default 30s).
@@ -65,6 +68,7 @@ export function startHeartbeat(options: HeartbeatOptions): HeartbeatHandle {
           ...(body !== undefined && { "Content-Type": "application/json" }),
         },
         ...(body !== undefined && { body }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
     } catch {
       // Heartbeat failures are intentionally silent.

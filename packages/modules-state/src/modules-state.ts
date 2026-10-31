@@ -23,6 +23,16 @@ export interface ModuleRecord {
   localPatches: string[];
 }
 
+/**
+ * npm packages the CLI installed on behalf of modules. Only names recorded
+ * here may be uninstalled when their owning module is removed: a dependency
+ * the host already declared (or added by hand) stays untouched.
+ */
+export interface ManagedDependencies {
+  dependencies: string[];
+  devDependencies: string[];
+}
+
 export interface ModulesState {
   registry: {
     url?: string;
@@ -30,6 +40,7 @@ export interface ModulesState {
     sourceCommit?: string | null;
   } | null;
   modules: ModuleRecord[];
+  managedDependencies?: ManagedDependencies;
   [key: string]: unknown;
 }
 
@@ -47,6 +58,17 @@ function normalizeRecord(raw: unknown): ModuleRecord | null {
     ? record.localPatches.filter((patch): patch is string => typeof patch === "string")
     : [];
   return { key: record.key, version, sourceCommit, localPatches };
+}
+
+function normalizeManagedDependencies(raw: unknown): ManagedDependencies | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const record = raw as Record<string, unknown>;
+  const strings = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+  return {
+    dependencies: strings(record.dependencies),
+    devDependencies: strings(record.devDependencies),
+  };
 }
 
 export function normalizeModulesState(raw: unknown): ModulesState {
@@ -72,7 +94,14 @@ export function normalizeModulesState(raw: unknown): ModulesState {
     modules.push(record);
   }
 
-  return { ...(data as object), registry, modules };
+  const managedDependencies = normalizeManagedDependencies(data.managedDependencies);
+
+  return {
+    ...(data as object),
+    registry,
+    modules,
+    ...(managedDependencies ? { managedDependencies } : {}),
+  };
 }
 
 export function moduleKeys(state: ModulesState): string[] {

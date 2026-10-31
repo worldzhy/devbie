@@ -4,6 +4,8 @@
  * still-enabled module (nor the removal set processed earlier) declares it.
  */
 
+import type { ManagedDependencies } from "@devbie/modules-state";
+
 export interface DependencyDecls {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
@@ -57,6 +59,29 @@ export function buildInstallSpecs(decls: DependencyDecls[]): {
   }
 
   return { dependencies, devDependencies };
+}
+
+/**
+ * Package name of an install spec, keeping npm scopes intact:
+ * `@scope/pkg@^1.0.0` -> `@scope/pkg`, `pkg@^1.0.0` -> `pkg`.
+ */
+export function installSpecName(spec: string): string {
+  const at = spec.lastIndexOf("@");
+  return at > 0 ? spec.slice(0, at) : spec;
+}
+
+/**
+ * Restrict planned removals to packages this CLI installed (recorded in
+ * modules.json). Anything the host declared itself — even when a removed
+ * module also named it — is left in package.json.
+ */
+export function filterManagedRemovals(
+  removals: { dependencies: string[]; devDependencies: string[] },
+  managed: ManagedDependencies | undefined,
+): string[] {
+  const owned = new Set([...(managed?.dependencies ?? []), ...(managed?.devDependencies ?? [])]);
+  const candidates = new Set([...removals.dependencies, ...removals.devDependencies]);
+  return [...candidates].filter((name) => owned.has(name));
 }
 
 export interface DependencyConflict {

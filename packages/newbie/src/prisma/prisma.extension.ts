@@ -26,15 +26,18 @@ export interface CreateExtendedPrismaClientOptions {
  */
 const DEFAULT_PAGE = 0;
 const DEFAULT_PAGE_SIZE = 20;
+/** Hard ceiling so a list endpoint can never be turned into a full-table scan. */
+const MAX_PAGE_SIZE = 1000;
 
 /**
  * Helper function to calculate pagination parameters.
  * page and pageSize are optional; omitted values fall back to DEFAULT_PAGE /
  * DEFAULT_PAGE_SIZE so callers (and DTOs) can treat them as optional.
+ * pageSize is clamped to MAX_PAGE_SIZE.
  */
 function getSkipAndTake(params: { page?: number; pageSize?: number }) {
   const page = params.page ?? DEFAULT_PAGE;
-  const pageSize = params.pageSize ?? DEFAULT_PAGE_SIZE;
+  const pageSize = Math.min(params.pageSize ?? DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE);
   if (page >= 0 && pageSize > 0) {
     return {
       skip: pageSize * page,

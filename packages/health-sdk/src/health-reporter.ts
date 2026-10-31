@@ -5,6 +5,9 @@ import type { HealthReportingHandle, HealthReportingOptions, NamedHealthIndicato
 
 const GLOBAL_KEY = Symbol.for("@devbie/health-sdk:active");
 
+/** Upper bound on a single report POST so a hung endpoint cannot strand the loop. */
+const REQUEST_TIMEOUT_MS = 10_000;
+
 /**
  * Starts a health reporting loop that periodically checks all assembled
  * foundation services and POSTs the aggregated snapshot to the server.
@@ -70,6 +73,7 @@ export function startHealthReporting(app: NestAppLike, options: HealthReportingO
             "Content-Type": "application/json",
           },
           body,
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         });
       }
     } catch {

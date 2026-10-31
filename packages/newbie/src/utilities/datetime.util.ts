@@ -128,6 +128,43 @@ export function ceilByMinutes(datetimeOfEnd: Date, minutes: number) {
   }
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/**
+ * Normalizes a UTC offset into the ISO-8601 `±HH:mm` form accepted by
+ * `Date` parsing. Accepts numeric hours (e.g. 8, -5.5) or the GMT-relative
+ * string returned by `getTimeZoneOffset` (e.g. "-5", "+5:30"). Missing or
+ * unparsable values fall back to `+00:00` so the timestamp is never parsed
+ * as the runtime's local time.
+ */
+function formatUtcOffset(raw: string | number | undefined): string {
+  if (typeof raw === "number") {
+    if (!Number.isFinite(raw)) {
+      return "+00:00";
+    }
+    const sign = raw < 0 ? "-" : "+";
+    const abs = Math.abs(raw);
+    const hours = Math.floor(abs);
+    const minutes = Math.round((abs - hours) * 60);
+    if (minutes === 60) {
+      return `${sign}${pad2(hours + 1)}:00`;
+    }
+    return `${sign}${pad2(hours)}:${pad2(minutes)}`;
+  }
+
+  const trimmed = raw?.trim() ?? "";
+  if (trimmed === "") {
+    return "+00:00";
+  }
+  const match = /^([+-])(\d{1,2})(?::?(\d{2}))?$/.exec(trimmed);
+  if (!match) {
+    return "+00:00";
+  }
+  return `${match[1]}${pad2(parseInt(match[2], 10))}:${match[3] ?? "00"}`;
+}
+
 export function constructDateTime(
   year: number,
   month: number,
@@ -137,19 +174,20 @@ export function constructDateTime(
   second: number,
   timeZone: string | number,
 ) {
-  let offset: string = "";
+  const wallClock = `${year}-${pad2(month)}-${pad2(dayOfMonth)}T${pad2(hour)}:${pad2(minute)}:${pad2(second)}`;
+
   if (typeof timeZone === "number") {
-    offset = timeZone.toString();
-  } else {
-    const tmpDate = new Date(year, month - 1, dayOfMonth, hour, minute);
-    offset = getTimeZoneOffset(tmpDate, timeZone);
-    const tmpDate2 = new Date(
-      year + "-" + month + "-" + dayOfMonth + " " + hour + ":" + minute + ":" + second + offset,
-    );
-    offset = getTimeZoneOffset(tmpDate2, timeZone);
+    return new Date(`${wallClock}${formatUtcOffset(timeZone)}`);
   }
 
-  return new Date(year + "-" + month + "-" + dayOfMonth + " " + hour + ":" + minute + ":" + second + offset);
+  const tmpDate = new Date(year, month - 1, dayOfMonth, hour, minute);
+  const initialOffset = formatUtcOffset(getTimeZoneOffset(tmpDate, timeZone));
+  // Re-evaluate the offset at the target instant so DST boundaries resolve
+  // to the offset that actually applies at that wall-clock time.
+  const tmpDate2 = new Date(`${wallClock}${initialOffset}`);
+  const offset = formatUtcOffset(getTimeZoneOffset(tmpDate2, timeZone));
+
+  return new Date(`${wallClock}${offset}`);
 }
 
 /**
