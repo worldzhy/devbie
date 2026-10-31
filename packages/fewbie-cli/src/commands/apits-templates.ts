@@ -10,7 +10,7 @@
  * `open-api-typescript-request-generator` are no longer scaffolded.
  */
 export const GENERATOR_PACKAGE_NAME = "@devbie/apits";
-export const GENERATOR_PACKAGE_SPEC = "@devbie/apits@^1.2.0";
+export const GENERATOR_PACKAGE_SPEC = "@devbie/apits@^1.2.1";
 
 export const CONFIG_PROJECT_PATH = "apits.config.ts";
 export const API_CLIENT_PROJECT_PATH = "src/lib/api-client.ts";
