@@ -4,7 +4,7 @@
 
 nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本文档集。
 
-文档按设计文档三分治组织：Living 设计文档在 `design/`、ADR 在 `decisions/`、已交付工作产物归档在 `../specs/`。
+文档按设计文档四分治组织：Living 设计文档在 `design/`、ADR 在 `decisions/`、已交付工作产物归档在 `../specs/`、跨仓评审报告留在本目录（`expert-review-*.md`）。
 
 ## 模板
 
@@ -16,7 +16,15 @@ nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本
 
 ## 评审报告（expert-review-*.md）
 
-跨仓评审（框架 + registry + 宿主）的报告落在这里，文件名按 `expert-review-<日期>-roundN.md`；未修项不复制正文，只落到对应仓的 backlog.md。
+跨仓评审（框架 + registry + 宿主）的报告落在这里；单仓评审落该仓 `.trae/documents/`。文件名统一为 `expert-review-<日期>-roundN.md`。
+
+规则：
+
+- 报告是时点快照，只留结论与位置；某项是否还开着，以各仓 `backlog.md` 为准。
+- 未修项在每个仓的 `backlog.md` 各记一行（不含报告正文），办结即删。
+- 某轮全部关闭后报告不删除，也不移入 `../specs/`。
+
+已收录：
 
 - [expert-review-2026-10-30-round2.md](file:///Users/worldzhy/src/devbie/.trae/documents/expert-review-2026-10-30-round2.md) — 第二轮全仓评审（14 P0 / 12 关键 P1 已复核）
 
