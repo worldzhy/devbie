@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## [1.2.1] - 2026-10-31
+
+> Packaging alignment: the CLI bin points straight at `dist/cli.js` (no wrapper), plus a type-only cleanup. Generated output and the public consumer API are unchanged.
+
+### Packaging
+
+- **`bin` now points at `dist/cli.js` directly**: `src/cli.ts` gained a shebang and a `require.main === module` guard (replacing the checked-in `bin/apits` wrapper, which was published in 1.2.0 but had no source in the repo). npm links `node_modules/.bin/apits` to `dist/cli.js` and the file self-executes, so one indirection and the `files` entry for `bin` are gone.
+- **`build` marks the entry executable**: `tsc` plus `chmod +x dist/cli.js`, so the published artifact is runnable on POSIX before npm applies the bin mode.
+- **`publishConfig`**: dropped the redundant explicit `registry` (public access unchanged).
+
+### Refactor
+
+- **`processJsonSchema` no longer uses `@ts-ignore`**: the array-to-object `properties` normalization goes through a non-generic view with an explicit loop; runtime behavior is identical.
+
+---
+
 ## [1.2.0] - 2026-10-26
 
 > Naming and structure cleanup: coherent pipeline file names, camelCase interface fields, dead YApi-era remnants removed. Public consumer API (`defineConfig`, `Config`, `FileData`, `Generator`, CLI) and generated output are unchanged.
