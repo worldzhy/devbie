@@ -9,9 +9,14 @@ on:
   pull_request:
     branches: [dev]
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -41,33 +46,11 @@ jobs:
 
       - run: npm run build -w @devbie/apits
 
-  # Behavioral tests. Verification alone proves the workspaces compile; this
-  # job proves the 268 existing test cases still hold. It is a separate job so
-  # a test failure is attributable and does not mask a build failure.
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-
-      # Tests import sibling workspaces through the workspace symlinks, which
-      # resolve to dist/. Build zero-dependency shared packages and leaf SDKs
-      # first, same order as verify.
-      - run: npm run build -w @devbie/cli-kit
-      - run: npm run build -w @devbie/modules-state
-      - run: npm run build -w @devbie/heartbeat-sdk
-      - run: npm run build -w @devbie/health-sdk
-      - run: npm run build -w @devbie/backend-monitor-sdk
-
-      # Packages whose behavioral suite imports @devbie/newbie-cli/lib need the
-      # CLI workspace built (the CLI itself depends on @devbie/newbie).
-      - run: npm run build -w @devbie/newbie
-      - run: npm run build -w @devbie/newbie-cli
-
+      # Behavioral tests run in the same job: the builds above already produce
+      # every dist/ the suites import, so a second job would repeat `npm ci`
+      # and seven builds for nothing. Each test is its own step, so a failure
+      # stays attributable and still tells you whether the build was green.
+      #
       # One step per workspace that owns a behavioral suite. Listed explicitly
       # rather than --workspaces so a package gains/loses coverage only by
       # intent: apits' "test" runs a scratch script, not a suite.
