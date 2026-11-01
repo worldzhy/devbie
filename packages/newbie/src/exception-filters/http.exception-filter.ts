@@ -13,8 +13,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Log the request line and error message only. The request body is
     // deliberately excluded: failed login bodies carry passwords and other
-    // credentials that would otherwise be written to the logs.
-    const content = `${request.method} ${request.url} >> ${message}`;
+    // credentials that would otherwise be written to the logs. The query
+    // string is excluded too: reset-password links and one-time codes arrive
+    // as query parameters and must not reach the logs (request.path is the
+    // pathname without the query string).
+    const content = `${request.method} ${request.path} >> ${message}`;
 
     if (httpStatus >= 500) {
       this.logger.error(content);
