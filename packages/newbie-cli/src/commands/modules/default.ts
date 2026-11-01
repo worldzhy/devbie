@@ -1,6 +1,7 @@
 import { checkbox, select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse } from "colorette";
 import { moduleKeys } from "@devbie/modules-state";
+import { CliError } from "@devbie/cli-kit";
 
 import { applyModuleKeys } from "../../assemble/pipeline";
 import { deprecatedNoticesOf, listRegistryModules, RegistryModule, resolveRegistry } from "../../lib/registry";
@@ -104,22 +105,32 @@ async function runPicker(options: ModulesDefaultOptions): Promise<void> {
 
   const registryModules = await listRegistryModules(ctx.registry.root);
   const deprecatedNotices = deprecatedNoticesOf(registryModules);
-  const enabled = moduleKeys(ctx.state).filter((key) => registryModules.some((entry) => entry.key === key));
+  // Enabled keys come from modules.json, not from the registry: a module whose
+  // registry entry disappeared must stay visible, otherwise leaving it out of
+  // the picker would silently turn it into a removal on the next apply.
+  const enabled = moduleKeys(ctx.state);
+  const registryKeys = new Set(registryModules.map((entry) => entry.key));
+  const missing = enabled.filter((key) => !registryKeys.has(key));
 
   // Deprecated modules stay hidden unless already enabled (flagged, so they
   // can be unchecked) — deprecation gates new adoption, not removal.
+  const choices = registryModules
+    .filter((entry) => !deprecatedNotices.has(entry.key) || enabled.includes(entry.key))
+    .map((entry) => {
+      const checked = enabled.includes(entry.key);
+      return {
+        value: entry.key,
+        name: `${entry.key}${checked ? (deprecatedNotices.has(entry.key) ? " (enabled, deprecated)" : " (enabled)") : ""}`,
+        checked,
+      };
+    });
+  for (const key of missing) {
+    choices.push({ value: key, name: `${key} (enabled, missing from registry)`, checked: true });
+  }
+
   const chosen = await checkbox({
     message: "Which modules do you want to enable for your project:",
-    choices: registryModules
-      .filter((entry) => !deprecatedNotices.has(entry.key) || enabled.includes(entry.key))
-      .map((entry) => {
-        const checked = enabled.includes(entry.key);
-        return {
-          value: entry.key,
-          name: `${entry.key}${checked ? (deprecatedNotices.has(entry.key) ? " (enabled, deprecated)" : " (enabled)") : ""}`,
-          checked,
-        };
-      }),
+    choices,
     pageSize: 100,
     loop: true,
   });
@@ -127,6 +138,16 @@ async function runPicker(options: ModulesDefaultOptions): Promise<void> {
   if (chosen.length === enabled.length && chosen.every((name) => enabled.includes(name))) {
     console.info("\n[info] You did not make any changes to the modules.\n");
     return;
+  }
+
+  // Keeping a key the registry no longer serves would fail closure resolution
+  // inside applyModuleKeys; report it here with the actionable instruction
+  // instead of surfacing a generic dependency error.
+  const keptMissing = missing.filter((key) => chosen.includes(key));
+  if (keptMissing.length > 0) {
+    throw new CliError(
+      `Module(s) ${keptMissing.join(", ")} are enabled but missing from the registry; disable them in this picker before applying other changes.`,
+    );
   }
 
   const added = chosen.filter((name) => !enabled.includes(name));
