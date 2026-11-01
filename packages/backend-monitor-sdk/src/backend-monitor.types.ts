@@ -34,6 +34,24 @@ export interface BackendMonitorOptions {
   maxQueueSize?: number;
 }
 
+/**
+ * Maximum string lengths accepted by the backend-monitor ingest DTO
+ * (mirrors @devbie/newbie backend-monitor.dto.ts). Values are truncated
+ * client-side before enqueueing: one over-long field otherwise makes the
+ * server reject the whole batch, losing every event shipped with it.
+ */
+export const MONITOR_FIELD_LIMITS = {
+  requestId: 128,
+  type: 200,
+  message: 4096,
+  stack: 16000,
+  route: 512,
+  path: 2048,
+  method: 10,
+  ip: 64,
+  userAgent: 512,
+} as const;
+
 /** A single HTTP request metric captured by the probe. */
 export interface MonitoredRequestEvent {
   requestId: string;

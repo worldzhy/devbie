@@ -1,14 +1,52 @@
-import type {
-  IngestPayload,
-  MonitoredErrorEvent,
-  MonitoredRequestEvent,
-  ResolvedBackendMonitorOptions,
+import {
+  MONITOR_FIELD_LIMITS,
+  type IngestPayload,
+  type MonitoredErrorEvent,
+  type MonitoredRequestEvent,
+  type ResolvedBackendMonitorOptions,
 } from "./backend-monitor.types";
 
 type QueueItem = { kind: "request"; payload: MonitoredRequestEvent } | { kind: "error"; payload: MonitoredErrorEvent };
 
 /** Timeout for one ingest HTTP call, so a hung platform cannot hold the flush lock. */
 const TRANSPORT_TIMEOUT_MS = 10_000;
+
+/** Clamp one string to the server-side DTO maximum. */
+function cap(value: string, limit: number): string {
+  return value.length > limit ? value.slice(0, limit) : value;
+}
+
+/** Clamp an optional string to the server-side DTO maximum. */
+function capOptional(value: string | undefined, limit: number): string | undefined {
+  return value === undefined ? undefined : cap(value, limit);
+}
+
+function capRequestEvent(event: MonitoredRequestEvent): MonitoredRequestEvent {
+  return {
+    ...event,
+    requestId: cap(event.requestId, MONITOR_FIELD_LIMITS.requestId),
+    route: cap(event.route, MONITOR_FIELD_LIMITS.route),
+    path: cap(event.path, MONITOR_FIELD_LIMITS.path),
+    method: cap(event.method, MONITOR_FIELD_LIMITS.method),
+    ip: capOptional(event.ip, MONITOR_FIELD_LIMITS.ip),
+    userAgent: capOptional(event.userAgent, MONITOR_FIELD_LIMITS.userAgent),
+  };
+}
+
+function capErrorEvent(event: MonitoredErrorEvent): MonitoredErrorEvent {
+  return {
+    ...event,
+    requestId: capOptional(event.requestId, MONITOR_FIELD_LIMITS.requestId),
+    type: cap(event.type, MONITOR_FIELD_LIMITS.type),
+    message: cap(event.message, MONITOR_FIELD_LIMITS.message),
+    stack: capOptional(event.stack, MONITOR_FIELD_LIMITS.stack),
+    route: cap(event.route, MONITOR_FIELD_LIMITS.route),
+    path: cap(event.path, MONITOR_FIELD_LIMITS.path),
+    method: cap(event.method, MONITOR_FIELD_LIMITS.method),
+    ip: capOptional(event.ip, MONITOR_FIELD_LIMITS.ip),
+    userAgent: capOptional(event.userAgent, MONITOR_FIELD_LIMITS.userAgent),
+  };
+}
 
 /**
  * Transport abstraction; the default posts to `endpoint` (the full ingest
@@ -82,12 +120,12 @@ export class MonitorEventReporter {
 
   /** Enqueues a request event; drops it when the queue is full. */
   enqueueRequest(event: MonitoredRequestEvent): void {
-    this.enqueue({ kind: "request", payload: event });
+    this.enqueue({ kind: "request", payload: capRequestEvent(event) });
   }
 
   /** Enqueues an error event; drops it when the queue is full. */
   enqueueError(event: MonitoredErrorEvent): void {
-    this.enqueue({ kind: "error", payload: event });
+    this.enqueue({ kind: "error", payload: capErrorEvent(event) });
   }
 
   /** Current queue length (observability/test helper). */
