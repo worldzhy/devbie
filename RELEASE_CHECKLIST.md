@@ -6,7 +6,7 @@ Run through every step below before publishing any package in this repo (package
 2. Clean build: remove `dist/` and `*.tsbuildinfo` for the package(s) being released, then rebuild. Never publish from a stale `dist/`.
 3. Run the full test suite for the package(s) being released; all tests pass.
 4. Run `npm audit --omit=dev --workspaces` from the repo root; production dependencies must be free of known vulnerabilities. Any finding must be fixed or explicitly waived (with the reason recorded) before publishing.
-5. Confirm the version bump in `package.json` follows semver relative to the actual change set (feat -> minor, fix -> patch, breaking -> major).
+5. Confirm the version bump in `package.json` follows semver relative to the actual change set (feat -> minor, fix -> patch). Breaking changes ship as **minor** while the packages are pre-launch and stay on the 1.x line; the 2.0 line is opened only by an explicit decision to declare the API stable. A breaking change never ships as a patch.
 6. Publish with `npm publish --tag latest`. Never use a `stage` dist-tag or the `npm stage` workflow. (OTP is not required; decided 2026-09-29.)
 7. After publishing, run `npm view <package> dist-tags` to confirm `latest` points to the new version. Registry propagation can take 1-2 minutes — wait and re-check instead of re-publishing.
 8. If packages in this repo depend on each other, publish the dependencies first and the dependents last.
