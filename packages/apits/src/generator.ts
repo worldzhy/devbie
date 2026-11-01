@@ -34,18 +34,19 @@ function defaultClientImportTemplate(_config?: Config) {
   return `import request from './request'`;
 }
 
-const getDataKeySetStr = (method: string) => {
+const getDataKeySetStr = (method: string, payload = "data") => {
   if (["head", "option", "get"].includes(method.toLowerCase())) {
-    return "params: data";
+    return `params: ${payload}`;
   }
-  return "data";
+  return `data: ${payload}`;
 };
 
-// Replace `{param}` placeholders in the path with `${data.param}` so the
-// request function can substitute path params from the incoming data object.
+// Replace `{param}` placeholders in the path with an encoded `${data.param}`
+// substitution. Path segments must be percent-encoded: ids may contain `/`,
+// `?`, `#` or spaces, which would otherwise change the request target.
 function handlePathParam(path: string) {
   if (path.match(/\{(\w+)\}/)) {
-    return `\`${path.replace(/\{(\w+)\}/g, "${data.$1}")}\``;
+    return `\`${path.replace(/\{(\w+)\}/g, "${encodeURIComponent(String(data.$1))}")}\``;
   }
 
   return JSON.stringify(path);
@@ -104,19 +105,30 @@ function defaultRequestFunctionTemplate(props: RequestFunctionTemplateProps, con
   // form bodies are sent as JSON and the backend never receives the files.
   const isForm = requestBodyType === RequestBodyType.form;
   const isMultipart = isForm && requestBodyMultipart === true;
+  // Path parameters belong in the URL only. They stay in the request type
+  // (call-site compatibility and URL substitution) but are stripped from the
+  // body/query copy so the server never receives them twice.
+  const pathParamNames = pathParams.map((param) => param.name);
+  const payloadName = pathParamNames.length > 0 ? "requestData" : "data";
+  const stripPathParams =
+    pathParamNames.length > 0
+      ? `const requestData = { ...data };
+${pathParamNames.map((name) => `  delete (requestData as Partial<typeof data>)[${JSON.stringify(name)}];`).join("\n")}`
+      : "";
   const formBuilder = isForm
     ? `const form = new ${isMultipart ? "FormData" : "URLSearchParams"}();
-    Object.entries(data).forEach(([k, v]) => {
+    Object.entries(${payloadName}).forEach(([k, v]) => {
       if (v == null) return;
       if (Array.isArray(v)) v.forEach(i => form.append(k, ${isMultipart ? "i" : "String(i)"}));
       else form.append(k, ${isMultipart ? "v" : "String(v)"});
     });`
     : "";
-  const dataExpr = isForm ? "data: form" : getDataKeySetStr(method);
+  const dataExpr = isForm ? "data: form" : getDataKeySetStr(method, payloadName);
 
   return `export const ${requestFunctionName} = (data${
     hasData ? "" : "?"
   }: ${requestDataTypeName}${`,extra?:${clientConfigType}`}) => {
+    ${stripPathParams}
     ${formBuilder}
     return request.${method}<${requestDataTypeName},${responseDataTypeName}>(${handlePathParam(
       extendedInterfaceInfo.path,
