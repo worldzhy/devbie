@@ -15,6 +15,15 @@
 
 > 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
 
+## P1（安全评审 round3 2026-10-31，未修复）
+
+> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-18/R3-20（registry，2026-11-01）；R3-15 已随 ADR-047 消失。以下为剩余条目。
+
+- registry（newbie-modules）：R3-13 evaluation/security-evaluation 读面纳入 host scope（provisional，待 ADR-045/046 落定复验）；R3-14 lark 群归属校验；R3-16 aws-ses 收件人白名单+节流（需先定收件人范围，避免打断既有通知）；R3-17 llm apiKey 加密存储+指纹；R3-19 workflow/stock-mgmt 空壳模块（补实现或移出 registry，需用户拍板）。
+- nightwatch-backend 宿主层：R3-21 `createFromTemplate` TOCTOU（部分唯一索引 + 409）；R3-22 `registerExisting` 任意仓库登记；R3-23 dashboard metric `sourceConfig.endpoint` 写库前校验。
+- 模板/ops：R3-25 前端关键流程测试；R3-26 fewbie CI 补 `check:template`；R3-27 `check:template --template-path .` 自我比较；R3-28 Caddy 无 UI 时 502；R3-29 AL2023 `awscli-2`；R3-30 deploy 绕过 CI/缺超时。
+- 文档/治理：R3-31 RELEASE_CHECKLIST 与 1.x 规则矛盾；R3-32 ADR 过期指针；未复核分组 R3-G1..G4 待逐行复核。
+
 ## P2
 
 （暂无）
