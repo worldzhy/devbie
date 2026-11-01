@@ -31,7 +31,7 @@
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
-> 其他仓的 P2 条目已按仓登记到各自 backlog：newbie-modules P2 已清零（SSE 原始报错已修，另有 P0 微信登录与 4 条 ADR 技术债）、nightwatch-backend 2 条、nightwatch-frontend P2 已清零。本文件只保留 devbie 自身条目。
+> 其他仓的条目已按仓登记到各自 backlog：newbie-modules 目前是 security-evaluation round4 的 R4-02（P1）与 R4-04/R4-09（P2），另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 2 条、nightwatch-frontend P2 已清零。本文件只保留 devbie 自身条目。
 
 ## 其他
 
