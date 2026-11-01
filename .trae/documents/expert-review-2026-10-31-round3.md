@@ -186,11 +186,13 @@
 | R3-23 | backend | dashboard endpoint 未校验 | live | 项目成员 | fixed · 2026-11-01 |
 | R3-24 | frontend | Files 删除后列表不失效 | live | 任意登录用户 | fixed · 2026-11-01 |
 | R3-25 | frontend | 关键流程测试缺位 | live | 工程门禁 | open |
-| R3-26 | template | fewbie CI 不跑模板检查 | template | CI | open |
-| R3-27 | template | check:template 自我比较空转 | template | CI | open |
-| R3-28 | template | 无 UI profile 时 Caddy 502 | ops | 部署者 | open |
-| R3-29 | template | AL2023 安装不存在的 aws-cli | ops | 部署者 | open |
-| R3-30 | ops | deploy 可绕过 CI 且无超时 | ops | 发布者 | open |
+| R3-26 | template | fewbie CI 不跑模板检查 | template | CI | fixed · 2026-11-01 |
+| R3-27 | template | check:template 自我比较空转 | template | CI | fixed · 2026-11-01 |
+| R3-28 | template | 无 UI profile 时 Caddy 502 | ops | 部署者 | fixed · 2026-11-01 |
+| R3-29 | template | AL2023 安装不存在的 aws-cli | ops | 部署者 | fixed · 2026-11-01 |
+| R3-30 | ops | deploy 可绕过 CI 且无超时 | ops | 发布者 | fixed · 2026-11-01 |
+| R3-31 | ops | RELEASE_CHECKLIST 与 1.x 规则矛盾 | ops | 发布者 | fixed · 2026-11-01 |
+| R3-32 | docs | ADR/记忆/living 文档过期 | docs | 维护者 | fixed · 2026-11-01（ClickHouse 规则冲突经用户拍板加例外） |
 
 未逐行复核的分组（待二次取证后拆分 ID）：R3-G1 registry 授权族（tag/tag-group、puppeteer、people-finder、event-emitter）；R3-G2 backend 一致性（创建补偿、令牌缓存、provisioningError、backups、chat-binding）；R3-G3 frontend 交互（shortcut scheme、findings 错误态、setTimeout refetch、QueryClient、SSE 401）；R3-G4 template 运维（备份 argv/权限、render-env 转义、告警吞错、无 Dockerfile）。
 
@@ -240,8 +242,19 @@
 | R3-21 | [schema.prisma](file:///Users/worldzhy/src/nightwatch-backend/prisma/schema.prisma)：`provisioningRepoName` 加 `@unique`；[project-application.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/project-application.service.ts)：唯一键冲突 `P2002` 转 409，预检保留为快速失败 | `prisma db push`（先查库确认无重复值）、`tsc --noEmit`、`nest build`、重启冒烟；并发竞态无自动化用例（需双请求压测） | `87bc978`（backend） |
 | R3-22 | [repository-link.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/repository-link.ts)：新增 `projectId` 参数与 `assertRepositoryAvailable`，仓库已被其他项目链接时 409（同项目多应用共享仍允许）；`registerExisting` 在建行**之前**预检，避免留下孤儿应用 | [repository-link.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/repository-link.test.ts)（7 例：GitHub/Bitbucket/不可读 URL/跨项目拒绝/同项目共享/预检通过/预检拒绝）；`tsc --noEmit`、`nest build`、重启冒烟 | `87bc978`（backend） |
 | R3-23 | [dashboard-endpoint.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/dashboard/dashboard-endpoint.ts)：校验逻辑从 copilot skill 抽出并新增 `assertSourceEndpointAllowed`；[dashboard-metric.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/dashboard/dashboard-metric.service.ts)：`create`/`update` 写库前校验 `sourceConfig.endpoint` | [dashboard-metric.service.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/dashboard/dashboard-metric.service.test.ts)（5 例：项目内通过、跨项目/穿越/绝对 URL 拒绝且不落库、update 省略 sourceConfig 时跳过）；[dashboard.skill.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/dashboard.skill.test.ts) 3 例沿用；`tsc --noEmit`、`nest build`、重启冒烟 | `87bc978`（backend） |
+| R3-26 | [ci.yml](file:///Users/worldzhy/src/fewbie-starter/.github/workflows/ci.yml)：Format check 后新增 `npm run check:template`（ADR-025 所有权重叠门，已存在但从未在 CI 执行） | 容器内实跑 `fewbie template update --check --template-path .` 输出重叠门通过 + 自比较声明；workflow YAML 解析通过 | `b3e54cc`（fewbie-starter） |
+| R3-27 | [newbie update.ts](file:///Users/worldzhy/src/devbie/packages/newbie-cli/src/commands/template/update.ts)：新增 `isSelfComparison`（`realpath` 比较模板根与项目根），自比较时只保留注册表完整性门并显式说明漂移门属于消费仓；[fewbie update.ts](file:///Users/worldzhy/src/devbie/packages/fewbie-cli/src/commands/template/update.ts) 同法保留所有权重叠门 | 两 CLI build 通过、`newbie-cli` 211 例 / `fewbie-cli` 50 例全绿、`eslint`/`prettier --check` 通过；在 newbie-starter 与 fewbie-starter 各实跑一次，输出改为诚实文案（不再出现"与模板一致"） | `bde0057f`（devbie） |
+| R3-28 | [Caddyfile.tmpl](file:///Users/worldzhy/src/newbie-starter/deploy/Caddyfile.tmpl)：兜底路由改占位 `__FRONTEND_FALLBACK__`；[render-env.sh](file:///Users/worldzhy/src/newbie-starter/deploy/scripts/render-env.sh)：用 `docker compose ... config --services` 判断合并模型是否有 frontend，无则渲染 `respond "" 404`，compose 不可用时保守保留 proxy | 宿主机三文件 compose 实测两种形状：无 application overlay → 服务列表无 frontend（渲染 404）；带 `profiles: !reset null` → 列出 frontend（渲染 proxy）；`bash -n` 通过；nightwatch-backend 已同步同字节副本 | `ed207f1`（newbie-starter） |
+| R3-29 | [provision.sh](file:///Users/worldzhy/src/newbie-starter/deploy/scripts/provision.sh)：`aws-cli` → `awscli-2`（AL2023 包名），并加注释说明 `set -e` 下装缺失包会中断 provisioning | `bash -n` 通过；nightwatch-backend 同步副本 diff 为空 | `ed207f1`（newbie-starter） |
+| R3-30 | [deploy.yml](file:///Users/worldzhy/src/nightwatch-backend/.github/workflows/deploy.yml)：触发改 `workflow_run`（`CI` completed + `branches: [main]` + `event == 'push'`）+ `workflow_dispatch`（job 级 `if` 限 main）；`DEPLOY_SHA` 贯穿 checkout/镜像 tag/SSM 注释；`timeout-minutes: 45`；[ci.yml](file:///Users/worldzhy/src/nightwatch-backend/.github/workflows/ci.yml) main push 的 `paths-ignore` 扩到 `.github/**`、`**/*.md` 以免文档-only 合并既不跑 CI 又不部署。frontend 同构（超时 30 分钟） | 两个仓四个 workflow YAML 解析通过；未触发真实部署（无 main 推送权限边界内不可验证） | `c16bb3a`（backend）、`08603cb`（frontend） |
+| R3-31 | [RELEASE_CHECKLIST.md](file:///Users/worldzhy/src/devbie/RELEASE_CHECKLIST.md)：第 5 步改为「pre-launch 期 breaking 走 minor、2.0 由显式 API 稳定决策开闸、breaking 永不作为 patch」 | 文档改动，`prettier --check` 通过 | `23f8138b`（devbie） |
+| R3-32 | [ADR-004](file:///Users/worldzhy/src/devbie/.trae/documents/decisions/ADR-004-dependabot-six-repo-strategy.md) 更新注记与频率表（6/6 覆盖、05:30）；[ADR-029](file:///Users/worldzhy/src/nightwatch-backend/.trae/documents/decisions/ADR-029-people-evaluation-ai-first.md) / [ADR-030](file:///Users/worldzhy/src/nightwatch-backend/.trae/documents/decisions/ADR-030-workspace-allowlist-contract.md) 补 superseded-by 反向指针与模块废弃横幅；[secret-manager-rewrite.md](file:///Users/worldzhy/src/nightwatch-backend/.trae/documents/secret-manager-rewrite.md) 订正已删除的 migration、CLI 拆包与发布态、剩余工作；project memory 3 处（dependabot 时间、模块数、ADR-020 同号）订正并补 34 模块现状；`user_profile.md` 迁移规则按用户拍板加 ClickHouse 例外（ADR-008 前向迁移保留，ADR-042 已撤回） | `grep`/`ls` 逐条取证（六仓 dependabot、`modules.json` 34 项、decisions 目录无同号、`073da24` 删除迁移）；文档改动 | 本批 docs 提交（devbie / nightwatch-backend / worldzhy-knowledge） |
 
 R3-02 的授权语义按用户决策：普通成员可读本人证据；持模型 `List/Get` 权限的管理者（ADMIN/OPERATOR 经 Work Evaluation 权限组）可跨成员读。R3-03/R3-04 属未装配制品，修复以静态检查为准，装配后需在消费仓补运行时用例。R3-07 的生成器变更需消费仓重新执行 `npm run apits` 才会体现在 `_gen` 产物中，本批次未重生成。R3-10 与 R3-24 缺运行时证据，分别为该包无测试套件、前端未做浏览器回归。
 
-本批次同时关闭 R3-11/R3-12/R3-18/R3-20，并确认 R3-15 已随 ADR-047 消失（无默认密钥残留）。2026-11-01 第二批关闭 registry 的 R3-14/R3-17 与 backend 宿主层的 R3-21/R3-22/R3-23：lark 读面按 bot 群归属收敛，llm 密钥改为密文存储并按指纹判重（新增 7 例加密契约测试），仓库命名与仓库链接的竞态/跨项目占用改为唯一索引 + 409，dashboard metric 写入层复用项目内 endpoint 校验。registry 余下 R3-13（provisional，待 ADR-045/046 落定）、R3-16（收件人策略待确认）、R3-19（空壳模块去留待拍板），以及模板/ops R3-25～R3-30、文档治理 R3-31/R3-32 与 R3-G1..G4 仍未开工，台账保持 `open`。
+本批次同时关闭 R3-11/R3-12/R3-18/R3-20，并确认 R3-15 已随 ADR-047 消失（无默认密钥残留）。2026-11-01 第二批关闭 registry 的 R3-14/R3-17 与 backend 宿主层的 R3-21/R3-22/R3-23：lark 读面按 bot 群归属收敛，llm 密钥改为密文存储并按指纹判重（新增 7 例加密契约测试），仓库命名与仓库链接的竞态/跨项目占用改为唯一索引 + 409，dashboard metric 写入层复用项目内 endpoint 校验。
+
+2026-11-01 第三批关闭模板/ops 与文档治理：R3-26 在 fewbie CI 接入模板所有权检查；R3-27 两个 CLI 识别"模板根 == 项目根"的自比较并显式声明完整性语义（不再假装做了漂移门）；R3-28 Caddy 兜底路由按合并 compose 模型渲染 proxy 或 404；R3-29 修正 AL2023 的 `awscli-2` 包名；R3-30 两个应用仓的部署改由 main 的 CI 成功触发并补超时，同时收窄 CI 的文档-only 忽略以保住原成本模型；R3-31 RELEASE_CHECKLIST 的版本口径与 1.x 规则对齐；R3-32 订正 ADR-004 / ADR-029 / ADR-030 / `secret-manager-rewrite.md` 与 project memory，并按用户拍板给迁移规则加 ClickHouse 例外（ADR-008 的 V*.sql 前向迁移保留、ADR-042 已撤回）。
+
+余下未开工：registry 的 R3-13（provisional，待 ADR-045/046 落定）、R3-16（收件人策略待确认）、R3-19（空壳模块去留待拍板），frontend 的 R3-25，以及未逐行复核分组 R3-G1..G4。R3-16/R3-19 与 G1..G4 继续保持 `open`。
 
