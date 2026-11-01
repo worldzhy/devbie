@@ -7,6 +7,7 @@ import { afterEach, describe, it } from "node:test";
 import { normalizeModulesState } from "@devbie/modules-state";
 
 import { applyModuleKeys, planReconcile, PipelineContext } from "../src/assemble/pipeline";
+import { assembleEnv } from "../src/assemble/env";
 import { addModules } from "../src/assemble/modules-copy";
 import { CliError } from "@devbie/cli-kit";
 import { IssueBag } from "../src/lib/issues";
@@ -181,6 +182,45 @@ describe("planReconcile", () => {
         return true;
       },
     );
+  });
+});
+
+describe("assembleEnv", () => {
+  it("keeps env keys that a still-enabled module also declares", async () => {
+    const cwd = await makeProject({
+      modules: [{ key: "alpha" }, { key: "beta" }],
+      copied: ["alpha", "beta"],
+    });
+    for (const [key, env] of Object.entries({
+      alpha: { SHARED_TOKEN: "a", ALPHA_ONLY: "x" },
+      beta: { SHARED_TOKEN: "b" },
+    })) {
+      await fs.writeFile(
+        path.join(cwd, "src", "modules", key, "newbie.module.json"),
+        JSON.stringify({ key, module: { file: `${key}.module`, className: `${key}Module` }, env }),
+        "utf8",
+      );
+    }
+    await fs.writeFile(
+      path.join(cwd, ".env"),
+      "# ! Alpha variables\nSHARED_TOKEN=a\nALPHA_ONLY=x\n# ! Beta variables\nSHARED_TOKEN=b\n",
+      "utf8",
+    );
+
+    const issues = new IssueBag();
+    await assembleEnv({
+      cwd,
+      sink: createSink(cwd, false),
+      issues,
+      added: [],
+      removed: ["alpha"],
+      enabled: ["beta"],
+    });
+
+    const raw = await fs.readFile(path.join(cwd, ".env"), "utf8");
+    assert.ok(!raw.includes("ALPHA_ONLY"), "the removed module's own key is deleted");
+    assert.ok(raw.includes("SHARED_TOKEN=a") && raw.includes("SHARED_TOKEN=b"), "the shared key survives");
+    assert.equal(issues.count, 0);
   });
 });
 

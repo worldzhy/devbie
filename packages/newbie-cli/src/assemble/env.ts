@@ -31,8 +31,10 @@ export async function assembleEnv(params: {
   issues: IssueBag;
   added: string[];
   removed: string[];
+  /** Module keys that stay enabled after this change. */
+  enabled: string[];
 }): Promise<void> {
-  const { cwd, sink, issues, added, removed } = params;
+  const { cwd, sink, issues, added, removed, enabled } = params;
 
   let raw = "";
   try {
@@ -52,11 +54,23 @@ export async function assembleEnv(params: {
     lines = upsertEnvSection(lines, sectionTitle(key), manifest.env ?? {});
   }
 
+  // Variables still declared by an enabled module must survive even when a
+  // removed module happened to declare the same name (e.g. a shared
+  // DATABASE_URL): deletion is per module key, not per raw env name.
+  const retainedKeys = new Set<string>();
+  for (const key of enabled) {
+    const manifest = await readInstalledManifest(cwd, key);
+    if (manifest === null) continue;
+    for (const envKey of Object.keys(manifest.env ?? {})) retainedKeys.add(envKey);
+  }
+
   const removedKeys = new Set<string>();
   for (const key of removed) {
     const manifest = await readInstalledManifest(cwd, key);
     if (manifest === null) continue;
-    for (const envKey of Object.keys(manifest.env ?? {})) removedKeys.add(envKey);
+    for (const envKey of Object.keys(manifest.env ?? {})) {
+      if (!retainedKeys.has(envKey)) removedKeys.add(envKey);
+    }
   }
   if (removedKeys.size > 0) {
     lines = pruneEmptySections(removeEnvKeys(lines, removedKeys));
