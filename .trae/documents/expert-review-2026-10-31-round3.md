@@ -161,10 +161,10 @@
 
 | ID | 仓 | 标题 | 暴露面 | 可达性 | 状态 |
 |---|---|---|---|---|---|
-| R3-01 | backend | 分析 SQL 隔离值绑定缺口 | live | 项目成员（分析接口） | open |
-| R3-02 | registry | work-evaluation 证据读面 IDOR | live | OPERATOR | open |
-| R3-03 | registry | webhook 列表跨租户泄露 secret | artifact | 任意登录用户 | open |
-| R3-04 | registry | subscription 零授权/自助激活 | artifact | 任意登录用户 | open |
+| R3-01 | backend | 分析 SQL 隔离值绑定缺口 | live | 项目成员（分析接口） | fixed · 2026-10-31 |
+| R3-02 | registry | work-evaluation 证据读面 IDOR | live | OPERATOR | fixed · 2026-10-31 |
+| R3-03 | registry | webhook 列表跨租户泄露 secret | artifact | 任意登录用户 | fixed · 2026-10-31 |
+| R3-04 | registry | subscription 零授权/自助激活 | artifact | 任意登录用户 | fixed · 2026-10-31 |
 | R3-05 | devbie | CLI picker 静默移除缺失模块 | source | CLI 运维者 | open |
 | R3-06 | devbie | 卸载模块误删共用 env key | source | CLI 运维者 | open |
 | R3-07 | devbie | apits path 参数并入 body/query | artifact | 前端开发者 | open |
@@ -214,3 +214,15 @@
 **未审**：`dist`/构建产物；`_gen` 仅抽查；migrations SQL 内部语义；测试正文（只看存在性与覆盖对象）；node_modules 与第三方依赖实现；npm 线上 dist-tags（未联网执行）；运行时行为（未起服务、未跑 build/E2E；需动态确认的项已在正文标注）。
 
 评审口径：本轮所有 P0 与标"已复核"的 P1 均由主会话读码确认；标"未逐行复核"者来自并行评审且带文件行号，采用前需按 `expert-review` skill §5 二次取证。报告为 2026-10-31 时点快照，后续修复不改写本文；台账状态、fix commit 与回归测试指针在修复/复核时回填。
+
+## 附录 D · 修复记录（2026-10-31，仅 P0）
+
+| ID | 修复落点 | 回归证据 | commit |
+|---|---|---|---|
+| R3-01 | [query-isolation.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/analysis/query-isolation.ts)：token 化 + 逐分支逐表 + 值绑定；拒绝 JOIN/逗号第二表裸读、`IN (SELECT)`、UUID 构造函数、否定谓词、字面量伪装谓词 | [query-isolation.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/analysis/query-isolation.test.ts)（39 例，含 12 例攻击回归）；`tsc --noEmit` 通过 | 未提交 |
+| R3-02 | [evidence.controller.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/work-evaluation/controllers/evidence.controller.ts)：读面默认本人，跨成员需 `PermissionAuthorizer` 的模型 `List/Get`；[work-evaluation-evidence.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/work-evaluation/work-evaluation-evidence.service.ts)：缺 evaluatee 拒绝、`getDocument` 复合定位；[work-evaluation.dto.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/work-evaluation/work-evaluation.dto.ts)：`evaluateeUserId` 可选默认本人 | [work-evaluation-evidence.access.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/work-evaluation/work-evaluation-evidence.access.test.ts)（6 例）；registry 与 backend 逐字节一致；`tsc --noEmit`、`npm run build` 通过 | 未提交 |
+| R3-03 | [webhook.controller.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/webhook/webhook.controller.ts)：`getAll` 读取路径 `teamId`；[webhook.service.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/webhook/webhook.service.ts)：`teamId` 强制并入 `where`，过滤字段白名单（拒绝 `teamId`/`secret`/关系谓词） | registry `eslint` + `prettier --check` 通过；未装配，无运行时验证 | 未提交 |
+| R3-04 | [subscription.controller.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/membership/subscription/subscription.controller.ts)：列表默认仅本人（持 `Subscription.List` 者看全量）、为他人建订阅需 `Create`、删除需 `Delete`、移除可任意改状态的 `PATCH`（状态只由支付回调流转）；[subscription-plan.controller.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/membership/subscription/subscription-plan.controller.ts)：补 `SubscriptionPlan` 的 List/Create/Update/Delete；[subscription.dto.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/membership/subscription/subscription.dto.ts)：删除不再使用的 `UpdateSubscriptionRequestDto` | registry `eslint` + `prettier --check` 通过；未装配，无运行时验证 | 未提交 |
+
+R3-02 的授权语义按用户决策：普通成员可读本人证据；持模型 `List/Get` 权限的管理者（ADMIN/OPERATOR 经 Work Evaluation 权限组）可跨成员读。R3-03/R3-04 属未装配制品，修复以静态检查为准，装配后需在消费仓补运行时用例。
+
