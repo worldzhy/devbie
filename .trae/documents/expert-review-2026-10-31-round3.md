@@ -174,16 +174,16 @@
 | R3-11 | registry | account 角色授予无秩/可自改 | live | ADMIN | fixed · 2026-11-01 |
 | R3-12 | registry | 改密不吊销会话 | live | 任意登录用户 | fixed · 2026-11-01 |
 | R3-13 | registry | evaluation 读面 scope 客户端可控 | live | OPERATOR | open · provisional |
-| R3-14 | registry | lark 可拉任意群历史 | live | OPERATOR（LarkMessage） | open |
+| R3-14 | registry | lark 可拉任意群历史 | live | OPERATOR（LarkMessage） | fixed · 2026-11-01 |
 | R3-15 | registry | cloudformation 弱默认加密密钥 | live | 部署未设 env | closed · 2026-11-01（ADR-047 已移除该配置，无默认密钥） |
 | R3-16 | registry | aws-ses 任意收件人/正文 | live | AwsSesEmail 持有者 | open |
-| R3-17 | registry | llm apiKey 明文入库 | live | ADMIN/LLM 管理 | open |
+| R3-17 | registry | llm apiKey 明文入库 | live | ADMIN/LLM 管理 | fixed · 2026-11-01 |
 | R3-18 | registry | message-bot 渠道 URL 存储型 SSRF | artifact | 任意登录用户（装配后） | fixed · 2026-11-01 |
 | R3-19 | registry | workflow/stock-mgmt 空壳模块 | artifact | 装配时 | open |
 | R3-20 | registry | map 控制器未注册 | artifact | 装配时 | fixed · 2026-11-01 |
-| R3-21 | backend | createFromTemplate 重名 TOCTOU | live | 项目成员 | open |
-| R3-22 | backend | registerExisting 任意仓库链接 | live | 项目成员 | open |
-| R3-23 | backend | dashboard endpoint 未校验 | live | 项目成员 | open |
+| R3-21 | backend | createFromTemplate 重名 TOCTOU | live | 项目成员 | fixed · 2026-11-01 |
+| R3-22 | backend | registerExisting 任意仓库链接 | live | 项目成员 | fixed · 2026-11-01 |
+| R3-23 | backend | dashboard endpoint 未校验 | live | 项目成员 | fixed · 2026-11-01 |
 | R3-24 | frontend | Files 删除后列表不失效 | live | 任意登录用户 | fixed · 2026-11-01 |
 | R3-25 | frontend | 关键流程测试缺位 | live | 工程门禁 | open |
 | R3-26 | template | fewbie CI 不跑模板检查 | template | CI | open |
@@ -215,7 +215,7 @@
 
 评审口径：本轮所有 P0 与标"已复核"的 P1 均由主会话读码确认；标"未逐行复核"者来自并行评审且带文件行号，采用前需按 `expert-review` skill §5 二次取证。报告为 2026-10-31 时点快照，后续修复不改写本文；台账状态、fix commit 与回归测试指针在修复/复核时回填。
 
-## 附录 D · 修复记录（2026-10-31 P0，2026-11-01 devbie/前端/registry P1 批次）
+## 附录 D · 修复记录（2026-10-31 P0，2026-11-01 devbie/前端/registry/backend P1 批次）
 
 | ID | 修复落点 | 回归证据 | commit |
 |---|---|---|---|
@@ -235,8 +235,13 @@
 | R3-15 | [newbie.module.json](file:///Users/worldzhy/src/newbie-modules/packages/modules/aws-cloudformation/newbie.module.json)：`config-service`/`env` 已为空；全仓 `SECRETKEY_TOKEN_SECRET` 无引用（ADR-047 移除凭证签名） | `grep` 无残留引用；无需改造 | 已随 ADR-047 落地 |
 | R3-18 | [webhook-url.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/message-bot/webhook-url.ts)：新增 provider 前缀白名单（Lark `open.feishu.cn`/`open.larksuite.com`、Slack `hooks.slack.com`）+ 10s 超时；创建/更新渠道与发送时双点校验（存量脏数据也不会外发） | registry `eslint`/`prettier` 通过；未装配，无运行时验证 | `ed879eb`（registry） |
 | R3-20 | [map.module.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/map/map.module.ts)：注册 `PlaceController`；[place.controller.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/map/place.controller.ts)：五条路由补 `Place` 的 Create/List/Get/Update/Delete 权限；[newbie.module.json](file:///Users/worldzhy/src/newbie-modules/packages/modules/map/newbie.module.json) 声明 `security` 依赖 | registry `eslint`/`prettier` 通过；未装配，无运行时验证 | `34f08ff`（registry） |
+| R3-14 | [lark.service.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/lark/lark.service.ts)：`getChatHistory` 先取 bot 已加入的群列表（`botChatIds`，5 分钟缓存，fail closed），非成员群直接 `ForbiddenException`，不再回落到「任意 chatId 可读」 | registry `eslint`/`prettier` 通过；消费仓装配后 `tsc --noEmit`/`nest build` 通过并重启，`/lark/*` 路由已加载；无控制器单测 | `41d9845`（registry）、`1d6a248`（backend） |
+| R3-17 | [llm-api-key.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/llm/management/llm-api-key.ts)：AES-256-GCM（`enc:v1:` 前缀）+ SHA-256 指纹，legacy 明文透传；[llm-connection.service.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/llm/management/llm-connection.service.ts)：写入加密、读面解密、按指纹去重、缺少 `apiKeySecret` 时 fail closed；[schema.prisma](file:///Users/worldzhy/src/newbie-modules/packages/modules/llm/prisma/schema.prisma)：`apiKey` 扩至 1000、新增 `apiKeyFingerprint` 唯一键；[newbie.module.json](file:///Users/worldzhy/src/newbie-modules/packages/modules/llm/newbie.module.json)：`apiKeySecret` 配置项（回退 `SECURITY_USER_REFRESH_TOKEN_SECRET`，不新增部署步骤） | [llm-api-key.test.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/llm/management/llm-api-key.test.ts)（7 例：往返、随机 IV、篡改/错 secret/畸形密文拒绝、legacy 透传、指纹确定性）；`tsc --noEmit`、`prisma db push`、后端重启后 `/llm/connections` 未认证 401 | `285560f`/`844ce38`（registry）、`1d6a248`/`4ed5343`（backend） |
+| R3-21 | [schema.prisma](file:///Users/worldzhy/src/nightwatch-backend/prisma/schema.prisma)：`provisioningRepoName` 加 `@unique`；[project-application.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/project-application.service.ts)：唯一键冲突 `P2002` 转 409，预检保留为快速失败 | `prisma db push`（先查库确认无重复值）、`tsc --noEmit`、`nest build`、重启冒烟；并发竞态无自动化用例（需双请求压测） | `87bc978`（backend） |
+| R3-22 | [repository-link.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/repository-link.ts)：新增 `projectId` 参数与 `assertRepositoryAvailable`，仓库已被其他项目链接时 409（同项目多应用共享仍允许）；`registerExisting` 在建行**之前**预检，避免留下孤儿应用 | [repository-link.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/repository-link.test.ts)（7 例：GitHub/Bitbucket/不可读 URL/跨项目拒绝/同项目共享/预检通过/预检拒绝）；`tsc --noEmit`、`nest build`、重启冒烟 | `87bc978`（backend） |
+| R3-23 | [dashboard-endpoint.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/dashboard/dashboard-endpoint.ts)：校验逻辑从 copilot skill 抽出并新增 `assertSourceEndpointAllowed`；[dashboard-metric.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/dashboard/dashboard-metric.service.ts)：`create`/`update` 写库前校验 `sourceConfig.endpoint` | [dashboard-metric.service.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/dashboard/dashboard-metric.service.test.ts)（5 例：项目内通过、跨项目/穿越/绝对 URL 拒绝且不落库、update 省略 sourceConfig 时跳过）；[dashboard.skill.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/dashboard.skill.test.ts) 3 例沿用；`tsc --noEmit`、`nest build`、重启冒烟 | `87bc978`（backend） |
 
 R3-02 的授权语义按用户决策：普通成员可读本人证据；持模型 `List/Get` 权限的管理者（ADMIN/OPERATOR 经 Work Evaluation 权限组）可跨成员读。R3-03/R3-04 属未装配制品，修复以静态检查为准，装配后需在消费仓补运行时用例。R3-07 的生成器变更需消费仓重新执行 `npm run apits` 才会体现在 `_gen` 产物中，本批次未重生成。R3-10 与 R3-24 缺运行时证据，分别为该包无测试套件、前端未做浏览器回归。
 
-本批次同时关闭 R3-11/R3-12/R3-18/R3-20，并确认 R3-15 已随 ADR-047 消失（无默认密钥残留）。registry 侧另三项（R3-13 evaluation scope、R3-14 lark 群归属、R3-16/R3-17/R3-19）以及 backend 宿主层、模板/ops、文档治理仍未开工，台账保持 `open`。
+本批次同时关闭 R3-11/R3-12/R3-18/R3-20，并确认 R3-15 已随 ADR-047 消失（无默认密钥残留）。2026-11-01 第二批关闭 registry 的 R3-14/R3-17 与 backend 宿主层的 R3-21/R3-22/R3-23：lark 读面按 bot 群归属收敛，llm 密钥改为密文存储并按指纹判重（新增 7 例加密契约测试），仓库命名与仓库链接的竞态/跨项目占用改为唯一索引 + 409，dashboard metric 写入层复用项目内 endpoint 校验。registry 余下 R3-13（provisional，待 ADR-045/046 落定）、R3-16（收件人策略待确认）、R3-19（空壳模块去留待拍板），以及模板/ops R3-25～R3-30、文档治理 R3-31/R3-32 与 R3-G1..G4 仍未开工，台账保持 `open`。
 
