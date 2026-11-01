@@ -675,6 +675,10 @@ function Performance(options: InitOptions): void {
     if (conf.opt.user.p) result.p = conf.opt.user.p;
     return result;
   }
+  function deferReporting() {
+    conf.reportFailures += 1;
+    conf.reportBackoffUntil = Date.now() + Math.min(60_000, 2 ** conf.reportFailures * 1000);
+  }
   function doReport({ api, body, outTime, type }: { api: string; body: string; outTime: number; type?: ReportType }) {
     if (conf.apiDead) return;
     if (type === ReportType.Unload) {
@@ -697,17 +701,19 @@ function Performance(options: InitOptions): void {
             // A mocked or intercepted fetch may resolve without a Response;
             // treat that as delivered rather than as a failure.
             if (!res || typeof res.status !== "number") return;
-            if (res.status >= 400 && res.status < 500) {
-              // The endpoint rejected the payload itself (bad appId/token or a
-              // malformed body); retrying cannot succeed.
+            if (res.status === 401 || res.status === 403 || res.status === 419) {
+              // Credential/session rejection: retrying cannot succeed.
               conf.apiDead = true;
+            } else if (res.status >= 400 && res.status < 500) {
+              // Rate limiting (429), request timeout (408) and other transient
+              // 4xx responses must not disable reporting for the whole session.
+              deferReporting();
             } else {
               conf.reportFailures = 0;
             }
           })
           .catch((err) => {
-            conf.reportFailures += 1;
-            conf.reportBackoffUntil = Date.now() + Math.min(60_000, 2 ** conf.reportFailures * 1000);
+            deferReporting();
             return err;
           });
       }, outTime);
