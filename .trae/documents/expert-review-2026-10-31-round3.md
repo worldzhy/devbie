@@ -229,7 +229,7 @@
 | R3-08 | [backend-monitor.reporter.ts](file:///Users/worldzhy/src/devbie/packages/backend-monitor-sdk/src/backend-monitor.reporter.ts)：入队前按 `MONITOR_FIELD_LIMITS` 截断（requestId/type/message/stack/route/path/method/ip/UA）；[backend-monitor.types.ts](file:///Users/worldzhy/src/devbie/packages/backend-monitor-sdk/src/backend-monitor.types.ts) 定义与服务端 DTO 同源的上限 | [reporter.test.ts](file:///Users/worldzhy/src/devbie/packages/backend-monitor-sdk/test/reporter.test.ts) 新增截断用例；28 例通过 | `627f8341` |
 | R3-09 | [http.exception-filter.ts](file:///Users/worldzhy/src/devbie/packages/newbie/src/exception-filters/http.exception-filter.ts)：`request.url` → `request.path`，query 中的一次性 token/验证码不再落盘 | `eslint`/`prettier --check` 通过（同仓中间件已有同类行为） | `5037b29a` |
 | R3-10 | [core.ts](file:///Users/worldzhy/src/devbie/packages/web-monitor-sdk/src/core.ts)：仅 401/403/419 置 `apiDead`；429/408 等其余 4xx 与网络失败共用指数退避 | `eslint`/`prettier --check` 通过；该包无自动化测试 | `b766970f` |
-| R3-24 | [files/page.tsx](file:///Users/worldzhy/src/nightwatch-frontend/src/app/(dashboard)/projects/[projectId]/(workspace)/files/page.tsx)：删除成功后 `invalidateQueries(["s3-files"])` | frontend `eslint`/`prettier --check` 通过；未做浏览器回归 | `5f39b2b`（frontend） |
+| R3-24 | [files/page.tsx](file:///Users/worldzhy/src/nightwatch-frontend/src/app/(dashboard)/projects/[projectId]/(workspace)/files/page.tsx)：删除成功后 `invalidateQueries(["s3-files"])` | frontend `eslint`/`prettier --check` 通过；未做浏览器回归 | `ea25f1e`（frontend） |
 
 R3-02 的授权语义按用户决策：普通成员可读本人证据；持模型 `List/Get` 权限的管理者（ADMIN/OPERATOR 经 Work Evaluation 权限组）可跨成员读。R3-03/R3-04 属未装配制品，修复以静态检查为准，装配后需在消费仓补运行时用例。R3-07 的生成器变更需消费仓重新执行 `npm run apits` 才会体现在 `_gen` 产物中，本批次未重生成。R3-10 与 R3-24 缺运行时证据，分别为该包无测试套件、前端未做浏览器回归。
 
