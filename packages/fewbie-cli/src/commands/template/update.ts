@@ -57,6 +57,16 @@ async function collectRegistryTargets(): Promise<Set<string>> {
   return targets;
 }
 
+/** True when the template root is the project root itself (template checkout). */
+async function isSelfComparison(templateRoot: string, projectRoot: string): Promise<boolean> {
+  try {
+    const [templateReal, projectReal] = await Promise.all([fs.realpath(templateRoot), fs.realpath(projectRoot)]);
+    return templateReal === projectReal;
+  } catch {
+    return false;
+  }
+}
+
 function printChange(change: TemplateChange): void {
   if (change.kind === "missing-markers") {
     const markers = assetMarkers(change.asset);
@@ -98,6 +108,18 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
         `Template update and the registry both own: ${overlap.map((asset) => asset.path).join(", ")}. ` +
           "Reclassify them in ADR-025 before updating.",
       );
+    }
+
+    if (await isSelfComparison(template.root, projectRoot)) {
+      console.info(green(bold("✓ No template/registry ownership overlap.")));
+      console.warn(
+        yellow(
+          "Template source is the project root itself, so content drift cannot be detected by comparing a tree " +
+            "with itself. This run only enforced the ownership-overlap guard; drift gates belong in consuming " +
+            "projects (`fewbie template update --check --template-ref <ref>`).",
+        ),
+      );
+      return;
     }
 
     const projectFiles = new Map<string, string | null>();

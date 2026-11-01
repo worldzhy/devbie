@@ -87,6 +87,20 @@ async function listTemplateFiles(root: string): Promise<string[]> {
 }
 
 /**
+ * True when the template root is the project root itself — the template
+ * repository checkout. Comparing a tree with itself always yields zero drift,
+ * so the content gate is vacuous there; only the registry guard is meaningful.
+ */
+async function isSelfComparison(templateRoot: string, projectRoot: string): Promise<boolean> {
+  try {
+    const [templateReal, projectReal] = await Promise.all([fs.realpath(templateRoot), fs.realpath(projectRoot)]);
+    return templateReal === projectReal;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * ADR-009 D4 guard: every template file must be classified in the ownership
  * registry. Runs against the template (newbie-starter CI passes its own root
  * via --template-path .), so a newly added template file cannot ship
@@ -136,6 +150,18 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
 
   try {
     await assertTemplateRegistryComplete(template.root);
+
+    if (await isSelfComparison(template.root, cwd)) {
+      console.info(green(bold("✓ Ownership registry is complete for every template file.")));
+      console.warn(
+        yellow(
+          "Template source is the project root itself, so content drift cannot be detected by comparing a tree " +
+            "with itself. This run only enforced the ownership registry; drift gates belong in consuming projects " +
+            "(`newbie template update --check --template-ref <ref>`).",
+        ),
+      );
+      return;
+    }
 
     const projectFiles = new Map<string, string | null>();
     const templateContents = new Map<string, string | null>();
