@@ -173,7 +173,7 @@
 | R3-10 | devbie | web-monitor 429/408 永久熔断 | artifact | 浏览器运行时 | fixed · 2026-11-01 |
 | R3-11 | registry | account 角色授予无秩/可自改 | live | ADMIN | fixed · 2026-11-01 |
 | R3-12 | registry | 改密不吊销会话 | live | 任意登录用户 | fixed · 2026-11-01 |
-| R3-13 | registry | evaluation 读面 scope 客户端可控 | live | OPERATOR | open · provisional |
+| R3-13 | registry | evaluation 读面 scope 客户端可控 | live | OPERATOR | closed · 2026-11-02（security-evaluation 改为平台级，scope 参数降为归因过滤；work-evaluation 读面按 self/manager 解析；evaluation 决策面只对持有 manager 权限的 OPERATOR 开放） |
 | R3-14 | registry | lark 可拉任意群历史 | live | OPERATOR（LarkMessage） | fixed · 2026-11-01 |
 | R3-15 | registry | cloudformation 弱默认加密密钥 | live | 部署未设 env | closed · 2026-11-01（ADR-047 已移除该配置，无默认密钥） |
 | R3-16 | registry | aws-ses 任意收件人/正文 | live | AwsSesEmail 持有者 | open |
@@ -256,5 +256,7 @@ R3-02 的授权语义按用户决策：普通成员可读本人证据；持模�
 
 2026-11-01 第三批关闭模板/ops 与文档治理：R3-26 在 fewbie CI 接入模板所有权检查；R3-27 两个 CLI 识别"模板根 == 项目根"的自比较并显式声明完整性语义（不再假装做了漂移门）；R3-28 Caddy 兜底路由按合并 compose 模型渲染 proxy 或 404；R3-29 修正 AL2023 的 `awscli-2` 包名；R3-30 两个应用仓的部署改由 main 的 CI 成功触发并补超时，同时收窄 CI 的文档-only 忽略以保住原成本模型；R3-31 RELEASE_CHECKLIST 的版本口径与 1.x 规则对齐；R3-32 订正 ADR-004 / ADR-029 / ADR-030 / `secret-manager-rewrite.md` 与 project memory，并按用户拍板给迁移规则加 ClickHouse 例外（ADR-008 的 V*.sql 前向迁移保留、ADR-042 已撤回）。
 
-余下未开工：registry 的 R3-13（provisional，待 ADR-045/046 落定）、R3-16（收件人策略待确认）、R3-19（空壳模块去留待拍板），frontend 的 R3-25，以及未逐行复核分组 R3-G1..G4。R3-16/R3-19 与 G1..G4 继续保持 `open`。
+2026-11-02 关闭 R3-13：security-evaluation 经 ADR-039 改为平台级资产，读接口的 `scopeType`/`scopeId` 降为归因（provenance）过滤，不再是授权边界；`work-evaluation` 证据读面已按 R3-02 的 self/manager 解析约束；`evaluation` 决策面（suppress/reopen/review）按 ADR-029 属骨架级操作，仅持有对应 manager 权限的角色可调用，宿主侧只有 OPERATOR/ADMIN 符合。实测非项目成员的 OPERATOR `GET /security-evaluation/assets` 返回 200（平台视图），与其在项目作用域资源上被 403 形成对照（ADR-048）。
+
+余下未开工：registry 的 R3-16（收件人策略待确认）、R3-19（空壳模块去留待拍板），frontend 的 R3-25，以及未逐行复核分组 R3-G1..G4。R3-13 已于 2026-11-02 关闭（见附录 A）。R3-16/R3-19 与 G1..G4 继续保持 `open`。
 

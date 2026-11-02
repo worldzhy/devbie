@@ -19,7 +19,7 @@
 
 > 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失。以下为剩余条目。
 
-- registry（newbie-modules）：R3-13 evaluation/security-evaluation 读面纳入 host scope（provisional，待 ADR-045/046 落定复验）；R3-16 aws-ses 收件人白名单+节流（需先定收件人范围，避免打断既有通知）；R3-19 workflow/stock-mgmt 空壳模块（补实现或移出 registry，需用户拍板）。
+- registry（newbie-modules）：R3-16 aws-ses 收件人白名单+节流（需先定收件人范围，避免打断既有通知）；R3-19 workflow/stock-mgmt 空壳模块（补实现或移出 registry，需用户拍板）。R3-13 已于 2026-11-02 关闭：security-evaluation 经 ADR-039 改为平台级、scope 参数降为归因过滤，work-evaluation 读面已按 self/manager 解析，evaluation 决策面仅对持 manager 权限者开放。
 - frontend：R3-25 关键流程测试缺位。
 - 治理：未复核分组 R3-G1..G4 待逐行复核（按 `expert-review` skill §5 二次取证后再拆分 ID）。
 
@@ -31,7 +31,7 @@
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
-> 其他仓的条目已按仓登记到各自 backlog：newbie-modules 目前是 security-evaluation round4 的 R4-02（P1）与 R4-04/R4-09（P2），另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 2 条、nightwatch-frontend P2 已清零。本文件只保留 devbie 自身条目。
+> 其他仓的条目已按仓登记到各自 backlog：newbie-modules 目前是 security-evaluation round4 的 R4-04/R4-09（P2），另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 2 条、nightwatch-frontend P2 已清零。本文件只保留 devbie 自身条目。
 
 ## 其他
 
