@@ -17,11 +17,11 @@
 
 ## P1（安全评审 round3 2026-10-31，未修复）
 
-> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失。以下为剩余条目。
+> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失；R3-16 于 2026-11-02 关闭（aws-ses 发送接口已有 `@RequirePermission(Create, "AwsSesEmail")`，任意收件人是模块的合理能力，不再视为缺陷）；R3-19 于 2026-11-02 用户拍板保持现状，作为 artifact 标在 registry 仓 backlog。以下为剩余条目。
 
-- registry（newbie-modules）：R3-16 aws-ses 收件人白名单+节流（需先定收件人范围，避免打断既有通知）；R3-19 workflow/stock-mgmt 空壳模块（补实现或移出 registry，需用户拍板）。R3-13 已于 2026-11-02 关闭：security-evaluation 经 ADR-039 改为平台级、scope 参数降为归因过滤，work-evaluation 读面已按 self/manager 解析，evaluation 决策面仅对持 manager 权限者开放。
-- frontend：R3-25 关键流程测试缺位。
-- 治理：未复核分组 R3-G1..G4 待逐行复核（按 `expert-review` skill §5 二次取证后再拆分 ID）。
+- frontend：R3-25 关键流程测试缺位（长期工程门禁，未排期）。
+
+> 治理残余（2026-11-02 复核）：newbie-starter / fewbie-starter 的 `ci.yml` 已有 `concurrency` 但无 `timeout-minutes`；devbie `release-check.yml` 两者皆无。G1..G4 已于 2026-11-02 完成二次取证并拆 ID 入账到各仓 backlog。
 
 ## P2
 
@@ -29,9 +29,21 @@
 
 > `@devbie/apits@1.2.1` 与 `@devbie/fewbie-cli@1.4.2` 于 2026-10-31 发布（`fd0ab734`、`b0299e82`）：apits 的 bin 直指 `dist/cli.js`（shebang + 自执行守卫，替代 1.2.0 的 `bin/apits` wrapper）；fewbie 脚手架 spec 收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（存量 1.2.0 安装继续可用）。端到端验证：临时项目用已发布的 `npx @devbie/fewbie-cli@1.4.2 apits` 成功安装 `@devbie/apits@1.2.1` 并生成 `src/api/_gen/api.ts`。
 
+## 安全评审 round3 P2（devbie 仓自身条目，二次取证后 open，2026-11-02 入账）
+
+> 来源：`.trae/documents/expert-review-2026-10-31-round3.md` §P2「CLI 健壮性 / 契约一致性 / 无界增长」中归属 devbie 的条目。P2-26（cli-kit 网络调用无超时）、P2-27（fewbie create 泄漏临时 clone）复核为误报；P2-29（NewbieFactory.create god object）属有意 bootstrap 门面，out-of-scope。
+
+- [ ] `[R3-P2-22]` **P2** aws-secrets-cli 非交互模式静默跳过仍退出 0：`packages/aws-secrets-cli/src/pull-push.ts` L184-190 冲突键静默保留本地值；L210-219 无 TTY 无 `--yes` 时取消写入仍正常返回。
+- [ ] `[R3-P2-23]` **P2** aws-secrets-cli 轮换失败遗留 Active AK：`packages/aws-secrets-cli/sst/function/strategies/aws-api-key.ts` L20-36 createSecret 后无补偿；L84-86 清理失败仅 warn。
+- [ ] `[R3-P2-24]` **P2** fewbie registry build 不校验 `manifest.files` 路径边界：`packages/fewbie-cli/src/registry/build.ts` L34-40 直接 join itemDir，无越界校验。
+- [ ] `[R3-P2-25]` **P2** apits 网络调用无超时：`packages/apits/src/generator.ts` L190 `got.get` 未显式传 timeout。
+- [ ] `[R3-P2-28]` **P2** newbie drift 快照硬编码 `"src","modules"`：`packages/newbie-cli/src/lib/drift.ts` L70 与 `constants/paths.ts` L10-11 布局常量重复，目录不存在时静默返回空快照。
+- [ ] `[R3-P2-30]` **P2** apits watch 不关闭旧 watcher：`packages/apits/src/cli.ts` L303-319，rename 时新建 `fs.watch`，旧 watcher 从不 close。
+- [ ] `[R3-P2-31]` **P2** health-sdk 超时计时器不清理：`packages/health-sdk/src/check.ts` L19-23，race 胜方未定 clearTimeout，计时器残留至触发。
+
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
-> 其他仓的条目已按仓登记到各自 backlog：newbie-modules 目前是 security-evaluation round4 的 R4-04/R4-09（P2），另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 2 条、nightwatch-frontend P2 已清零。本文件只保留 devbie 自身条目。
+> 其他仓的条目已按仓登记到各自 backlog（2026-11-02 状态）：newbie-modules 目前有 round4 的 R4-04/R4-09（P2）+ round3 拆 ID 入账的 13 条 P2 + 2 条 G1 P2，另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 有 round3 拆 ID 入账的 4 条 P2（G2-1/G2-2/G2-3/G2-5）+ 1 条 P3 搁置（一键部署 M1）；nightwatch-frontend 有 R3-25（P1，长期工程门禁）+ round3 拆 ID 入账的 5 条 P2。本文件只保留 devbie 自身条目。
 
 ## 其他
 
