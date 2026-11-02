@@ -5,6 +5,7 @@ import {
   extractMarkerBlock,
   findUnclassifiedTemplateFiles,
   frameworkMarkers,
+  isTemplateScanIgnored,
   isUpdatableTemplateFile,
   planTemplateUpdate,
   replaceMarkerBlock,
@@ -110,6 +111,22 @@ describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
       "a/b.txt",
       "docs/new.md",
     ]);
+  });
+
+  it("keeps runtime and agent-session files out of the registry guard", () => {
+    for (const ignored of [
+      ".trae/documents/backlog.md",
+      ".env",
+      "package-lock.json",
+      "node_modules/foo/index.js",
+      "dist/main.js",
+      "src/app.module.ts.tsbuildinfo",
+    ]) {
+      assert.ok(isTemplateScanIgnored(ignored), `${ignored} must stay out of the guard`);
+    }
+    for (const shipped of ["src/main.ts", "deploy/scripts/deploy.sh", "AGENTS.md"]) {
+      assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
+    }
   });
 });
 

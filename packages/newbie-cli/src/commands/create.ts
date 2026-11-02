@@ -14,7 +14,7 @@ export const TEMPLATE_PATH_ENV = "NEWBIE_TEMPLATE_PATH";
 const PACKAGE_NAME_RE = /^(?:@[a-z0-9][a-z0-9-._]*\/)?[a-z0-9][a-z0-9-._]*$/;
 
 /** Directories/files never copied out of the template. */
-const COPY_IGNORE = new Set(["node_modules", "dist", "generated", ".git", ".env"]);
+const COPY_IGNORE = new Set(["node_modules", "dist", "generated", ".git", ".env", "backlog.md"]);
 
 export interface TemplateReference {
   templatePath?: string;
