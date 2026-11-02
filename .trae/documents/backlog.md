@@ -34,12 +34,9 @@
 > 来源：`.trae/documents/expert-review-2026-10-31-round3.md` §P2「CLI 健壮性 / 契约一致性 / 无界增长」中归属 devbie 的条目。P2-26（cli-kit 网络调用无超时）、P2-27（fewbie create 泄漏临时 clone）复核为误报；P2-29（NewbieFactory.create god object）属有意 bootstrap 门面，out-of-scope。
 
 - [ ] `[R3-P2-22]` **P2** aws-secrets-cli 非交互模式静默跳过仍退出 0：`packages/aws-secrets-cli/src/pull-push.ts` L184-190 冲突键静默保留本地值；L210-219 无 TTY 无 `--yes` 时取消写入仍正常返回。
-- [ ] `[R3-P2-23]` **P2** aws-secrets-cli 轮换失败遗留 Active AK：`packages/aws-secrets-cli/sst/function/strategies/aws-api-key.ts` L20-36 createSecret 后无补偿；L84-86 清理失败仅 warn。
 - [ ] `[R3-P2-24]` **P2** fewbie registry build 不校验 `manifest.files` 路径边界：`packages/fewbie-cli/src/registry/build.ts` L34-40 直接 join itemDir，无越界校验。
 - [ ] `[R3-P2-25]` **P2** apits 网络调用无超时：`packages/apits/src/generator.ts` L190 `got.get` 未显式传 timeout。
 - [ ] `[R3-P2-28]` **P2** newbie drift 快照硬编码 `"src","modules"`：`packages/newbie-cli/src/lib/drift.ts` L70 与 `constants/paths.ts` L10-11 布局常量重复，目录不存在时静默返回空快照。
-- [ ] `[R3-P2-30]` **P2** apits watch 不关闭旧 watcher：`packages/apits/src/cli.ts` L303-319，rename 时新建 `fs.watch`，旧 watcher 从不 close。
-- [ ] `[R3-P2-31]` **P2** health-sdk 超时计时器不清理：`packages/health-sdk/src/check.ts` L19-23，race 胜方未定 clearTimeout，计时器残留至触发。
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 

@@ -297,19 +297,28 @@ function watchConfigs(configs: Config[]) {
 
   // Simple debounce so editors that save twice only trigger one rebuild.
   const timers = new Map<string, NodeJS.Timeout>();
+  // Track active watchers so a re-established watcher (on rename) closes the
+  // previous one instead of leaking file descriptors.
+  const watchers = new Map<string, fs.FSWatcher>();
 
   localConfigs.forEach((configItem) => {
     const filePath = path.resolve(configItem.input);
-    fs.watch(filePath, async (eventType) => {
+    const watcher = fs.watch(filePath, async (eventType) => {
       // Handle both 'change' and 'rename' — macOS atomic save (e.g. vim's
       // write-and-rename) triggers 'rename', and the watcher may need to be
       // re-established after the inode changes. Re-create the watcher on
       // rename to avoid silently losing subsequent changes.
       if (eventType === "rename") {
+        const oldWatcher = watchers.get(filePath);
+        if (oldWatcher) {
+          oldWatcher.close();
+          watchers.delete(filePath);
+        }
         try {
-          fs.watch(filePath, async (ev) => {
+          const newWatcher = fs.watch(filePath, async (ev) => {
             scheduleRebuild(filePath, ev);
           });
+          watchers.set(filePath, newWatcher);
         } catch {
           // File may not exist yet during the rename window; the next save
           // will re-establish the watcher.
@@ -317,6 +326,7 @@ function watchConfigs(configs: Config[]) {
       }
       scheduleRebuild(filePath, eventType);
     });
+    watchers.set(filePath, watcher);
   });
 
   function scheduleRebuild(filePath: string, eventType: string) {
