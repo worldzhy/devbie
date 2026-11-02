@@ -41,9 +41,9 @@
   },
   "dependencies": {
     "@darraghor/eslint-plugin-nestjs-typed": "^7.5.8",
-    "eslint-config-next": "^16.4.2",
+    "eslint-config-next": "^16.4.3",
     "eslint-config-prettier": "^10.1.8",
-    "typescript-eslint": "^8.71.2"
+    "typescript-eslint": "^8.72.1"
   },
   "peerDependencies": {
     "eslint": "^9.0.0 || ^10.0.0",
@@ -57,6 +57,6 @@
     }
   },
   "devDependencies": {
-    "next": "^16.4.2"
+    "next": "^16.4.3"
   }
 }
