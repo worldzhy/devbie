@@ -374,3 +374,62 @@ describe("P-4: per-request extra argument typing", () => {
     }
   });
 });
+
+describe("path params stay in the URL only", () => {
+  const spec = {
+    openapi: "3.0.0",
+    info: { title: "Path Param Test", version: "1.0.0" },
+    paths: {
+      "/users/{userId}/api-keys": {
+        get: {
+          summary: "List a user's API keys",
+          tags: ["api-keys"],
+          parameters: [
+            { name: "userId", in: "path", required: true, schema: { type: "string" } },
+            { name: "skip", in: "query", required: true, schema: { type: "integer" } },
+          ],
+          responses: { "200": { description: "ok" } },
+        },
+        post: {
+          summary: "Create an API key",
+          tags: ["api-keys"],
+          parameters: [{ name: "userId", in: "path", required: true, schema: { type: "string" } }],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
+              },
+            },
+          },
+          responses: { "200": { description: "ok" } },
+        },
+      },
+    },
+  };
+
+  it("encodes path values and strips them from body/query payloads", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "apits-pathparam-"));
+    try {
+      const specPath = path.join(tmpDir, "spec.json");
+      await fs.writeFile(specPath, JSON.stringify(spec));
+      const outDir = path.join(tmpDir, "out");
+      const generator = new Generator({ input: specPath, output: outDir, name: "pathparam", client: false });
+      await generator.write(await generator.generate());
+
+      const api = await fs.readFile(path.join(outDir, "pathparam.ts"), "utf-8");
+
+      // Path substitution is percent-encoded (ids may contain `/`, `?`, `#`).
+      assert.match(api, /encodeURIComponent\(String\(data\.userId\)\)/);
+      // The merged request type still carries the path param for callers.
+      assert.match(api, /userId: string/);
+      // ...but it is removed from the payload sent to the server.
+      assert.match(api, /delete \(requestData as Partial<typeof data>\)\["userId"\]/);
+      assert.match(api, /params: requestData/);
+      assert.match(api, /data: requestData/);
+      assert.doesNotMatch(api, /params: data/);
+      assert.doesNotMatch(api, /\n\s+data,\n/);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});

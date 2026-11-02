@@ -141,7 +141,7 @@ export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Pr
   }
 
   step("Update environment variables");
-  await assembleEnv({ cwd, sink, issues, added, removed });
+  await assembleEnv({ cwd, sink, issues, added, removed, enabled: enabledKeys });
 
   step("Update database schema");
   await assembleSchemaFiles({

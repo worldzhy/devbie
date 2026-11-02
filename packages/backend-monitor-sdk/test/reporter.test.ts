@@ -85,6 +85,44 @@ describe("MonitorEventReporter batching", () => {
     assert.equal(reporter.pendingCount, 0);
   });
 
+  it("clamps event fields to the ingest DTO limits before shipping", async () => {
+    const sent: IngestPayload[] = [];
+    const reporter = new MonitorEventReporter(
+      makeOptions({ maxBatchSize: 1, maxQueueSize: 4 }),
+      recordingTransport(sent),
+    );
+
+    reporter.enqueueError({
+      ...makeErrorEvent("e1"),
+      type: "T".repeat(300),
+      message: "m".repeat(5000),
+      stack: "s".repeat(20000),
+      route: "/".repeat(600),
+      path: "/".repeat(2100),
+      userAgent: "u".repeat(1000),
+    });
+    reporter.enqueueRequest({
+      ...makeRequestEvent("r1"),
+      path: "/".repeat(2100),
+      method: "M".repeat(20),
+      userAgent: "u".repeat(1000),
+    });
+    await settle();
+
+    const error = sent[0].errors[0];
+    assert.equal(error.type.length, 200);
+    assert.equal(error.message.length, 4096);
+    assert.equal(error.stack?.length, 16000);
+    assert.equal(error.route.length, 512);
+    assert.equal(error.path.length, 2048);
+    assert.equal(error.userAgent?.length, 512);
+
+    const request = sent[1].requests[0];
+    assert.equal(request.path.length, 2048);
+    assert.equal(request.method.length, 10);
+    assert.equal(request.userAgent?.length, 512);
+  });
+
   it("flushes automatically once a kind reaches the batch cap", async () => {
     const sent: IngestPayload[] = [];
     const reporter = new MonitorEventReporter(makeOptions(), recordingTransport(sent));

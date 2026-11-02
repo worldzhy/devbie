@@ -2,7 +2,7 @@
 
 状态：已采纳
 日期：2026-10-17
-更新：2026-10-23 — "六仓已落地"需按当前仓拓扑重读：fewbie 已并入 newbie（后改名 devbie），当前六仓为 devbie / newbie-modules / newbie-starter / fewbie-starter / nightwatch-backend / nightwatch-frontend。实测 newbie-modules 无 `.github/dependabot.yml`（纯注册仓、无运行时依赖，设计如此），策略实际覆盖 5/6；分层与分组原则不变。
+更新：2026-11-01 — 覆盖已补齐为 6/6：newbie-modules 此后加入了 `.github/dependabot.yml`（npm 每周、Actions 每月，与本策略分层一致）；各仓 `schedule.time` 实测均为 `05:30`（早期记录写的 09:00 是笔误）。仓拓扑不变：fewbie 已并入 newbie（后改名 devbie），当前六仓为 devbie / newbie-modules / newbie-starter / fewbie-starter / nightwatch-backend / nightwatch-frontend。
 
 ## 背景
 
@@ -24,8 +24,8 @@ newbie/fewbie 两个框架仓、两个 starter 模板仓、nightwatch 前后端�
 
 | 层级 | 仓库 | npm | GitHub Actions | 决定性理由 |
 |------|------|-----|---------------|-----------|
-| 框架层 | newbie, fewbie | 每周一 09:00 Asia/Shanghai | 每月 | 框架是生态源头，需快速跟进上游修复与安全补丁，让下游尽早消费 |
-| 模板层 | *-starter | 每周一 09:00 Asia/Shanghai | 每月 | 模板是生成应用的起点，必须与框架层同频，确保生成的应用骨架健康 |
+| 框架层 | devbie, newbie-modules | 每周一 05:30 Asia/Shanghai | 每月 | 框架是生态源头，需快速跟进上游修复与安全补丁，让下游尽早消费 |
+| 模板层 | *-starter | 每周一 05:30 Asia/Shanghai | 每月 | 模板是生成应用的起点，必须与框架层同频，确保生成的应用骨架健康 |
 | 应用层 | nightwatch-* | 每月 | 每月 | 生产应用以稳定为主，降低变更频率；安全更新不受 schedule 限制，仍即时触发 |
 
 **分组策略统一**

@@ -100,7 +100,7 @@ fewbie 与 @devbie/newbie **根本分野**，不照抄后端的重 npm 包模式
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | `fewbie create`          | 模板仓库 + design token                                                                                                                                     | Next.js + Tailwind + shadcn 骨架      |
 | `fewbie modules add <component>` | 组件模板库                                                                                                                                                  | `components/fewbie/*.tsx`             |
-| `fewbie apits`           | `@devbie/apits@^1.2.0`（bin `apits`；作为项目 devDependency 按需引入，**不重写**；2026-10-31 由遗留的 unscoped `apits-gen@^1.0.0` 切换，config schema 不变） | `src/api/_gen/api.ts`（生成物归项目） |
+| `fewbie apits`           | `@devbie/apits@^1.2.1`（bin `apits`；作为项目 devDependency 按需引入，**不重写**；2026-10-31 由遗留的 unscoped `apits-gen@^1.0.0` 切换，config schema 不变） | `src/api/_gen/api.ts`（生成物归项目） |
 | `fewbie doctor`          | 项目扫描                                                                                                                                                    | v0 可读性检测、token 一致性、依赖检查 |
 | `fewbie modules update`  | git diff                                                                                                                                                    | 组件 / token 升级 diff PR             |
 
@@ -108,7 +108,7 @@ fewbie 与 @devbie/newbie **根本分野**，不照抄后端的重 npm 包模式
 
 关键决策：**生成器不重写**，fewbie CLI 仅作 thin wrapper（`fewbie apits`）。理由：
 
-- 生成器本体已按 ADR-015 并入本仓 `packages/apits`，规范制品为 `@devbie/apits`（bin 与配置文件不变）；scaffold 已于 2026-10-31 从遗留的 unscoped `apits-gen@^1.0.0` 切到 `@devbie/apits@^1.2.0`，bin 路径按已安装包的 `bin` 字段解析（兼容 `bin/apits` 与 `dist/cli.js` 两种发行形态）。消费沿革：2026-09-26 起暂用旧 unscoped 包 `open-api-typescript-request-generator@0.0.7-alpha.0`（当时拟用名 `apits-gen` 在 npm 尚不存在），1.0.0 发布后按决议 #4 切换。重写是浪费。
+- 生成器本体已按 ADR-015 并入本仓 `packages/apits`，规范制品为 `@devbie/apits`（bin 与配置文件不变）；scaffold 已于 2026-10-31 从遗留的 unscoped `apits-gen@^1.0.0` 切到 `@devbie/apits@^1.2.1`，bin 路径按已安装包的 `bin` 字段解析——1.2.1 起 `bin` 直指 `dist/cli.js`，旧 1.2.0 安装仍是 `bin/apits` wrapper，同一段解析两种形态都覆盖。消费沿革：2026-09-26 起暂用旧 unscoped 包 `open-api-typescript-request-generator@0.0.7-alpha.0`（当时拟用名 `apits-gen` 在 npm 尚不存在），1.0.0 发布后按决议 #4 切换。重写是浪费。
 - 生成器是开发期工具不是运行时，工具就该是 CLI。
 - 生成物归项目（`src/api/_gen/api.ts`，函数按 `method+path` 派生命名），符合 shadcn 哲学——用户拥有源码。
 
