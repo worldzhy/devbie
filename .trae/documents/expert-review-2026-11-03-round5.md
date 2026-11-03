@@ -288,8 +288,8 @@ registry 的 owner-active + LRU TTL 落在 `api-key.service.ts` 的缓存函数�
 
 | 候选 | 处理 |
 |---|---|
-| Copilot `list_projects` 泄露 AWS 绑定字段（`awsAccountId`/`roleArn`/`regions`） | 本轮只复核到 `repositoryUrl`/`provisioningStatus` 泄露；AWS 字段未逐行取证，登记为待验证候选，不并入 R5-03 正文 |
-| `externalRef` 由客户端填写导致可伪造遥测写入 | 未核对 installation 创建路径的 DTO 与写入点，登记为待验证候选，不并入 R5-04 正文 |
+| Copilot `list_projects` 泄露 AWS 绑定字段（`awsAccountId`/`roleArn`/`regions`） | 本轮只复核到 `repositoryUrl`/`provisioningStatus` 泄露；AWS 字段未逐行取证，登记为待验证候选，不并入 R5-03 正文。W4 取证结论见 §12.6：`list_projects` 本身安全，真实泄露点在 AWS 读技能的 global 模式 → 新条目 R5-14 |
+| `externalRef` 由客户端填写导致可伪造遥测写入 | 未核对 installation 创建路径的 DTO 与写入点，登记为待验证候选，不并入 R5-04 正文。W4 取证结论见 §12.6：成立但需 query/body 错配 → 新条目 R5-15 |
 
 ### 12.5 复核后结论
 
@@ -298,6 +298,26 @@ registry 的 owner-active + LRU TTL 落在 `api-key.service.ts` 的缓存函数�
 - P2 由 18 调整为 22：+R5-06、+R5-08、+N-1、+N-2（其中 R5-P2-21 仍为 withdrawn）。原 §3「P2 × 17」少计 1 条，按台账 18 条订正。
 - 修复顺序不变，但第 3 步必须包含 R5-13：先对齐 clickhouse 副本再谈 DTO 收口；R5-06 的检查改为「把已安装集与 registry 比对」而不是「复核 sink 是否比对内容」。
 - 复核未发现任何 P0 误报，也未发现需要撤回的 P1 主结论；所有调整都是定级或表述层面的收紧。
+
+### 12.6 W4 取证结果（2026-11-03，只读取证）
+
+两条候选均完成逐行取证。结论：候选一定位有误但底层问题成立（升为 P1，新条目 R5-14）；候选二成立但触发条件比原描述更具体（定 P2，新条目 R5-15）。二者尚未修复。
+
+**R5-14（P1，live）AWS 读技能的 global 模式没有成员过滤**
+
+- `list_projects` 本身安全：[project.skill.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/project.skill.ts#L38-L54) 用 `deps.aws.listBindings()` 取全量绑定，但随后只按调用者自己的 `rows`（`CopilotProjectDataSource.listProjects` 已按 `members.some(userId)` 过滤）做 `bindingByProject` 关联，输出仅 `boundAwsAccountId`/`bindingVerified`，非成员项目的字段不会出现。
+- 真实泄露点在 [aws.skill.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/aws.skill.ts#L39-L46)：`list_aws_accounts` 仅在提供 `projectId` 时校验成员资格（`findProjectById`），未提供时直接把 `listBindings(undefined)` 的**全量**结果返回，字段含 `awsAccountId`、`roleArn`、`roleName`、`defaultRegion`、`regions`、`lastVerifiedAt`（[aws.datasource.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/datasource/aws.datasource.ts#L76-L97)，查询无 `project.members` 约束）。
+- 同类 global 读还有 `summarize_aws_audit_findings`、`list_aws_audit_findings`（[aws.datasource.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/datasource/aws.datasource.ts#L99-L224)：无 `projectId` 时遍历全部 `EvaluationSubject`），以及 dependency 读技能的 global 聚合（[dependency.datasource.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/datasource/dependency.datasource.ts#L81-L114)）。
+- 可达性：与 R5-03 同一条 Copilot 读通道，任意登录用户即可调用 `access: "read"` 技能；技能目录无项目上下文校验（[skill.module.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/skill.module.ts#L62-L82)）。
+- 影响：跨租户读取 AWS 账号 ID、角色 ARN、区域清单与安全评估发现标题（R5-03 的同类漏项，非同一代码路径）。
+
+**R5-15（P2，live）installation 创建时 scope 取自 query 而落库 `externalRef` 取自 body**
+
+- 客户端可填：[monitor-installation.dto.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/backend-monitor/monitor-installation.dto.ts#L15-L22) 的 `externalRef` 是可选请求体字段，[monitor-installation.service.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/backend-monitor/services/monitor-installation.service.ts#L86-L101) 原样落库。
+- 归属只靠正则解析：[backend-monitor-application-ref.resolver.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/project/applications/backend-monitor-application-ref.resolver.ts#L14-L16) 用 `parseInstallationExternalRef` 把 `projectId/applicationId` 拆开，不校验 application 是否存在或其真实所属项目；[monitor-token.resolver.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/backend-monitor/monitor-token.resolver.ts#L56-L65) 直接采用该结果作为 ClickHouse `application_id`。
+- 权限解析只看 query：[scope-resolvers.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/authorization/scope-resolvers.ts#L267-L281) 的 `installation-ref` resolver 只读 `req.query.externalRef`；而 [authorization.guard.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/security/authorization/authorization.guard.ts#L96-L120) 的 `hasKey` 会把 body 中的同名键也算作"存在"，于是 `POST /backend-monitor/installations?externalRef=<A>/<x>` + body `{"externalRef":"<B>/<y>"}` 会按项目 A 授予 `Create`（EDITOR 即可，[scope-role-permission.matrix.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/authorization/scope-role-permission.matrix.ts#L135-L141)），却落库 B 的 ref。
+- 触发条件：需要目标 `projectId/applicationId` 两个 UUID（不可枚举，但可能从链接/日志获得），因此定 P2 而非 P1；后果是被伪造的请求/错误日志与离线/阈值事件计入受害项目的看板与通知。
+- 无 query ref 时该路由被 fail-closed 拒绝（resolver 返回 `none` → 403），所以"任意登录用户直接伪造"不成立；原候选描述需收紧为上述 query/body 错配。
 
 ---
 
@@ -443,7 +463,7 @@ registry 的 owner-active + LRU TTL 落在 `api-key.service.ts` 的缓存函数�
 | W1 | R5-01、R5-02 | R5-01 涉及密钥轮换，需发版窗口；R5-02 可独立上线 |
 | W2 | R5-13 → R5-05（同一批 `modules update`）→ R5-04 → R5-03 → R5-12 → R5-07 → R5-09 → R5-10 → R5-11 | R5-13 必须在 R5-05 之后取证；R5-06 与 N-2 紧随 R5-05 |
 | W3 | N-1、N-2、R5-06、R5-08、前端 P2、治理 P2 | 无硬依赖，可按仓并行 |
-| W4 | 2 条待取证候选 | 取证后再决定是否入账，不得提前并入 R5-03/R5-04 |
+| W4 | 2 条待取证候选 | 取证后再决定是否入账，不得提前并入 R5-03/R5-04。已完成只读取证（§12.6）：R5-14（P1）、R5-15（P2）入账为 open，修复待用户确认 |
 
 ### 13.6 本轮不做
 
