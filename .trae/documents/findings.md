@@ -19,7 +19,7 @@
 | R5-11 | newbie-cli / newbie-starter | `create` 复制的 `check:template` 把模板仓完整性守卫施加到业务树，按官方下一步操作后 CI 变红 | P1 | template | 新项目 / 其 CI | fixed（W2 尾部，2026-11-03）：完整性守卫改为环境开关 `NEWBIE/FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`（仅模板仓 CI 开启），`create` 复制时剥离该前缀与遗留 `--registry-complete`；错误文案指向模板仓；实测新建项目复制门禁 exit 0、模板专用门禁 exit 1 |
 | R5-12 | devbie (newbie-cli) | `modules update` 在 pristine 不可得时 fail-open，直接覆盖宿主改动并清空 `localPatches` | P1 | source | 开发者 | fixed（W2，2026-11-03）：无 pin/pristine 不可得 → `unpinned` 跳过并要求 `--force`；`--force` 覆盖前备份到 `.newbie/backups/<key>-<stamp>`；`modules-update.test.ts` 2 例 |
 | R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | fixed（W2，2026-11-03）：registry `5adec55`；`assertAppId` 白名单（`^[A-Za-z0-9_]{1,64}$`）在 Mongo/ClickHouse 工厂入口与 `saveSiteData` 生效，客户端不再提供 appId；scope 侧 W1 起 fail-closed |
-| N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | open（复核新增；R5-05 原 live 判定撤销） |
+| N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | fixed（W3，2026-11-03）：owner-active 校验移入 `AccountApiKeyVerifier.verify`（真实校验路径），`getApiKeyFromKey`/`assertOwnerActive`/LRU 缓存与 `CACHE_APIKEY_*` 配置删除；新增 6 例 verifier 测试（停用/缺行 owner 拒绝、组织 key 跳过、错 secret、未知 key） |
 | N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | fixed（W3，2026-11-03）：基线改为 `snapshotPristineModule`（`git archive <pin>`）；pin 缺失/不可读输出 `missing-pin`/`unavailable-pin` finding 而非跳过；`update --check` 缺 pin → exit 1 |
 | R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | fixed（W3，2026-11-03）：登出成功与登录/TOTP 成功都调用 `queryClient.clear()`；同标签页换账号无残留。未逐 key 加 userId 维度（等价收益、改动面过大） |
 | R5-P2-12 | nightwatch-frontend | 登出请求失败仍强制本地登出，服务端 session 与 refresh cookie 未撤销 | P2 | live | 使用者 | fixed（W3，2026-11-03）：失败时保留会话与 UI 登录态，提示 `toastLogoutFailed` 可重试；仅成功才清 token 并跳转 |
@@ -84,6 +84,10 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 变更（nightwatch-frontend / fewbie-starter）：frontend 锁文件补齐（`npm ci --dry-run` 由 EUSAGE 转 0）；fewbie-starter `@devbie/fewbie-cli` 由 `*` 改 `^1.4.0` 并同步锁。
 - 取证：frontend `npm test` 14/14、`npm run build` 通过（先清 `.next` 陈旧类型缓存）；backend 新 DTO 测试 3/3、`npm run build` 通过；devbie `web-monitor-sdk` 20/20、`style-guide` 27/27；四仓 `npm ci --dry-run` exit 0。
 - 偏离（R5-P2-11）：未给每个 query key 加 userId 维度；在登出/登录两个会话切换点清空缓存，行为验收等价且避免全量改动。
+- 变更（newbie-modules `59ff47c` + nightwatch-backend 装配）：N-1 的 owner-active 校验移入 `AccountApiKeyVerifier.verify`；删除无调用方的 `getApiKeyFromKey`/LRU 缓存与 `CACHE_APIKEY_*` 配置（`modules.config.ts`、`.env.example` 同步收敛）。
+- 取证（N-1）：装配后 verifier 测试 6/6（停用 owner、缺 owner 行均 401；组织 key 不查 user 表；错 secret、未知 key 分别报错）；nightwatch-backend `npm test` 642/642、`npm run build` 通过；`modules apply --check` / `update --check` 均 exit 0。
+- W3 收口：§13 的 W3 条目（N-1、N-2、R5-06、R5-08、前端 P2、治理 P2）全部关闭；W4 两条待取证候选未动。
+
 
 
 
