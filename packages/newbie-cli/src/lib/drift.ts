@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { REGISTRY_MODULES_DIR } from "../constants/paths";
+import { CONSUMER_MODULES_DIR, REGISTRY_MODULES_DIR } from "../constants/paths";
 import { FileSnapshot } from "../core/drift";
 import { RegistryLocation } from "./registry";
 
@@ -64,10 +64,19 @@ export async function snapshotDirectory(root: string): Promise<FileSnapshot> {
 
 /**
  * Snapshot a module directory inside the consuming project.
- * Returns an empty snapshot when the directory does not exist.
+ * Returns null when the directory does not exist — callers should treat
+ * that as "module not installed" rather than diffing against an empty
+ * pristine tree. An empty directory (legitimately zero files) still returns
+ * an empty snapshot Map.
  */
-export async function snapshotInstalledModule(cwd: string, key: string): Promise<FileSnapshot> {
-  return snapshotDirectory(path.resolve(cwd, "src", "modules", key));
+export async function snapshotInstalledModule(cwd: string, key: string): Promise<FileSnapshot | null> {
+  const dir = path.resolve(cwd, CONSUMER_MODULES_DIR, key);
+  try {
+    await fs.access(dir);
+  } catch {
+    return null;
+  }
+  return snapshotDirectory(dir);
 }
 
 /**

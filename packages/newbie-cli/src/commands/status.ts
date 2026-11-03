@@ -63,7 +63,10 @@ export async function collectStatus(cwd: string, options?: { drift?: boolean }):
     if (options?.drift && installed && registry && record.sourceCommit) {
       const pristine = await snapshotPristineModule(registry, key, record.sourceCommit);
       if (pristine) {
-        entry.drift = diffSnapshots(await snapshotInstalledModule(cwd, key), pristine);
+        const installedSnap = await snapshotInstalledModule(cwd, key);
+        if (installedSnap) {
+          entry.drift = diffSnapshots(installedSnap, pristine);
+        }
       }
     }
 

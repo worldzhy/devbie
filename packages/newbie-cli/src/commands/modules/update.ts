@@ -90,14 +90,17 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     if (fromCommit && !options.force) {
       const pristine = await snapshotPristineModule(registry, key, fromCommit);
       if (pristine) {
-        const drift = diffSnapshots(await snapshotInstalledModule(cwd, key), pristine);
-        if (!drift.clean) {
-          inspections.push({
-            ...base,
-            status: "drifted",
-            patchIds: driftPatchIds(drift),
-          });
-          continue;
+        const installed = await snapshotInstalledModule(cwd, key);
+        if (installed) {
+          const drift = diffSnapshots(installed, pristine);
+          if (!drift.clean) {
+            inspections.push({
+              ...base,
+              status: "drifted",
+              patchIds: driftPatchIds(drift),
+            });
+            continue;
+          }
         }
       }
     }

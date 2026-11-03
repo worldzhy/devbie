@@ -187,7 +187,10 @@ export class Generator {
    */
   async loadSpec(input: string): Promise<OpenAPIV3.Document> {
     if (Generator.isHttpInput(input)) {
-      const res = await got.get(input, { responseType: "text" });
+      const res = await got.get(input, {
+        responseType: "text",
+        timeout: { request: 15000 },
+      });
       return this.parseSpecDocument(res.body);
     }
     const filePath = path.resolve(input);
