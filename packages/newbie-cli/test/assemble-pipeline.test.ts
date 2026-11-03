@@ -6,7 +6,7 @@ import { afterEach, describe, it } from "node:test";
 
 import { normalizeModulesState } from "@devbie/modules-state";
 
-import { applyModuleKeys, planReconcile, PipelineContext } from "../src/assemble/pipeline";
+import { applyModuleKeys, planReconcile, runSteps, PipelineContext } from "../src/assemble/pipeline";
 import { assembleEnv } from "../src/assemble/env";
 import { addModules } from "../src/assemble/modules-copy";
 import { CliError } from "@devbie/cli-kit";
@@ -182,6 +182,28 @@ describe("planReconcile", () => {
         return true;
       },
     );
+  });
+});
+
+describe("runSteps", () => {
+  it("refuses to copy modules when the registry has no commit to pin", async () => {
+    const registryRoot = await makeRegistry({ alpha: {} });
+    const cwd = await makeProject({ modules: [] });
+    const ctx = context(cwd, registryRoot);
+    ctx.registry = { ...ctx.registry, sourceCommit: null };
+    ctx.state = normalizeModulesState(await readState(cwd));
+
+    await assert.rejects(
+      silenceConsole(() => runSteps(ctx, { added: ["alpha"], removed: [], enabledKeys: ["alpha"] })),
+      (error: unknown) => {
+        assert.ok(error instanceof CliError);
+        assert.match(error.message, /without a registry commit/i);
+        return true;
+      },
+    );
+    // Fail closed before copying: no half-installed module, no null pin.
+    await assert.rejects(fs.readdir(path.join(cwd, "src", "modules", "alpha")));
+    assert.deepEqual((await readState(cwd)).modules, []);
   });
 });
 

@@ -464,6 +464,7 @@ registry 的 owner-active + LRU TTL 落在 `api-key.service.ts` 的缓存函数�
 | W2 | R5-13 → R5-05（同一批 `modules update`）→ R5-04 → R5-03 → R5-12 → R5-07 → R5-09 → R5-10 → R5-11 | R5-13 必须在 R5-05 之后取证；R5-06 与 N-2 紧随 R5-05 |
 | W3 | N-1、N-2、R5-06、R5-08、前端 P2、治理 P2 | 无硬依赖，可按仓并行 |
 | W4 | 2 条待取证候选 | 取证后再决定是否入账，不得提前并入 R5-03/R5-04。取证完成（§12.6）：R5-14（P1）、R5-15（P2）入账；W5 已修复：R5-14 global 模式要求系统级读权限，R5-15 resolver 校验 body/query ref 一致与 application 归属 |
+| W6 | N-2 残余（`sourceCommit` 写入期强制校验） | `runSteps` 在拷贝前拒绝无 commit 的 registry，避免写出 null pin；CLI 221/221、build 通过 |
 
 ### 13.6 本轮不做
 

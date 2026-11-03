@@ -20,7 +20,7 @@
 | R5-12 | devbie (newbie-cli) | `modules update` 在 pristine 不可得时 fail-open，直接覆盖宿主改动并清空 `localPatches` | P1 | source | 开发者 | fixed（W2，2026-11-03）：无 pin/pristine 不可得 → `unpinned` 跳过并要求 `--force`；`--force` 覆盖前备份到 `.newbie/backups/<key>-<stamp>`；`modules-update.test.ts` 2 例 |
 | R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | fixed（W2，2026-11-03）：registry `5adec55`；`assertAppId` 白名单（`^[A-Za-z0-9_]{1,64}$`）在 Mongo/ClickHouse 工厂入口与 `saveSiteData` 生效，客户端不再提供 appId；scope 侧 W1 起 fail-closed |
 | N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | fixed（W3，2026-11-03）：owner-active 校验移入 `AccountApiKeyVerifier.verify`（真实校验路径），`getApiKeyFromKey`/`assertOwnerActive`/LRU 缓存与 `CACHE_APIKEY_*` 配置删除；新增 6 例 verifier 测试（停用/缺行 owner 拒绝、组织 key 跳过、错 secret、未知 key） |
-| N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | fixed（W3，2026-11-03）：基线改为 `snapshotPristineModule`（`git archive <pin>`）；pin 缺失/不可读输出 `missing-pin`/`unavailable-pin` finding 而非跳过；`update --check` 缺 pin → exit 1 |
+| N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | fixed（W3+W6，2026-11-03）：基线改为 `snapshotPristineModule`（`git archive <pin>`）；pin 缺失/不可读输出 `missing-pin`/`unavailable-pin` finding 而非跳过；`update --check` 缺 pin → exit 1；`runSteps` 在拷贝前拒绝无 commit 的 registry（`assemble-pipeline.test.ts` 1 例，CLI 221/221） |
 | R5-14 | nightwatch-backend | Copilot AWS/dependency 读技能在未给 `projectId` 时走 global 模式，数据源无成员过滤（跨租户读账号 ID/角色 ARN/区域/发现标题） | P1 | live | 任意登录用户 | fixed（W5，2026-11-03）：global 模式改为要求系统级读权限（`AwsCrossAccountBinding/List`、`DependencyScanFinding/List`），项目内读取不变；4 例技能测试 + 652 全量通过 |
 | R5-15 | nightwatch-backend | installation 创建时权限 scope 取自 query `externalRef`，落库值取自 body `externalRef`，二者不比对 → 项目 A 的 EDITOR 可写入项目 B 的 `application_id` 遥测 | P2 | live | 项目 EDITOR（需知道目标两个 UUID） | fixed（W5，2026-11-03）：`installation-ref` resolver 同时读 body，body 必须是完整 `projectId/applicationId` 且 application 属于该项目，query/body 项目不一致即 deny；6 例 resolver 测试 |
 | R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | fixed（W3，2026-11-03）：登出成功与登录/TOTP 成功都调用 `queryClient.clear()`；同标签页换账号无残留。未逐 key 加 userId 维度（等价收益、改动面过大） |
@@ -55,7 +55,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 - 变更：newbie-modules `5adec55`（web-monitor `appId` 白名单）、`90235bb`（shortcut 白名单回写）、`dd5fae1`+`0c977ad`（security-evaluation schema 与测试）、W1 装配期间 registry 侧 env 声明修复（devbie `6c5b5c8`）；nightwatch-backend `5d5ff71`（安装族授权）、`ea6174e`（Copilot 读授权）；devbie `633fd63`（`modules update` unpinned + `--force` 备份、apits 失败非零退出）。
 - 取证：`newbie modules update --check` 漂移 0；`npm test` newbie-cli 217/217、apits 25/25、backend 633/633；`verify:permissions` 通过；`npm run build` 三仓 OK；非成员访问他人 installation `GET`/`LIST` 403、OWNER 200，临时测试用户已删除。
-- 说明：R5-12 同时封堵 N-2 的 fail-open 运行时路径（pin 基线 + 无 pin 跳过）；N-2 仍保留 `modules.json` `sourceCommit` 的写入期强制校验项。
+- 说明：R5-12 封堵了 N-2 的 fail-open 运行时路径（pin 基线 + 无 pin 跳过）；N-2 的写入期强制校验已由 W6 补齐（`runSteps` 在拷贝前拒绝无 commit 的 registry），N-2 无残余。
 
 ## W2 尾部落地（2026-11-03）
 
