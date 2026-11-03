@@ -185,7 +185,7 @@ export async function runSecretsPull(options: SecretsCommandOptions): Promise<vo
     if (key in existing && existing[key] !== newValue) {
       let overwrite = false;
       if (options.yes || options.dryRun) {
-        overwrite = options.yes; // --yes keeps AWS values (intentional); dry-run keeps both sides listed
+        overwrite = options.yes ?? false; // --yes keeps AWS values (intentional); dry-run keeps both sides listed
       } else if (process.stdin.isTTY) {
         overwrite = await confirm({
           message: `${key} differs from AWS value. Overwrite?`,
