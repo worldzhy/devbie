@@ -116,3 +116,4 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 |------|--------|------|----------|
 | 2026-11-03 | M1-A 日志泄露 | R3-P2-05 (people-finder 3 服务商)、R3-P2-06 (lark)、R3-G2-3 (provisioningError) | newbie-modules 812daab、nightwatch-backend 2d14dc4 |
 | 2026-11-03 | M1-B 资源泄漏 | R3-P2-04 (pdf)、R3-G1-2 (puppeteer)、R3-P2-23 (aws-secrets-cli)、R3-P2-30 (apits)、R3-P2-31 (health-sdk) | newbie-modules 1b3ed38、devbie 5fb03b53 |
+| 2026-11-03 | M1-C 注入防护 | R3-P2-02 (aws-sqs queueUrl)、R3-P2-03 (clickhouse DDL)、R3-P2-24 (fewbie registry path)、R3-P2-15 (shortcut URL scheme) | newbie-modules dd3fb1e、devbie 147ecb2c、nightwatch-backend bc02a6b、nightwatch-frontend ecfe6c3 |
