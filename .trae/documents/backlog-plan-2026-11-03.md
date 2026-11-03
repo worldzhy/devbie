@@ -144,6 +144,31 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 | workflow / stock-mgmt 空壳模块 | 2026-11-02 | artifact，保持现状不装配不补实现不移出 registry |
 | R3-P2-20 i18n 混用 + R3-25 关键流程测试缺位 | 2026-11-03 | 长期工程门禁，非单点修复；需定策略后独立启动 |
 
+### Wave 6 i18n（2026-11-03 下午启动，拆分推进）
+
+产品决策：非 jdy 模块中/英切换，jdy 只支持中文（硬编码豁免）。
+
+| 阶段 | 状态 | commit | 说明 |
+|------|------|--------|------|
+| P6-1a 骨架层 | ✅ 完成 | `caa791bf` + `b39d4985` | next-intl@4.14.9 + middleware + config + messages/{en,zh}.json + layout 改 Server Component + force-dynamic + html lang 动态 |
+| P6-1b 通用组件层 | ✅ 完成 | 同上 | confirm-dialog 默认按钮硬编码 → useTranslations("common") |
+| P6-1c 字典初始骨架 | ✅ 完成 | 同上 | messages/en.json + zh.json，common namespace 13 键 |
+| P6-1d fewbie-starter 模板同步 | ❌ 下次 | — | 模板层预置 i18n 骨架 |
+| P6-2 页面层迁移（214 处） | ❌ 下次 | — | 30 页面硬编码 → t("page.section.key") |
+| P6-3 字典全量填充 | ❌ 下次 | — | en/zh 各 200-300 key |
+
+**设计决策**：
+
+| 决策 | 替代路径 | 理由 |
+|------|---------|------|
+| 用 next-intl v4 而非 react-i18next | react-i18next | Next.js App Router 原生集成，server component 友好 |
+| force-dynamic 强制动态渲染 | 让 layout prerender | next-intl server API（getLocale/getMessages）需要 middleware request context，prerender 时 Turbopack 会把它们编译成 undefined |
+| jdy 豁免不抽 key | 全部抽 key 但字典里写中文硬编码 | jdy 是财务模块对接金蝶中文生态，切换英文无意义；硬编码豁免更直接 |
+| localePrefix: "as-needed" | 强制所有路径带前缀 | 默认语言（en）不加前缀，URL 干净；middleware 自动处理带前缀的重定向 |
+| 本次只做骨架 + confirm-dialog | 全量 214 处一起改 | 积分/时间拆分；通用组件先改能立即生效，页面层有了骨架后逐个抽 key 风险更低 |
+
+## Wave 6 关闭说明
+
 ### 本次 session 执行总结
 
 - **Wave 1-4**：2026-11-03 早间全部完成，25+ 次远端推送
