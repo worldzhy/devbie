@@ -118,4 +118,4 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 | 2026-11-03 | M1-B 资源泄漏 | R3-P2-04 (pdf)、R3-G1-2 (puppeteer)、R3-P2-23 (aws-secrets-cli)、R3-P2-30 (apits)、R3-P2-31 (health-sdk) | newbie-modules 1b3ed38、devbie 5fb03b53 |
 | 2026-11-03 | M1-C 注入防护 | R3-P2-02 (aws-sqs queueUrl)、R3-P2-03 (clickhouse DDL)、R3-P2-24 (fewbie registry path)、R3-P2-15 (shortcut URL scheme) | newbie-modules dd3fb1e、devbie 147ecb2c、nightwatch-backend bc02a6b、nightwatch-frontend ecfe6c3 |
 | 2026-11-03 | M1-D 授权缺口 | R3-P2-01 (api-key LRU TTL + UserStatus)、R3-G1-1 (tag/tag-group guard + DTO)、R3-G2-5 (chat-binding scope) | newbie-modules f8780fa、nightwatch-backend 2804d88 |
-| 2026-11-03 | M2 配置一致性 | R3-P2-09 (elasticsearch retries manifest 声明)、R3-P2-12 (people-finder batchId @unique + upsert) | newbie-modules pending |
+| 2026-11-03 | M2 配置一致性 + 跨仓契约 | R3-P2-09 (elasticsearch retries manifest)、R3-P2-12 (people-finder batchId @unique + upsert)、R3-P2-10 (web-monitor scope resolver projectId fallback)、R3-G2-1 (project create compensation chain)、R3-G2-2 (provisioning credential cache TTL + cap) | newbie-modules 0b5e2ec、nightwatch-backend 48d4dcd |
