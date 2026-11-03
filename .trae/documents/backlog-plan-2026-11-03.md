@@ -120,4 +120,43 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 | 2026-11-03 | M1-D 授权缺口 | R3-P2-01 (api-key LRU TTL + UserStatus)、R3-G1-1 (tag/tag-group guard + DTO)、R3-G2-5 (chat-binding scope) | newbie-modules f8780fa、nightwatch-backend 2804d88 |
 | 2026-11-03 | M2 配置一致性 + 跨仓契约 | R3-P2-09 (elasticsearch retries manifest)、R3-P2-12 (people-finder batchId @unique + upsert)、R3-P2-10 (web-monitor scope resolver projectId fallback)、R3-G2-1 (project create compensation chain)、R3-G2-2 (provisioning credential cache TTL + cap) | newbie-modules 0b5e2ec、nightwatch-backend 48d4dcd |
 | 2026-11-03 | M3 健壮性（devbie 3/3 + frontend 3/3） | R3-P2-25 (apits HTTP timeout)、R3-P2-28 (newbie drift hardcoded path → CONSUMER_MODULES_DIR + null on missing)、R3-P2-22 (aws-secrets-cli non-interactive conflicts throw)、R3-P2-18 (QueryClient useState + staleTime/gcTime)、R3-P2-17 (setTimeout(refetch) 竞态 → 声明式 queryKey 驱动)、R3-P2-19 (SSE fetch 接入 api-client 401 刷新链) | devbie 2072ffbc、nightwatch-frontend a6517f20 |
-| 2026-11-03 | M4 运维脚本安全（newbie-starter 4/6，ci timeout 待 workflow token） | R3-G4-1 (backup argv 密码 → env 传递)、R3-G4-2 (backup 持久目录 → mktemp + EXIT trap)、R3-G4-3 (render-env jq join("\n") → per-entry escape)、R3-G4-4 (backup.sh 两处 \|\| true → 显式 WARN)、[待推] G4-5/G4-6 模板 Dockerfile + test 骨架 | newbie-starter 981e14f |
+| 2026-11-03 | M4 运维脚本 + 模板基础设施（Wave 4 全量完成） | M4-A G4-1～G4-4（password env + mktemp + jq escape + 去掉 \|\| true）、M4-B G4-5/G4-6（两仓 Dockerfile + smoke test 骨架）、M4-C ci.yml timeout-minutes（newbie-starter + fewbie-starter + devbie release-check） | newbie-starter 981e14f + 后续推、fewbie-starter + devbie |
+| 2026-11-03 | Wave 5 关闭（4 条修 + 3 条用户拍板保持） | **已修**：R3-P2-11（RequireOwner 注释修正 dcb8bf23）、R3-P2-08（event-emitter lazy retention 034ad8ba）、R4-04/R4-09（VerdictCache + TTL + fetchedAt desc 16930cf）；**保持**：微信登录校验（待消费端）、workflow/stock-mgmt 空壳（artifact）、R3-P2-20 i18n + R3-25 测试门禁（长期工程门禁，非单点修复） | newbie-modules 16930cf + dcb8bf23 + 034ad8ba |
+
+---
+
+## Wave 5 关闭说明
+
+### 已修复（4 条）
+
+| 条目 | 原属 | 修复内容 | 提交 |
+|------|------|---------|------|
+| **R3-P2-11** RequireOwner 注释 | Wave 5 C | decorator JSDoc 从"admin 可绕过"修正为"故意无 admin bypass，impersonation-grade 必须显式授权"；match guard 注释与行为一致 | `dcb8bf23` |
+| **R3-P2-08** event-emitter 无保留期 | Wave 5 P2 | 框架层修：`record()` 前加 lazy `deleteMany({ emittedAt < now - N days })`，默认 30 天，`EVENT_EMISSION_RETENTION_DAYS` env 覆盖；无 @nestjs/schedule、无 migration | `034ad8ba` |
+| **R4-04** 负缓存键版本维度 | Wave 5 K | 路径 A 简化：给缓存加 TTL 7 天（NEGATIVE_CACHE_TTL_DAYS env 覆盖）——itemId 本身是 (source, externalId) dedup key 不存在版本维度，TTL 天然解决"模型升级后旧缓存失效" | `16930cf` |
+| **R4-09** fetchedAt asc 新条目饿死 | Wave 5 K | 双改：①排序 asc→desc 新条目优先预算；②NegativeCache 改名 VerdictCache 加 verdict 枚举（not-relevant/hard-hit），硬命中也写缓存做审计痕迹 | `16930cf` |
+
+### 用户拍板保持（3 条）
+
+| 条目 | 决策日期 | 理由 |
+|------|---------|------|
+| 微信登录无服务端校验 | 2026-10-31 | 待出现首个微信消费端再启动；风险留痕 |
+| workflow / stock-mgmt 空壳模块 | 2026-11-02 | artifact，保持现状不装配不补实现不移出 registry |
+| R3-P2-20 i18n 混用 + R3-25 关键流程测试缺位 | 2026-11-03 | 长期工程门禁，非单点修复；需定策略后独立启动 |
+
+### 本次 session 执行总结
+
+- **Wave 1-4**：2026-11-03 早间全部完成，25+ 次远端推送
+- **Wave 5**：4 条修复 + 3 条拍板保持 → 6 仓 backlog 硬修复条目全部清零
+- **框架仓改动**：newbie-modules schema 变更需宿主 `npx prisma db push`（nightwatch-backend 已验证）
+
+### 设计决策记录（本轮）
+
+| 决策 | 替代路径 | 理由 |
+|------|---------|------|
+| event-emitter 写时懒清理 | @nestjs/schedule cron | 框架不引入非必要定时依赖；写入频率与清理频率天然对齐 |
+| VerdictCache TTL 7 天而非 ruleSetVersion 穿透 | 缓存键加模型版本维度 | itemId 本身是 (source, externalId) dedup key 无版本维度；TTL 是框架对宿主的默认承诺，可覆盖 |
+| 硬命中写缓存但 filterUncached 只挡 not-relevant | 硬命中也挡 / 不写硬命中缓存 | 路径 A：审计痕迹存在、match service 职责不被击穿、entity set 动态需每次重算 |
+| fetchedAt asc→desc 而非双轨预算策略 | 新条目优先不影响老条目 | 老条目走 skippedByBudget 天然排队下次 run；ADR-037 D9.4 未规定截断方向 |
+| fewbie-starter 去 vitest 保留 tsx+node:test | 保持 vitest 与模板层统一 | 模板层只做 smoke gate 零额外依赖；host 仓可各自升级测试栈 |
+| RequireOwner 故意无 admin bypass | 注释声称 admin 可绕过 | impersonation-grade 权限（session/API key/2FA）不可被 admin 操纵 |
