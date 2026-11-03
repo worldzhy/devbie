@@ -1,6 +1,6 @@
 # ADR-009: 模板文件所有权注册表（31 文件全量分类）
 
-状态：已采纳（2026-10-21）
+状态：已采纳（2026-10-21）；修订 2026-11-03——未归类守卫改为模板仓 CI 显式 `NEWBIE_TEMPLATE_REGISTRY_COMPLETE=1` 开关，`newbie create` 复制门禁时移除该开关（评审 R5-11：业务树的 `src/application/**`、`modules.json`、装配产物不是模板资产，缺省守卫会让新项目 CI 变红）。
 日期：2026-10-21
 关联：承载 ADR-006 待拍板 #2（模板文件所有权分类）；收敛 6 个 legacy SKELETON_FILES 先于 ADR-006 里程碑存在的漂移；落地后 nightwatch ci.yml 漂移门从 `deploy/` scoped 恢复全量。
 
@@ -50,7 +50,7 @@ newbie-starter 全部 31 个跟踪文件显式分类（template-sync.ts 单一�
 | generated | 2 | 装配产物（modules.config.ts、modules.module.ts），不入同步比较 |
 | template-shipped-host-owned | 14 | 模板一次性分发，之后宿主自有、永不被覆盖 |
 
-**未归类的模板文件 = 守卫报错**（对齐 check-template-deps "unlisted=error" 模式），守卫跑在 newbie-starter CI。
+**未归类的模板文件 = 守卫报错**（对齐 check-template-deps "unlisted=error" 模式），守卫跑在 newbie-starter CI。守卫只在模板仓 CI 以 `NEWBIE_TEMPLATE_REGISTRY_COMPLETE=1` 开启；`newbie create` 从复制出的 `check:template` 脚本移除该变量，因为业务树的项目自有文件不属于模板资产（2026-11-03 修订，R5-11）。
 
 ### D5：工具链 dotfiles 分类
 

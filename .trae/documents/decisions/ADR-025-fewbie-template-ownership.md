@@ -1,6 +1,6 @@
 # ADR-025 fewbie 模板所有权与 `template sync`
 
-状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed）
+状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`）
 日期：2026-10-24
 前置：ADR-024（CLI 契约）、ADR-003（模板仓是模板真源）、ADR-012（fewbie 合入 devbie monorepo）
 Superseded by: ADR-029 —— 决策第 3 条的命令名由 `template sync` 改为 `template update`；所有权分类本体不变。
@@ -23,6 +23,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
    - 默认执行写入；`--dry-run` 只打印计划；`--check` 为门禁（有差异即非零退出，不写文件）。
    - 模板源：`--template-path <dir>` 用本地目录，`--template-ref <ref>` 从 fewbie-starter 的指定 ref 取，默认取模板仓默认分支。
    - `[paths...]` 为路径前缀过滤（如 `src/app/`）。
+   - `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`：模板仓库 CI 专用环境变量，断言模板树每个文件均在所有权清单；`fewbie create` 复制时从 `check:template` 脚本移除该变量——宿主业务文件不是模板资产（2026-11-03 评审 R5-09/R5-11）。
 4. **registry 项不纳入**：registry 安装的文件（`src/components/**`、`src/lib/query-client.ts` 等）由 `modules install` / `modules update` 管理，`template sync` 必须跳过，避免两套机制同时写同一文件。
 5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。
 
@@ -30,7 +31,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 
 | 类别 | 路径 | 理由 |
 |---|---|---|
-| framework-owned | `next.config.ts` | 构建配置，宿主改动会破坏框架约定 |
+| framework-owned | `next.config.ts` | 构建配置，宿主改动会破坏框架约定；2026-11-03 起含 `output: "standalone"`，与模板 Dockerfile 的 `.next/standalone` 契约对齐 |
 | framework-owned | `tsconfig.json` | TS 配置与 Next 版本锁步 |
 | framework-owned | `postcss.config.mjs` | Tailwind v4 管线 |
 | framework-owned | `eslint.config.mjs` | lint 规则集 |
@@ -42,11 +43,18 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | mixed | `src/app/globals.css` | 设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`）归框架；宿主可追加自有 token |
 | host-owned | `src/app/layout.tsx` | 承载宿主 Provider 组合（Theme/Query/WebMonitor）与 metadata |
 | host-owned | `src/app/page.tsx` | 宿主页面 |
+| host-owned | `src/app/favicon.ico` | 宿主品牌资源 |
 | host-owned | `src/components/**` | shadcn `ui/` 与 registry 安装项，宿主可改 |
+| host-owned | `src/i18n/**` | 语言配置与文案，宿主可按产品增删 |
+| host-owned | `src/smoke.test.ts` | 宿主冒烟测试 |
 | host-owned | `package.json` | 依赖由宿主演进，registry 安装会追加依赖 |
 | host-owned | `README.md` | 宿主项目说明 |
 | host-owned | `next-env.d.ts` | Next 生成物 |
 | host-owned | `AGENTS.md` / `CLAUDE.md` | agent 指令文件，由 `next dev` 或宿主维护 |
+| host-owned | `.gitignore` | 宿主自行忽略项（模板一次性分发） |
+| host-owned | `.githooks/**` | 宿主提交钩子（模板一次性分发） |
+| host-owned | `.github/**` | 宿主 CI / dependabot 配置（模板一次性分发） |
+| host-owned | `Dockerfile` / `.dockerignore` | 镜像配方由宿主按环境分层演进（模板一次性分发；standalone 契约在 `next.config.ts`） |
 
 明确取舍：`layout.tsx` 不纳入覆盖，因此模板对根布局的改进需要宿主人工移植；换来的是宿主 Provider 接线不会被同步覆盖。
 
