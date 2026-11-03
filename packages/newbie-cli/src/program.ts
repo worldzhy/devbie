@@ -223,6 +223,9 @@ export function buildProgram(): Command {
           templatePath: flags.templatePath as string | undefined,
           templateRef: flags.templateRef as string | undefined,
           check: Boolean(flags.check),
+          // Template-repository CI opts in via env; a created project's copied
+          // gate must not inherit it (see `create`).
+          registryComplete: process.env.NEWBIE_TEMPLATE_REGISTRY_COMPLETE === "1",
           paths,
         }),
       );

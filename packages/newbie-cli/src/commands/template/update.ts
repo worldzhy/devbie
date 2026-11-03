@@ -22,6 +22,12 @@ export interface TemplateUpdateOptions extends GlobalOptions, TemplateReference 
   /** CI gate mode: print the diff and exit non-zero when anything drifts. */
   check?: boolean;
   /**
+   * Assert every template file is classified (ADR-009 D4 unlisted = error).
+   * Template repository CI opts in; a created project keeps its own business
+   * files, which are not template assets, so its copied gate must not run this.
+   */
+  registryComplete?: boolean;
+  /**
    * Restrict the update scope to template files under these path prefixes
    * (e.g. ["deploy/"] guards only the ADR-006 deploy assets in CI).
    * Empty/undefined means every updatable template file.
@@ -99,8 +105,9 @@ async function assertTemplateRegistryComplete(templateRoot: string): Promise<voi
   const unclassified = findUnclassifiedTemplateFiles(await listTemplateFiles(templateRoot));
   if (unclassified.length === 0) return;
   throw new CliError(
-    `Template file(s) missing from the ownership registry (ADR-009 D4):\n  - ${unclassified.join("\n  - ")}\n` +
-      "Classify each one in TEMPLATE_FILES (packages/newbie-cli/src/core/template-update.ts).",
+    `Template repository defect: template file(s) missing from the ownership registry (ADR-009 D4):\n` +
+      `  - ${unclassified.join("\n  - ")}\n` +
+      "Classify each one in TEMPLATE_FILES (packages/newbie-cli/src/core/template-update.ts) in the template repository.",
   );
 }
 
@@ -138,15 +145,18 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
   }
 
   try {
-    await assertTemplateRegistryComplete(template.root);
+    if (options.registryComplete) await assertTemplateRegistryComplete(template.root);
 
     if (await isSelfComparison(template.root, cwd)) {
-      console.info(green(bold("✓ Ownership registry is complete for every template file.")));
+      if (options.registryComplete) {
+        console.info(green(bold("✓ Ownership registry is complete for every template file.")));
+      }
       console.warn(
         yellow(
           "Template source is the project root itself, so content drift cannot be detected by comparing a tree " +
-            "with itself. This run only enforced the ownership registry; drift gates belong in consuming projects " +
-            "(`newbie template update --check --template-ref <ref>`).",
+            "with itself. This run only enforced " +
+            (options.registryComplete ? "the ownership registry and overlap guards" : "the ownership-overlap guard") +
+            "; drift gates belong in consuming projects (`newbie template update --check`).",
         ),
       );
       return;

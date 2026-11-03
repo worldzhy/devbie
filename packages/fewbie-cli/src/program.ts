@@ -186,6 +186,9 @@ export function buildProgram(): Command {
         ...globals(this),
         paths,
         check: Boolean(flags.check),
+        // Template-repository CI opts in via env; a created project's copied
+        // gate must not inherit it (see `create`).
+        registryComplete: process.env.FEWBIE_TEMPLATE_REGISTRY_COMPLETE === "1",
         templatePath: flags.templatePath as string | undefined,
         templateRef: flags.templateRef as string | undefined,
       });

@@ -134,4 +134,23 @@ describe("fewbie template update", () => {
     assert.ok(await fs.stat(path.join(project, "src/lib/utils.ts")));
     assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// host next config\n");
   });
+
+  it("fails template-repository CI when a template file is unclassified", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await writeFile(template, "docs/new.md", "# New\n");
+
+    await assert.rejects(
+      runTemplateUpdate({ cwd: project, templatePath: template, check: true, registryComplete: true }),
+      /missing from the ownership registry/,
+    );
+    // Business files in a created project are not template assets, so a
+    // converged project's copied gate (no flag) stays green.
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    await runTemplateUpdate({ cwd: project, templatePath: template, check: true });
+  });
 });

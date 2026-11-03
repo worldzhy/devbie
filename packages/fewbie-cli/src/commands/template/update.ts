@@ -6,6 +6,8 @@ import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../regi
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
   assetMarkers,
+  findUnclassifiedTemplateFiles,
+  isTemplateScanIgnored,
   planTemplateUpdate,
   SYNCABLE_ASSETS,
   TemplateAsset,
@@ -21,6 +23,12 @@ export interface TemplateUpdateOptions {
   paths?: string[];
   /** CI gate: print the diff and exit non-zero when anything drifts. */
   check?: boolean;
+  /**
+   * Assert every template file is classified (ADR-025: unlisted = error).
+   * Template repository CI opts in; a created project keeps its own business
+   * files, which are not template assets, so its copied gate must not run this.
+   */
+  registryComplete?: boolean;
   dryRun?: boolean;
   templatePath?: string;
   templateRef?: string;
@@ -67,6 +75,42 @@ async function isSelfComparison(templateRoot: string, projectRoot: string): Prom
   }
 }
 
+/** POSIX-style paths of every file the template ships, excluding runtime output. */
+async function listTemplateFiles(root: string): Promise<string[]> {
+  const found: string[] = [];
+
+  async function walk(relativeDir: string): Promise<void> {
+    const entries = await fs.readdir(path.join(root, relativeDir), { withFileTypes: true });
+    for (const entry of entries) {
+      const relativePath = relativeDir === "" ? entry.name : `${relativeDir}/${entry.name}`;
+      if (entry.isDirectory()) {
+        if (isTemplateScanIgnored(relativePath)) continue;
+        await walk(relativePath);
+      } else if (entry.isFile() && !isTemplateScanIgnored(relativePath)) {
+        found.push(relativePath);
+      }
+    }
+  }
+
+  await walk("");
+  return found;
+}
+
+/**
+ * ADR-025 guard: every template file must be classified in the ownership
+ * registry (unclassified = error). Runs against the template tree, so the
+ * template repository's CI catches a newly added, unclassified file before it
+ * reaches any host.
+ */
+async function assertTemplateRegistryComplete(templateRoot: string): Promise<void> {
+  const unclassified = findUnclassifiedTemplateFiles(await listTemplateFiles(templateRoot));
+  if (unclassified.length === 0) return;
+  throw new CliError(
+    `Template file(s) missing from the ownership registry (ADR-025):\n  - ${unclassified.join("\n  - ")}\n` +
+      "Classify each one in TEMPLATE_ASSETS (packages/fewbie-cli/src/lib/template-ownership.ts).",
+  );
+}
+
 function printChange(change: TemplateChange): void {
   if (change.kind === "missing-markers") {
     const markers = assetMarkers(change.asset);
@@ -101,6 +145,8 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
     console.info(cyan(`Template source: ${template.source}`));
     if (scope) console.info(cyan(`Scope: ${scope} (${assets.length} template files)`));
 
+    if (options.registryComplete) await assertTemplateRegistryComplete(template.root);
+
     const registryTargets = await collectRegistryTargets();
     const overlap = assets.filter((asset) => registryTargets.has(asset.path));
     if (overlap.length > 0) {
@@ -111,12 +157,15 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
     }
 
     if (await isSelfComparison(template.root, projectRoot)) {
-      console.info(green(bold("✓ No template/registry ownership overlap.")));
+      if (options.registryComplete) {
+        console.info(green(bold("✓ Ownership registry covers every template file")));
+      }
       console.warn(
         yellow(
           "Template source is the project root itself, so content drift cannot be detected by comparing a tree " +
-            "with itself. This run only enforced the ownership-overlap guard; drift gates belong in consuming " +
-            "projects (`fewbie template update --check --template-ref <ref>`).",
+            "with itself. This run only enforced " +
+            (options.registryComplete ? "the ownership registry and overlap guards" : "the ownership-overlap guard") +
+            "; drift gates belong in consuming projects (`fewbie template update --check`).",
         ),
       );
       return;

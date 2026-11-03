@@ -25,7 +25,17 @@ async function writeTemplateFixture(root: string): Promise<void> {
   await fs.mkdir(path.join(root, "src", "app"), { recursive: true });
   await fs.writeFile(
     path.join(root, "package.json"),
-    JSON.stringify({ name: "fewbie-basic-template", version: "0.1.0" }, null, 2),
+    JSON.stringify(
+      {
+        name: "fewbie-basic-template",
+        version: "0.1.0",
+        scripts: {
+          "check:template": "FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1 fewbie template update --check --template-path .",
+        },
+      },
+      null,
+      2,
+    ),
   );
   await fs.writeFile(path.join(root, ".env.example"), "HEARTBEAT_ENDPOINT=\n");
   await fs.writeFile(path.join(root, "src", "app", "page.tsx"), "export default function Page() { return null; }\n");
@@ -56,8 +66,14 @@ describe("runCreate", () => {
     await runCreate({ name: "my-app", cwd: parent, gitInit: false, templatePath: templateDir });
 
     const target = path.join(parent, "my-app");
-    const pkg = JSON.parse(await fs.readFile(path.join(target, "package.json"), "utf8")) as { name?: string };
+    const pkg = JSON.parse(await fs.readFile(path.join(target, "package.json"), "utf8")) as {
+      name?: string;
+      scripts?: Record<string, string>;
+    };
     assert.equal(pkg.name, "my-app");
+    // The template repository's registry-completeness gate must not demand
+    // that the project's own business files be classified.
+    assert.equal(pkg.scripts?.["check:template"], "fewbie template update --check --template-path .");
     const declaration = JSON.parse(await fs.readFile(path.join(target, "fewbie.json"), "utf8")) as {
       modules?: string[];
     };
