@@ -15,17 +15,22 @@ export async function runCheck(indicators: NamedHealthIndicator[], timeoutMs = 1
 
   const entries = await Promise.all(
     indicators.map(async ({ name, check }): Promise<{ name: string; entry: HealthIndicatorEntry }> => {
+      let timeoutHandle: NodeJS.Timeout | undefined;
       try {
         const entry = await Promise.race<Promise<HealthIndicatorEntry>>([
           check(),
-          new Promise<HealthIndicatorEntry>((_, reject) =>
-            setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs),
-          ),
+          new Promise<HealthIndicatorEntry>((_, reject) => {
+            timeoutHandle = setTimeout(() => reject(new Error(`timeout after ${timeoutMs}ms`)), timeoutMs);
+          }),
         ]);
         return { name, entry };
       } catch (err) {
         const message = (err as Error)?.message ?? String(err);
         return { name, entry: { status: "down", message } };
+      } finally {
+        // If the indicator resolved before the timeout, clear the dangling
+        // timer so it does not fire and reject into the void.
+        if (timeoutHandle) clearTimeout(timeoutHandle);
       }
     }),
   );

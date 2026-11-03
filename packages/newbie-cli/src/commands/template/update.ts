@@ -5,12 +5,10 @@ import { bold, cyan, green, yellow } from "colorette";
 import {
   findUnclassifiedTemplateFiles,
   frameworkMarkers,
+  isTemplateScanIgnored,
   isUpdatableTemplateFile,
   planTemplateUpdate,
   TEMPLATE_FILES,
-  TEMPLATE_SCAN_IGNORED_DIRECTORIES,
-  TEMPLATE_SCAN_IGNORED_FILES,
-  TEMPLATE_SCAN_IGNORED_SUFFIXES,
   TemplateChange,
   TemplateFile,
 } from "../../core/template-update";
@@ -56,15 +54,6 @@ async function readOrNull(root: string, rel: string): Promise<string | null> {
   }
 }
 
-/** True for runtime outputs and per-project files excluded from the guard. */
-function isScanIgnored(relPath: string): boolean {
-  const segments = relPath.split("/");
-  if (segments.some((segment) => TEMPLATE_SCAN_IGNORED_DIRECTORIES.has(segment))) return true;
-  const base = segments[segments.length - 1];
-  if (TEMPLATE_SCAN_IGNORED_FILES.has(base)) return true;
-  return TEMPLATE_SCAN_IGNORED_SUFFIXES.some((suffix) => base.endsWith(suffix));
-}
-
 /** POSIX-style paths of every file the template ships, excluding runtime output. */
 async function listTemplateFiles(root: string): Promise<string[]> {
   const found: string[] = [];
@@ -74,9 +63,9 @@ async function listTemplateFiles(root: string): Promise<string[]> {
     for (const dirent of dirents) {
       const relPath = relDir === "" ? dirent.name : `${relDir}/${dirent.name}`;
       if (dirent.isDirectory()) {
-        if (TEMPLATE_SCAN_IGNORED_DIRECTORIES.has(dirent.name)) continue;
+        if (isTemplateScanIgnored(relPath)) continue;
         await walk(relPath);
-      } else if (dirent.isFile() && !isScanIgnored(relPath)) {
+      } else if (dirent.isFile() && !isTemplateScanIgnored(relPath)) {
         found.push(relPath);
       }
     }

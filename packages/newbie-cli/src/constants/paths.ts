@@ -9,6 +9,8 @@
 
 export const MODULES_MODULE_TS = "src/modules/modules.module.ts";
 export const MODULES_CONFIG_TS = "src/modules/modules.config.ts";
+/** Where newbie-assembled modules live inside the consuming project. */
+export const CONSUMER_MODULES_DIR = "src/modules";
 
 export const PRISMA_SCHEMA_MAIN = "prisma/schema.prisma";
 export const PRISMA_SCHEMA_MODELS_DIR = "prisma/models";

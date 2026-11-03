@@ -11,9 +11,15 @@ on:
   push:
     branches: [main]
 
+# Cancel superseded runs for the same ref.
+concurrency:
+  group: release-check-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   template-drift:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

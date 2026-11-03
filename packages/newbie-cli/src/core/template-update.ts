@@ -138,7 +138,10 @@ const UPDATABLE_FILES: readonly TemplateFile[] = TEMPLATE_FILES.filter(isUpdatab
 
 /**
  * Directories and file names excluded from the unclassified-file guard:
- * runtime outputs, VCS metadata and the per-project lockfile.
+ * runtime outputs, VCS metadata, the per-project lockfile and the
+ * agent-session backlog (`.trae/documents/backlog.md`, a workspace process
+ * ledger that exists in the template repo but is not a shipped template
+ * asset — create.ts COPY_IGNORE keeps it out of new projects).
  */
 export const TEMPLATE_SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   ".git",
@@ -150,8 +153,22 @@ export const TEMPLATE_SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   "generated",
   "node_modules",
 ]);
-export const TEMPLATE_SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([".DS_Store", ".env", "package-lock.json"]);
+export const TEMPLATE_SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([
+  ".DS_Store",
+  ".env",
+  "backlog.md",
+  "package-lock.json",
+]);
 export const TEMPLATE_SCAN_IGNORED_SUFFIXES: readonly string[] = [".tsbuildinfo"];
+
+/** True for runtime outputs and per-project files excluded from the guard. */
+export function isTemplateScanIgnored(relPath: string): boolean {
+  const segments = relPath.split("/");
+  if (segments.some((segment) => TEMPLATE_SCAN_IGNORED_DIRECTORIES.has(segment))) return true;
+  const base = segments[segments.length - 1];
+  if (TEMPLATE_SCAN_IGNORED_FILES.has(base)) return true;
+  return TEMPLATE_SCAN_IGNORED_SUFFIXES.some((suffix) => base.endsWith(suffix));
+}
 
 /**
  * Template files absent from the ownership registry (ADR-009 D4: unlisted =
