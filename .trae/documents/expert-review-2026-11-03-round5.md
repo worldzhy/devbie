@@ -51,6 +51,8 @@
 
 本轮新增：P0 × 2、P1 × 10、P2 × 17（含 6 条 registry 模块级 P2）。上一轮 open 的 R4-04 / R4-09 仍在生产宿主上成立。
 
+> 复核后计数（§12）：P0 × 2、P1 × 9、P2 × 21（含 2 项 withdrawn）。R5-06/R5-08 降级，新增 R5-13；§2 的「8 个漂移」应读作 7（空目录已按 §7 剔除）。
+
 ---
 
 ## 4. P0
@@ -218,3 +220,81 @@
 - 本轮台账：`devbie/.trae/documents/findings.md`（R5-01…R5-P2-21）
 - 模块级台账（含 R4-04/R4-09 状态订正）：`newbie-modules/.trae/documents/findings.md`
 - 上一轮：`newbie-modules/.trae/documents/expert-review-2026-10-31-round4.md`、`devbie/.trae/documents/expert-review-2026-10-31-round3.md`
+
+---
+
+## 12. 复核轮（专家模式评审以上结论，2026-11-03）
+
+**锚点（复核时重取）**：devbie `dcc285b`、newbie-modules `ec1fe50`、newbie-starter `e13cd47`、fewbie-starter `d2b7dd1`、nightwatch-backend `83a89b9`、nightwatch-frontend `5b76fd5`，六仓工作树干净、与 origin 同步；worldzhy-knowledge `a9d55c0` dirty 3（运行时 session memory，预期）。本节是对 §4–§8 的裁决，不改写正文快照；被推翻/收窄处以本节为准。
+
+复核顺序按 §5：先证伪不变量（§12.2），再逐条对照源码做反驳轮，最后看定级是否与证据匹配。子代理结论不直接采信，凡列入下表者均由主会话重新打开对应文件核对。
+
+### 12.1 裁决表
+
+| ID | 裁决 | 定级 | 复核依据与改动 |
+|---|---|---|---|
+| R5-01 | **CONFIRMED（收窄）** | P0 维持 | 字面量密钥与 env 从不被读取的主结论逐行复核成立。**子结论 3 撤回**：`POST /auth/logout` 的 `userId` 只来自调用者自己的 access token（[logout.controller.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/account/auth/logout.controller.ts#L26-L36)），路由无 `:userId` 参数，无法指定受害者，「可重置他人登录限流」不成立；该端点本就无越权面。§5 复现路径第 3 条删除。 |
+| R5-02 | **CONFIRMED** | P0 维持 | `@RequireOwner()` 在无 `:userId` 路由上恒真（[ownership.guard.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/security/authorization/ownership.guard.ts#L41-L51)）；Copilot 写路径无成员校验、`approveTask` 同文件却校验 `ProjectMember`——策略不一致复核定论成立。 |
+| R5-03 | **CONFIRMED（补强）** | P1 维持 | `listProjects`/`listApplications` 无 `userId` 过滤（[project.datasource.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/copilot/skills/datasource/project.datasource.ts#L28-L113)），返回值含 `repositoryUrl`/`provisioningStatus`；`repositoryUrl` 仅在 `isRepositoryAccessible` 为假时掩码，不等于授权隔离。REST `listProjects` 按成员过滤的对照仍然成立，代码内 OQ-1 注释与 REST 事实矛盾这一点保留。 |
+| R5-04 | **PARTIAL** | P1 维持 | 结论主体成立（四个 namespace 展开为全模型×全动作，且不在 [host-scoped-resources.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/authorization/host-scoped-resources.ts#L13-L24)）。**可达角色表述修正**：删去「内置默认组织成员」——自助注册不分配任何系统角色（[auth.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/account/auth/auth.service.ts#L168-L186) 注释指向 ADR-040），可达者是「被授予 MEMBER/OPERATOR 系统角色且为某项目成员的用户」，不是任意新注册用户。 |
+| R5-05 | **PARTIAL** | P1 维持 | 真实漂移 **7 个**（account、clickhouse、lark、shortcut、security、event-emitter、security-evaluation；`aws-secrets-manager` 空目录不计）。三处收窄：①account 的「停用用户 key 无限期通过」在宿主**不 live**——`api-key.verifier.ts` 两仓逐字节相同，且缓存函数 `getApiKeyFromKey` 全仓无调用方（见 N-1）；②lark 差异为日志级别 `info→debug` 与 `messageId` 字段，不是「日志脱敏」；③security 差异仅为 `require-owner.decorator.ts` 注释陈旧，无行为差。clickhouse 标识符引号化未装配是**真实 live 风险**，已独立升级为 R5-13。shortcut 白名单未回写成立。 |
+| R5-06 | **PARTIAL（降级）** | **P1 → P2** | 原「不校验内容一致性」表述错误：check 模式下 `sink.writeText` 对每个将写入的文件做**逐字节比对**并 push `differs`/`missing`（[sink.ts](file:///Users/worldzhy/src/devbie/packages/newbie-cli/src/lib/sink.ts#L56-L78)）。真实缺口是：check 只比对「生成物 vs 已安装文件」，不比对「已安装集 vs registry 当前内容」，因此检测不到 R5-05 型漂移；外加 dry-run 下 `reportIssue` 不写 issue bag（[issues.ts](file:///Users/worldzhy/src/devbie/packages/newbie-cli/src/lib/issues.ts#L36-L41)，属于有意的 dry-run 语义）。后果与 R5-05 重叠，降 P2 并改写标题。 |
+| R5-07 | **CONFIRMED** | P1 维持 | [cli.ts](file:///Users/worldzhy/src/devbie/packages/apits/src/cli.ts#L355-L400) config/生成失败均 `logger.error + return`，包内无 `process.exit`/`exitCode`。 |
+| R5-08 | **PARTIAL（降级）** | **P1 → P2** | 行为成立（非交互无 `--yes` 时 `continue` 后仍打印 `Done!`、help 文案与覆盖语义相反）。但宿主 `deploy.yml` 只执行 `npx newbie secrets check -e production`，**没有 `secrets push` 步骤**（[deploy.yml](file:///Users/worldzhy/src/nightwatch-backend/.github/workflows/deploy.yml#L54)），不存在「CI 绿而 secret 未更新」的 live 路径，降为开发者/运维工具语义缺陷。 |
+| R5-09 | **CONFIRMED** | P1 维持 | framework 文件整文件覆盖（[template-ownership.ts](file:///Users/worldzhy/src/devbie/packages/fewbie-cli/src/lib/template-ownership.ts#L48)、[update.ts](file:///Users/worldzhy/src/devbie/packages/fewbie-cli/src/commands/template/update.ts#L170)）与模板 Dockerfile 依赖 `standalone` 的矛盾仍在。 |
+| R5-10 | **CONFIRMED** | P1 维持 | Dockerfile 缺 `/deploy`、`prisma/`、tsx，`--omit=dev` 与 `postgres-migrate`/`db-seed` 冲突。 |
+| R5-11 | **CONFIRMED（收窄）** | P1 维持 | `.github/` 被 `create` 复制、且自比较前即 `assertTemplateRegistryComplete` 成立。收窄为触发源：宿主新增 `src/application/**`、`src/modules/<key>/**`、`modules.json`；不宣称所有业务文件都会触发。 |
+| R5-12 | **CONFIRMED** | P1 维持 | 仅 `fromCommit && !force` 时比对 pristine；pin 不可得 → `update-available` → `rm`+`copy` → `localPatches` 清空（[update.ts](file:///Users/worldzhy/src/devbie/packages/newbie-cli/src/commands/modules/update.ts#L71-L116)）。 |
+| R5-P2-02 | **PARTIAL** | P2 维持 | `link` 无协议约束降为**契约不对称**（同 DTO 的 `projectId` 读侧 `@IsUUID`、写侧仅 `@IsString`），不单列为安全项。 |
+| R5-P2-15 | **PARTIAL** | P2 维持 | 删除「`style-guide` 连 build 步骤也没有」——该包只跑 `node --test`，不需要 build。漏跑两个测试套件的事实成立。 |
+| R5-P2-17 | **PARTIAL（补强）** | P2 维持 | 补充：`template update` 自比较先打印绿色 ✓ 再 warning 后 return 0，输出顺序进一步掩盖空转。 |
+| R5-P2-19 | **PARTIAL（收窄）** | P2 维持 | `"*"` 通配只存在于 `@devbie/fewbie-cli` 依赖（fewbie-starter），不是全仓现象。 |
+| R5-P2-21 | **WITHDRAWN** | — | 评审收口后并行会话已推送，PENDING_PUSH 现象消失（台账已标 withdrawn）。 |
+
+### 12.2 §8 不变量措辞修订
+
+不变量本身全部仍成立，但四处表述与实现不符，按复核结果改写（§8 正文保留原样，以本节为准）：
+
+1. **第 2 条**（analysis 隔离）：不是「拒绝多表」。实现**支持 JOIN 与逗号多表**，条件是每张表都自带隔离谓词；拒绝的是 OR、子查询、未知表、越界字面量与引号标识符（[query-isolation.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/analysis/query-isolation.ts#L316-L346)、[:456-L521](file:///Users/worldzhy/src/nightwatch-backend/src/application/analysis/query-isolation.ts#L456-L521)）。
+2. **第 6 条**（登录审计）：限定为「**清单内**登录入口」。`LOGIN_ENTRY_FILES` 是静态清单，新增登录入口若未登记就不会被契约测试覆盖。
+3. **第 7 条**（url-check）：改为「多层防护 + 显式接受 DNS rebinding TOCTOU 残余」——协议白名单、私网/元数据拦截、解析后复检、超时均存在，但解析与连接之间的重绑定窗口未消除。另：clickhouse 标识符引号化**只在 registry**，宿主未装配，故不构成宿主不变量（见 R5-13）。
+4. **第 8 条**（部署脚本）：改为「所有可执行入口脚本」。`deploy/scripts/lib.sh` 被 `source` 而不独立执行，其 `set -euo pipefail` 不构成入口级保证。
+
+### 12.3 复核新增结论
+
+#### R5-13 ClickHouse 标识符注入：宿主未引号化 + web-monitor 的 `appId` 无校验（live）
+
+**证据**
+- registry 已加白名单 + 引号化：`IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/`，`quoteIdentifier` 对不匹配者直接抛错（[clickhouse.service.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/clickhouse/clickhouse.service.ts#L11-L24)），`DESCRIBE`/`CREATE`/`ALTER` 全部走 `quoteTable`（[:L120](file:///Users/worldzhy/src/newbie-modules/packages/modules/clickhouse/clickhouse.service.ts#L120)、[:L187](file:///Users/worldzhy/src/newbie-modules/packages/modules/clickhouse/clickhouse.service.ts#L187)）。
+- 宿主副本仍是裸插值：`DESCRIBE TABLE ${table}`、`CREATE TABLE IF NOT EXISTS ${table}`、`ALTER TABLE ${table}`（[clickhouse.service.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/clickhouse/clickhouse.service.ts#L101)、[:L142-L148](file:///Users/worldzhy/src/nightwatch-backend/src/modules/clickhouse/clickhouse.service.ts#L142-L148)、[:L167](file:///Users/worldzhy/src/nightwatch-backend/src/modules/clickhouse/clickhouse.service.ts#L167)）。
+- 攻击者可控的表名来源：`saveSiteData` 直接取 `body.appId`，无 DTO、无字符集校验（[site.service.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/web-monitor/modules/site/site.service.ts#L40)）；查询侧同样直接吃 query 里的 `appId`（[ajax.controller.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/web-monitor/modules/web/ajax.controller.ts#L22-L42)），进入 `WebAjax(appId)` → `tableName: schema.tableName + appId`（[ajax.ts](file:///Users/worldzhy/src/newbie-modules/packages/modules/web-monitor/models/clickhouse/web/ajax.ts#L34-L49)）→ `createModel` → 宿主裸插值 DDL。
+- **授权可达性**：`WebMonitorSite` 在 [host-scoped-resources.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/authorization/host-scoped-resources.ts#L23)；resolver 用 `appId` 查 `WebMonitorInstallation.appKey`，查不到再退 `projectId`，两者都无则返回 `{type:"none"}`（[scope-resolvers.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/authorization/scope-resolvers.ts#L204-L232)）。ajax 路由既不带 `projectId` 也要求 `appId` 必填 → 攻击者传入**不存在的任意 appId** 时 scope=`none`，只剩系统级权限；而 Projects 权限组已把 `module/web-monitor` 展开为全动作（[permission-groups.ts](file:///Users/worldzhy/src/nightwatch-backend/prisma/seeds/permission-groups.ts#L96-L119)），项目 `Create/Update` 门槛为 EDITOR（[scope-role-permission.matrix.ts](file:///Users/worldzhy/src/nightwatch-backend/src/application/authorization/scope-role-permission.matrix.ts#L125-L131)）。
+
+**可达角色 / 暴露面**：被授予 MEMBER/OPERATOR 系统角色、且为任一项目 EDITOR 及以上者；无需先建站，直接 `GET /web-monitor/ajax/getAverageAjaxList?appId=<payload>` 即可触发表名拼接。live（宿主运行旧副本）。
+
+**影响**：跨表读写/DDL 注入进入共享 ClickHouse（`DESCRIBE` 可被 `FORMAT`/子查询变体改写探测、`CREATE TABLE IF NOT EXISTS` 可用注入片段指定引擎或 `AS SELECT` 读取其他表），最低可造成监控表损坏与命名空间污染；不涉及宿主任意文件写入（未验证）。
+
+**修复方向**：不是在本轮修 host——按 registry-first 执行 `newbie modules update` 拉齐 clickhouse 副本（R5-05），并在 `saveSiteData`/ajax DTO 上加 `^[A-Za-z0-9_-]{1,64}$` 文档化约束；两者缺一不可（引号化拦注入，DTO 拦脏数据）。
+
+#### N-1（P2，artifact）R5-05 的 account「修复」放错层，verifier 端口未改
+
+registry 的 owner-active + LRU TTL 落在 `api-key.service.ts` 的缓存函数，而同一模块的 `security-ports/api-key.verifier.ts` 两仓**逐字节相同**且不做 owner 状态校验；`getApiKeyFromKey` 全仓无调用方。结论：不是「宿主落后」，而是修复未触及真实校验路径；R5-05 中原有的 live 判定撤销，改为 artifact，待 API-key 通道启用前补齐。
+
+#### N-2（P2，source）drift 基线用的是 registry 工作树而非 `sourceCommit` pin
+
+[module-source-drift.ts](file:///Users/worldzhy/src/devbie/packages/newbie-cli/src/assemble/module-source-drift.ts#L43-L47) 以 registry 当前工作树为 baseline，`sourceCommit` 为 `null` 时直接 `continue`（[:L67-L70](file:///Users/worldzhy/src/devbie/packages/newbie-cli/src/assemble/module-source-drift.ts#L67-L70)，`1420529` 引入）。后果：本地 registry 有未提交改动时，drift 判定随工作树漂移，且 `modules.json` 的 `sourceCommit` 没有任何强制校验——R5-05 的取证可复现性依赖人工核对，不依赖门禁。
+
+### 12.4 提出但未取证的候选（不升级定级）
+
+| 候选 | 处理 |
+|---|---|
+| Copilot `list_projects` 泄露 AWS 绑定字段（`awsAccountId`/`roleArn`/`regions`） | 本轮只复核到 `repositoryUrl`/`provisioningStatus` 泄露；AWS 字段未逐行取证，登记为待验证候选，不并入 R5-03 正文 |
+| `externalRef` 由客户端填写导致可伪造遥测写入 | 未核对 installation 创建路径的 DTO 与写入点，登记为待验证候选，不并入 R5-04 正文 |
+
+### 12.5 复核后结论
+
+- P0 仍为 2：R5-01（收窄，匿名邮箱验证伪造 + 成员子网接管）、R5-02（Copilot 跨项目写）。
+- P1 由 10 调整为 9：R5-06、R5-08 降 P2；新增 R5-13（ClickHouse 标识符注入，live）。
+- P2 由 17 调整为 21：+R5-06、+R5-08、+N-1、+N-2（其中 R5-P2-21 仍为 withdrawn）。
+- 修复顺序不变，但第 3 步必须包含 R5-13：先对齐 clickhouse 副本再谈 DTO 收口；R5-06 的检查改为「把已安装集与 registry 比对」而不是「复核 sink 是否比对内容」。
+- 复核未发现任何 P0 误报，也未发现需要撤回的 P1 主结论；所有调整都是定级或表述层面的收紧。
