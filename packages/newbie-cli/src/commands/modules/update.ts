@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import figlet from "figlet";
 import { checkbox, select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse, yellow } from "colorette";
@@ -15,7 +18,7 @@ import { assertInteractive, isInteractive } from "../../lib/interactive";
 
 import { createContext, GlobalOptions } from "../shared";
 
-type UpdateStatus = "missing" | "missing-in-registry" | "drifted" | "update-available" | "up-to-date";
+type UpdateStatus = "missing" | "missing-in-registry" | "drifted" | "unpinned" | "update-available" | "up-to-date";
 
 interface UpdateInspection {
   key: string;
@@ -87,20 +90,29 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     }
 
     // Guard local customisation: compare the copy with its pinned pristine tree.
-    if (fromCommit && !options.force) {
+    // Without a pin (or with a pin the local clone cannot serve) the guard has
+    // no baseline, so the update must not silently overwrite host edits: treat
+    // that as drift and require an explicit --force.
+    if (!options.force) {
+      if (!fromCommit) {
+        inspections.push({ ...base, status: "unpinned" });
+        continue;
+      }
       const pristine = await snapshotPristineModule(registry, key, fromCommit);
-      if (pristine) {
-        const installed = await snapshotInstalledModule(cwd, key);
-        if (installed) {
-          const drift = diffSnapshots(installed, pristine);
-          if (!drift.clean) {
-            inspections.push({
-              ...base,
-              status: "drifted",
-              patchIds: driftPatchIds(drift),
-            });
-            continue;
-          }
+      if (!pristine) {
+        inspections.push({ ...base, status: "unpinned" });
+        continue;
+      }
+      const installed = await snapshotInstalledModule(cwd, key);
+      if (installed) {
+        const drift = diffSnapshots(installed, pristine);
+        if (!drift.clean) {
+          inspections.push({
+            ...base,
+            status: "drifted",
+            patchIds: driftPatchIds(drift),
+          });
+          continue;
         }
       }
     }
@@ -130,6 +142,12 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
       console.info(
         yellow(
           `[skip] ${result.key}: local changes detected (${result.patchIds.length} file(s)); re-run with --force to overwrite.`,
+        ),
+      );
+    } else if (result.status === "unpinned") {
+      console.info(
+        yellow(
+          `[skip] ${result.key}: no verifiable pinned source (${short(result.fromCommit)}); re-run with --force to overwrite.`,
         ),
       );
     }
@@ -220,6 +238,15 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     }
   }
 
+  // --force skips the drift guard, so keep a byte copy of what is about to be
+  // replaced: recovery must not depend on the operator having a clean tree.
+  if (options.force && !sink.dryRun) {
+    const backups = await backupInstalledModules(cwd, selectedKeys);
+    for (const backup of backups) {
+      console.info(cyan(`[info] backup: ${backup}`));
+    }
+  }
+
   await runSteps(ctx, {
     added: addedKeys,
     removed: [],
@@ -231,6 +258,24 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
 
   ctx.issues.assertEmpty();
   console.info(bold(green("\nC O M P L E T E\n")));
+}
+
+/** Copy the installed module directories into `.newbie/backups` before a forced overwrite. */
+export async function backupInstalledModules(cwd: string, keys: string[]): Promise<string[]> {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const saved: string[] = [];
+  for (const key of keys) {
+    const source = path.resolve(cwd, MODULES_DIR, key);
+    try {
+      await fs.access(source);
+    } catch {
+      continue;
+    }
+    const target = path.resolve(cwd, ".newbie", "backups", `${key}-${stamp}`);
+    await fs.cp(source, target, { recursive: true });
+    saved.push(path.relative(cwd, target));
+  }
+  return saved;
 }
 
 /** Print one installed module whose sources diverge from the registry checkout. */
