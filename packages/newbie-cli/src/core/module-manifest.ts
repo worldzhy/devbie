@@ -28,6 +28,14 @@ export function isModuleRole(value: string): value is ModuleRole {
   return (MODULE_ROLES as readonly string[]).includes(value);
 }
 
+export type EnvDeclaration =
+  | string
+  | {
+      type?: string;
+      default?: string | number | boolean;
+      description?: string;
+    };
+
 export interface ModuleWiring {
   /** Module file without extension, e.g. "account.module". */
   file: string;
@@ -54,7 +62,12 @@ export interface ModuleManifest {
   /** Project-relative path of the Prisma model fragment; absent = no models. */
   schema?: string;
   "config-service"?: Record<string, unknown>;
-  env?: Record<string, string>;
+  /**
+   * Environment variables the module needs. A plain string is the value written
+   * to `.env`; an object declares a typed default plus a description
+   * (`{ type, default, description }`) and is rendered as `KEY=<default>`.
+   */
+  env?: Record<string, EnvDeclaration>;
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   /**
