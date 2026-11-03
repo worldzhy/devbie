@@ -28,6 +28,8 @@
 | R5-P2-18 | devbie | 版本身份三源不一致（root 3.2.0 / tag 4.1.1 / 包 1.x），无映射文档 | P2 | docs / artifact | 发版 / 外部按 tag 取码 | open |
 | R5-P2-19 | nightwatch-backend / fewbie-starter | 依赖声明与锁文件滞后于最新发布；模板 `"*"` 通配使 checklist 第 9 步不可核实 | P2 | artifact / template | 下一次 `npm ci` | open |
 | R5-P2-20 | devbie / newbie-modules | ADR-023 增后被 revert 删除且无墓碑，与 registry ADR-023 跨仓重名 | P2 | docs | 文档引用 | open |
-| R5-P2-21 | devbie | `79696ac` 未推送而 `PENDING_PUSH.md` 为空 | P2 | ops | 推送纪律 | open |
+| R5-P2-21 | devbie | `79696ac` 未推送而 `PENDING_PUSH.md` 为空 | P2 | ops | 推送纪律 | withdrawn：评审收口后并行会话已推送（`42ee416..946073d`），现象消失 |
+
+评审期间并发提交（`1420529`、`79696ac`、`42ee416`）已纳入复核：R5-06/R5-07/R5-08/R5-12 仍成立。
 
 P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/findings.md`。
