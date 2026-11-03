@@ -5,6 +5,7 @@ import {
   extractMarkerBlock,
   findUnclassifiedTemplateFiles,
   frameworkMarkers,
+  isTemplateScanIgnored,
   isUpdatableTemplateFile,
   planTemplateUpdate,
   replaceMarkerBlock,
@@ -57,7 +58,7 @@ function identicalMaps(): {
 
 describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
   it("classifies every shipped template file exactly once", () => {
-    assert.equal(TEMPLATE_FILES.length, 35);
+    assert.equal(TEMPLATE_FILES.length, 38);
     const paths = TEMPLATE_FILES.map((file) => file.path);
     assert.equal(new Set(paths).size, paths.length, "duplicate registry path");
   });
@@ -67,7 +68,7 @@ describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
     assert.equal(count("framework-whole-file"), 13);
     assert.equal(count("framework-marker-block"), 4);
     assert.equal(count("generated"), 3);
-    assert.equal(count("template-shipped-host-owned"), 15);
+    assert.equal(count("template-shipped-host-owned"), 18);
   });
 
   it("ships the framework deploy stack as whole-file entries", () => {
@@ -110,6 +111,22 @@ describe("TEMPLATE_FILES ownership registry (ADR-009 D4)", () => {
       "a/b.txt",
       "docs/new.md",
     ]);
+  });
+
+  it("keeps runtime and agent-session files out of the registry guard", () => {
+    for (const ignored of [
+      ".trae/documents/backlog.md",
+      ".env",
+      "package-lock.json",
+      "node_modules/foo/index.js",
+      "dist/main.js",
+      "src/app.module.ts.tsbuildinfo",
+    ]) {
+      assert.ok(isTemplateScanIgnored(ignored), `${ignored} must stay out of the guard`);
+    }
+    for (const shipped of ["src/main.ts", "deploy/scripts/deploy.sh", "AGENTS.md"]) {
+      assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
+    }
   });
 });
 

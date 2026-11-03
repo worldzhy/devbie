@@ -177,20 +177,35 @@ export async function runSecretsPull(options: SecretsCommandOptions): Promise<vo
   const lines = parseEnv(raw);
   const existing = envValues(lines);
 
-  // Conflicting keys: ask (non-interactive default keeps local value).
+  // Conflicting keys: ask (non-interactive default errors out — silent keep
+  // was dangerous in CI where a masked `.env` would shadow newly rotated
+  // values with stale local copies).
+  const conflicts: string[] = [];
   for (const [key, newValue] of Object.entries(pulled)) {
     if (key in existing && existing[key] !== newValue) {
       let overwrite = false;
-      if (!options.yes && !options.dryRun && process.stdin.isTTY) {
+      if (options.yes || options.dryRun) {
+        overwrite = options.yes ?? false; // --yes keeps AWS values (intentional); dry-run keeps both sides listed
+      } else if (process.stdin.isTTY) {
         overwrite = await confirm({
           message: `${key} differs from AWS value. Overwrite?`,
           default: false,
         });
+      } else {
+        // Non-interactive without --yes: surface the conflict instead of
+        // silently keeping stale local values.
+        conflicts.push(key);
+        continue;
       }
       if (overwrite) setEntry(lines, key, newValue);
     } else if (!(key in existing)) {
       setEntry(lines, key, newValue);
     }
+  }
+  if (conflicts.length > 0 && !options.yes && !options.dryRun && !process.stdin.isTTY) {
+    throw new CliError(
+      `${conflicts.length} key(s) conflict with local .env in non-interactive mode: ${conflicts.join(", ")}. Re-run with --yes to take AWS values.`,
+    );
   }
 
   const addedKeysOnly: string[] = [];
@@ -215,6 +230,9 @@ export async function runSecretsPull(options: SecretsCommandOptions): Promise<vo
       });
     }
     if (!shouldWrite) {
+      if (!process.stdin.isTTY) {
+        throw new CliError("Write to .env cancelled in non-interactive mode. Re-run with --yes to write.");
+      }
       console.info(yellow("Write cancelled"));
       return;
     }

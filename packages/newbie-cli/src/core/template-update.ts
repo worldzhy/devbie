@@ -65,7 +65,7 @@ export interface TemplateFile {
 }
 
 /**
- * Full ownership registry of the 35 tracked starter-template files
+ * Full ownership registry of the 38 tracked starter-template files
  * (package-lock.json is per-project by nature and excluded, see
  * TEMPLATE_SCAN_IGNORED_FILES).
  */
@@ -123,6 +123,13 @@ export const TEMPLATE_FILES: readonly TemplateFile[] = [
   { path: "src/application/application.controller.ts", ownership: "template-shipped-host-owned" },
   { path: "src/application/application.module.ts", ownership: "template-shipped-host-owned" },
   { path: "deploy/compose.application.yml", ownership: "template-shipped-host-owned" },
+  // Build contract for the deploy stack. Shipped once: hosts layer in their
+  // own secrets handling, health checks and migrations (see the Dockerfile
+  // header), and existing hosts already carry their own image recipes.
+  { path: "Dockerfile", ownership: "template-shipped-host-owned" },
+  { path: ".dockerignore", ownership: "template-shipped-host-owned" },
+  // Baseline smoke test; hosts expand it with their own suites.
+  { path: "src/smoke.test.ts", ownership: "template-shipped-host-owned" },
   { path: "deploy/clickhouse/config.d/memory.xml", ownership: "template-shipped-host-owned" },
   { path: ".github/dependabot.yml", ownership: "template-shipped-host-owned" },
   { path: ".github/workflows/ci.yml", ownership: "template-shipped-host-owned" },
@@ -138,7 +145,10 @@ const UPDATABLE_FILES: readonly TemplateFile[] = TEMPLATE_FILES.filter(isUpdatab
 
 /**
  * Directories and file names excluded from the unclassified-file guard:
- * runtime outputs, VCS metadata and the per-project lockfile.
+ * runtime outputs, VCS metadata, the per-project lockfile and the
+ * agent-session backlog (`.trae/documents/backlog.md`, a workspace process
+ * ledger that exists in the template repo but is not a shipped template
+ * asset — create.ts COPY_IGNORE keeps it out of new projects).
  */
 export const TEMPLATE_SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   ".git",
@@ -150,8 +160,22 @@ export const TEMPLATE_SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   "generated",
   "node_modules",
 ]);
-export const TEMPLATE_SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([".DS_Store", ".env", "package-lock.json"]);
+export const TEMPLATE_SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([
+  ".DS_Store",
+  ".env",
+  "backlog.md",
+  "package-lock.json",
+]);
 export const TEMPLATE_SCAN_IGNORED_SUFFIXES: readonly string[] = [".tsbuildinfo"];
+
+/** True for runtime outputs and per-project files excluded from the guard. */
+export function isTemplateScanIgnored(relPath: string): boolean {
+  const segments = relPath.split("/");
+  if (segments.some((segment) => TEMPLATE_SCAN_IGNORED_DIRECTORIES.has(segment))) return true;
+  const base = segments[segments.length - 1];
+  if (TEMPLATE_SCAN_IGNORED_FILES.has(base)) return true;
+  return TEMPLATE_SCAN_IGNORED_SUFFIXES.some((suffix) => base.endsWith(suffix));
+}
 
 /**
  * Template files absent from the ownership registry (ADR-009 D4: unlisted =

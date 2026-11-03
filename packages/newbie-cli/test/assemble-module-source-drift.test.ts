@@ -107,4 +107,14 @@ describe("diffModuleSources", () => {
 
     assert.deepEqual(await diffModuleSources({ cwd, registryRoot, enabledKeys: ["security"] }), []);
   });
+
+  it("ignores enabled modules whose copy is not assembled yet", async () => {
+    const { cwd, registryRoot } = await makeTrees({
+      key: "account",
+      project: null,
+      registry: { "newbie.module.json": '{"key":"account"}' },
+    });
+
+    assert.deepEqual(await diffModuleSources({ cwd, registryRoot, enabledKeys: ["account"] }), []);
+  });
 });

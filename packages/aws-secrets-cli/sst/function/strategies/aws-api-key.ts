@@ -18,21 +18,38 @@ export class AwsApiKeyStrategy implements RotationStrategy {
 
     // Create new Key
     const createKeyRes = await iamClient.send(new CreateAccessKeyCommand({ UserName: username }));
+    const newAccessKeyId = createKeyRes.AccessKey?.AccessKeyId;
     const newDict = {
       ...currentDict,
-      accessKeyId: createKeyRes.AccessKey?.AccessKeyId,
+      accessKeyId: newAccessKeyId,
       secretAccessKey: createKeyRes.AccessKey?.SecretAccessKey,
       username: username,
     };
 
-    await smClient.send(
-      new PutSecretValueCommand({
-        SecretId: secretId,
-        ClientRequestToken: token,
-        SecretString: JSON.stringify(newDict),
-        VersionStages: ["AWSPENDING"],
-      }),
-    );
+    try {
+      await smClient.send(
+        new PutSecretValueCommand({
+          SecretId: secretId,
+          ClientRequestToken: token,
+          SecretString: JSON.stringify(newDict),
+          VersionStages: ["AWSPENDING"],
+        }),
+      );
+    } catch (err) {
+      // Compensation: if the secret cannot be staged, the freshly created AK
+      // must not be left active — delete it so a retry starts clean.
+      if (newAccessKeyId) {
+        try {
+          await iamClient.send(new DeleteAccessKeyCommand({ UserName: username, AccessKeyId: newAccessKeyId }));
+        } catch (cleanupErr) {
+          console.error(
+            `Failed to delete orphaned Access Key ${newAccessKeyId} after PutSecretValue failure:`,
+            cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr),
+          );
+        }
+      }
+      throw err;
+    }
   }
 
   async setSecret(_secretId: string, _token: string, _pendingDict: any, _currentDict: any): Promise<void> {
@@ -82,7 +99,10 @@ export class AwsApiKeyStrategy implements RotationStrategy {
         );
         console.log(`Deleted old Access Key: ${currentDict.accessKeyId}`);
       } catch (e: any) {
-        console.warn("Failed to cleanup old API Key:", e.message);
+        // A failed cleanup leaves the old Access Key active. This is a
+        // security-relevant condition, not a warning — surface it as an error
+        // so the rotation failure is visible in logs and alerts.
+        console.error(`Failed to cleanup old API Key ${currentDict.accessKeyId}:`, e.message);
       }
     }
   }

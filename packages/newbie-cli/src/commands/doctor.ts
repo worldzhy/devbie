@@ -130,7 +130,9 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
     if (registry && record?.sourceCommit) {
       const pristine = await snapshotPristineModule(registry, key, record.sourceCommit);
       if (pristine) {
-        const drift = diffSnapshots(await snapshotInstalledModule(cwd, key), pristine);
+        const installed = await snapshotInstalledModule(cwd, key);
+        if (!installed) continue;
+        const drift = diffSnapshots(installed, pristine);
         if (!drift.clean) {
           const details = [
             ...drift.changed.map((file) => `changed: ${file}`),
