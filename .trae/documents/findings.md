@@ -37,6 +37,8 @@
 
 P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/findings.md`。
 
+处理方案（逐项、含验收判据与波次）见报告 §13。
+
 ## 复核轮（2026-11-03）
 
 报告 §12 为本轮复核裁决（锚点 devbie `dcc285b` / newbie-modules `ec1fe50`）。变更摘要：R5-01 撤回 logout 子条（P0 维持）；R5-04 修正可达角色（自助注册不分角色）；R5-05 漂移 8→7、account 项降 artifact；R5-06、R5-08 降 P2；新增 R5-13、N-1、N-2。无 P0/P1 主结论被撤回。

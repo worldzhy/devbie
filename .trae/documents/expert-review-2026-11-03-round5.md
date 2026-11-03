@@ -51,7 +51,7 @@
 
 本轮新增：P0 × 2、P1 × 10、P2 × 17（含 6 条 registry 模块级 P2）。上一轮 open 的 R4-04 / R4-09 仍在生产宿主上成立。
 
-> 复核后计数（§12）：P0 × 2、P1 × 9、P2 × 21（含 2 项 withdrawn）。R5-06/R5-08 降级，新增 R5-13；§2 的「8 个漂移」应读作 7（空目录已按 §7 剔除）。
+> 复核后计数（§12）：P0 × 2、P1 × 9、P2 × 22（含 2 项 withdrawn、含 R5-06/R5-08/N-1/N-2）。R5-06/R5-08 降级，新增 R5-13；§2 的「8 个漂移」应读作 7（空目录已按 §7 剔除）。
 
 ---
 
@@ -295,6 +295,162 @@ registry 的 owner-active + LRU TTL 落在 `api-key.service.ts` 的缓存函数�
 
 - P0 仍为 2：R5-01（收窄，匿名邮箱验证伪造 + 成员子网接管）、R5-02（Copilot 跨项目写）。
 - P1 由 10 调整为 9：R5-06、R5-08 降 P2；新增 R5-13（ClickHouse 标识符注入，live）。
-- P2 由 17 调整为 21：+R5-06、+R5-08、+N-1、+N-2（其中 R5-P2-21 仍为 withdrawn）。
+- P2 由 18 调整为 22：+R5-06、+R5-08、+N-1、+N-2（其中 R5-P2-21 仍为 withdrawn）。原 §3「P2 × 17」少计 1 条，按台账 18 条订正。
 - 修复顺序不变，但第 3 步必须包含 R5-13：先对齐 clickhouse 副本再谈 DTO 收口；R5-06 的检查改为「把已安装集与 registry 比对」而不是「复核 sink 是否比对内容」。
 - 复核未发现任何 P0 误报，也未发现需要撤回的 P1 主结论；所有调整都是定级或表述层面的收紧。
+
+---
+
+## 13. 逐项处理方案（2026-11-03）
+
+### 13.0 ID 别名与计数订正
+
+初稿曾使用 `R5-P2-09`（PENDING_PUSH）与 `R5-P2-10`（版本身份）两个编号，定稿时并入现有条目，编号未复用。按 §6「禁止静默删除」登记别名，避免后续引用悬空：
+
+| 旧编号 | 现行编号 | 说明 |
+|---|---|---|
+| R5-P2-09 | R5-P2-21 | PENDING_PUSH 与实际状态不符；已 withdrawn |
+| R5-P2-10 | R5-P2-18 | 版本身份三源不一致 |
+
+因此 P2 实际条目为 18 条（registry 7 + 跨仓 11），复核后 22 条。
+
+### 13.1 处理原则
+
+1. **registry-first**：凡模块内改动，先改 `newbie-modules/packages/modules/<key>`，再 `newbie modules apply/update` 装配；禁止直接改宿主 `src/modules/`。
+2. **一次一验收**：每项都必须给出可执行判据（命令 + 期望输出），不以「补丁已合」结案。
+3. **不混波次**：P0 单独成波，不与模板/CLI 改动混在同一提交，便于回滚与取证。
+4. **证据留痕**：每波结束追加一条台账状态变更（`open → fixed (commit)`），并跑 `ls-remote` 核对推送落地。
+
+### 13.2 P0 处理方案（Wave 1，发版前必须完成）
+
+**R5-01 公开字面量密钥**
+
+| 步骤 | 改动点 | 内容 |
+|---|---|---|
+| 1 | `newbie-modules/packages/modules/security/newbie.module.json` | `defaultSecret` 改为纯 `process.env.SECURITY_DEFAULT_TOKEN_SECRET`，删除 `|| 'your-default-token-secret'`；该 env 标记为必填 |
+| 2 | `devbie/packages/newbie-cli/src/assemble/modules.ts` | 环境表达式白名单化：只接受纯 `process.env.X`；含 `||`/`??`/字面量时**装配失败并报错**，不再降级为字符串 |
+| 3 | host `src/modules/security/token/token.service.ts`（装配产物，改动只落在 registry） | `sign`/`verify` 与 access/refresh secret 为空时抛错，不再回退默认值 |
+| 4 | host 启动断言（`security` 模块 `onModuleInit` 或 `main.ts` 不属可改范围时放 `src/application`） | 启动时校验 secret 长度 ≥ 32 且不等于已知字面量，失败即退出 |
+| 5 | 运维 | 轮换 `SECURITY_DEFAULT_TOKEN_SECRET`；在途邮箱验证/子网审批链接失效，提前公告 |
+
+**验收**：`grep -r "your-default-token-secret" src/` 零命中；`SECURITY_DEFAULT_TOKEN_SECRET` 未设置时启动失败；用旧字面量自签 `APPROVE_EMAIL_TOKEN` 调 `POST /auth/signup-email-verify` 返回 401；`npm run build && npx newbie doctor` 绿。
+
+**R5-02 Copilot 写路径无授权**
+
+| 步骤 | 改动点 | 内容 |
+|---|---|---|
+| 1 | host `src/application/copilot/` | 新增授权端口 `CopilotAuthorizationPort.assertProjectRole(userId, projectId, action)`，实现复用 `ProjectMember` 查询与 `scope-role-permission.matrix` 的角色阶梯 |
+| 2 | `skills/task.skill.ts`、dashboard-metric 相关 skill | 所有写入口（create/update/delete/确认后执行）先调端口；`pageContext.params.projectId` 对写技能改为必填 |
+| 3 | `transports/web/chat.controller.ts` | 保持 `@RequireOwner()`（它只保证登录），授权由端口承担；在注释里写明「登录 ≠ 授权」 |
+| 4 | 测试 | 新增行为测试：非成员写 → 拒绝且无 DB 行；VIEWER 写 → 拒绝；EDITOR 写 → 成功并审计 |
+
+**验收**：跨项目 `POST /copilot/chat` 创建/删除任务全部被拒；`approveTask` 与新建路径共用同一校验函数（代码中只剩一处成员检查）；`npm test` 全绿。
+
+### 13.3 P1 处理方案（Wave 2）
+
+**R5-13 ClickHouse 标识符注入**
+
+1. `newbie modules update clickhouse`（或整批 update）把 registry 的 `quoteIdentifier/quoteTable` 装配到宿主，`src/modules/clickhouse/clickhouse.service.ts` 不再裸插值。
+2. registry `web-monitor` 侧：`site.controller.ts` 的 add/update、`ajax`/`page`/`error` 等 controller 的 `appId` 改为 DTO + `@Matches(/^[A-Za-z0-9_-]{1,64}$/)`；`saveSiteData` 不再接受外部 `appId`（服务端 `randomString()` 生成），仅 installation 同步路径可回填。
+3. `diff -rq` registry vs host 为空后重启服务。
+**验收**：`GET /web-monitor/ajax/getAverageAjaxList?appId=%60x%60%3B...` 返回 400，ClickHouse 侧无新表/无异常 DDL；正常站点查询与 jobs 跑通。
+
+**R5-05 装配漂移**
+
+1. `npx newbie modules update --check` 取差异清单 → `npx newbie modules update` 执行 → 复核 `git diff`。
+2. security-evaluation 含 schema 变更：`npx prisma db push`（生产走迁移流程）。
+3. shortcut `LINK` 的 `@IsUrl({protocols:["http","https"]})` 回写 registry 并重新装配。
+4. 把 `npx newbie modules update --check` 加入 backend CI（与 `modules apply --check` 并列）。
+**验收**：`diff -rq` 7 个模块全部无差异；CI 中两项 check 均为必过；R4-04/R4-09 台账改 `fixed`。
+
+**R5-04 installation 资源族授权**
+
+1. 把 `BackendMonitorInstallation`、`ModuleHubInstallation`、`HeartbeatInstallation`、`HealthInstallation`、`BackendMonitorLog` 加入 `HOST_SCOPED_RESOURCES_LIST`。
+2. `scope-resolvers.ts` 增加 `installation` resolver：由 `id` 取行 → `externalRef` 解 `projectId`；解不出返回 `none`。
+3. installation service 的按 id 操作补归属校验；`externalRef` 改为服务端生成、DTO 不接收。
+4. 若短期无法改 seed，则先在 `permission-groups.ts` 收回四个 namespace 的全动作授权（保守方案）。
+**验收**：项目 A 的 EDITOR 对项目 B 的 installation 做 list/get/rotate/delete 全部 403；权限矩阵完整性测试通过。
+
+**R5-03 Copilot 跨租户读**
+
+1. `CopilotProjectDataSource` 的 `listProjects/listApplications/getApplicationById` 增加 `userId` 入参，按 `ProjectMember` 过滤（复用 `ProjectService.listProjects` 的 where 构造）。
+2. 删除误导性 OQ-1 注释，改为「读可见性以 ProjectMember 为准」。
+**验收**：非成员调用 `list_projects` 只返回自己参与的项目；`list_applications` 无法枚举他人项目。
+
+**R5-12 `modules update` fail-open**
+
+1. `fromCommit` 缺失或本地 registry 无该 pin 且未 `--force`：拒绝更新，打印「先 `--force` 或补 pin」并 exit 1。
+2. 覆盖前对宿主目录做快照（`.bak`），仅在确认无本地差异后才清理 `localPatches`。
+**验收**：构造缺失 pin 的 `modules.json`，执行 update 后宿主文件字节不变、退出码非零。
+
+**R5-07 apits 失败退出 0**
+
+1. `packages/apits/src/cli.ts` 失败分支设 `process.exitCode = 1`（或 throw）。
+2. 新增用例：坏 config 下执行 CLI，断言退出码 1 且旧生成物未被静默保留为「成功」。
+**验收**：本地与 CI 中 `npm run apits` 失败即红。
+
+**R5-09 fewbie 模板互斥**
+
+1. `fewbie-starter/next.config.ts` 由框架托管内容加 `output: "standalone"`（模板侧单一真源），Dockerfile 保持现状。
+2. `fewbie-cli` 的 `template-ownership.ts` 把 `.github/**`、`Dockerfile`、`.dockerignore` 归类，并加完整性扫描。
+3. 前端 CI 增加 `fewbie template update --check`。
+**验收**：全新 `fewbie create` → `docker build` 成功；`template update --check` 绿。
+
+**R5-10 newbie-starter Dockerfile**
+
+1. 镜像补 `prisma/`、`deploy/`（脚本与 compose 模板所需）与 migrate/seed 所需依赖（保留 devDeps 或单独 migrate 阶段）。
+2. `start.sh` 改为直接使用镜像内 `/deploy`，去掉 `docker cp`。
+**验收**：空库执行模板自带 `docker compose up`，迁移 + seed + 应用健康检查全通过。
+
+**R5-11 `create` 的 check:template 误用**
+
+1. `packages/newbie-cli/src/commands/create.ts` 的 `COPY_IGNORE` 排除 `.github/workflows/check-template.yml`（或改写为只校验授权清单内文件）。
+2. 错误信息改为指向消费仓自身，不再提示修改 CLI 源码。
+**验收**：新建项目 → `npx newbie modules add <任一模块>` → CI `check:template` 绿。
+
+### 13.4 P2 处理方案（Wave 3）
+
+| ID | 方案 | 验收 |
+|---|---|---|
+| N-1 | 把 owner-active 校验移入 `security-ports/api-key.verifier.ts`（真实校验路径），删除或改造无调用方的缓存函数 | verifier 测试覆盖「停用用户的 key 被拒」；全仓无死代码 |
+| N-2 | `module-source-drift.ts` 以 `git show <sourceCommit>:packages/modules/<key>` 为基线；pin 缺失时报 finding 而非 `continue`；`modules apply --check` 强制校验 `sourceCommit` 存在 | 删除本地 registry 工作树改动后，drift 结果不变；pin 缺失时 CI 红 |
+| R5-06 | 在 `modules apply --check` 增加「已安装集 vs registry」比对（按 sourceCommit 快照），输出 `drift` finding；dry-run 的 issue 降级保持现状 | 手改一个已装配文件 → CI 红 |
+| R5-08 | 非交互且无 `--yes` 时 exit 1；修正 help 文案为「AWS 值覆盖本地冲突」；补一条 CLI 用例 | `push` 无 `--yes` 在 CI 环境退出 1 且不写机密 |
+| R5-P2-01 | `markRead` 复用 `buildProjectVisibilityWhere`，不可见时返回 404（不泄露存在性） | 非成员对他人 notification 写已读返回 404 |
+| R5-P2-02 | `notify` 要求 `projectId` 为 UUID 且校验归属；`link` 按渲染方式补协议白名单（若当链接则 `@IsUrl`） | DTO 校验用例覆盖两个字段 |
+| R5-P2-03 | 与 N-1 同批：要么执行 `ipRestrictions`/`referrerRestrictions`，要么从 DTO/响应中删除死字段 | 字段不再出现于响应，或确实生效 |
+| R5-P2-04 | webhook 加权限 + 团队归属；`isSafeUrl` 解析 DNS 并在重定向后再校验；`axios` 加 timeout；投递队列改为不阻塞的并发模型 | 私网地址被拒；悬挂请求不影响后续投递 |
+| R5-P2-05 | `systemName` 用 `escapeRegExp` 后构造 `$regex`，并限制长度 | ReDoS 用例在超时内返回 |
+| R5-P2-06 | 报告查询改为按 `subject × evaluationKey` 的 `distinct`/窗口查询或加 `take` | 大历史数据集下内存与耗时线性可控 |
+| R5-P2-07 | push-failures 列表接入仓库现成分页 helper | 接口返回分页结构 |
+| R5-P2-08 | 随 R5-05 关闭 | R4-04/R4-09 台账改 fixed |
+| R5-P2-11 | 登出时 `queryClient.clear()`；queryKey 带 userId 维度 | 换账号后无上一账号残留数据 |
+| R5-P2-12 | 登出请求失败不本地清会话，改为提示重试；服务端撤销成功后再清 | 断网时 UI 不显示已登出 |
+| R5-P2-13 | `axios.create` 加 `timeout`（如 15s），refresh 同样加；超时后重置 `refreshPromise` | 悬挂请求不会锁死后续 401 |
+| R5-P2-14 | iframe 加 `sandbox`（不含 `allow-same-origin`/`allow-scripts`）；URL 白名单收紧为 http/https | 外部页面无法执行脚本或读取父页 |
+| R5-P2-15 | CI 补 `@devbie/web-monitor-sdk`（jest）与 `@devbie/style-guide`（node --test）两步 | 两个套件在 CI 实际执行 |
+| R5-P2-16 | registry CI 把 `@devbie/newbie-cli@1` 改为锁定版本；补 dependabot-triage workflow | lint 语义可复现；PR 有自动分诊 |
+| R5-P2-17 | 建立 ownership registry 完整性扫描，未分类文件即失败；修正先绿 ✓ 后 warning 的顺序 | 新增框架文件未分类时 CI 红 |
+| R5-P2-18 | 写一份 tag↔包版本映射（RELEASE_CHECKLIST），或把包版本线统一 | 文档可解释 4.1.1 ↔ 1.x |
+| R5-P2-19 | 刷新两仓锁文件；模板去掉 `"*"` 改 `^` 精确区间 | `npm ci` 可复现，checklist 第 9 步可核实 |
+| R5-P2-20 | devbie 补 ADR-023 墓碑（注明被 revert 原因）；跨仓引用一律带仓名前缀 | 文档引用无歧义 |
+| R5-P2-21 | 已 withdrawn，关闭，无需动作 | — |
+
+### 13.5 波次与依赖
+
+| 波次 | 条目 | 阻塞关系 |
+|---|---|---|
+| W1 | R5-01、R5-02 | R5-01 涉及密钥轮换，需发版窗口；R5-02 可独立上线 |
+| W2 | R5-13 → R5-05（同一批 `modules update`）→ R5-04 → R5-03 → R5-12 → R5-07 → R5-09 → R5-10 → R5-11 | R5-13 必须在 R5-05 之后取证；R5-06 与 N-2 紧随 R5-05 |
+| W3 | N-1、N-2、R5-06、R5-08、前端 P2、治理 P2 | 无硬依赖，可按仓并行 |
+| W4 | 2 条待取证候选 | 取证后再决定是否入账，不得提前并入 R5-03/R5-04 |
+
+### 13.6 本轮不做
+
+- 不修 e2e/浏览器行为、不跑全量 `npm test`（评审只读）。
+- 不为 2 条待取证候选写修复方案；先取证。
+- 不处理 `src/generated`、`dist`、`node_modules` 与 ClickHouse 查询内部实现细节。
+
+### 13.7 修复后的复核判据
+
+每波完成后按 §5 复核协议重跑：①对应不变量是否被新改动破坏；②新增测试是否真的会在旧代码上失败（反向验证）；③`newbie modules update --check`、`npm run build`、`npx newbie doctor`、prettier 全绿；④台账状态改为 `fixed（commit）` 并写明回归指针。四项缺一不算关闭。

@@ -15,6 +15,16 @@
 
 > 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
 
+## 安全评审 round5 复核后（devbie 自身条目，2026-11-03 入账）
+
+> 真源：`.trae/documents/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02）不在本仓。
+
+- R5-06（P2，devbie/newbie-cli）：`modules apply --check` 增补「已安装集 vs registry」比对，输出 `drift` finding。判据：手改一个已装配文件后 CI 变红。
+- R5-07（P1，devbie/apits）：config/生成失败设 `process.exitCode = 1`，补坏 config 用例。判据：`npm run apits` 失败即红。
+- R5-12（P1，devbie/newbie-cli）：`modules update` 在 pin 不可得且未 `--force` 时拒绝执行并 exit 1；覆盖前快照宿主目录。判据：缺失 pin 时宿主文件字节不变。
+- N-2（P2，devbie/newbie-cli）：drift 基线改用 `git show <sourceCommit>:packages/modules/<key>`；pin 缺失时报 finding；`modules apply --check` 校验 `sourceCommit` 存在。
+- R5-P2-15/16/18/19/20、R5-08（P2，devbie 仓自身）：CI 补两个测试套件、锁定 newbie-cli 版本、版本映射文档、刷新锁文件并去掉 `"*"`、ADR-023 墓碑与跨仓引用前缀、aws-secrets-cli 非交互 exit 1。
+
 ## P1（安全评审 round3 2026-10-31，未修复）
 
 > 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失；R3-16 于 2026-11-02 关闭（aws-ses 发送接口已有 `@RequirePermission(Create, "AwsSesEmail")`，任意收件人是模块的合理能力，不再视为缺陷）；R3-19 于 2026-11-02 用户拍板保持现状，作为 artifact 标在 registry 仓 backlog。以下为剩余条目。
