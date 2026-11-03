@@ -21,8 +21,8 @@
 | R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | fixed（W2，2026-11-03）：registry `5adec55`；`assertAppId` 白名单（`^[A-Za-z0-9_]{1,64}$`）在 Mongo/ClickHouse 工厂入口与 `saveSiteData` 生效，客户端不再提供 appId；scope 侧 W1 起 fail-closed |
 | N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | fixed（W3，2026-11-03）：owner-active 校验移入 `AccountApiKeyVerifier.verify`（真实校验路径），`getApiKeyFromKey`/`assertOwnerActive`/LRU 缓存与 `CACHE_APIKEY_*` 配置删除；新增 6 例 verifier 测试（停用/缺行 owner 拒绝、组织 key 跳过、错 secret、未知 key） |
 | N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | fixed（W3，2026-11-03）：基线改为 `snapshotPristineModule`（`git archive <pin>`）；pin 缺失/不可读输出 `missing-pin`/`unavailable-pin` finding 而非跳过；`update --check` 缺 pin → exit 1 |
-| R5-14 | nightwatch-backend | Copilot AWS/dependency 读技能在未给 `projectId` 时走 global 模式，数据源无成员过滤（跨租户读账号 ID/角色 ARN/区域/发现标题） | P1 | live | 任意登录用户 | open（W4 取证完成，2026-11-03）：`list_projects` 安全（结果与成员项目求交）；`list_aws_accounts`/`summarize_aws_audit_findings`/`list_aws_audit_findings` 的全量读取成立；详见报告 §12.6 |
-| R5-15 | newbie-modules ↔ nightwatch-backend | installation 创建时权限 scope 取自 query `externalRef`，落库值取自 body `externalRef`，二者不比对 → 项目 A 的 EDITOR 可写入项目 B 的 `application_id` 遥测 | P2 | live | 项目 EDITOR（需知道目标两个 UUID） | open（W4 取证完成，2026-11-03）：仅 query/body 错配路径成立；无 query ref 时 fail-closed 403；详见报告 §12.6 |
+| R5-14 | nightwatch-backend | Copilot AWS/dependency 读技能在未给 `projectId` 时走 global 模式，数据源无成员过滤（跨租户读账号 ID/角色 ARN/区域/发现标题） | P1 | live | 任意登录用户 | fixed（W5，2026-11-03）：global 模式改为要求系统级读权限（`AwsCrossAccountBinding/List`、`DependencyScanFinding/List`），项目内读取不变；4 例技能测试 + 652 全量通过 |
+| R5-15 | nightwatch-backend | installation 创建时权限 scope 取自 query `externalRef`，落库值取自 body `externalRef`，二者不比对 → 项目 A 的 EDITOR 可写入项目 B 的 `application_id` 遥测 | P2 | live | 项目 EDITOR（需知道目标两个 UUID） | fixed（W5，2026-11-03）：`installation-ref` resolver 同时读 body，body 必须是完整 `projectId/applicationId` 且 application 属于该项目，query/body 项目不一致即 deny；6 例 resolver 测试 |
 | R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | fixed（W3，2026-11-03）：登出成功与登录/TOTP 成功都调用 `queryClient.clear()`；同标签页换账号无残留。未逐 key 加 userId 维度（等价收益、改动面过大） |
 | R5-P2-12 | nightwatch-frontend | 登出请求失败仍强制本地登出，服务端 session 与 refresh cookie 未撤销 | P2 | live | 使用者 | fixed（W3，2026-11-03）：失败时保留会话与 UI 登录态，提示 `toastLogoutFailed` 可重试；仅成功才清 token 并跳转 |
 | R5-P2-13 | nightwatch-frontend | axios 实例与 refresh 请求无 timeout，`refreshPromise` 可永久挂起 | P2 | live | 使用者 | fixed（W3，2026-11-03）：`API_TIMEOUT_MS=15s` 同时施加于业务实例与 refresh 请求；`refreshPromise` 由 `finally` 复位，超时后不再永久挂起；单测断言 `api.defaults.timeout` |
@@ -92,10 +92,19 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 ## W4 取证（2026-11-03，只读）
 
-- 结论：候选一（「`list_projects` 泄露 AWS 绑定字段」）定位有误但底层问题成立 → 新条目 R5-14（P1）；候选二（「`externalRef` 客户端可填导致伪造遥测」）仅在 query/body 错配时成立 → 新条目 R5-15（P2）。两条均未修复，也未并入 R5-03/R5-04 正文。
+- 结论：候选一（「`list_projects` 泄露 AWS 绑定字段」）定位有误但底层问题成立 → 新条目 R5-14（P1）；候选二（「`externalRef` 客户端可填导致伪造遥测」）仅在 query/body 错配时成立 → 新条目 R5-15（P2）。两条均未并入 R5-03/R5-04 正文，修复见 W5 落地。
 - R5-14 取证：`list_projects` 用全量 `listBindings()` 但只与调用者成员项目求交，输出仅 `boundAwsAccountId`/`bindingVerified`，安全；`list_aws_accounts`、`summarize_aws_audit_findings`、`list_aws_audit_findings` 在无 `projectId` 时直接遍历全部项目（无 `members` 过滤），返回 `awsAccountId`/`roleArn`/`regions` 与发现标题；dependency 读技能同模式（仅聚合）。Copilot 读技能对任意登录用户开放。
 - R5-15 取证：创建 DTO 的 `externalRef` 客户端可填并原样落库；token 解析仅按正则拆 `projectId/applicationId`，不校验 application 归属即写入 ClickHouse `application_id`。授权 guard 的 `installation-ref` resolver 只读 query，而 `hasKey` 也认 body 同名键：`POST /backend-monitor/installations?externalRef=<A>/<x>` + body `{"externalRef":"<B>/<y>"}` 按 A 的项目 EDITOR 授权、落库 B 的 ref。无 query ref 时 fail-closed 403（documented 的手工 enroll 实际不可用，属附带功能问题）。
-- 决策：是否启动修复（R5-14 global 模式加系统级读权限或按成员收敛；R5-15 创建时强制 body/query ref 一致并校验 application 归属）待用户确认。
+- 决策：用户确认启动 W5（R5-14 global 模式加系统级读权限；R5-15 创建时强制 body/query 一致并校验 application 归属）。落地见下节。
+
+## W5 落地（2026-11-03）
+
+- R5-14（nightwatch-backend）：`skill-common.ts` 新增 `globalScopeNotice()`，AWS 三个技能与 dependency 两个技能在无 `projectId` 时先做系统级读授权（`AwsCrossAccountBinding/List`、`DependencyScanFinding/List`，后者按 DB 实测的 `DependencyScanFinding` 资源选定；`SecurityEvaluation` 在 seed 中无任何授权）；拒绝时返回 `global_scope_forbidden` notice 并提示改用自己所属项目的 `projectId`。项目内读取路径不变。
+- R5-14 取证：`skill.test.ts` 新增 4 例（无系统授权拒绝且断言资源/动作、有授权保留 global 视图、dependency 同规则、项目内读取不触发授权检查）；技能测试 31→35，全量 652 通过；`npx tsc --noEmit`、`nest build`、prettier、eslint 均通过。
+- R5-15（nightwatch-backend）：`installation-ref` resolver 同时读取 `req.body.externalRef`；body 必须是完整 `projectId/applicationId`，且 `application.findUnique` 校验该 application 存在于同名项目，query 与 body 项目不一致即返回 `none`（guard 视为 deny）。registry 模块仍只把 `externalRef` 当不透明平台标签，归属判定留在宿主（符合模块分层）。
+- R5-15 取证：`scope-resolvers.test.ts` 新增 6 例（body 合法解析、query/body 项目不一致 deny、application 属他项目 deny、application 不存在 deny、body 前缀 deny、query 前缀 + body 一致通过）；12/12 通过。
+- 运行态取证：`npm run build` 后干净重启 dist 进程（新 PID 存活、日志无 EADDRINUSE），`GET /` → 200，`POST /backend-monitor/installations`（未认证）→ 401 路由正常；日志显示 ingest 流量持续。
+- 附带确认：DB `module/account` 中 `AwsCrossAccountBinding` 有 2 条系统级 `List` 授权组记录，管理员 global 视图不受影响。
 
 
 
