@@ -150,22 +150,22 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 
 | 阶段 | 状态 | commit | 说明 |
 |------|------|--------|------|
-| P6-1a 骨架层 | ✅ 完成 | `caa791bf` + `b39d4985` | next-intl@4.14.9 + middleware + config + messages/{en,zh}.json + layout 改 Server Component + force-dynamic + html lang 动态 |
+| P6-1a 骨架层 | ✅ 完成 | `caa791bf` + `b39d4985` | next-intl@4.14.9 + config + messages/{en,zh}.json + layout 改 Server Component + force-dynamic + html lang 动态 |
 | P6-1b 通用组件层 | ✅ 完成 | 同上 | confirm-dialog 默认按钮硬编码 → useTranslations("common") |
 | P6-1c 字典初始骨架 | ✅ 完成 | 同上 | messages/en.json + zh.json，common namespace 13 键 |
-| P6-1d fewbie-starter 模板同步 | ❌ 下次 | — | 模板层预置 i18n 骨架 |
-| P6-2 页面层迁移（214 处） | ❌ 下次 | — | 30 页面硬编码 → t("page.section.key") |
-| P6-3 字典全量填充 | ❌ 下次 | — | en/zh 各 200-300 key |
+| P6-2 页面层迁移 | ✅ 完成 | `f9d8b046` `caa...` 等 6 提交 | dashboard 全树 + 认证页，25 namespace，jdy 除外零残留 toast |
+| P6-3 字典全量填充 | ✅ 完成 | 随页面迁移同步 | en/zh 各约 280 键 |
+| P6-1d fewbie-starter 模板同步 | ✅ 完成 | fewbie `8f381c4` | 同构骨架：config + messages + LocaleSwitcher + layout 接线 |
 
 **设计决策**：
 
 | 决策 | 替代路径 | 理由 |
 |------|---------|------|
 | 用 next-intl v4 而非 react-i18next | react-i18next | Next.js App Router 原生集成，server component 友好 |
-| force-dynamic 强制动态渲染 | 让 layout prerender | next-intl server API（getLocale/getMessages）需要 middleware request context，prerender 时 Turbopack 会把它们编译成 undefined |
-| jdy 豁免不抽 key | 全部抽 key 但字典里写中文硬编码 | jdy 是财务模块对接金蝶中文生态，切换英文无意义；硬编码豁免更直接 |
-| localePrefix: "as-needed" | 强制所有路径带前缀 | 默认语言（en）不加前缀，URL 干净；middleware 自动处理带前缀的重定向 |
-| 本次只做骨架 + confirm-dialog | 全量 214 处一起改 | 积分/时间拆分；通用组件先改能立即生效，页面层有了骨架后逐个抽 key 风险更低 |
+| **cookie 驱动 locale，不用 URL 前缀**（修正） | `localePrefix: "as-needed"` + `[locale]` 路由段 | 原 `as-needed` 方案在扁平路由下 `/zh/*` 必然 404：next-intl 前缀模式要求 `[locale]` 段。改为 `never` + NEXT_LOCALE cookie，`LocaleSwitcher` 写 cookie 后 refresh；控制台无需 URL 级 SEO 多语言 |
+| `dynamic = "force-dynamic"` | 让 layout prerender | locale 解析依赖 cookie/请求状态，预渲染只能烘死单一语言 |
+| jdy 豁免不抽 key | 全部抽 key | jdy 对接金蝶中文生态，切英文无意义；豁免说明写在 `src/i18n/config.ts` 注释，不占字典键（原 `_note` 会污染英文页客户端载荷） |
+| 字典放仓库根 `messages/` | `locales/`、`src/i18n/messages/` | next-intl 官方约定路径，与 `getMessages()` 命名同源；行业无统一标准（i18next 用 `public/locales`，FormatJS 用 `src/translations`） |
 
 ## Wave 6 关闭说明
 
@@ -173,6 +173,7 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 
 - **Wave 1-4**：2026-11-03 早间全部完成，25+ 次远端推送
 - **Wave 5**：4 条修复 + 3 条拍板保持 → 6 仓 backlog 硬修复条目全部清零
+- **Wave 6 i18n**：nightwatch-frontend 全量迁移（7 次推送，dashboard + 认证页 25 namespace）+ fewbie-starter 模板同构骨架（`8f381c4`）
 - **框架仓改动**：newbie-modules schema 变更需宿主 `npx prisma db push`（nightwatch-backend 已验证）
 
 ### 设计决策记录（本轮）
