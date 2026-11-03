@@ -17,7 +17,7 @@
 
 ## 安全评审 round5 复核后（devbie 自身条目，2026-11-03 入账）
 
-> 真源：`.trae/documents/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02）不在本仓。
+> 真源：`.trae/documents/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02 及随附 clickhouse 装配）已于 2026-11-03 完成，取证见 `findings.md` 的「W1 落地」节。
 
 - R5-06（P2，devbie/newbie-cli）：`modules apply --check` 增补「已安装集 vs registry」比对，输出 `drift` finding。判据：手改一个已装配文件后 CI 变红。
 - R5-07（P1，devbie/apits）：config/生成失败设 `process.exitCode = 1`，补坏 config 用例。判据：`npm run apits` 失败即红。

@@ -6,11 +6,11 @@
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 |---|---|---|---|---|---|---|
-| R5-01 | nightwatch-backend + newbie-modules + devbie | `defaultSecret` 是公开字面量，`SECURITY_DEFAULT_TOKEN_SECRET` 无运行时代码读取；`APPROVE_EMAIL_TOKEN`/`APPROVE_SUBNET_TOKEN` 可伪造 | P0 | live | anonymous（邮箱验证）/ 项目成员（子网接管） | open（复核收窄：logout「重置他人限流」子条已撤回，见报告 §12.1） |
-| R5-02 | nightwatch-backend | Copilot 写技能无项目授权（create/update/delete 任务、增删看板指标） | P0 | live | 任意登录用户 | open |
+| R5-01 | nightwatch-backend + newbie-modules + devbie | `defaultSecret` 是公开字面量，`SECURITY_DEFAULT_TOKEN_SECRET` 无运行时代码读取；`APPROVE_EMAIL_TOKEN`/`APPROVE_SUBNET_TOKEN` 可伪造 | P0 | live | anonymous（邮箱验证）/ 项目成员（子网接管） | fixed（W1，2026-11-03）：newbie-modules `d78bf84` + 宿主 `b5ca19f` + CLI 告警 `5ccd7c9`；伪造字面量 token→401，空 secret 启动即失败 |
+| R5-02 | nightwatch-backend | Copilot 写技能无项目授权（create/update/delete 任务、增删看板指标） | P0 | live | 任意登录用户 | fixed（W1，2026-11-03）：宿主 `b5ca19f` + `3488065`；任务写路径与 `add_dashboard_metric` 均接入 `SCOPE_PERMISSION_CHECKER`，新增 8 例授权单测 |
 | R5-03 | nightwatch-backend | Copilot 读技能 `project/task` datasource 无成员过滤，跨租户读 | P1 | live | 任意登录用户 | open |
 | R5-04 | nightwatch-backend | installation 资源族（backend-monitor/module-hub/heartbeat/health）对 MEMBER 全量授权且未纳入 host-scope | P1 | live | MEMBER/OPERATOR（被授予系统角色且为项目成员；自助注册不分配角色） | open（复核修正可达角色表述） |
-| R5-05 | newbie-modules ↔ nightwatch-backend | 装配漂移 7 个模块：clickhouse 引号化、event-emitter 保留期、security-evaluation R4-04/R4-09、shortcut 白名单未回写；lark 为日志级别、security 为注释陈旧、account 修复放错层（见 N-1，非 live） | P1 | live / artifact | 所有已装配宿主 | open（复核：漂移 8→7，account 项降 artifact，clickhouse 独立为 R5-13） |
+| R5-05 | newbie-modules ↔ nightwatch-backend | 装配漂移 6 个模块（clickhouse 已随 W1 装配，见 R5-13）：event-emitter 保留期、security-evaluation R4-04/R4-09、shortcut 白名单未回写；lark 为日志级别、security 为注释陈旧、account 修复放错层（见 N-1，非 live） | P1 | live / artifact | 所有已装配宿主 | open（复核：漂移 8→7、W1 后 6） |
 | R5-06 | devbie (newbie-cli) | `modules apply --check` 只比对「生成物 vs 已安装文件」，不比对「已安装集 vs registry」，检测不到装配漂移；backend CI 依赖它 | P2 | source / ops | CI | open（复核降级 P1→P2，原「不校验内容一致性」表述已撤回） |
 | R5-07 | devbie (apits) | 生成失败（配置解析/生成异常）一律 exit 0，API 类型静默停留旧版 | P1 | source | 开发者 / CI | open |
 | R5-08 | devbie (aws-secrets-cli) | 非交互 `push` 缺 `--yes` 时静默 no-op 且 exit 0；`--yes` 帮助文本与覆盖语义相反 | P2 | ops | 开发者 / 手工运维 | open（复核降级 P1→P2：deploy.yml 无 `secrets push` 步骤，无 live CI 路径） |
@@ -18,7 +18,7 @@
 | R5-10 | newbie-starter | 模板 Dockerfile 无法满足模板自带 deploy 栈（无 `/deploy`、`prisma/`、tsx，`--omit=dev`） | P1 | template / ops | 新宿主部署 | open |
 | R5-11 | newbie-cli / newbie-starter | `create` 复制的 `check:template` 把模板仓完整性守卫施加到业务树，按官方下一步操作后 CI 变红 | P1 | template | 新项目 / 其 CI | open |
 | R5-12 | devbie (newbie-cli) | `modules update` 在 pristine 不可得时 fail-open，直接覆盖宿主改动并清空 `localPatches` | P1 | source | 开发者 | open |
-| R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | open（复核新增；registry 已修，宿主未装配） |
+| R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | partial（W1 附带装配引号化，`b5ca19f`）；web-monitor `appId` DTO 与 scope 回退待 W2 |
 | N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | open（复核新增；R5-05 原 live 判定撤销） |
 | N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | open（复核新增，`1420529` 引入） |
 | R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | open |
@@ -42,3 +42,9 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 ## 复核轮（2026-11-03）
 
 报告 §12 为本轮复核裁决（锚点 devbie `dcc285b` / newbie-modules `ec1fe50`）。变更摘要：R5-01 撤回 logout 子条（P0 维持）；R5-04 修正可达角色（自助注册不分角色）；R5-05 漂移 8→7、account 项降 artifact；R5-06、R5-08 降 P2；新增 R5-13、N-1、N-2。无 P0/P1 主结论被撤回。
+
+## W1 落地（2026-11-03）
+
+- 变更：newbie-modules `d78bf84`（security 去公开字面量 + 启动/签名/验签断言）、`0891fcb`（clickhouse 配置改为纯 env，修复启动即 `Invalid URL`）；nightwatch-backend `b5ca19f`（装配 security/clickhouse + Copilot 任务写授权）、`3488065`（看板指标写授权）；devbie `5ccd7c9`（CLI 对不可解包表达式告警）。
+- 取证：`src/` 仅剩 `token.service.ts` 的 denylist 常量；伪造字面量 `APPROVE_EMAIL_TOKEN` → 401，空 secret 启动抛 `modules.security.token.defaultSecret must be a non-public secret`；`npm run build` BUILD_OK、`npm test` 623/623、`verify:permissions` 通过、`newbie doctor` 0 error；后端重启后 `/notifications` 401 正常。
+- 附带：clickhouse 的 R5-13 引号化随 `0891fcb` 一并装配（原计划 W2）。
