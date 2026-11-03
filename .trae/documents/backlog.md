@@ -17,10 +17,7 @@
 
 ## 安全评审 round5 复核后（devbie 自身条目，2026-11-03 入账）
 
-> 真源：`.trae/documents/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02 及随附 clickhouse 装配）已于 2026-11-03 完成，取证见 `findings.md` 的「W1 落地」节。
-
-- R5-P2-15/16/18/20（P2，devbie 仓自身）：CI 补两个测试套件、锁定 newbie-cli 版本、版本映射文档、ADR-023 墓碑与跨仓引用前缀。
-- R5-P2-19 残余（P2，fewbie-starter）：fewbie-starter 锁文件已刷新（W2 尾部），仍待去掉 `@devbie/fewbie-cli` 的 `"*"` 通配并锁定版本，使 checklist 第 9 步可核实。
+> 真源：`.trae/documents/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02 及随附 clickhouse 装配）已于 2026-11-03 完成，取证见 `findings.md` 的「W1 落地」节；W3 的 devbie 自身条目（R5-06/N-2/R5-08、前端 P2、治理 P2）已于 2026-11-03 完成，取证见「W3 落地」节。
 
 ## P1（安全评审 round3 2026-10-31，未修复）
 

@@ -21,16 +21,16 @@
 | R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | fixed（W2，2026-11-03）：registry `5adec55`；`assertAppId` 白名单（`^[A-Za-z0-9_]{1,64}$`）在 Mongo/ClickHouse 工厂入口与 `saveSiteData` 生效，客户端不再提供 appId；scope 侧 W1 起 fail-closed |
 | N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | open（复核新增；R5-05 原 live 判定撤销） |
 | N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | fixed（W3，2026-11-03）：基线改为 `snapshotPristineModule`（`git archive <pin>`）；pin 缺失/不可读输出 `missing-pin`/`unavailable-pin` finding 而非跳过；`update --check` 缺 pin → exit 1 |
-| R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | open |
-| R5-P2-12 | nightwatch-frontend | 登出请求失败仍强制本地登出，服务端 session 与 refresh cookie 未撤销 | P2 | live | 使用者 | open |
-| R5-P2-13 | nightwatch-frontend | axios 实例与 refresh 请求无 timeout，`refreshPromise` 可永久挂起 | P2 | live | 使用者 | open |
-| R5-P2-14 | nightwatch-frontend / nightwatch-backend | 项目文档 iframe 无 sandbox，`@IsUrl()` 默认协议集含 ftp | P2 | live | 项目 EDITOR | open |
-| R5-P2-15 | devbie | CI 漏跑 `web-monitor-sdk`（jest 13 例）与 `style-guide` 测试 | P2 | source / artifact | CI | open |
-| R5-P2-16 | newbie-modules | registry CI 用浮动 `@devbie/newbie-cli@1`；缺 dependabot-triage workflow | P2 | source | CI | open |
+| R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | fixed（W3，2026-11-03）：登出成功与登录/TOTP 成功都调用 `queryClient.clear()`；同标签页换账号无残留。未逐 key 加 userId 维度（等价收益、改动面过大） |
+| R5-P2-12 | nightwatch-frontend | 登出请求失败仍强制本地登出，服务端 session 与 refresh cookie 未撤销 | P2 | live | 使用者 | fixed（W3，2026-11-03）：失败时保留会话与 UI 登录态，提示 `toastLogoutFailed` 可重试；仅成功才清 token 并跳转 |
+| R5-P2-13 | nightwatch-frontend | axios 实例与 refresh 请求无 timeout，`refreshPromise` 可永久挂起 | P2 | live | 使用者 | fixed（W3，2026-11-03）：`API_TIMEOUT_MS=15s` 同时施加于业务实例与 refresh 请求；`refreshPromise` 由 `finally` 复位，超时后不再永久挂起；单测断言 `api.defaults.timeout` |
+| R5-P2-14 | nightwatch-frontend / nightwatch-backend | 项目文档 iframe 无 sandbox，`@IsUrl()` 默认协议集含 ftp | P2 | live | 项目 EDITOR | fixed（W3，2026-11-03）：iframe `sandbox=""`（无 allow-scripts/allow-same-origin）；6 个文档 URL 字段的 DTO 改为 `IsUrl({ protocols:["http","https"], require_protocol:true })`，新增 3 例 DTO 校验测试 |
+| R5-P2-15 | devbie | CI 漏跑 `web-monitor-sdk`（jest 13 例）与 `style-guide` 测试 | P2 | source / artifact | CI | fixed（W3，2026-11-03）：CI 显式增加两套件步骤；`style-guide` 因依赖升级（`next ^16.4.3`）而陈旧的断言同步更新，套件本地 27/27 通过 |
+| R5-P2-16 | newbie-modules | registry CI 用浮动 `@devbie/newbie-cli@1`；缺 dependabot-triage workflow | P2 | source | CI | fixed（W3，2026-11-03）：`modules lint` 钉到 `@devbie/newbie-cli@1.14.5`（发版时显式 bump）；补 `dependabot-triage.yml`（与 devbie 同策略） |
 | R5-P2-17 | fewbie-cli | 模板 ownership registry 缺失完整性扫描，自比较空转，未分类文件永不下发 | P2 | template / source | 模板维护者 | fixed（W2 尾部，2026-11-03）：新增 `assetCoversPath`/`isTemplateScanIgnored`/`findUnclassifiedTemplateFiles`，模板仓 CI 以 env 开关强制「未归类即失败」；正向 exit 0、新增未归类文件 exit 1。自比较分支的绿色 ✓ 仅在开关生效时打印，warning 文案按实际执行的守卫动态生成 |
-| R5-P2-18 | devbie | 版本身份三源不一致（root 3.2.0 / tag 4.1.1 / 包 1.x），无映射文档 | P2 | docs / artifact | 发版 / 外部按 tag 取码 | open |
-| R5-P2-19 | nightwatch-backend / fewbie-starter | 依赖声明与锁文件滞后于最新发布；模板 `"*"` 通配使 checklist 第 9 步不可核实 | P2 | artifact / template | 下一次 `npm ci` | 部分修复（W2 尾部，2026-11-03）：fewbie-starter 锁文件与 `package.json` 不同步已实证（`npm ci` EUSAGE 缺 class-validator 等）并刷新，`npm ci --dry-run` exit 0、build 绿；`"*"` 通配（`@devbie/fewbie-cli`）仍留在 backlog |
-| R5-P2-20 | devbie / newbie-modules | ADR-023 增后被 revert 删除且无墓碑，与 registry ADR-023 跨仓重名 | P2 | docs | 文档引用 | open |
+| R5-P2-18 | devbie | 版本身份三源不一致（root 3.2.0 / tag 4.1.1 / 包 1.x），无映射文档 | P2 | docs / artifact | 发版 / 外部按 tag 取码 | fixed（W3，2026-11-03）：RELEASE_CHECKLIST 新增「Version identities」表，明确 root 私有、tag 为里程碑、包版本才是发布身份，且不得互推 |
+| R5-P2-19 | nightwatch-backend / fewbie-starter / nightwatch-frontend | 依赖声明与锁文件滞后于最新发布；模板 `"*"` 通配使 checklist 第 9 步不可核实 | P2 | artifact / template | 下一次 `npm ci` | fixed（W3，2026-11-03）：nightwatch-frontend 锁文件补齐（`npm ci --dry-run` 由 EUSAGE 转 exit 0）；fewbie-starter `@devbie/fewbie-cli` 由 `*` 改为 `^1.4.0` 并同步锁；四仓 `npm ci --dry-run` 均 exit 0 |
+| R5-P2-20 | devbie / newbie-modules | ADR-023 增后被 revert 删除且无墓碑，与 registry ADR-023 跨仓重名 | P2 | docs | 文档引用 | fixed（W3，2026-11-03）：新增 `ADR-023-withdrawn-run-config-passthrough.md` 墓碑（记录 `05d5c14` 新增、`328853e` revert、编号不回收、新 ADR 从 033 起），并写入跨仓引用带仓名前缀的规则 |
 | R5-P2-21 | devbie | `79696ac` 未推送而 `PENDING_PUSH.md` 为空 | P2 | ops | 推送纪律 | withdrawn：评审收口后并行会话已推送（`42ee416..946073d`），现象消失 |
 
 评审期间并发提交（`1420529`、`79696ac`、`42ee416`）已纳入复核：R5-07/R5-12 仍成立；R5-06/R5-08 行为成立但定级下调（见 §12）。
@@ -74,6 +74,17 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 取证（R5-08）：`docker exec`（stdin 非 TTY）直接调用 `runSecretsPush` → `Refusing to push in non-interactive mode without --yes`，exit 1。
 - 门禁：newbie-cli `npm test` 220/220、aws-secrets-cli 10/10；两包 `npm run build` 通过；改动文件 prettier/eslint 全绿。
 - 发布依赖：nightwatch CI 走已安装的 `@devbie/newbie-cli`，新门禁需下一次 CLI 发版并在夜巡升级依赖后生效；`modules.json` 已在本次对齐，届时不会因 pin 缺失而红。
+
+## W3 P2 落地（2026-11-03）
+
+- 变更（nightwatch-frontend `67eb58f`）：登出成功与登录/TOTP 成功均 `queryClient.clear()`；登出失败保留本地会话并提示重试；API 与 refresh 统一 15s timeout；文档 iframe `sandbox=""`；`api-client.test.ts` 增加 timeout 断言。
+- 变更（nightwatch-backend `dae0842`）：项目 6 个文档 URL 字段的 `@IsUrl` 收紧为 http/https + `require_protocol`；新增 `project.dto.test.ts` 3 例。
+- 变更（devbie）：CI 显式跑 `web-monitor-sdk` 与 `style-guide`（后者陈旧断言随 `next ^16.4.3` 修正）；`RELEASE_CHECKLIST.md` 增「Version identities」；新增 ADR-023 墓碑与跨仓引用前缀规则。
+- 变更（newbie-modules）：`modules lint` 钉 `@devbie/newbie-cli@1.14.5`；新增 `dependabot-triage.yml`。
+- 变更（nightwatch-frontend / fewbie-starter）：frontend 锁文件补齐（`npm ci --dry-run` 由 EUSAGE 转 0）；fewbie-starter `@devbie/fewbie-cli` 由 `*` 改 `^1.4.0` 并同步锁。
+- 取证：frontend `npm test` 14/14、`npm run build` 通过（先清 `.next` 陈旧类型缓存）；backend 新 DTO 测试 3/3、`npm run build` 通过；devbie `web-monitor-sdk` 20/20、`style-guide` 27/27；四仓 `npm ci --dry-run` exit 0。
+- 偏离（R5-P2-11）：未给每个 query key 加 userId 维度；在登出/登录两个会话切换点清空缓存，行为验收等价且避免全量改动。
+
 
 
 
