@@ -64,7 +64,11 @@ export async function diffModuleSources(params: {
     };
 
     if (await isDirectory(registryDir)) {
-      const report = diffSnapshots(await snapshotInstalledModule(cwd, key), await snapshotDirectory(registryDir));
+      const installed = await snapshotInstalledModule(cwd, key);
+      // Enabled but not assembled: `modules apply --check` owns that signal,
+      // and an absent copy is not drift against the registry.
+      if (installed === null) continue;
+      const report = diffSnapshots(installed, await snapshotDirectory(registryDir));
       if (report.clean) continue;
       drift.report = report;
     }

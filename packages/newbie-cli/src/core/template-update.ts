@@ -65,7 +65,7 @@ export interface TemplateFile {
 }
 
 /**
- * Full ownership registry of the 35 tracked starter-template files
+ * Full ownership registry of the 38 tracked starter-template files
  * (package-lock.json is per-project by nature and excluded, see
  * TEMPLATE_SCAN_IGNORED_FILES).
  */
@@ -123,6 +123,13 @@ export const TEMPLATE_FILES: readonly TemplateFile[] = [
   { path: "src/application/application.controller.ts", ownership: "template-shipped-host-owned" },
   { path: "src/application/application.module.ts", ownership: "template-shipped-host-owned" },
   { path: "deploy/compose.application.yml", ownership: "template-shipped-host-owned" },
+  // Build contract for the deploy stack. Shipped once: hosts layer in their
+  // own secrets handling, health checks and migrations (see the Dockerfile
+  // header), and existing hosts already carry their own image recipes.
+  { path: "Dockerfile", ownership: "template-shipped-host-owned" },
+  { path: ".dockerignore", ownership: "template-shipped-host-owned" },
+  // Baseline smoke test; hosts expand it with their own suites.
+  { path: "src/smoke.test.ts", ownership: "template-shipped-host-owned" },
   { path: "deploy/clickhouse/config.d/memory.xml", ownership: "template-shipped-host-owned" },
   { path: ".github/dependabot.yml", ownership: "template-shipped-host-owned" },
   { path: ".github/workflows/ci.yml", ownership: "template-shipped-host-owned" },
