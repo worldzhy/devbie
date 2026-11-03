@@ -32,11 +32,20 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
     }
 
     const files = await Promise.all(
-      manifest.files.map(async (relative) => ({
-        path: relative,
-        content: await fs.readFile(path.join(itemDir, relative), "utf8"),
-        type: manifest.type,
-      })),
+      manifest.files.map(async (relative) => {
+        const resolved = path.resolve(itemDir, relative);
+        // Prevent directory traversal — manifest.files must stay inside the
+        // item's own directory. Without this, a malicious manifest could read
+        // any file on the filesystem and embed it in the built registry item.
+        if (!resolved.startsWith(path.resolve(itemDir) + path.sep)) {
+          throw new Error(`Registry manifest for '${entry.name}' contains path outside its directory: ${relative}`);
+        }
+        return {
+          path: relative,
+          content: await fs.readFile(resolved, "utf8"),
+          type: manifest.type,
+        };
+      }),
     );
 
     const builtItem: BuiltRegistryItem = {

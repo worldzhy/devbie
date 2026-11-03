@@ -114,4 +114,5 @@ R3-P2-11、R4-04、R4-09、R3-P2-20、R3-25
 
 | 日期 | 里程碑 | 条目 | 提交证据 |
 |------|--------|------|----------|
-| 2026-11-03 | M1-A 日志泄露 | R3-P2-05 (people-finder 3 服务商)、R3-P2-06 (lark)、R3-G2-3 (provisioningError) | 见各仓提交 |
+| 2026-11-03 | M1-A 日志泄露 | R3-P2-05 (people-finder 3 服务商)、R3-P2-06 (lark)、R3-G2-3 (provisioningError) | newbie-modules 812daab、nightwatch-backend 2d14dc4 |
+| 2026-11-03 | M1-B 资源泄漏 | R3-P2-04 (pdf)、R3-G1-2 (puppeteer)、R3-P2-23 (aws-secrets-cli)、R3-P2-30 (apits)、R3-P2-31 (health-sdk) | newbie-modules 1b3ed38、devbie 5fb03b53 |
