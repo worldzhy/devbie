@@ -21,7 +21,7 @@
 
 - frontend：R3-25 关键流程测试缺位（长期工程门禁，未排期）。
 
-> 治理残余（2026-11-02 复核）：newbie-starter / fewbie-starter 的 `ci.yml` 已有 `concurrency` 但无 `timeout-minutes`；devbie `release-check.yml` 两者皆无。G1..G4 已于 2026-11-02 完成二次取证并拆 ID 入账到各仓 backlog。
+> 治理残余（2026-11-03 清理）：newbie-starter / fewbie-starter ci.yml timeout-minutes、devbie release-check.yml concurrency+timeout 已于 2026-11-03 全部修复推送（d71749e、35eb3bb、1366d8e8）。Wave 4 运维脚本安全（newbie-starter G4-1~G4-4）+ 模板 Dockerfile + smoke test 骨架已全部完成（981e14f、80b3e66、beca0bb、e8b907d）。
 
 ## P2
 
@@ -33,9 +33,7 @@
 
 > 来源：`.trae/documents/expert-review-2026-10-31-round3.md` §P2「CLI 健壮性 / 契约一致性 / 无界增长」中归属 devbie 的条目。P2-26（cli-kit 网络调用无超时）、P2-27（fewbie create 泄漏临时 clone）复核为误报；P2-29（NewbieFactory.create god object）属有意 bootstrap 门面，out-of-scope。
 
-- [ ] `[R3-P2-22]` **P2** aws-secrets-cli 非交互模式静默跳过仍退出 0：`packages/aws-secrets-cli/src/pull-push.ts` L184-190 冲突键静默保留本地值；L210-219 无 TTY 无 `--yes` 时取消写入仍正常返回。
-- [ ] `[R3-P2-25]` **P2** apits 网络调用无超时：`packages/apits/src/generator.ts` L190 `got.get` 未显式传 timeout。
-- [ ] `[R3-P2-28]` **P2** newbie drift 快照硬编码 `"src","modules"`：`packages/newbie-cli/src/lib/drift.ts` L70 与 `constants/paths.ts` L10-11 布局常量重复，目录不存在时静默返回空快照。
+（Wave 3 全部完成：P2-22 aws-secrets-cli non-interactive、P2-25 apits timeout、P2-28 drift 路径常量化，均已推 devbie `2072ffbc`）
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
