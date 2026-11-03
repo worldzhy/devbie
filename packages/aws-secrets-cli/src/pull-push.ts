@@ -279,6 +279,14 @@ function managementTags(secretConfig: SecretConfig): { Key: string; Value: strin
 }
 
 export async function runSecretsPush(options: SecretsCommandOptions): Promise<void> {
+  // Non-interactive runs cannot confirm a write, and silently skipping would
+  // report success while pushing nothing (R5-08). Require the explicit flag.
+  if (!options.yes && !options.dryRun && !process.stdin.isTTY) {
+    throw new CliError(
+      "Refusing to push in non-interactive mode without --yes; re-run with --yes to create/update secrets.",
+    );
+  }
+
   const { config: toolConfig } = await readEnvToolConfig(options.cwd);
   const envName = await pickEnvironment(toolConfig, options.environment);
   const envConfig = toolConfig.environments[envName];

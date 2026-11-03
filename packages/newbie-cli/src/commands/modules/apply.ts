@@ -3,6 +3,7 @@ import { bold, cyan, green, inverse } from "colorette";
 import { moduleKeys } from "@devbie/modules-state";
 
 import { applyPlanned, planReconcile } from "../../assemble/pipeline";
+import { diffModuleSources, printSourceDrift } from "../../assemble/module-source-drift";
 import { ENV_PATH } from "../../constants/paths";
 import { CliError } from "@devbie/cli-kit";
 import { SinkFinding } from "../../lib/sink";
@@ -26,8 +27,10 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
 
 /**
  * CI gate (ADR-024 F7): prove that module copies, modules.json and every
- * generated wiring file match what a plain `modules apply` would write.
- * Runs offline (no registry fetch) so CI stays deterministic.
+ * generated wiring file match what a plain `modules apply` would write, and
+ * that every installed copy still matches the registry tree pinned in
+ * modules.json (R5-06/N-2). Runs offline (no registry fetch) so CI stays
+ * deterministic.
  */
 async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   const { ctx } = await createContext(options, { check: true, fetch: false });
@@ -55,19 +58,35 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   await applyPlanned(ctx, plan);
 
   const findings = ctx.sink.findings.filter(isCountedFinding);
-  if (findings.length === 0) {
-    console.info(green(bold("✓ Module copies and generated wiring match modules.json.")));
-    return;
+  if (findings.length > 0) {
+    for (const finding of findings) {
+      const detail = finding.kind === "action" ? finding.detail : finding.kind;
+      console.info(`  - ${finding.path}: ${detail}`);
+    }
+    throw new CliError(
+      `${findings.length} generated file(s) drift from the installed module set. ` +
+        "Run `newbie modules apply` to regenerate them.",
+    );
   }
 
-  for (const finding of findings) {
-    const detail = finding.kind === "action" ? finding.detail : finding.kind;
-    console.info(`  - ${finding.path}: ${detail}`);
+  // Source drift: modules.json agreeing with src/modules does not prove the
+  // copies are unmodified; only the pinned registry tree can (R5-06/N-2).
+  const drifts = await diffModuleSources({
+    cwd: ctx.cwd,
+    registry: ctx.registry,
+    state: ctx.state,
+    enabledKeys: declared,
+  });
+  if (drifts.length > 0) {
+    for (const drift of drifts) printSourceDrift(drift);
+    const keys = drifts.map((drift) => drift.key).join(", ");
+    throw new CliError(
+      `${drifts.length} installed module(s) do not match the registry pin in modules.json (${keys}); ` +
+        "back-port the host changes to newbie-modules, or run `newbie modules update` to adopt the registry version.",
+    );
   }
-  throw new CliError(
-    `${findings.length} generated file(s) drift from the installed module set. ` +
-      "Run `newbie modules apply` to regenerate them.",
-  );
+
+  console.info(green(bold("✓ Module copies, sources and generated wiring match modules.json.")));
 }
 
 /**

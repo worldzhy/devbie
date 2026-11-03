@@ -8,7 +8,7 @@ import { MODULES_DIR, moduleKeys } from "@devbie/modules-state";
 
 import { describeMissingDependencies, expandRegistryClosure } from "../../assemble/module-graph";
 import { collectMissingRegistrySources } from "../../assemble/modules-copy";
-import { ModuleSourceDrift, diffModuleSources } from "../../assemble/module-source-drift";
+import { diffModuleSources, printSourceDrift } from "../../assemble/module-source-drift";
 import { runSteps } from "../../assemble/pipeline";
 import { diffSnapshots, driftPatchIds } from "../../core/drift";
 import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
@@ -278,20 +278,11 @@ export async function backupInstalledModules(cwd: string, keys: string[]): Promi
   return saved;
 }
 
-/** Print one installed module whose sources diverge from the registry checkout. */
-function printSourceDrift(drift: ModuleSourceDrift): void {
-  const verdict = drift.report === null ? "absent from" : "differs from";
-  console.info(bold(`\n# ${drift.installedPath} (${verdict} ${drift.registryPath})`));
-  if (drift.report === null) return;
-  for (const file of drift.report.added) console.info(`  added: ${file}`);
-  for (const file of drift.report.changed) console.info(`  changed: ${file}`);
-  for (const file of drift.report.removed) console.info(`  removed: ${file}`);
-}
-
 /**
  * CI gate (ADR-024 F7): every installed module copy must stay byte-identical to
- * the registry checkout it was back-ported from (ADR-019/ADR-021). Runs
- * offline: CI points NEWBIE_MODULES_PATH at a local checkout, so no fetch.
+ * the registry tree pinned in modules.json (ADR-019/ADR-021). Runs offline:
+ * CI points NEWBIE_MODULES_PATH at a local checkout, so no fetch. A copy
+ * without a usable pin is reported instead of skipped (R5-06/N-2).
  */
 async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
   const { ctx } = await createContext(options, { fetch: false });
@@ -303,7 +294,8 @@ async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
 
   const drifts = await diffModuleSources({
     cwd: ctx.cwd,
-    registryRoot: ctx.registry.root,
+    registry: ctx.registry,
+    state: ctx.state,
     enabledKeys,
   });
   if (drifts.length === 0) {

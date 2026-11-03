@@ -11,16 +11,16 @@
 | R5-03 | nightwatch-backend | Copilot 读技能 `project/task` datasource 无成员过滤，跨租户读 | P1 | live | 任意登录用户 | fixed（W2，2026-11-03）：`ea6174e`；六读方法全按 `members.some(userId)` 过滤，`project.datasource.test.ts` 4 例 where 断言 |
 | R5-04 | nightwatch-backend | installation 资源族（backend-monitor/module-hub/heartbeat/health）对 MEMBER 全量授权且未纳入 host-scope | P1 | live | MEMBER/OPERATOR（被授予系统角色且为项目成员；自助注册不分配角色） | fixed（W2，2026-11-03）：`5d5ff71`；四资源入 host-scope + 矩阵（Viewer 读/Editor 写/Admin 删）+ `installation`/`installation-ref` resolver；非成员 GET/LIST 403、OWNER 200 |
 | R5-05 | newbie-modules ↔ nightwatch-backend | 装配漂移 6 个模块（clickhouse 已随 W1 装配，见 R5-13）：event-emitter 保留期、security-evaluation R4-04/R4-09、shortcut 白名单未回写；lark 为日志级别、security 为注释陈旧、account 修复放错层（见 N-1，非 live） | P1 | live / artifact | 所有已装配宿主 | fixed（W2，2026-11-03）：`modules update --check` 漂移 7→0；装配期修 3 个 registry 缺陷（env 对象描述符崩溃、security-evaluation 非法 Prisma enum、陈旧测试期望） |
-| R5-06 | devbie (newbie-cli) | `modules apply --check` 只比对「生成物 vs 已安装文件」，不比对「已安装集 vs registry」，检测不到装配漂移；backend CI 依赖它 | P2 | source / ops | CI | open（复核降级 P1→P2，原「不校验内容一致性」表述已撤回） |
+| R5-06 | devbie (newbie-cli) | `modules apply --check` 只比对「生成物 vs 已安装文件」，不比对「已安装集 vs registry」，检测不到装配漂移；backend CI 依赖它 | P2 | source / ops | CI | fixed（W3，2026-11-03）：`apply --check` 复用 `diffModuleSources`，按 `sourceCommit` 快照比对已安装集与 registry；手改 `src/modules/account/README.md` → exit 1 + `changed: README.md`，恢复后 exit 0 |
 | R5-07 | devbie (apits) | 生成失败（配置解析/生成异常）一律 exit 0，API 类型静默停留旧版 | P1 | source | 开发者 / CI | fixed（W2，2026-11-03）：`start()` 三个失败分支设 `process.exitCode = 1`；`apits.test.ts` 新增无输入/坏 config/生成失败 3 例均断言 exit 1 |
-| R5-08 | devbie (aws-secrets-cli) | 非交互 `push` 缺 `--yes` 时静默 no-op 且 exit 0；`--yes` 帮助文本与覆盖语义相反 | P2 | ops | 开发者 / 手工运维 | open（复核降级 P1→P2：deploy.yml 无 `secrets push` 步骤，无 live CI 路径） |
+| R5-08 | devbie (aws-secrets-cli) | 非交互 `push` 缺 `--yes` 时静默 no-op 且 exit 0；`--yes` 帮助文本与覆盖语义相反 | P2 | ops | 开发者 / 手工运维 | fixed（W3，2026-11-03）：非交互且无 `--yes` 在执行任何 AWS/`.env` 操作前抛 `CliError`（exit 1）；`pull --yes` 文案改为「conflicting local values are replaced with AWS values」；新增 CLI 用例 |
 | R5-09 | fewbie-cli / fewbie-starter | 框架托管 `next.config.ts`（整文件覆盖）与模板 Dockerfile（需 standalone）互斥，模板更新打断 docker build | P1 | template / ops | 所有 fewbie 宿主 | fixed（W2 尾部，2026-11-03）：fewbie-starter `next.config.ts` 内置 `output:"standalone"`（框架单一真源，`template update` 不再把宿主配置改回无 standalone）；`fewbie-cli` ownership 补 `.github/**`、`Dockerfile`、`.dockerignore` 等并加完整性扫描；`docker build` 实测成功、镜像 `http=200`。第 3 条（nightwatch-frontend 加 `template update --check`）不采纳，理由见「W2 尾部落地」 |
 | R5-10 | newbie-starter | 模板 Dockerfile 无法满足模板自带 deploy 栈（无 `/deploy`、`prisma/`、tsx，`--omit=dev`） | P1 | template / ops | 新宿主部署 | fixed（W2 尾部，2026-11-03）：Dockerfile 重写为 `node:22-bookworm-slim`（openssl/ca-certificates/tini），保留完整 devDeps，COPY `prisma/`、`prisma.config.ts`、`tsconfig.json`、`deploy→/deploy`；空库实测 `prisma db push` + `prisma db seed`（tsx）+ `node dist/src/main.js` 全通过 |
 | R5-11 | newbie-cli / newbie-starter | `create` 复制的 `check:template` 把模板仓完整性守卫施加到业务树，按官方下一步操作后 CI 变红 | P1 | template | 新项目 / 其 CI | fixed（W2 尾部，2026-11-03）：完整性守卫改为环境开关 `NEWBIE/FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`（仅模板仓 CI 开启），`create` 复制时剥离该前缀与遗留 `--registry-complete`；错误文案指向模板仓；实测新建项目复制门禁 exit 0、模板专用门禁 exit 1 |
 | R5-12 | devbie (newbie-cli) | `modules update` 在 pristine 不可得时 fail-open，直接覆盖宿主改动并清空 `localPatches` | P1 | source | 开发者 | fixed（W2，2026-11-03）：无 pin/pristine 不可得 → `unpinned` 跳过并要求 `--force`；`--force` 覆盖前备份到 `.newbie/backups/<key>-<stamp>`；`modules-update.test.ts` 2 例 |
 | R5-13 | newbie-modules ↔ nightwatch-backend | ClickHouse 标识符注入：宿主 `clickhouse.service` 裸插值 DDL，web-monitor 的 `appId` 无 DTO/字符集校验，scope 解析不到时只剩系统级权限 | P1 | live | MEMBER/OPERATOR 且项目 EDITOR+ | fixed（W2，2026-11-03）：registry `5adec55`；`assertAppId` 白名单（`^[A-Za-z0-9_]{1,64}$`）在 Mongo/ClickHouse 工厂入口与 `saveSiteData` 生效，客户端不再提供 appId；scope 侧 W1 起 fail-closed |
 | N-1 | newbie-modules | R5-05 的 account 修复放错层：owner-active/LRU TTL 在缓存函数，`api-key.verifier.ts` 两仓逐字节相同且不做 owner 校验；`getApiKeyFromKey` 无调用方 | P2 | artifact | API key 通道启用后 | open（复核新增；R5-05 原 live 判定撤销） |
-| N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | open（复核新增，`1420529` 引入） |
+| N-2 | devbie (newbie-cli) | drift 基线取 registry 工作树而非 `sourceCommit` pin，pin 为 `null` 时跳过比对；`modules.json` 的 `sourceCommit` 无强制校验 | P2 | source | CI / 装配 | fixed（W3，2026-11-03）：基线改为 `snapshotPristineModule`（`git archive <pin>`）；pin 缺失/不可读输出 `missing-pin`/`unavailable-pin` finding 而非跳过；`update --check` 缺 pin → exit 1 |
 | R5-P2-11 | nightwatch-frontend | 登出不清理 react-query 缓存，同标签页换账号短暂复用上一账号数据 | P2 | live | 共享设备使用者 | open |
 | R5-P2-12 | nightwatch-frontend | 登出请求失败仍强制本地登出，服务端 session 与 refresh cookie 未撤销 | P2 | live | 使用者 | open |
 | R5-P2-13 | nightwatch-frontend | axios 实例与 refresh 请求无 timeout，`refreshPromise` 可永久挂起 | P2 | live | 使用者 | open |
@@ -64,5 +64,16 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 门禁：fewbie-cli `npm test` 54/54、newbie-cli 219/219；两模板 `format:check`/`lint` exit 0；改动文件 prettier 全绿。
 - 偏离（R5-09 第 3 条）：不给 nightwatch-frontend 加 `fewbie template update --check` CI 门禁。实测该宿主 `next.config.ts`/`eslint.config.mjs`/`src/app/globals.css` 与模板存在有意分歧，门禁会长期红；模板侧契约由 fewbie-starter 自身 CI 的 `check:template` 守住，`create` 出的新项目也继承该门禁。
 - 偏离（R5-10 第 2 条）：未改 `start.sh` 去掉 `docker cp`。`extract_deploy_assets` 是既定分发契约（镜像为唯一真源，宿主不 clone 仓库，compose 文件必须是宿主机 CLI 的输入），本次只保证镜像内 `/deploy` 齐备。
+
+## W3 落地（2026-11-03）
+
+- 变更（devbie）：`packages/newbie-cli` 的 `diffModuleSources` 改为按 `modules.json` 的 `sourceCommit` 快照（`git archive <pin>`）比对，新增 `missing-pin`/`unavailable-pin` finding；`modules apply --check` 在生成物校验后追加同一比对，`update --check` 错误文案保留。
+- 变更（nightwatch-backend）：`modules.json` 的 35 个模块 pin 由各历史提交统一到 registry dev `0c977ad`（`modules update --force --yes` 重拷贝，`git status` 仅 `modules.json`，源码零差异）；CI registry clone 去掉 `--depth 1`，使 pin 提交可读取。
+- 变更（aws-secrets-cli）：非交互 `push` 无 `--yes` 在任何 AWS/`.env` 操作前抛 `CliError`；`pull --yes` 文案改为「conflicting local values are replaced with AWS values」；`push --yes` 文案注明非交互必填。
+- 取证（R5-06/N-2）：nightwatch-backend 内以本地 CLI dist 执行——`apply --check` exit 0；篡改 `src/modules/account/README.md` → exit 1 且列出 `changed: README.md`，恢复后 exit 0；`update --check` exit 0；把 account pin 置 null → `update --check` exit 1 并输出 `no sourceCommit pin`。
+- 取证（R5-08）：`docker exec`（stdin 非 TTY）直接调用 `runSecretsPush` → `Refusing to push in non-interactive mode without --yes`，exit 1。
+- 门禁：newbie-cli `npm test` 220/220、aws-secrets-cli 10/10；两包 `npm run build` 通过；改动文件 prettier/eslint 全绿。
+- 发布依赖：nightwatch CI 走已安装的 `@devbie/newbie-cli`，新门禁需下一次 CLI 发版并在夜巡升级依赖后生效；`modules.json` 已在本次对齐，届时不会因 pin 缺失而红。
+
 
 
