@@ -20,10 +20,9 @@
 > 真源：`.trae/documents/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02 及随附 clickhouse 装配）已于 2026-11-03 完成，取证见 `findings.md` 的「W1 落地」节。
 
 - R5-06（P2，devbie/newbie-cli）：`modules apply --check` 增补「已安装集 vs registry」比对，输出 `drift` finding。判据：手改一个已装配文件后 CI 变红。
-- R5-07（P1，devbie/apits）：config/生成失败设 `process.exitCode = 1`，补坏 config 用例。判据：`npm run apits` 失败即红。
-- R5-12（P1，devbie/newbie-cli）：`modules update` 在 pin 不可得且未 `--force` 时拒绝执行并 exit 1；覆盖前快照宿主目录。判据：缺失 pin 时宿主文件字节不变。
 - N-2（P2，devbie/newbie-cli）：drift 基线改用 `git show <sourceCommit>:packages/modules/<key>`；pin 缺失时报 finding；`modules apply --check` 校验 `sourceCommit` 存在。
-- R5-P2-15/16/18/19/20、R5-08（P2，devbie 仓自身）：CI 补两个测试套件、锁定 newbie-cli 版本、版本映射文档、刷新锁文件并去掉 `"*"`、ADR-023 墓碑与跨仓引用前缀、aws-secrets-cli 非交互 exit 1。
+- R5-P2-15/16/18/20、R5-08（P2，devbie 仓自身）：CI 补两个测试套件、锁定 newbie-cli 版本、版本映射文档、ADR-023 墓碑与跨仓引用前缀、aws-secrets-cli 非交互 exit 1。
+- R5-P2-19 残余（P2，fewbie-starter）：fewbie-starter 锁文件已刷新（W2 尾部），仍待去掉 `@devbie/fewbie-cli` 的 `"*"` 通配并锁定版本，使 checklist 第 9 步可核实。
 
 ## P1（安全评审 round3 2026-10-31，未修复）
 
