@@ -59,7 +59,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 - 变更：devbie `d6529d4`（两 CLI 的 registry 完整性守卫改为 env 开关、`create` 剥离模板专用前缀、fewbie ownership 补齐资产并加完整性扫描与测试）、`d74f9be`（ADR-009/ADR-025 修订）；fewbie-starter `38e1028`（`next.config.ts` 内置 `output:"standalone"` 并同步 Dockerfile 注释）、`cfb1550`（锁文件与 `package.json` 对齐）、`4f53958`（`check:template` 打开完整性开关）；newbie-starter `3943170`（Dockerfile 对齐自带 deploy 栈）、`6b2d455`（`check:template` 同开关）。
 - 取证（R5-09）：fewbie-starter `npm ci --dry-run` exit 0、`npm ci` + `npm run build` 产出 `.next/standalone/server.js`；`docker build` 成功，`docker run` 后 `GET /` `http=200`；`check:template` 正向 exit 0、新增未归类文件 exit 1。
-- 取证（R5-10）：newbie-starter 空库（临时 postgres）实测 `prisma generate` + `npm run build` + `prisma db push` + `prisma db seed`（`tsx`）+ `node dist/src/main.js` 全部成功；`docker build --check` 无警告。
+- 取证（R5-10）：`docker build` 成功；镜像内对空库执行 `npx prisma db push`、`npx prisma db seed`（`tsx ./prisma/seed.ts`）与 `node dist/src/main.js` 启动全部成功，`GET /` 返回 404（compose healthcheck 判据 <500 即健康），`/deploy`（compose 层、Caddyfile 模板、scripts）与 `node_modules/.bin/{tsx,prisma}` 均在镜像内。
 - 取证（R5-11）：由 newbie-starter 生成的 `/tmp/nw-create-probe` 中 `check:template` 已剥离为 `newbie template update --check --template-path .`，新增宿主业务文件后该门禁 exit 0；带 `NEWBIE_TEMPLATE_REGISTRY_COMPLETE=1` 的模板专用门禁 exit 1。fewbie 同法 `/tmp/fw-create-probe` exit 0。
 - 门禁：fewbie-cli `npm test` 54/54、newbie-cli 219/219；两模板 `format:check`/`lint` exit 0；改动文件 prettier 全绿。
 - 偏离（R5-09 第 3 条）：不给 nightwatch-frontend 加 `fewbie template update --check` CI 门禁。实测该宿主 `next.config.ts`/`eslint.config.mjs`/`src/app/globals.css` 与模板存在有意分歧，门禁会长期红；模板侧契约由 fewbie-starter 自身 CI 的 `check:template` 守住，`create` 出的新项目也继承该门禁。
