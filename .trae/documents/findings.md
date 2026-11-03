@@ -75,7 +75,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 取证（R5-06/N-2）：nightwatch-backend 内以本地 CLI dist 执行——`apply --check` exit 0；篡改 `src/modules/account/README.md` → exit 1 且列出 `changed: README.md`，恢复后 exit 0；`update --check` exit 0；把 account pin 置 null → `update --check` exit 1 并输出 `no sourceCommit pin`。
 - 取证（R5-08）：`docker exec`（stdin 非 TTY）直接调用 `runSecretsPush` → `Refusing to push in non-interactive mode without --yes`，exit 1。
 - 门禁：newbie-cli `npm test` 220/220、aws-secrets-cli 10/10；两包 `npm run build` 通过；改动文件 prettier/eslint 全绿。
-- 发布依赖：nightwatch CI 走已安装的 `@devbie/newbie-cli`，新门禁需下一次 CLI 发版并在夜巡升级依赖后生效；`modules.json` 已在本次对齐，届时不会因 pin 缺失而红。
+- 发布依赖：nightwatch CI 走已安装的 `@devbie/newbie-cli`，新门禁需下一次 CLI 发版并在夜巡升级依赖后生效；`modules.json` 已在本次对齐，届时不会因 pin 缺失而红。已由 W7 发版 `1.15.0` 并在两个消费仓升级。
 
 ## W3 P2 落地（2026-11-03）
 
@@ -105,6 +105,14 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - R5-15 取证：`scope-resolvers.test.ts` 新增 6 例（body 合法解析、query/body 项目不一致 deny、application 属他项目 deny、application 不存在 deny、body 前缀 deny、query 前缀 + body 一致通过）；12/12 通过。
 - 运行态取证：`npm run build` 后干净重启 dist 进程（新 PID 存活、日志无 EADDRINUSE），`GET /` → 200，`POST /backend-monitor/installations`（未认证）→ 401 路由正常；日志显示 ingest 流量持续。
 - 附带确认：DB `module/account` 中 `AwsCrossAccountBinding` 有 2 条系统级 `List` 授权组记录，管理员 global 视图不受影响。
+
+## W7 发版与消费仓升级（2026-11-03）
+
+- 发版：`@devbie/newbie-cli` `1.14.5` → `1.15.0`（含 W3 源漂移门禁、W6 无 commit 拒绝拷贝）；`npm publish -w @devbie/newbie-cli` 成功，registry 公开可解析（shasum `e1149e5`、161 files、89.9 kB）。
+- 升级（nightwatch-backend）：`@devbie/newbie-cli` `^1.14.2` → `^1.15.0`，lock 落在 1.15.0；`npm run build` 通过、`npm test` 652/652。
+- 新门禁实测（nightwatch-backend，CLI 1.15.0）：`apply --check` 输出 `# src/modules/account (cannot read packages/modules/account at 59ff47c)` + `1 installed module(s) do not match the registry pin`，exit 0（门禁只告警不阻断）；`newbie doctor` 提示 account `59ff47c -> 0c977ad` 更新可用，0 error。
+- 升级（newbie-starter）：spec 保持 `*`，`npm update @devbie/newbie-cli --package-lock-only` 使 lock 落在 1.15.0；`check:template`、`build`、`lint`、`format:check` 均通过。
+- 遗留：nightwatch-backend 的 account 与 registry 当前 dev 存在漂移（`59ff47c` 快照读不到该模块目录），是否 `modules update` 采用 registry 版本需先确认本地宿主改动是否需回写 registry，未在本次发版中处理。
 
 
 
