@@ -114,3 +114,30 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 升级（newbie-starter）：spec 保持 `*`，`npm update @devbie/newbie-cli --package-lock-only` 使 lock 落在 1.15.0；`check:template`、`build`、`lint`、`format:check` 均通过。
 - 遗留（已澄清，非缺陷）：首发 `apply --check` 报 account 漂移是容器内环境产物——`DEFAULT_LOCAL_REGISTRY` 取 `os.homedir()/src/newbie-modules`，容器 HOME=/root 找不到本地仓，退回缓存克隆（停在 `0c977ad`，缺 `59ff47c`）→ 报 `unavailable-pin`。补 `NEWBIE_MODULES_PATH=/home/worldzhy/src/newbie-modules` 复跑，输出 `✓ Module copies, sources and generated wiring match modules.json`，无真实漂移。
 
+## round6 复核（2026-11-04，scope=`workspace`，报告 `expert-review-2026-11-04-round6.md`）
+
+复核锚点：devbie `53a2d2d`、newbie-modules `59ff47c`、nightwatch-backend `847e03b`、newbie-starter `a09fb65`、fewbie-starter `e57ac52`、nightwatch-frontend `8a8b3c6`。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+|---|---|---|---|---|---|---|
+| R6-01 | nightwatch-backend | Copilot `remove_dashboard_metric`/`list_dashboard_metrics` 无项目授权，跨项目读写看板指标（R5-02 修复不完整） | P0 | live | 任意登录用户（需受害者 projectId） | open |
+| R6-02 | nightwatch-backend | `BackendMonitorLog` 未纳入 host-scope，MEMBER 按任意 `applicationId` 跨租户读请求/错误日志（R5-04 修复不完整） | P1 | live | MEMBER | open |
+| R6-03 | devbie (newbie-cli) | `modules update --check` 对已安装目录缺失 fail-open（`module-source-drift.ts` 跳过 null copy） | P2 | source / ops | CI | open |
+| R6-04 | devbie (newbie-cli) | 无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json，失败后声明与目录不一致 | P2 | source | 开发者 | open |
+| R6-05 | fewbie-cli / fewbie-starter | 模板完整性守卫未生效：已发布 1.4.2 不含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，fewbie-starter 锁 1.4.0 | P2 | template | 所有 fewbie 宿主 CI | open |
+| R6-06 | devbie (aws-secrets-cli) / nightwatch-backend | 1.1.5 未发布，宿主仍 1.1.4 静默 exit 0；非 TTY 缺 `-e` 时 push/pull/check 仍“取消即成功” | P2 | ops / artifact | 开发者 / 运维 | open |
+| R6-07 | devbie / newbie-modules | 台账与事实相反：W7 把 `apply --check` 记成 exit 0（实测 exit 1）；registry 的 R5-13/R4-04/R4-09 状态陈旧；R5-P2-03 未降级 | P2 | docs | 后续评审 | open |
+| R6-08 | nightwatch-backend / newbie-starter | R5-P2-19 提前结案：宿主 `health-sdk` 1.1.0、`style-guide` 1.4.1 低于 latest；starter 仍 `"*"` | P2 | artifact / docs | 下一次 `npm ci` | open |
+| R6-09 | newbie-modules | R4-04 的实体集/模型版本维度仍未落地，verdict cache 唯一键只有 `(knowledgeItemId, scopeKey)`，仅靠 7 天 TTL | P2 | live | OPERATOR 变更实体后 INTEL 运行 | open |
+| R6-10 | newbie-modules / nightwatch-backend | shortcut 更新 DTO 的 `ValidateIf` 可跳过协议白名单，`javascript:`/`data:` 可落库 | P2 | artifact / live | 项目 EDITOR | open |
+| R6-11 | newbie-modules | event-emitter 保留期用 `config.env` 形状，`apply` 未渲染到宿主 env；清理为单条无上限 deleteMany | P2 | artifact | 运维 | open（未运行时复现） |
+| R6-12 | newbie-modules / nightwatch-backend | account “组织键跳过 user 表”分支 schema 不可达，测试用非法数据；`CACHE_APIKEY_LRU_SIZE` 死配置残留 | P2 | artifact / ops | 文档与测试 | open |
+| R6-13 | newbie-modules / nightwatch-backend | web-monitor 历史 appId 不符合白名单的存量数据读取 400，ingest 整批丢弃 | P2 | live | 已认证 WebMonitor 用户 | open（未上线，限于开发数据） |
+| R6-14 | newbie-modules | registry CI `modules lint` 仍钉 1.14.5，落后已发布 1.15.0 | P2 | source / CI | 所有 registry PR | open |
+| R6-15 | devbie (apits / newbie-cli) | apits watch 重生成失败仅日志、退出码可 0；`create` 保留 `--template-path .` 使新项目 `check:template` 恒绿 | P2 | source / template | 开发者 / 新项目 CI | open |
+
+重验说明（不改变历史行，仅更正事实）：
+- W7 节「`apply --check` … exit 0（门禁只告警不阻断）」不成立：`packages/newbie-cli/src/commands/modules/apply.ts` 对 `unavailable-pin` 也 `throw CliError`，容器内实测 exit 1；原文记录已过期/错误。
+- R5-P2-19 的“锁文件滞后已修”仅覆盖前端与 fewbie-starter，宿主 `health-sdk`/`style-guide` 与 starter `"*"` 未覆盖，见 R6-08。
+- R5-06/R5-12 主行为复核通过（篡改源文件 exit 1；`--force` 备份先于覆盖）。
+
