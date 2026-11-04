@@ -27,7 +27,7 @@ export function register(parent: Command, options: GlobalOptions): void {
     .command("pull")
     .description("Pull environment variables from AWS Secrets Manager into .env")
     .option("-e, --environment <name>", "environment name from the env-tool config (skips the prompt)")
-    .option("-y, --yes", "write .env without prompting (conflicting local values are kept)", false)
+    .option("-y, --yes", "write .env without prompting; conflicting local values are replaced with AWS values", false)
     .option("--strict", "abort without writing .env when any secret fails to pull (for CI)", false)
     .action(function (this: Command) {
       const flags = this.opts();
@@ -59,7 +59,7 @@ export function register(parent: Command, options: GlobalOptions): void {
     .command("push")
     .description("Push environment variables from .env to AWS Secrets Manager")
     .option("-e, --environment <name>", "environment name from the env-tool config (skips the prompt)")
-    .option("-y, --yes", "create/update secrets without prompting", false)
+    .option("-y, --yes", "create/update secrets without prompting (required in non-interactive mode)", false)
     .action(function (this: Command) {
       const flags = this.opts();
       return run(() =>

@@ -71,11 +71,23 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   // Host-owned: distributed once by create, then never touched by template update.
   { path: "src/app/layout.tsx", ownership: "host" },
   { path: "src/app/page.tsx", ownership: "host" },
+  { path: "src/app/favicon.ico", ownership: "host" },
   { path: "src/components/**", ownership: "host" },
+  { path: "src/i18n/**", ownership: "host" },
+  { path: "src/smoke.test.ts", ownership: "host" },
   { path: "package.json", ownership: "host" },
   { path: "README.md", ownership: "host" },
   { path: "next-env.d.ts", ownership: "host" },
   { path: "CLAUDE.md", ownership: "host" },
+  { path: ".gitignore", ownership: "host" },
+  { path: ".githooks/**", ownership: "host" },
+  { path: ".github/**", ownership: "host" },
+  // Build contract for the production image. Shipped once: hosts layer in
+  // their own image recipes (dev images, extra stages), so template update
+  // must not overwrite them. The framework's standalone requirement lives in
+  // the framework-owned next.config.ts instead.
+  { path: "Dockerfile", ownership: "host" },
+  { path: ".dockerignore", ownership: "host" },
 ];
 
 /** Template files whose content template update manages. */
@@ -84,6 +96,62 @@ export function isSyncableAsset(asset: TemplateAsset): boolean {
 }
 
 export const SYNCABLE_ASSETS: readonly TemplateAsset[] = TEMPLATE_ASSETS.filter(isSyncableAsset);
+
+/**
+ * True when a registry path matches `filePath`: a path ending in `/**` owns its
+ * whole subtree, any other path is an exact file.
+ */
+export function assetCoversPath(asset: TemplateAsset, filePath: string): boolean {
+  if (asset.path.endsWith("/**")) {
+    const prefix = asset.path.slice(0, -3);
+    return filePath === prefix || filePath.startsWith(`${prefix}/`);
+  }
+  return filePath === asset.path;
+}
+
+/**
+ * Directories and file names excluded from the ownership-completeness guard:
+ * runtime outputs, VCS metadata, the per-project lockfile and the agent-session
+ * backlog (a workspace process ledger that exists in the template repo but is
+ * not a shipped template asset).
+ */
+const SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
+  ".git",
+  ".idea",
+  ".vscode",
+  ".next",
+  "coverage",
+  "dist",
+  "node_modules",
+  "out",
+  "storybook-static",
+]);
+const SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([
+  ".DS_Store",
+  ".env",
+  ".env.local",
+  "backlog.md",
+  "package-lock.json",
+]);
+const SCAN_IGNORED_SUFFIXES: readonly string[] = [".tsbuildinfo"];
+
+/** True for runtime outputs and per-project files excluded from the guard. */
+export function isTemplateScanIgnored(filePath: string): boolean {
+  const segments = filePath.split("/");
+  if (segments.some((segment) => SCAN_IGNORED_DIRECTORIES.has(segment))) return true;
+  const base = segments[segments.length - 1];
+  if (SCAN_IGNORED_FILES.has(base)) return true;
+  return SCAN_IGNORED_SUFFIXES.some((suffix) => base.endsWith(suffix));
+}
+
+/**
+ * Template files absent from the ownership registry (ADR-025: every shipped
+ * file is classified). Runs against the template tree, so a newly added
+ * framework file cannot ship unclassified.
+ */
+export function findUnclassifiedTemplateFiles(filePaths: Iterable<string>): string[] {
+  return [...filePaths].filter((filePath) => !TEMPLATE_ASSETS.some((asset) => assetCoversPath(asset, filePath))).sort();
+}
 
 /** Extract the framework marker block (markers included); null when absent. */
 export function extractMarkerBlock(content: string, markers: TemplateMarkers = DEFAULT_MARKERS): string | null {

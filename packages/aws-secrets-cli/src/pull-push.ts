@@ -63,6 +63,15 @@ export async function pickEnvironment(config: EnvToolConfig, preselected: string
     }
     return preselected;
   }
+  // Without -e the command would prompt. In non-interactive runs (CI) the
+  // prompt cannot be answered: the runner treats the cancellation as success,
+  // so pull/push/check/deploy-rotation would exit 0 without doing anything.
+  // Fail closed and name the flag instead.
+  if (!process.stdin.isTTY) {
+    throw new CliError(
+      `No environment selected and stdin is not a terminal. Re-run with -e, one of: ${names.join(", ")}`,
+    );
+  }
   return select({
     message: "Select env set:",
     choices: names.map((name) => ({ name, value: name })),
@@ -279,6 +288,14 @@ function managementTags(secretConfig: SecretConfig): { Key: string; Value: strin
 }
 
 export async function runSecretsPush(options: SecretsCommandOptions): Promise<void> {
+  // Non-interactive runs cannot confirm a write, and silently skipping would
+  // report success while pushing nothing (R5-08). Require the explicit flag.
+  if (!options.yes && !options.dryRun && !process.stdin.isTTY) {
+    throw new CliError(
+      "Refusing to push in non-interactive mode without --yes; re-run with --yes to create/update secrets.",
+    );
+  }
+
   const { config: toolConfig } = await readEnvToolConfig(options.cwd);
   const envName = await pickEnvironment(toolConfig, options.environment);
   const envConfig = toolConfig.environments[envName];

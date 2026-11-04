@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  assetCoversPath,
   extractMarkerBlock,
+  findUnclassifiedTemplateFiles,
   FRAMEWORK_MARKER_END,
   FRAMEWORK_MARKER_START,
+  isTemplateScanIgnored,
   planTemplateUpdate,
   replaceMarkerBlock,
   TemplateAsset,
@@ -23,6 +26,31 @@ function globalsCss(block: string, host = ":root { --host: 1; }"): string {
 function agentsMd(block: string, host = "# Project notes"): string {
   return `# Agents\n\n${HTML_MARKERS.start}\n${block}\n${HTML_MARKERS.end}\n\n${host}\n`;
 }
+
+describe("ownership registry completeness (ADR-025)", () => {
+  it("matches whole subtrees and exact files", () => {
+    const components: TemplateAsset = { path: "src/components/**", ownership: "host" };
+    assert.ok(assetCoversPath(components, "src/components/ui/button.tsx"));
+    assert.ok(assetCoversPath(components, "src/components"));
+    assert.ok(!assetCoversPath(components, "src/components.md"));
+    assert.ok(assetCoversPath(frameworkAsset, "next.config.ts"));
+    assert.ok(!assetCoversPath(frameworkAsset, "next.config.mjs"));
+  });
+
+  it("lists template files missing from the registry", () => {
+    assert.deepEqual(findUnclassifiedTemplateFiles(["next.config.ts", "src/components/ui/button.tsx"]), []);
+    assert.deepEqual(findUnclassifiedTemplateFiles(["docs/new.md", "src/orphan.ts"]), ["docs/new.md", "src/orphan.ts"]);
+  });
+
+  it("keeps runtime output and per-project files out of the guard", () => {
+    for (const ignored of [".next/server/app.js", "node_modules/pkg/index.js", "backlog.md", "package-lock.json"]) {
+      assert.ok(isTemplateScanIgnored(ignored), `${ignored} must stay out of the guard`);
+    }
+    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts"]) {
+      assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
+    }
+  });
+});
 
 describe("marker blocks", () => {
   it("extracts the block including its markers", () => {

@@ -132,6 +132,14 @@ export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Pr
   const { added, removed, enabledKeys } = changes;
 
   if (added.length > 0) {
+    // A copy must be pinned: without a commit the drift gate can never verify
+    // it. Refuse before touching the disk so modules.json and src/modules stay
+    // consistent.
+    if (!registry.sourceCommit) {
+      throw new CliError(
+        "Refusing to copy modules without a registry commit: modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+      );
+    }
     step("Copy modules from the registry");
     await addModules({ cwd, sink, registry, keys: added });
     if (!sink.dryRun) {

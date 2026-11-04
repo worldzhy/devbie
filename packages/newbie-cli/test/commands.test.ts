@@ -1,7 +1,44 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { after, describe, it } from "node:test";
 
+import { runCreate } from "../src/commands/create";
 import { parseModuleSelector } from "../src/lib/module-selector";
+
+describe("runCreate", () => {
+  it("copies a project without the template repository's registry-completeness gate", async () => {
+    const parent = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-create-parent-"));
+    const template = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-create-template-"));
+    after(async () => {
+      await fs.rm(parent, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await fs.writeFile(
+      path.join(template, "package.json"),
+      JSON.stringify(
+        {
+          name: "newbie-basic-template",
+          scripts: {
+            "check:template": "NEWBIE_TEMPLATE_REGISTRY_COMPLETE=1 newbie template update --check --template-path .",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await runCreate({ name: "my-app", cwd: parent, gitInit: false, templatePath: template });
+
+    const pkg = JSON.parse(await fs.readFile(path.join(parent, "my-app", "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    // A created project owns business files that are not template assets, so
+    // its copied gate must stay green after `newbie modules add` (R5-11).
+    assert.equal(pkg.scripts?.["check:template"], "newbie template update --check --template-path .");
+  });
+});
 
 describe("parseModuleSelector", () => {
   it("returns undefined when no positional selector is given", () => {

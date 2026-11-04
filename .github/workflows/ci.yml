@@ -65,3 +65,5 @@ jobs:
       - run: npm test -w @devbie/aws-secrets-cli
       - run: npm test -w @devbie/modules-state
       - run: npm test -w @devbie/module-hub-cli
+      - run: npm test -w @devbie/web-monitor-sdk
+      - run: npm test -w @devbie/style-guide

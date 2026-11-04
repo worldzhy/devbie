@@ -13,12 +13,31 @@ import {
   upsertEnvSection,
 } from "../core/env-file";
 import { ENV_EXAMPLE_PATH, ENV_PATH } from "../constants/paths";
+import { EnvDeclaration } from "../core/module-manifest";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest } from "../lib/module-install";
 import { Sink } from "../lib/sink";
 
 function sectionTitle(key: string): string {
   return key.length === 0 ? key : key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/**
+ * Manifests may declare a plain default (a string) or a typed descriptor
+ * (`{ type, default, description }`). Both collapse to the value written into
+ * `.env` / `.env.example`; descriptors without an explicit default render as
+ * an empty value so the operator fills it in.
+ */
+export function envDefaults(env: Record<string, EnvDeclaration> | undefined): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, declaration] of Object.entries(env ?? {})) {
+    if (typeof declaration === "string") {
+      result[key] = declaration;
+      continue;
+    }
+    result[key] = declaration?.default === undefined ? "" : String(declaration.default);
+  }
+  return result;
 }
 
 /**
@@ -51,7 +70,7 @@ export async function assembleEnv(params: {
       reportIssue(issues, sink, `Missing newbie.module.json for '${key}'; its env variables were not added.`);
       continue;
     }
-    lines = upsertEnvSection(lines, sectionTitle(key), manifest.env ?? {});
+    lines = upsertEnvSection(lines, sectionTitle(key), envDefaults(manifest.env));
   }
 
   // Variables still declared by an enabled module must survive even when a
@@ -110,7 +129,7 @@ export async function assembleEnvExample(params: {
       continue;
     }
     sectionLines.push(decoration, `# ! ${sectionTitle(key)} variables`, decoration);
-    const entries = Object.entries(manifest.env ?? {});
+    const entries = Object.entries(envDefaults(manifest.env));
     entries.sort(([a], [b]) => compareStrings(a, b));
     for (const [envKey, value] of entries) {
       sectionLines.push(`${envKey}=${value}`);

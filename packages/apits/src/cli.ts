@@ -362,10 +362,12 @@ export async function start(flags: GenFlags = {}) {
   } catch (err) {
     if (err instanceof NoInputError) {
       printNoInputHint();
+      process.exitCode = 1;
       return;
     }
     spinner.stop();
     logger.error(`Config resolution failed: ${(err as Error).message || err}`);
+    process.exitCode = 1;
     return;
   }
 
@@ -387,6 +389,7 @@ export async function start(flags: GenFlags = {}) {
     if ((err as any).cause) {
       logger.error(`Cause: ${(err as any).cause}`);
     }
+    process.exitCode = 1;
     return logger.error("Code generation failed, see error details above");
   }
 

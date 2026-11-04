@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import figlet from "figlet";
 import { checkbox, select } from "@inquirer/prompts";
 import { bold, cyan, green, inverse, yellow } from "colorette";
@@ -5,7 +8,7 @@ import { MODULES_DIR, moduleKeys } from "@devbie/modules-state";
 
 import { describeMissingDependencies, expandRegistryClosure } from "../../assemble/module-graph";
 import { collectMissingRegistrySources } from "../../assemble/modules-copy";
-import { ModuleSourceDrift, diffModuleSources } from "../../assemble/module-source-drift";
+import { diffModuleSources, printSourceDrift } from "../../assemble/module-source-drift";
 import { runSteps } from "../../assemble/pipeline";
 import { diffSnapshots, driftPatchIds } from "../../core/drift";
 import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
@@ -15,7 +18,7 @@ import { assertInteractive, isInteractive } from "../../lib/interactive";
 
 import { createContext, GlobalOptions } from "../shared";
 
-type UpdateStatus = "missing" | "missing-in-registry" | "drifted" | "update-available" | "up-to-date";
+type UpdateStatus = "missing" | "missing-in-registry" | "drifted" | "unpinned" | "update-available" | "up-to-date";
 
 interface UpdateInspection {
   key: string;
@@ -87,20 +90,29 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     }
 
     // Guard local customisation: compare the copy with its pinned pristine tree.
-    if (fromCommit && !options.force) {
+    // Without a pin (or with a pin the local clone cannot serve) the guard has
+    // no baseline, so the update must not silently overwrite host edits: treat
+    // that as drift and require an explicit --force.
+    if (!options.force) {
+      if (!fromCommit) {
+        inspections.push({ ...base, status: "unpinned" });
+        continue;
+      }
       const pristine = await snapshotPristineModule(registry, key, fromCommit);
-      if (pristine) {
-        const installed = await snapshotInstalledModule(cwd, key);
-        if (installed) {
-          const drift = diffSnapshots(installed, pristine);
-          if (!drift.clean) {
-            inspections.push({
-              ...base,
-              status: "drifted",
-              patchIds: driftPatchIds(drift),
-            });
-            continue;
-          }
+      if (!pristine) {
+        inspections.push({ ...base, status: "unpinned" });
+        continue;
+      }
+      const installed = await snapshotInstalledModule(cwd, key);
+      if (installed) {
+        const drift = diffSnapshots(installed, pristine);
+        if (!drift.clean) {
+          inspections.push({
+            ...base,
+            status: "drifted",
+            patchIds: driftPatchIds(drift),
+          });
+          continue;
         }
       }
     }
@@ -130,6 +142,12 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
       console.info(
         yellow(
           `[skip] ${result.key}: local changes detected (${result.patchIds.length} file(s)); re-run with --force to overwrite.`,
+        ),
+      );
+    } else if (result.status === "unpinned") {
+      console.info(
+        yellow(
+          `[skip] ${result.key}: no verifiable pinned source (${short(result.fromCommit)}); re-run with --force to overwrite.`,
         ),
       );
     }
@@ -220,6 +238,15 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     }
   }
 
+  // --force skips the drift guard, so keep a byte copy of what is about to be
+  // replaced: recovery must not depend on the operator having a clean tree.
+  if (options.force && !sink.dryRun) {
+    const backups = await backupInstalledModules(cwd, selectedKeys);
+    for (const backup of backups) {
+      console.info(cyan(`[info] backup: ${backup}`));
+    }
+  }
+
   await runSteps(ctx, {
     added: addedKeys,
     removed: [],
@@ -233,20 +260,29 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   console.info(bold(green("\nC O M P L E T E\n")));
 }
 
-/** Print one installed module whose sources diverge from the registry checkout. */
-function printSourceDrift(drift: ModuleSourceDrift): void {
-  const verdict = drift.report === null ? "absent from" : "differs from";
-  console.info(bold(`\n# ${drift.installedPath} (${verdict} ${drift.registryPath})`));
-  if (drift.report === null) return;
-  for (const file of drift.report.added) console.info(`  added: ${file}`);
-  for (const file of drift.report.changed) console.info(`  changed: ${file}`);
-  for (const file of drift.report.removed) console.info(`  removed: ${file}`);
+/** Copy the installed module directories into `.newbie/backups` before a forced overwrite. */
+export async function backupInstalledModules(cwd: string, keys: string[]): Promise<string[]> {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const saved: string[] = [];
+  for (const key of keys) {
+    const source = path.resolve(cwd, MODULES_DIR, key);
+    try {
+      await fs.access(source);
+    } catch {
+      continue;
+    }
+    const target = path.resolve(cwd, ".newbie", "backups", `${key}-${stamp}`);
+    await fs.cp(source, target, { recursive: true });
+    saved.push(path.relative(cwd, target));
+  }
+  return saved;
 }
 
 /**
  * CI gate (ADR-024 F7): every installed module copy must stay byte-identical to
- * the registry checkout it was back-ported from (ADR-019/ADR-021). Runs
- * offline: CI points NEWBIE_MODULES_PATH at a local checkout, so no fetch.
+ * the registry tree pinned in modules.json (ADR-019/ADR-021). Runs offline:
+ * CI points NEWBIE_MODULES_PATH at a local checkout, so no fetch. A copy
+ * without a usable pin is reported instead of skipped (R5-06/N-2).
  */
 async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
   const { ctx } = await createContext(options, { fetch: false });
@@ -258,7 +294,8 @@ async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
 
   const drifts = await diffModuleSources({
     cwd: ctx.cwd,
-    registryRoot: ctx.registry.root,
+    registry: ctx.registry,
+    state: ctx.state,
     enabledKeys,
   });
   if (drifts.length === 0) {

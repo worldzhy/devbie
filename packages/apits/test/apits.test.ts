@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -369,6 +370,57 @@ describe("P-4: per-request extra argument typing", () => {
       assert.match(api, /import \{\s*request, type RequestConfig\s*\} from ['"]\.\.\/fetch['"]/);
       assert.match(api, /extra\?: RequestConfig/);
       assert.doesNotMatch(api, /AxiosRequestConfig/);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("R5-07: failures exit non-zero", () => {
+  const cliPath = path.resolve("src/cli.ts");
+
+  function runCli(cwd: string, args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, ["--import", "tsx", cliPath, ...args], {
+        cwd,
+        env: { ...process.env, NO_COLOR: "1" },
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => (stdout += chunk));
+      child.stderr.on("data", (chunk) => (stderr += chunk));
+      child.on("error", reject);
+      child.on("close", (code) => resolve({ code, stdout, stderr }));
+    });
+  }
+
+  it("exits 1 when no input or config file exists", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "apits-r5-07-noinput-"));
+    try {
+      const result = await runCli(tmpDir, ["gen"]);
+      assert.strictEqual(result.code, 1, `no-input run must exit 1. stdout: ${result.stdout}`);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits 1 when the config file is malformed", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "apits-r5-07-badconfig-"));
+    try {
+      await fs.writeFile(path.join(tmpDir, "apits.config.json"), "{ not json");
+      const result = await runCli(tmpDir, []);
+      assert.strictEqual(result.code, 1, `malformed config must exit 1. stdout: ${result.stdout}`);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("exits 1 when generation fails", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "apits-r5-07-genfail-"));
+    try {
+      await fs.writeFile(path.join(tmpDir, "apits.config.json"), JSON.stringify({ input: "./missing.json" }));
+      const result = await runCli(tmpDir, []);
+      assert.strictEqual(result.code, 1, `failed generation must exit 1. stdout: ${result.stdout}`);
     } finally {
       await fs.rm(tmpDir, { recursive: true, force: true });
     }

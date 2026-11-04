@@ -11,7 +11,22 @@ Run through every step below before publishing any package in this repo (package
 7. After publishing, run `npm view <package> dist-tags` to confirm `latest` points to the new version. Registry propagation can take 1-2 minutes — wait and re-check instead of re-publishing.
 8. If packages in this repo depend on each other, publish the dependencies first and the dependents last.
 9. Update consuming projects' dependency version and record the change in project memory.
-10. If any `@devbie/*` package was published in this release, update the starter template lockfile in the newbie-starter repo (commit to dev), then run `npm run check:template-deps -w @devbie/newbie-cli` from the repo root to confirm no drift remains. The script clones the template's default branch — the same source `newbie create` uses — so it only turns green once the dev changes have been merged into main. For `@devbie/fewbie-cli` releases the same applies to the fewbie-starter repo, verified with `npm run check:template-drift -w @devbie/fewbie-cli -- --check-deps`.
+10. If any `@devbie/*` package was published in this release, update the starter template lockfile in the newbie-starter repo (commit to dev), then run `npm run check:template-deps -w @devbie/newbie-cli` from the repo root to confirm no drift remains. The script clones the template's default branch — the same source `newbie create` uses — so it only turns green once the dev changes have been merged into main. For `@devbie/fewbie-cli` releases the same applies to the fewbie-starter repo, verified with `npm run check:template-deps -w @devbie/fewbie-cli` (the `--check-deps` flag belongs to no script — `check:template-drift` only compares file drift and ignores it).
+
+## Version identities
+
+Three version numbers coexist in this repo, and none is derived from another
+(R5-P2-18):
+
+| Identity | Source                         | Meaning                                                               |
+| -------- | ------------------------------ | --------------------------------------------------------------------- |
+| `3.2.0`  | root `package.json`            | Private workspace/tooling version. Not published to npm.              |
+| `4.1.1`  | git tags (`v4.x`)              | Workspace release milestone. A tag is not a package version.          |
+| `1.x`    | each `packages/*/package.json` | Published `@devbie/*` version; the only number npm consumers resolve. |
+
+When releasing, bump only the package being published. Never infer a package
+version from the latest tag, and never bump the root version to match a tag;
+move the tag separately when the milestone ships.
 
 ## Waived audit findings (re-verify on every release)
 

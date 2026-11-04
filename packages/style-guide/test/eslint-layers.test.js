@@ -61,7 +61,7 @@ describe("@devbie/style-guide published surface", () => {
     // Any Next.js 16 satisfies the contract; the dev dependency is the
     // version the test suite runs against, not the supported floor.
     assert.equal(pkg.peerDependencies.next, "^16.0.0");
-    assert.equal(pkg.devDependencies.next, "^16.4.2");
+    assert.equal(pkg.devDependencies.next, "^16.4.3");
   });
 });
 

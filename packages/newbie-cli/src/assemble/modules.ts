@@ -71,6 +71,38 @@ function configValueUsesHelper(value: unknown, helper: "bool" | "int"): boolean 
   return false;
 }
 
+/** Runtime expressions the generator is able to unwrap into real code. */
+const RUNTIME_EXPRESSION =
+  /^(?:process\.env\.[A-Za-z_][A-Za-z0-9_]*|(?:bool|int)\(process\.env\.[A-Za-z_][A-Za-z0-9_]*\))$/;
+
+/**
+ * Manifest config values are emitted by string substitution, so a value such
+ * as "process.env.X || 'fallback'" (quotes inside the string) is not unwrapped
+ * and ends up as a literal in the generated config. Surface those instead of
+ * letting them silently become runtime strings.
+ */
+function reportUnwrappableExpressions(value: unknown, path: string, issues: IssueBag, sink: Sink): void {
+  if (typeof value === "string") {
+    if (value.startsWith("process.") && !RUNTIME_EXPRESSION.test(value)) {
+      reportIssue(
+        issues,
+        sink,
+        `${path} looks like a runtime expression but cannot be unwrapped and will be embedded as a string literal: ${value}`,
+      );
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => reportUnwrappableExpressions(item, `${path}[${index}]`, issues, sink));
+    return;
+  }
+  if (value && typeof value === "object") {
+    for (const [key, item] of Object.entries(value)) {
+      reportUnwrappableExpressions(item, `${path}.${key}`, issues, sink);
+    }
+  }
+}
+
 function configTemplate(configs: Record<string, unknown>): string {
   // The manifest stores runtime expressions as plain strings ("process.env.X");
   // unwrap the quotes so they become real TS expressions in the generated file.
@@ -134,8 +166,10 @@ export async function assembleNestJsModules(params: {
   );
 
   let configs: Record<string, unknown> = {};
-  for (const { manifest } of entries) {
-    configs = { ...configs, ...(manifest["config-service"] ?? {}) };
+  for (const { key, manifest } of entries) {
+    const manifestConfigs = manifest["config-service"] ?? {};
+    reportUnwrappableExpressions(manifestConfigs, `${key}: config-service`, issues, sink);
+    configs = { ...configs, ...manifestConfigs };
   }
 
   await sink.writeText(

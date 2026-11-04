@@ -106,6 +106,18 @@ export async function runCreate(options: CreateOptions): Promise<void> {
       [key: string]: unknown;
     };
     packageJson.name = name;
+    // The template repository gates its own CI with
+    // NEWBIE_TEMPLATE_REGISTRY_COMPLETE=1. A created project owns files that
+    // are not template assets (src/application, modules.json, generated
+    // modules), so the copied gate must not demand that those be classified
+    // (R5-11).
+    const scripts = packageJson.scripts as Record<string, string> | undefined;
+    if (scripts && typeof scripts["check:template"] === "string") {
+      scripts["check:template"] = scripts["check:template"]
+        .replace(/\b(?:NEWBIE|FEWBIE)_TEMPLATE_REGISTRY_COMPLETE=1\s+/g, "")
+        .replace(/\s--registry-complete(?=\s|$)/g, "")
+        .trim();
+    }
     await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
 
     if (options.gitInit !== false) {

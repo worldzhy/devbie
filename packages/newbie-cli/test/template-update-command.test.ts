@@ -120,10 +120,10 @@ describe("runTemplateUpdate ownership guard", () => {
     await fs.rm(template, { recursive: true, force: true });
   });
 
-  it("rejects an unclassified template file (ADR-009 D4 unlisted = error)", async () => {
+  it("rejects an unclassified template file in template-repository CI (ADR-009 D4 unlisted = error)", async () => {
     await fs.writeFile(path.join(template, "unclassified.txt"), "x", "utf8");
     await assert.rejects(
-      runTemplateUpdate({ cwd: project, templatePath: template, check: true, dryRun: false }),
+      runTemplateUpdate({ cwd: project, templatePath: template, check: true, dryRun: false, registryComplete: true }),
       (error: unknown) => {
         assert.ok(error instanceof CliError);
         assert.match(error.message, /ownership registry/);
@@ -132,6 +132,12 @@ describe("runTemplateUpdate ownership guard", () => {
       },
     );
     await fs.rm(path.join(template, "unclassified.txt"));
+  });
+
+  it("leaves business files alone when a created project runs its copied gate", async () => {
+    await fs.writeFile(path.join(template, "src-application.ts"), "export const x = 1;\n", "utf8");
+    await runTemplateUpdate({ cwd: project, templatePath: template, check: true, dryRun: false });
+    await fs.rm(path.join(template, "src-application.ts"));
   });
 
   it("ignores runtime output and the per-project lockfile while scanning", async () => {
