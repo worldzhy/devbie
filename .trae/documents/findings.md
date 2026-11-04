@@ -184,11 +184,21 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - R6-13 盘点（并入本轮）：本地 `WebMonitorInstallation` 1 行（`appKey=fsQNmFK`）与 Mongo 17 个分区键全部符合 `^[A-Za-z0-9_]{1,64}$`，**0 行需 backfill**，维持 P2；修复方向确定为「读容忍 + 写拒绝」，待 B 批次。
 - 未采纳：R6-11 的“单条无上限 deleteMany”未改代码 —— 逐写全量清理是既有注释明示的摊还设计，改为分批会引入热路径额外查询，收益不成比例。
 
+## W10 落地 · R6-09 内容寻址（2026-11-04，报告 `newbie-modules/.trae/documents/expert-review-2026-11-04-round7.md`）
+
+- 方案：两层签名（scope 级 `inputSignature` + 条目级 `contentFingerprint`）被自我否决——手工枚举维度、人工 bump 版本常量、读写两侧靠约定一致。改为**内容寻址单签名**：`sha256(modelId + system prompt 原文 + user payload JSON + responseFormat + temperature)`，装配即哈希，提示词/context/采样参数变化自动失效。
+  - `security-evaluation-intel-request.ts#buildSecurityEvaluationIntelReRankRequest` 是唯一装配点，re-ranker 与 evidence provider 共用，读写两侧签名不可能漂移。
+  - 按「judgment 实际发送的投影」计算（`{ value }`，不含 `context`），修掉端口声明 `context?` 却从未到达模型的口径错位；`context` 一旦下传即改变签名。
+  - `SecurityEvaluationThreatVerdictCache.inputSignature String? @db.VarChar(64)`；读侧签名不等（含 legacy null）即 miss 重判。TTL 与 `(knowledgeItemId, scopeKey)` 唯一键保留；hard-hit 行仍仅审计、不参与过滤。
+- 变更：newbie-modules `e3bdc11`+`3008b10`+`597ba64`；nightwatch-backend `5252e38`（按 `origin/dev 597ba64` 装配，schema 走 `db push`，无 migration）。
+- 取证：registry↔宿主 `diff -rq` 零差异；`prisma db push` + `generate` + `nest build` OK；聚焦测试 15/15（含签名内容寻址、缓存只复用当前签名行、hard-hit 不过滤、unavailable 不入缓存）；后端干净重启后 `/notifications` 401。
+- 裁决同时更新：R6-12 改判**彻底删除 organizationId 全链**（用户明确 organization 不再使用）；R6-13 fail-closed 保留但异常语义分层（边界 400 / 存储侧内部错误 + 告警）。两项待执行。
+
 ## 待下一轮评审处理（仍 open）
 
-- R6-09：负缓存缺少实体集/模型版本维度（B 批次，需先定维度方案）。
-- R6-13：存量 appId「读容忍 + 写拒绝」实现（B 批次）。
+- R6-12：按 W10 裁决彻底删除 organizationId 全链（schema 列、`ApiKeyOwner`、5 个 `*ForOrganization`、`createApiKey` 参数、DTO、verifier 恒真判断、module 注释、apits 重生成）。
+- R6-13：appId 异常语义分层——`site.controller.ts` query 与 upsert body 边界 400，存储侧读取/聚合记内部错误 + 告警。
 - R7-01 已于 2026-11-04 关闭（见上行 fixed 注记）。
 - R6-12 残留已清：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行已删（2026-11-04，本地文件）。
-- R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-12 的组织专属键去留并入 B 批次决策；R6-14 已于 W8++ 关闭。
+- R6-09 已于 W10 关闭；R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-14 已于 W8++ 关闭。
 
