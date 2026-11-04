@@ -145,7 +145,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 - 变更：nightwatch-backend `bc0d69e`（R6-01/R6-02）、`88034e6`（aws-secrets-cli 1.1.6）；devbie `483dfc2`（aws-secrets 非 TTY fail-closed、发布 fewbie-cli 1.4.3 / aws-secrets-cli 1.1.6）；fewbie-starter `ebd6132`（锁 1.4.3）。
 - 取证：backend `npm test` 659/659、`npx tsc --noEmit` exit 0、eslint 改动文件 exit 0、`npm run build` OK；干净重启后新 PID 66973、无 EADDRINUSE，`/backend-monitor/request-logs`、`/error-logs` 未认证均 401；aws-secrets-cli 12/12；fewbie-cli 54/54；`npm pack @devbie/fewbie-cli@1.4.3` 的 `dist/program.js` 含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，`aws-secrets-cli@1.1.6` 的 `dist/pull-push.js` 含 `stdin is not a terminal`；fewbie-starter `check:template` exit 0；两个消费仓 `npm ci --dry-run` exit 0。
-- 残留：R6-02 只做了未认证 401 冒烟；MEMBER 非成员 403 / OWNER 200 的 HTTP 级证据仍由 resolver 单测与 RBAC 矩阵契约覆盖（本地无现成测试账号）。
+- 残留：R6-02 HTTP 级 authZ（MEMBER 非成员 403 / OWNER 200）仍靠后端 guard 集成测试（`authorization.guard.test.ts` R6-02 describe block，4 例：host-scoped list 含 BackendMonitorLog、query.applicationId → project scope authorizer、unknown app fail-closed、无 identifier fail-closed）+ resolver 单测 + RBAC 矩阵契约覆盖；端到端 HTTP 证据需 nightwatch 起测试用户（未上线前无法执行）。nightwatch-backend 新增提交 `ecec78f` 已推送 dev，full suite 663/663。
 
 ## W8+ 门禁闭环（2026-11-04）
 
