@@ -63,6 +63,15 @@ export async function pickEnvironment(config: EnvToolConfig, preselected: string
     }
     return preselected;
   }
+  // Without -e the command would prompt. In non-interactive runs (CI) the
+  // prompt cannot be answered: the runner treats the cancellation as success,
+  // so pull/push/check/deploy-rotation would exit 0 without doing anything.
+  // Fail closed and name the flag instead.
+  if (!process.stdin.isTTY) {
+    throw new CliError(
+      `No environment selected and stdin is not a terminal. Re-run with -e, one of: ${names.join(", ")}`,
+    );
+  }
   return select({
     message: "Select env set:",
     choices: names.map((name) => ({ name, value: name })),
