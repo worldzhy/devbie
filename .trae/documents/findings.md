@@ -131,11 +131,11 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 | R6-09 | newbie-modules | R4-04 的实体集/模型版本维度仍未落地，verdict cache 唯一键只有 `(knowledgeItemId, scopeKey)`，仅靠 7 天 TTL | P2 | live | OPERATOR 变更实体后 INTEL 运行 | open |
 | R6-10 | newbie-modules / nightwatch-backend | shortcut 更新 DTO 的 `ValidateIf` 可跳过协议白名单，`javascript:`/`data:` 可落库 | P2 | artifact / live | 项目 EDITOR | fixed（W9，2026-11-04）：registry `26247a3`+`ca2ba33`、宿主 `b99b27a`；update 改为校验合并后的有效 type/content，非法 scheme 400，缺行 404，controller 8 例 |
 | R6-11 | newbie-modules | event-emitter 保留期用 `config.env` 形状，`apply` 未渲染到宿主 env；清理为单条无上限 deleteMany | P2 | artifact | 运维 | fixed（W9，2026-11-04）：registry `0f191c0`、宿主 `b99b27a`；`EVENT_EMISSION_RETENTION_DAYS` 已出现在 `.env`/`.env.example`；无上限清理保留（注释已说明为设计内摊还成本） |
-| R6-12 | newbie-modules / nightwatch-backend | account “组织键跳过 user 表”分支 schema 不可达，测试用非法数据；`CACHE_APIKEY_LRU_SIZE` 死配置残留 | P2 | artifact / ops | 文档与测试 | fixed（W9，2026-11-04，初段）：registry `66fa30d`、宿主 `b99b27a`+`d6b5e33`；注释/测试与 schema 对齐、`deploy/env.template` 死键删除；组织专属键是否落地待 B 批次决策。**复核更正（2026-11-04）**：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行被 R7-01 的误装配（main 快照）重新渲染，交付声明不成立，仍待删（本地文件，无需提交） |
+| R6-12 | newbie-modules / nightwatch-backend | account “组织键跳过 user 表”分支 schema 不可达，测试用非法数据；`CACHE_APIKEY_LRU_SIZE` 死配置残留 | P2 | artifact / ops | 文档与测试 | fixed（W9，2026-11-04，初段）：registry `66fa30d`、宿主 `b99b27a`+`d6b5e33`；注释/测试与 schema 对齐、`deploy/env.template` 死键删除；组织专属键是否落地待 B 批次决策。**复核更正（2026-11-04）**：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行曾被 R7-01 的误装配（main 快照）重新渲染；同日复核后已删（本地文件，无需提交），R6-12 全量关闭 |
 | R6-13 | newbie-modules / nightwatch-backend | web-monitor 历史 appId 不符合白名单的存量数据读取 400，ingest 整批丢弃 | P2 | live | 已认证 WebMonitor 用户 | open（未上线，限于开发数据）；盘点（2026-11-04）：本地 `WebMonitorInstallation` 1 行（`fsQNmFK`）、Mongo 17 个分区键全部合规，0 行需 backfill |
 | R6-15 | devbie (apits / newbie-cli) | apits watch 重生成失败仅日志、退出码可 0；`create` 保留 `--template-path .` 使新项目 `check:template` 恒绿 | P2 | source / template | 开发者 / 新项目 CI | fixed（W9，2026-11-04）：devbie `7e5d2922`；watch 失败置 `process.exitCode=1`，`create` 同时剥离 `--template-path .` 与 `--template-path=.`，新增 1 例（CLI 224/224） |
 | R6-14 | newbie-modules | registry CI `modules lint` 仍钉 1.14.5，落后已发布 1.15.0 | P2 | source / CI | 所有 registry PR | fixed（2026-11-04）：`2d9ea7b`；钉到 `@devbie/newbie-cli@1.15.0`，容器内实测 `modules lint` → `0 error(s), 27 warning(s)` |
-| R7-01 | devbie (newbie-cli) | `resolveRegistry` 只读 `NEWBIE_MODULES_REF`，忽略 `modules.json#registry.ref`；未设环境变量时缓存仓按 remote 默认分支检出，main 快照可被静默装配且双门禁不可见 | P1 | source / ops | 开发者 / CI | open（W9 复核发现，见 `expert-review-2026-11-04-round6-fix-verification.md`） |
+| R7-01 | devbie (newbie-cli) | `resolveRegistry` 只读 `NEWBIE_MODULES_REF`，忽略 `modules.json#registry.ref`；未设环境变量时缓存仓按 remote 默认分支检出，main 快照可被静默装配且双门禁不可见 | P1 | source / ops | 开发者 / CI | fixed（2026-11-04）：ref 取值链改为 `NEWBIE_MODULES_REF` > `modules.json#registry.ref` > remote 默认分支，声明了 ref 却解析不到即 fail-closed；`registry.url` 同步被消费（fork 场景 `remote set-url`）；local 短路对照声明 ref，不一致 warn；install/update/apply 与 doctor 打印 `Registry: <local|cache> <root> @ <ref> (<commit>)`；新增 `NEWBIE_REGISTRY_CACHE_DIR` 覆盖口，`registry-resolution.test.ts` 8 例，CLI 232/232；宿主 `update --check`/`apply --check` 实测 exit 0 且打印 `cache … @ origin/dev` |
 
 重验说明（不改变历史行，仅更正事实）：
 - W7 节「`apply --check` … exit 0（门禁只告警不阻断）」不成立：`packages/newbie-cli/src/commands/modules/apply.ts` 对 `unavailable-pin` 也 `throw CliError`，容器内实测 exit 1；原文记录已过期/错误。
@@ -188,7 +188,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 - R6-09：负缓存缺少实体集/模型版本维度（B 批次，需先定维度方案）。
 - R6-13：存量 appId「读容忍 + 写拒绝」实现（B 批次）。
-- R7-01（P1）：CLI `resolveRegistry` 应消费 `modules.json#registry.ref`（W9 复核新增）。
-- R6-12 残留：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行待删（本地文件）。
+- R7-01 已于 2026-11-04 关闭（见上行 fixed 注记）。
+- R6-12 残留已清：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行已删（2026-11-04，本地文件）。
 - R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-12 的组织专属键去留并入 B 批次决策；R6-14 已于 W8++ 关闭。
 

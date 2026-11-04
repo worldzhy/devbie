@@ -38,7 +38,7 @@ export interface StatusReport {
  */
 export async function collectStatus(cwd: string, options?: { drift?: boolean }): Promise<StatusReport> {
   const state = await readModulesState(cwd);
-  const registry = await resolveRegistry({ fetch: false });
+  const registry = await resolveRegistry({ fetch: false, cwd });
   const keys = moduleKeys(state);
   const missingEnv = await collectMissingEnv(cwd, keys);
   const modules: StatusModuleEntry[] = [];

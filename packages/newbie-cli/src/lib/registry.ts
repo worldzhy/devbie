@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
-import { MODULE_MANIFEST_FILE } from "@devbie/modules-state";
+import { MODULE_MANIFEST_FILE, readModulesState } from "@devbie/modules-state";
 
 import { REGISTRY_MODULES_DIR } from "../constants/paths";
 import { normalizeModuleManifest } from "../core/module-manifest";
@@ -16,12 +16,18 @@ export const REGISTRY_URL = "https://github.com/worldzhy/newbie-modules.git";
 
 /** Override the cloned cache with a local checkout (the dev loop). */
 export const REGISTRY_PATH_ENV = "NEWBIE_MODULES_PATH";
-/** Pin a registry tag/commit/branch instead of the remote default branch. */
+/** Pin a registry tag/commit/branch; takes precedence over modules.json#registry.ref. */
 export const REGISTRY_REF_ENV = "NEWBIE_MODULES_REF";
 
 /** Fallback local checkout discovered automatically when it exists. */
 const DEFAULT_LOCAL_REGISTRY = path.join(os.homedir(), "src", "newbie-modules");
-const CACHE_DIR = path.join(os.homedir(), ".newbie", "registry");
+/** Override the cloned-cache location (tests, sandboxed CI). */
+export const REGISTRY_CACHE_DIR_ENV = "NEWBIE_REGISTRY_CACHE_DIR";
+
+function cacheDir(): string {
+  const override = process.env[REGISTRY_CACHE_DIR_ENV];
+  return override ? path.resolve(override) : path.join(os.homedir(), ".newbie", "registry");
+}
 
 /**
  * A ref is handed to `git checkout` as an argument, so anything starting with
@@ -47,6 +53,64 @@ function registryRefFromEnv(): string | undefined {
   return ref;
 }
 
+/** The registry block declared by the consumer's modules.json. */
+interface DeclaredRegistry {
+  url?: string;
+  ref?: string | null;
+}
+
+/**
+ * Read modules.json's registry block. A missing/broken modules.json is the
+ * command's own concern — resolution stays best-effort and falls back to the
+ * built-in defaults.
+ */
+async function declaredRegistry(cwd?: string): Promise<DeclaredRegistry> {
+  if (!cwd) return {};
+  try {
+    const state = await readModulesState(cwd);
+    return { url: state.registry?.url, ref: state.registry?.ref };
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Effective registry ref: NEWBIE_MODULES_REF wins (per-invocation override),
+ * then modules.json#registry.ref (project-declared default), then the remote
+ * default branch. A declared-but-invalid ref is a hard error — never silently
+ * assemble a different line than the project asked for.
+ */
+function effectiveRef(declared: DeclaredRegistry): string | undefined {
+  const envRef = registryRefFromEnv();
+  if (envRef) return envRef;
+  const ref = declared.ref?.trim();
+  if (!ref) return undefined;
+  if (!isValidRegistryRef(ref)) {
+    throw new CliError(
+      `Invalid registry.ref '${ref}' in modules.json: expected a branch, tag, or commit name (no leading '-' and no '..').`,
+    );
+  }
+  return ref;
+}
+
+/** Effective registry url: modules.json#registry.url (forks) or the built-in default. */
+function effectiveUrl(declared: DeclaredRegistry): string {
+  const url = declared.url?.trim();
+  return url ? url : REGISTRY_URL;
+}
+
+/** Resolve a ref to a commit inside a git working tree, also trying `origin/<ref>`. */
+async function resolveRefCommit(root: string, ref: string): Promise<string | null> {
+  for (const candidate of [ref, `origin/${ref}`]) {
+    try {
+      return trim(await execCapture("git", ["-C", root, "rev-parse", "--verify", `${candidate}^{commit}`]));
+    } catch {
+      // try the next candidate
+    }
+  }
+  return null;
+}
+
 export interface RegistryLocation {
   /** Absolute path of a usable registry working tree. */
   root: string;
@@ -54,6 +118,8 @@ export interface RegistryLocation {
   sourceCommit: string | null;
   /** Local checkouts are never mutated; the cache is cloned/updated by us. */
   local: boolean;
+  /** Effective ref that governed resolution (env > modules.json), when declared. */
+  ref?: string;
 }
 
 async function pathIsUsable(root: string): Promise<boolean> {
@@ -80,37 +146,66 @@ async function resolveLocalRegistry(): Promise<string | null> {
 }
 
 /**
+ * Warn when a local checkout does not match the declared ref. Local checkouts
+ * are developer working trees, so this never fails — but a silent branch
+ * mismatch is how the wrong line gets assembled (R7-01).
+ */
+async function warnIfLocalOffRef(root: string, ref: string): Promise<void> {
+  const head = await gitHead(root);
+  if (!head) return;
+  const target = await resolveRefCommit(root, ref);
+  if (!target) {
+    console.warn(`[warn] registry ref '${ref}' does not resolve in local checkout ${root}; using it as-is.`);
+    return;
+  }
+  if (target !== head) {
+    console.warn(
+      `[warn] local registry checkout ${root} is at ${head.slice(0, 7)}, but the declared registry ref ` +
+        `'${ref}' points at ${target.slice(0, 7)}. Check out ${ref} or adjust ${REGISTRY_REF_ENV}/modules.json.`,
+    );
+  }
+}
+
+/**
  * Bring the cached registry clone to the requested ref (or remote HEAD).
  * The cache is a disposable clone: hard resets are safe.
  */
-async function updateCachedClone(ref?: string): Promise<string> {
+async function updateCachedClone(url: string, ref?: string): Promise<string> {
+  const dir = cacheDir();
   let exists = true;
   try {
-    await fs.stat(path.join(CACHE_DIR, ".git"));
+    await fs.stat(path.join(dir, ".git"));
   } catch {
     exists = false;
   }
 
   if (!exists) {
-    await fs.mkdir(path.dirname(CACHE_DIR), { recursive: true });
-    await execCapture("git", ["clone", REGISTRY_URL, CACHE_DIR]);
+    await fs.mkdir(path.dirname(dir), { recursive: true });
+    await execCapture("git", ["clone", url, dir]);
   }
 
-  await execCapture("git", ["-C", CACHE_DIR, "fetch", "--quiet", "origin", "--tags"]);
+  // Keep the cache pointed at the declared upstream, so a modules.json url
+  // change (fork) takes effect without manual cache surgery.
+  await execCapture("git", ["-C", dir, "remote", "set-url", "origin", url]);
+  await execCapture("git", ["-C", dir, "fetch", "--quiet", "origin", "--tags"]);
 
   if (ref) {
-    await execCapture("git", ["-C", CACHE_DIR, "checkout", "--quiet", "--detach", ref]);
+    const commit = await resolveRefCommit(dir, ref);
+    if (!commit) {
+      throw new CliError(
+        `Registry ref '${ref}' could not be resolved in ${url}. Fix modules.json#registry.ref or ${REGISTRY_REF_ENV}.`,
+      );
+    }
+    await execCapture("git", ["-C", dir, "checkout", "--quiet", "--detach", commit]);
   } else {
     // Follow the remote default branch regardless of the clone vintage.
-    await execCapture("git", ["-C", CACHE_DIR, "remote", "set-head", "origin", "-a"]);
-    const symbolic = trim(
-      await execCapture("git", ["-C", CACHE_DIR, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"]),
-    );
+    await execCapture("git", ["-C", dir, "remote", "set-head", "origin", "-a"]);
+    const symbolic = trim(await execCapture("git", ["-C", dir, "symbolic-ref", "--short", "refs/remotes/origin/HEAD"]));
     const branch = symbolic.replace(/^origin\//, "");
-    await execCapture("git", ["-C", CACHE_DIR, "checkout", "--quiet", "-B", branch, `origin/${branch}`]);
+    await execCapture("git", ["-C", dir, "checkout", "--quiet", "-B", branch, `origin/${branch}`]);
   }
 
-  return trim(await execCapture("git", ["-C", CACHE_DIR, "rev-parse", "HEAD"]));
+  return trim(await execCapture("git", ["-C", dir, "rev-parse", "HEAD"]));
 }
 
 /**
@@ -120,36 +215,49 @@ async function updateCachedClone(ref?: string): Promise<string> {
  *   the registry cannot be reached.
  * - `fetch: false` (status/doctor): never touch the network; use a local
  *   checkout or the cache as-is, and report unavailable when neither exists.
+ * - `cwd` (the consumer project root) lets resolution honor the registry
+ *   block declared in modules.json (url + ref).
  */
-export async function resolveRegistry(options?: { fetch?: boolean }): Promise<RegistryLocation | null> {
+export interface RegistryResolutionOptions {
+  fetch?: boolean;
+  cwd?: string;
+}
+
+export async function resolveRegistry(options?: RegistryResolutionOptions): Promise<RegistryLocation | null> {
+  const declared = await declaredRegistry(options?.cwd);
+  const ref = effectiveRef(declared);
+  const url = effectiveUrl(declared);
+
   const localRoot = await resolveLocalRegistry();
   if (localRoot) {
+    if (ref) await warnIfLocalOffRef(localRoot, ref);
     return {
       root: localRoot,
-      url: REGISTRY_URL,
+      url,
       sourceCommit: await gitHead(localRoot),
       local: true,
+      ref,
     };
   }
 
   if (options?.fetch) {
-    const ref = registryRefFromEnv();
-    const sourceCommit = await updateCachedClone(ref);
-    return { root: CACHE_DIR, url: REGISTRY_URL, sourceCommit, local: false };
+    const sourceCommit = await updateCachedClone(url, ref);
+    return { root: cacheDir(), url, sourceCommit, local: false, ref };
   }
 
-  const cacheUsable = await pathIsUsable(CACHE_DIR);
+  const cacheUsable = await pathIsUsable(cacheDir());
   if (!cacheUsable) return null;
   return {
-    root: CACHE_DIR,
-    url: REGISTRY_URL,
-    sourceCommit: await gitHead(CACHE_DIR),
+    root: cacheDir(),
+    url,
+    sourceCommit: await gitHead(cacheDir()),
     local: false,
+    ref,
   };
 }
 
 /** Required registry variant; throws a guidance error when unavailable. */
-export async function requireRegistry(options?: { fetch?: boolean }): Promise<RegistryLocation> {
+export async function requireRegistry(options?: RegistryResolutionOptions): Promise<RegistryLocation> {
   const registry = await resolveRegistry(options);
   if (!registry) {
     throw new CliError(
@@ -157,6 +265,13 @@ export async function requireRegistry(options?: { fetch?: boolean }): Promise<Re
     );
   }
   return registry;
+}
+
+/** One-line human-readable summary of a resolved registry, for command output. */
+export function formatRegistryLocation(registry: RegistryLocation): string {
+  const ref = registry.ref ?? "remote-default";
+  const commit = registry.sourceCommit?.slice(0, 7) ?? "unknown";
+  return `${registry.local ? "local" : "cache"} ${registry.root} @ ${ref} (${commit})`;
 }
 
 export function moduleRootInRegistry(registryRoot: string, key: string): string {

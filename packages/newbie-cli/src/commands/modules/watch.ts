@@ -145,7 +145,7 @@ async function watchTree(root: string, onChange: () => void, onError: (error: Er
 export async function runWatch(options: ModulesWatchOptions): Promise<void> {
   const projectRoot = path.resolve(options.cwd);
 
-  const registry = await resolveRegistry({ fetch: false });
+  const registry = await resolveRegistry({ fetch: false, cwd: projectRoot });
   if (!registry) {
     throw new CliError(
       "watch requires a local newbie-modules checkout. " +
