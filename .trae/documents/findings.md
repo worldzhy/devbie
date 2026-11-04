@@ -126,7 +126,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 | R6-04 | devbie (newbie-cli) | 无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json，失败后声明与目录不一致 | P2 | source | 开发者 | fixed（2026-11-04）：`437b8cd7`；抽出 `assertRegistryCommitForCopy`，在 `runSteps`、`applyModuleKeys`、`applyPlanned` 三处写前 preflight；`assemble-pipeline.test.ts` 新增「无 commit → modules.json 不采纳新 key 且不拷贝」1 例 |
 | R6-05 | fewbie-cli / fewbie-starter | 模板完整性守卫未生效：已发布 1.4.2 不含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，fewbie-starter 锁 1.4.0 | P2 | template | 所有 fewbie 宿主 CI | **verified**（W8→PR #23 合入 main，2026-11-04）：`@devbie/fewbie-cli@1.4.3` 发布，tarball `dist/program.js` 含守卫（grep=1）；fewbie-starter `ebd6132` 锁 1.4.3 且 `check:template` exit 0 |
 | R6-06 | devbie (aws-secrets-cli) / nightwatch-backend | 1.1.5 未发布，宿主仍 1.1.4 静默 exit 0；非 TTY 缺 `-e` 时 push/pull/check 仍“取消即成功” | P2 | ops / artifact | 开发者 / 运维 | **verified**（W8→PR #115 合入 main，2026-11-04）：`@devbie/aws-secrets-cli@1.1.6` 发布，tarball 含非 TTY fail-closed 分支；nightwatch-backend `88034e6` lock 1.1.6
-| R6-07 | devbie / newbie-modules | 台账与事实相反：W7 把 `apply --check` 记成 exit 0（实测 exit 1）；registry 的 R5-13/R4-04/R4-09 状态陈旧；R5-P2-03 未降级 | P2 | docs | 后续评审 | open |
+| R6-07 | devbie / newbie-modules | 台账与事实相反：W7 把 `apply --check` 记成 exit 0（实测 exit 1）；registry 的 R5-13/R4-04/R4-09 状态陈旧；R5-P2-03 未降级 | P2 | docs | 后续评审 | fixed（2026-11-04）：W8++ 已在本节「重验说明」更正 `apply --check`（exit 1）；newbie-modules `439ae76` 把 R4-04/R4-09/R5-13/R5-P2-03 行内状态改为 round6 裁决（partial/verified/fixed/partial），表格与更正块不再自相矛盾 |
 | R6-08 | newbie-starter / fewbie-starter / devbie | 模板依赖锁与 npm latest 漂移：newbie-starter `"*"`、fewbie-starter style-guide 1.4.1；release-check.yml 缺 cli-kit build 前置 | P2 | artifact / ops | 下一次 `npm ci` | **verified**（2026-11-04）：newbie-starter `1c653b6` pin `^1.15.0`（PR #39），fewbie-starter `a7418a6` style-guide 升 1.5.0（PR #23），devbie `2f1f8e6` 修正发布清单第 10 步命令，`b836e79c` release-check.yml 补 cli-kit build（PR #116）；`npm run check:template-deps` 两仓均 exit 0 |
 | R6-09 | newbie-modules | R4-04 的实体集/模型版本维度仍未落地，verdict cache 唯一键只有 `(knowledgeItemId, scopeKey)`，仅靠 7 天 TTL | P2 | live | OPERATOR 变更实体后 INTEL 运行 | open |
 | R6-10 | newbie-modules / nightwatch-backend | shortcut 更新 DTO 的 `ValidateIf` 可跳过协议白名单，`javascript:`/`data:` 可落库 | P2 | artifact / live | 项目 EDITOR | open |
@@ -156,12 +156,11 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 ## W8++ 门禁补漏（2026-11-04）
 
-- 变更：devbie `56207ac2`（R6-03 `modules update --check` 报 `missing-copy`）、`437b8cd7`（R6-04 写前 preflight，三处调用点共用 `assertRegistryCommitForCopy`）；newbie-modules `2d9ea7b`（R6-14 registry CI 钉 `@devbie/newbie-cli@1.15.0`）。
+- 变更：devbie `56207ac2`（R6-03 `modules update --check` 报 `missing-copy`）、`437b8cd7`（R6-04 写前 preflight，三处调用点共用 `assertRegistryCommitForCopy`）；newbie-modules `2d9ea7b`（R6-14 registry CI 钉 `@devbie/newbie-cli@1.15.0`）、`439ae76`（R6-07 台账行内状态对齐 round6 裁决）。
 - 取证：容器内 `npm test`（newbie-cli）223/223（原 221，+2 新用例）、`npx tsc --noEmit` exit 0、改动文件 prettier `--check` 全通过；registry `modules lint`（1.15.0）`0 error(s) / 27 warning(s)`；`findings.md`/`ci.yml` prettier 均通过。
 - 设计取舍：`missing-copy` 只由 `update --check` 要求（`requireInstalled: true`），`apply --check` 仍由 `planReconcile` 独占该信号，避免两套门禁对同一缺失目录重复报错。
 
 ## 待下一轮评审处理（仍 open）
 
-- R6-07：台账与事实相反、registry 条目陈旧（治理类，需逐仓核对）。
-- R6-09 ~ R6-15：registry 模块级问题（R4-04 verdict cache、shortcut 白名单、event-emitter 保留期、account 死配置等）；R6-14 已于 W8++ 关闭。
+- R6-09 ~ R6-13、R6-15：registry 模块级与工具链问题（R4-04 verdict cache 维度、shortcut 白名单、event-emitter 保留期、account 死配置、web-monitor 存量 appId、apits watch 退出码/`--template-path .`）；R6-14 已于 W8++ 关闭。
 
