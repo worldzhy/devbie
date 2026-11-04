@@ -35,8 +35,39 @@ describe("runCreate", () => {
       scripts?: Record<string, string>;
     };
     // A created project owns business files that are not template assets, so
-    // its copied gate must stay green after `newbie modules add` (R5-11).
-    assert.equal(pkg.scripts?.["check:template"], "newbie template update --check --template-path .");
+    // its copied gate must stay green after `newbie modules add` (R5-11) — and
+    // it must not point `--template-path` at the template checkout, which would
+    // compare the project with itself and hide real drift (R6-15).
+    assert.equal(pkg.scripts?.["check:template"], "newbie template update --check");
+  });
+
+  it("strips the '=' form of --template-path from a fewbie project", async () => {
+    const parent = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-create-parent-"));
+    const template = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-create-template-"));
+    after(async () => {
+      await fs.rm(parent, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await fs.writeFile(
+      path.join(template, "package.json"),
+      JSON.stringify(
+        {
+          name: "fewbie-basic-template",
+          scripts: {
+            "check:template": "FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1 fewbie template update --check --template-path=.",
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    await runCreate({ name: "my-web-app", cwd: parent, gitInit: false, templatePath: template });
+
+    const pkg = JSON.parse(await fs.readFile(path.join(parent, "my-web-app", "package.json"), "utf8")) as {
+      scripts?: Record<string, string>;
+    };
+    assert.equal(pkg.scripts?.["check:template"], "fewbie template update --check");
   });
 });
 
