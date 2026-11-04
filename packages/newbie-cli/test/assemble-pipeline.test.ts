@@ -268,6 +268,31 @@ describe("applyModuleKeys", () => {
     );
   });
 
+  it("refuses to persist the enabled set when the registry has no commit to pin (R6-04)", async () => {
+    const registryRoot = await makeRegistry({ account: {}, audit: {} });
+    const cwd = await makeProject({ modules: [{ key: "account" }], copied: ["account"] });
+    const ctx = context(cwd, registryRoot);
+    ctx.registry = { ...ctx.registry, sourceCommit: null };
+    ctx.state = normalizeModulesState(await readState(cwd));
+
+    await assert.rejects(
+      silenceConsole(() => applyModuleKeys(ctx, ["account", "audit"])),
+      (error: unknown) => {
+        assert.ok(error instanceof CliError);
+        assert.match(error.message, /without a registry commit/i);
+        return true;
+      },
+    );
+
+    const persisted = await readState(cwd);
+    assert.deepEqual(
+      persisted.modules.map((entry) => entry.key),
+      ["account"],
+      "modules.json must not adopt a key that was never copied",
+    );
+    await assert.rejects(fs.readdir(path.join(cwd, "src", "modules", "audit")));
+  });
+
   it("refuses an unknown module before touching modules.json", async () => {
     const registryRoot = await makeRegistry({ account: {} });
     const cwd = await makeProject({ modules: [{ key: "account" }], copied: ["account"] });
