@@ -12,8 +12,10 @@ import { RegistryLocation } from "../lib/registry";
  * - `missing-pin`: modules.json carries no `sourceCommit` for the key.
  * - `unavailable-pin`: the local registry clone cannot serve the pinned
  *   commit (shallow clone, pruned history, or the module did not exist yet).
+ * - `missing-copy`: the key is enabled but `src/modules/<key>` is gone;
+ *   only reported when the caller asks for it (`modules update --check`).
  */
-export type ModuleDriftReason = "missing-pin" | "unavailable-pin";
+export type ModuleDriftReason = "missing-pin" | "unavailable-pin" | "missing-copy";
 
 /**
  * One installed module whose sources do not match the registry baseline.
@@ -53,8 +55,14 @@ export async function diffModuleSources(params: {
   registry: RegistryLocation;
   state: ModulesState;
   enabledKeys: string[];
+  /**
+   * Report enabled modules whose copy is absent. `modules apply --check`
+   * reports that through planReconcile and leaves this off; `modules update
+   * --check` has no reconcile pass and must not stay green (R6-03).
+   */
+  requireInstalled?: boolean;
 }): Promise<ModuleSourceDrift[]> {
-  const { cwd, registry, state, enabledKeys } = params;
+  const { cwd, registry, state, enabledKeys, requireInstalled = false } = params;
   const drifts: ModuleSourceDrift[] = [];
 
   for (const key of enabledKeys) {
@@ -77,7 +85,10 @@ export async function diffModuleSources(params: {
     const installed = await snapshotInstalledModule(cwd, key);
     // Enabled but not assembled: `modules apply --check` owns that signal,
     // and an absent copy is not drift against the registry.
-    if (installed === null) continue;
+    if (installed === null) {
+      if (requireInstalled) drifts.push({ ...base, reason: "missing-copy" });
+      continue;
+    }
 
     const pristine = await snapshotPristineModule(registry, key, pin);
     if (pristine === null) {
@@ -98,6 +109,10 @@ const short = (commit: string | null): string => (commit ? commit.slice(0, 7) : 
 export function printSourceDrift(drift: ModuleSourceDrift): void {
   if (drift.reason === "missing-pin") {
     console.info(bold(`\n# ${drift.installedPath} (no sourceCommit pin in modules.json)`));
+    return;
+  }
+  if (drift.reason === "missing-copy") {
+    console.info(bold(`\n# ${drift.installedPath} (enabled in modules.json but the copy is missing)`));
     return;
   }
   if (drift.reason === "unavailable-pin") {
