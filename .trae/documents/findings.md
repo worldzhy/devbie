@@ -192,13 +192,18 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
   - `SecurityEvaluationThreatVerdictCache.inputSignature String? @db.VarChar(64)`；读侧签名不等（含 legacy null）即 miss 重判。TTL 与 `(knowledgeItemId, scopeKey)` 唯一键保留；hard-hit 行仍仅审计、不参与过滤。
 - 变更：newbie-modules `e3bdc11`+`3008b10`+`597ba64`；nightwatch-backend `5252e38`（按 `origin/dev 597ba64` 装配，schema 走 `db push`，无 migration）。
 - 取证：registry↔宿主 `diff -rq` 零差异；`prisma db push` + `generate` + `nest build` OK；聚焦测试 15/15（含签名内容寻址、缓存只复用当前签名行、hard-hit 不过滤、unavailable 不入缓存）；后端干净重启后 `/notifications` 401。
-- 裁决同时更新：R6-12 改判**彻底删除 organizationId 全链**（用户明确 organization 不再使用）；R6-13 fail-closed 保留但异常语义分层（边界 400 / 存储侧内部错误 + 告警）。两项待执行。
+- 裁决同时更新：R6-12 改判**彻底删除 organizationId 全链**（用户明确 organization 不再使用）；R6-13 fail-closed 保留但异常语义分层（边界 400 / 存储侧内部错误 + 告警）。
+
+## W10b 落地 · R6-12 删除 organizationId 全链（2026-11-04）
+
+- 变更：newbie-modules `34cd698`（`ApiKey.organizationId` 列、`ApiKeyOwner`、5 个 `*ForOrganization`、`createApiKey` 组织参数与过期 `Omit`、DTO 字段、verifier 恒真判断全删，`listApiKeys` 改按 `user.id` 过滤）；nightwatch-backend `8e729cd`（装配，`db push` 删列）；nightwatch-frontend `c96e9a7`（apits 重生成，仅少 `organizationId` 一行）。
+- 取证：`ApiKey` 表 0 行，`information_schema` 列清单已无 `organizationId`；backend `nest build` OK、verifier 测试 5/5、`/notifications` 401；前端 `tsc --noEmit` exit 0（确认无消费方）。
 
 ## 待下一轮评审处理（仍 open）
 
-- R6-12：按 W10 裁决彻底删除 organizationId 全链（schema 列、`ApiKeyOwner`、5 个 `*ForOrganization`、`createApiKey` 参数、DTO、verifier 恒真判断、module 注释、apits 重生成）。
 - R6-13：appId 异常语义分层——`site.controller.ts` query 与 upsert body 边界 400，存储侧读取/聚合记内部错误 + 告警。
+- R6-12：`organization` 模块定义本身仍在 registry 且未装配，是否删除该模块另议（不影响 R6-12 的 account 链关闭）。
 - R7-01 已于 2026-11-04 关闭（见上行 fixed 注记）。
 - R6-12 残留已清：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行已删（2026-11-04，本地文件）。
-- R6-09 已于 W10 关闭；R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-14 已于 W8++ 关闭。
+- R6-09 / R6-12 已于 W10 关闭；R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-14 已于 W8++ 关闭。
 
