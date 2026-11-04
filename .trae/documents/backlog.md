@@ -43,6 +43,10 @@
 
 > 其他仓的条目已按仓登记到各自 backlog（2026-11-02 状态）：newbie-modules 目前有 round4 的 R4-04/R4-09（P2）+ round3 拆 ID 入账的 13 条 P2 + 2 条 G1 P2，另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 有 round3 拆 ID 入账的 4 条 P2（G2-1/G2-2/G2-3/G2-5）+ 1 条 P3 搁置（一键部署 M1）；nightwatch-frontend 有 R3-25（P1，长期工程门禁）+ round3 拆 ID 入账的 5 条 P2。本文件只保留 devbie 自身条目。
 
+## 暂不做（条件触发后再启动）
+
+- [ ] `[2026-11-05 设计讨论，未拍板]` **infra runner 契约（挂起，随 newbie-modules 同日期条目共进）**：为 feature 模块的声明式 AWS 资源提供框架 runner——`newbie infra apply/status/destroy`，基于 ADR-047 aws-cloudformation + aws-identity 执行，栈名 `<app>-<module>-<stage>`；outputs 生成 env 文件经 render-env 合并、doctor 校验栈状态与 prerequisites；部署链在 compose up 前跑一次 infra-apply（沿用 ADR-008 one-shot 模式）。已拍板：不开新仓，runner 落 devbie，模板随模块落 newbie-modules，编排契约落 newbie-starter；外部运行时（Lambda/ECS）另立 service 产物。落地前先出 ADR（本仓写 runner/部署链契约，与 registry 仓 manifest 契约互相引用）。
+
 ## 其他
 
 > 最近一轮（2026-10-25，installation 凭证收敛评审）登记的 5 项已全部关闭：ADR-019 勘误、审计资源常量命名统一、静态扫描覆盖加固、并发窗口结论（接受，installation 只做软吊销）、people-evaluation 契约测试修复。关闭证据见 newbie-modules `33b7b37`、nightwatch-backend `2ca7e68`。
