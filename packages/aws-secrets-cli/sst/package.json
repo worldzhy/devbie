@@ -13,17 +13,17 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@aws-sdk/client-iam": "^3.969.0",
-    "@aws-sdk/client-secrets-manager": "^3.929.0",
-    "@aws-sdk/client-sts": "^3.969.0",
+    "@aws-sdk/client-iam": "^3.1161.0",
+    "@aws-sdk/client-secrets-manager": "^3.1161.0",
+    "@aws-sdk/client-sts": "^3.1161.0",
     "@types/pg": "^8.16.0",
     "mongodb": "^7.0.0",
-    "mysql2": "^3.16.0",
+    "mysql2": "^3.24.6",
     "pg": "^8.17.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "sst": "^3.3.62",
+    "sst": "^4.17.2",
     "typescript": "^5.7.3"
   },
   "engines": {

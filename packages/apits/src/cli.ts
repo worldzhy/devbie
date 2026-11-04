@@ -344,6 +344,9 @@ function watchConfigs(configs: Config[]) {
           await startGenerate(configItem, idx);
         } catch (err) {
           logger.error(`Regeneration failed: ${(err as Error).message || err}`);
+          // Watch keeps running so the next save can recover, but a session that
+          // saw a failed rebuild must not exit 0 (R6-15).
+          process.exitCode = 1;
         }
       }, 200),
     );

@@ -11,7 +11,7 @@ import { moduleSchemaNamespace, readDatasourceSchemas } from "../core/prisma-sch
 import { collectMissingEnv } from "../lib/check";
 import { CliError, fileExists } from "@devbie/cli-kit";
 import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
-import { listRegistryKeys, readRegistryModule, resolveRegistry } from "../lib/registry";
+import { formatRegistryLocation, listRegistryKeys, readRegistryModule, resolveRegistry } from "../lib/registry";
 import { readInstalledManifest } from "../lib/module-install";
 import { readModulesState, stateExists } from "../lib/modules-state";
 
@@ -55,11 +55,9 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
   const keys = moduleKeys(state);
 
   // [check 2] registry
-  const registry = await resolveRegistry({ fetch: false });
+  const registry = await resolveRegistry({ fetch: false, cwd });
   if (registry && !options.json) {
-    console.info(
-      `Registry: ${registry.local ? "local " : "cached "}${registry.root} @ ${registry.sourceCommit?.slice(0, 7) ?? "unknown"}\n`,
-    );
+    console.info(`Registry: ${formatRegistryLocation(registry)}\n`);
   } else if (!registry) {
     notice("Registry unavailable offline; drift checks skipped (set NEWBIE_MODULES_PATH or run an online command).");
   }

@@ -8,7 +8,7 @@ import type { ManagedDependencies } from "@devbie/modules-state";
 import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
 import { CliError } from "@devbie/cli-kit";
-import { readRegistryModule } from "../lib/registry";
+import { readRegistryModule, type RegistryLocation } from "../lib/registry";
 import { writeModulesState } from "../lib/modules-state";
 
 import { assembleDependencies } from "./dependencies";
@@ -127,19 +127,24 @@ function stampCopiedModules(
   };
 }
 
+/**
+ * A copy must be pinned: without a commit the drift gate can never verify it.
+ * Callers run this before writing modules.json, so a refusal leaves both
+ * modules.json and `src/modules` unchanged (R6-04).
+ */
+function assertRegistryCommitForCopy(registry: RegistryLocation, added: readonly string[]): void {
+  if (added.length === 0 || registry.sourceCommit) return;
+  throw new CliError(
+    "Refusing to copy modules without a registry commit: modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+  );
+}
+
 export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Promise<void> {
   const { cwd, sink, issues, registry, skipPrismaGenerate } = ctx;
   const { added, removed, enabledKeys } = changes;
 
   if (added.length > 0) {
-    // A copy must be pinned: without a commit the drift gate can never verify
-    // it. Refuse before touching the disk so modules.json and src/modules stay
-    // consistent.
-    if (!registry.sourceCommit) {
-      throw new CliError(
-        "Refusing to copy modules without a registry commit: modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
-      );
-    }
+    assertRegistryCommitForCopy(registry, added);
     step("Copy modules from the registry");
     await addModules({ cwd, sink, registry, keys: added });
     if (!sink.dryRun) {
@@ -193,6 +198,10 @@ export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Pr
 }
 
 export async function applyPlanned(ctx: PipelineContext, changes: PlannedChange): Promise<void> {
+  // Same preflight as applyModuleKeys: never adopt an enabled set that cannot
+  // be copied (R6-04).
+  assertRegistryCommitForCopy(ctx.registry, changes.added);
+
   // Planning stays read-only: adopt the closure-expanded enabled set into
   // modules.json only when the plan is actually applied.
   if (changes.enabledKeys) {
@@ -229,6 +238,11 @@ export async function applyModuleKeys(
   }
 
   const diff = diffModuleKeys(moduleKeys(ctx.state), expandedKeys);
+
+  // Refuse before rewriting modules.json: runSteps would throw after the
+  // enabled set had been persisted (R6-04), leaving the file claiming modules
+  // that were never copied.
+  assertRegistryCommitForCopy(ctx.registry, diff.added);
 
   ctx.state = withModuleKeys(ctx.state, expandedKeys);
   await writeModulesState(cwd, sink, ctx.state);

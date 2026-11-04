@@ -50,7 +50,7 @@ async function collectInventory(cwd: string): Promise<{
   const state = await readModulesState(cwd);
   const enabled = moduleKeys(state);
   const enabledSet = new Set(enabled);
-  const registry = await resolveRegistry({ fetch: false });
+  const registry = await resolveRegistry({ fetch: false, cwd });
   const registryModules: RegistryModule[] = registry ? await listRegistryModules(registry.root) : [];
   const deprecated = deprecatedNoticesOf(registryModules);
 

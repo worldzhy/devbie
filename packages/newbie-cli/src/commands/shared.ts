@@ -8,7 +8,7 @@ import { ENV_PATH } from "../constants/paths";
 import { PipelineContext } from "../assemble/types";
 import { IssueBag } from "../lib/issues";
 import { ensureModulesState, readModulesState } from "../lib/modules-state";
-import { RegistryLocation, requireRegistry } from "../lib/registry";
+import { formatRegistryLocation, RegistryLocation, requireRegistry } from "../lib/registry";
 import { createSink, Sink } from "../lib/sink";
 
 export interface GlobalOptions {
@@ -68,7 +68,8 @@ export async function createContext(
   }
 
   const state = await readModulesState(cwd);
-  const registry = await requireRegistry({ fetch: opts.fetch });
+  const registry = await requireRegistry({ fetch: opts.fetch, cwd });
+  console.info(`Registry: ${formatRegistryLocation(registry)}`);
 
   const ctx: PipelineContext = {
     cwd,

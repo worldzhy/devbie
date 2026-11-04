@@ -6,6 +6,7 @@ import { after, before, describe, it } from "node:test";
 
 import { backupInstalledModules, runUpdate } from "../src/commands/modules/update";
 import { REGISTRY_PATH_ENV } from "../src/lib/registry";
+import { CliError } from "@devbie/cli-kit";
 
 /** R5-12: an update may never overwrite a copy it cannot verify against a pin. */
 describe("R5-12: modules update refuses unpinned overwrite", () => {
@@ -55,6 +56,45 @@ describe("R5-12: modules update refuses unpinned overwrite", () => {
       "the unpinned copy must stay untouched",
     );
     await assert.rejects(fs.access(path.join(project, ".newbie/backups")), "no backup should be written");
+  });
+});
+
+describe("R6-03: modules update --check reports an enabled copy that is gone", () => {
+  let project: string;
+  let registry: string;
+  const originalEnv = process.env[REGISTRY_PATH_ENV];
+  const originalInfo = console.info;
+
+  before(async () => {
+    project = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-up-check-project-"));
+    registry = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-up-check-registry-"));
+    await fs.mkdir(path.join(registry, "packages/modules"), { recursive: true });
+    // Pinned in modules.json, but the copy under src/modules is absent: until
+    // R6-03 this path printed the green verdict and exited 0.
+    await fs.writeFile(
+      path.join(project, "modules.json"),
+      JSON.stringify({ registry: null, modules: [{ key: "alpha", version: null, sourceCommit: "deadbeef" }] }),
+      "utf8",
+    );
+    process.env[REGISTRY_PATH_ENV] = registry;
+    console.info = () => undefined;
+  });
+
+  after(async () => {
+    console.info = originalInfo;
+    if (originalEnv === undefined) delete process.env[REGISTRY_PATH_ENV];
+    else process.env[REGISTRY_PATH_ENV] = originalEnv;
+    await fs.rm(project, { recursive: true, force: true });
+    await fs.rm(registry, { recursive: true, force: true });
+  });
+
+  it("fails instead of printing a green verdict", async () => {
+    await assert.rejects(runUpdate({ cwd: project, dryRun: true, check: true }), (error: unknown) => {
+      assert.ok(error instanceof CliError);
+      assert.match(error.message, /alpha/);
+      assert.match(error.message, /cannot be verified/);
+      return true;
+    });
   });
 });
 

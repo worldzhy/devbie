@@ -297,6 +297,7 @@ async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
     registry: ctx.registry,
     state: ctx.state,
     enabledKeys,
+    requireInstalled: true,
   });
   if (drifts.length === 0) {
     console.info(green(bold("✓ Installed module sources match the registry checkout.")));
@@ -306,7 +307,8 @@ async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
   for (const drift of drifts) printSourceDrift(drift);
   const keys = drifts.map((drift) => drift.key).join(", ");
   throw new CliError(
-    `${drifts.length} installed module(s) differ from the registry checkout (${keys}); ` +
-      "back-port the host changes to newbie-modules, or run `newbie modules update` to adopt the registry version.",
+    `${drifts.length} installed module(s) cannot be verified against the registry checkout (${keys}); ` +
+      "restore the missing copies with `newbie modules apply`, back-port the host changes to newbie-modules, " +
+      "or run `newbie modules update` to adopt the registry version.",
   );
 }

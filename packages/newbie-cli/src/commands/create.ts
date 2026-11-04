@@ -116,6 +116,10 @@ export async function runCreate(options: CreateOptions): Promise<void> {
       scripts["check:template"] = scripts["check:template"]
         .replace(/\b(?:NEWBIE|FEWBIE)_TEMPLATE_REGISTRY_COMPLETE=1\s+/g, "")
         .replace(/\s--registry-complete(?=\s|$)/g, "")
+        // `--template-path .` targets the template checkout this project was
+        // copied from. Keeping it makes the gate compare the project with
+        // itself, which is always green (R6-15).
+        .replace(/\s--template-path(?:=\S+|\s+\S+)?/g, "")
         .trim();
     }
     await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
