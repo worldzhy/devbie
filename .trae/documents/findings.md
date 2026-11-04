@@ -120,14 +120,14 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 |---|---|---|---|---|---|---|
-| R6-01 | nightwatch-backend | Copilot `remove_dashboard_metric`/`list_dashboard_metrics` 无项目授权，跨项目读写看板指标（R5-02 修复不完整） | P0 | live | 任意登录用户（需受害者 projectId） | fixed（W8，2026-11-04）：`bc0d69e`；两个 handler 与 `add_dashboard_metric` 同走项目级 `SCOPE_PERMISSION_CHECKER`（List=VIEWER、Delete=ADMIN），拒绝/放行各 2 例回归测试 |
-| R6-02 | nightwatch-backend | `BackendMonitorLog` 未纳入 host-scope，MEMBER 按任意 `applicationId` 跨租户读请求/错误日志（R5-04 修复不完整） | P1 | live | MEMBER | fixed（W8，2026-11-04）：`bc0d69e`；资源入 host-scope + 矩阵 List=VIEWER，`application` resolver 兼读 query/body，日志查询按所属项目授权；resolver 3 例（query/path/未知 app）回归 |
+| R6-01 | nightwatch-backend | Copilot `remove_dashboard_metric`/`list_dashboard_metrics` 无项目授权，跨项目读写看板指标（R5-02 修复不完整） | P0 | live | 任意登录用户（需受害者 projectId） | **verified**（W8→PR #115 合入 main，2026-11-04）：修复 `bc0d69e`；两个 handler 与 `add_dashboard_metric` 同走项目级 `SCOPE_PERMISSION_CHECKER`（List=VIEWER、Delete=ADMIN），拒绝/放行各 2 例回归测试，backend 659/659 通过 |
+| R6-02 | nightwatch-backend | `BackendMonitorLog` 未纳入 host-scope，MEMBER 按任意 `applicationId` 跨租户读请求/错误日志（R5-04 修复不完整） | P1 | live | MEMBER | **verified**（W8→PR #115 合入 main，2026-11-04）：修复 `bc0d69e`；资源入 host-scope + 矩阵 List=VIEWER，`application` resolver 兼读 query/body，日志查询按所属项目授权；resolver 3 例（query/path/未知 app）回归；未认证 HTTP 401 冒烟 |
 | R6-03 | devbie (newbie-cli) | `modules update --check` 对已安装目录缺失 fail-open（`module-source-drift.ts` 跳过 null copy） | P2 | source / ops | CI | open |
 | R6-04 | devbie (newbie-cli) | 无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json，失败后声明与目录不一致 | P2 | source | 开发者 | open |
-| R6-05 | fewbie-cli / fewbie-starter | 模板完整性守卫未生效：已发布 1.4.2 不含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，fewbie-starter 锁 1.4.0 | P2 | template | 所有 fewbie 宿主 CI | fixed（W8，2026-11-04）：`483dfc2` + fewbie-starter `ebd6132`；发布 `@devbie/fewbie-cli@1.4.3`，tarball `dist/program.js` 含守卫（grep=1），starter 锁 1.4.3 且 `check:template` exit 0 |
-| R6-06 | devbie (aws-secrets-cli) / nightwatch-backend | 1.1.5 未发布，宿主仍 1.1.4 静默 exit 0；非 TTY 缺 `-e` 时 push/pull/check 仍“取消即成功” | P2 | ops / artifact | 开发者 / 运维 | fixed（W8，2026-11-04）：`483dfc2` + 宿主 `88034e6`；`pickEnvironment` 非 TTY 且无 `-e` 抛 `CliError`，发布 `@devbie/aws-secrets-cli@1.1.6`（tarball 含该分支），宿主 lock 1.1.6 |
+| R6-05 | fewbie-cli / fewbie-starter | 模板完整性守卫未生效：已发布 1.4.2 不含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，fewbie-starter 锁 1.4.0 | P2 | template | 所有 fewbie 宿主 CI | **verified**（W8→PR #23 合入 main，2026-11-04）：`@devbie/fewbie-cli@1.4.3` 发布，tarball `dist/program.js` 含守卫（grep=1）；fewbie-starter `ebd6132` 锁 1.4.3 且 `check:template` exit 0 |
+| R6-06 | devbie (aws-secrets-cli) / nightwatch-backend | 1.1.5 未发布，宿主仍 1.1.4 静默 exit 0；非 TTY 缺 `-e` 时 push/pull/check 仍“取消即成功” | P2 | ops / artifact | 开发者 / 运维 | **verified**（W8→PR #115 合入 main，2026-11-04）：`@devbie/aws-secrets-cli@1.1.6` 发布，tarball 含非 TTY fail-closed 分支；nightwatch-backend `88034e6` lock 1.1.6
 | R6-07 | devbie / newbie-modules | 台账与事实相反：W7 把 `apply --check` 记成 exit 0（实测 exit 1）；registry 的 R5-13/R4-04/R4-09 状态陈旧；R5-P2-03 未降级 | P2 | docs | 后续评审 | open |
-| R6-08 | nightwatch-backend / newbie-starter | R5-P2-19 提前结案：宿主 `health-sdk` 1.1.0、`style-guide` 1.4.1 低于 latest；starter 仍 `"*"` | P2 | artifact / docs | 下一次 `npm ci` | open |
+| R6-08 | newbie-starter / fewbie-starter / devbie | 模板依赖锁与 npm latest 漂移：newbie-starter `"*"`、fewbie-starter style-guide 1.4.1；release-check.yml 缺 cli-kit build 前置 | P2 | artifact / ops | 下一次 `npm ci` | **verified**（2026-11-04）：newbie-starter `1c653b6` pin `^1.15.0`（PR #39），fewbie-starter `a7418a6` style-guide 升 1.5.0（PR #23），devbie `2f1f8e6` 修正发布清单第 10 步命令，`b836e79c` release-check.yml 补 cli-kit build（PR #116）；`npm run check:template-deps` 两仓均 exit 0 |
 | R6-09 | newbie-modules | R4-04 的实体集/模型版本维度仍未落地，verdict cache 唯一键只有 `(knowledgeItemId, scopeKey)`，仅靠 7 天 TTL | P2 | live | OPERATOR 变更实体后 INTEL 运行 | open |
 | R6-10 | newbie-modules / nightwatch-backend | shortcut 更新 DTO 的 `ValidateIf` 可跳过协议白名单，`javascript:`/`data:` 可落库 | P2 | artifact / live | 项目 EDITOR | open |
 | R6-11 | newbie-modules | event-emitter 保留期用 `config.env` 形状，`apply` 未渲染到宿主 env；清理为单条无上限 deleteMany | P2 | artifact | 运维 | open（未运行时复现） |
@@ -146,4 +146,18 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 变更：nightwatch-backend `bc0d69e`（R6-01/R6-02）、`88034e6`（aws-secrets-cli 1.1.6）；devbie `483dfc2`（aws-secrets 非 TTY fail-closed、发布 fewbie-cli 1.4.3 / aws-secrets-cli 1.1.6）；fewbie-starter `ebd6132`（锁 1.4.3）。
 - 取证：backend `npm test` 659/659、`npx tsc --noEmit` exit 0、eslint 改动文件 exit 0、`npm run build` OK；干净重启后新 PID 66973、无 EADDRINUSE，`/backend-monitor/request-logs`、`/error-logs` 未认证均 401；aws-secrets-cli 12/12；fewbie-cli 54/54；`npm pack @devbie/fewbie-cli@1.4.3` 的 `dist/program.js` 含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，`aws-secrets-cli@1.1.6` 的 `dist/pull-push.js` 含 `stdin is not a terminal`；fewbie-starter `check:template` exit 0；两个消费仓 `npm ci --dry-run` exit 0。
 - 残留：R6-02 只做了未认证 401 冒烟；MEMBER 非成员 403 / OWNER 200 的 HTTP 级证据仍由 resolver 单测与 RBAC 矩阵契约覆盖（本地无现成测试账号）。
+
+## W8+ 门禁闭环（2026-11-04）
+
+- 变更：newbie-starter `1c653b6`（R6-08 pin `@devbie/newbie-cli` `^1.15.0`）；fewbie-starter `a7418a6`（R6-08 `@devbie/style-guide` 升 `^1.5.0`）；devbie `2f1f8e6`（R6-08 修正发布清单第 10 步 fewbie deps 命令：`check:template-drift --check-deps` → `check:template-deps`，前者不识别 `--check-deps` 因此历史上什么都没做）、`b836e79c`（release-check.yml 在 `npm ci` 后补 `npm run build -w @devbie/cli-kit`，否则 `check-template-drift` import fewbie-cli source 时 `MODULE_NOT_FOUND`）。
+- PR 合并：newbie-starter #39、fewbie-starter #23、devbie #115（首次 dev→main 同步）、devbie #116（release-check 修复跟进）；全部 `mergeable=true`，2026-11-04 07:39~07:59Z 合入 main。
+- 取证：`npm run check:template-deps -w @devbie/newbie-cli`（模板=main）exit 0，三条依赖（newbie 1.11.3 / newbie-cli 1.15.0 / style-guide 1.5.0）全对齐 latest；`npm run check:template-deps -w @devbie/fewbie-cli`（模板=main）exit 0，四条依赖（fewbie-cli 1.4.3 / style-guide 1.5.0 / heartbeat-sdk 1.2.0 / web-monitor-sdk 1.4.0）全对齐 latest；clean install 复现 release-check.yml 路径（`rm -rf node_modules && npm ci && npm run build -w @devbie/cli-kit && npm run check:template-drift -w @devbie/fewbie-cli`）exit 0，registry vs starter 1 个重叠文件（web-monitor-sdk）字节一致。
+- 台账置 verified：R6-01、R6-02、R6-05、R6-06（经 PR #115 合入 main）；R6-08（经 PR #39/#23/#115/#116 全链路闭合）。
+
+## 待下一轮评审处理（仍 open）
+
+- R6-03：newbie-cli `modules update --check` 对已安装目录缺失 fail-open（仅 `apply --check` 兜住，单独跑 update 门禁会漏报模块丢失）。
+- R6-04：无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json。
+- R6-07：台账与事实相反、registry 条目陈旧（治理类，需逐仓核对）。
+- R6-09 ~ R6-15：registry 模块级问题（R4-04 verdict cache、shortcut 白名单、event-emitter 保留期、account 死配置等）。
 
