@@ -112,9 +112,5 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 升级（nightwatch-backend）：`@devbie/newbie-cli` `^1.14.2` → `^1.15.0`，lock 落在 1.15.0；`npm run build` 通过、`npm test` 652/652。
 - 新门禁实测（nightwatch-backend，CLI 1.15.0）：`apply --check` 输出 `# src/modules/account (cannot read packages/modules/account at 59ff47c)` + `1 installed module(s) do not match the registry pin`，exit 0（门禁只告警不阻断）；`newbie doctor` 提示 account `59ff47c -> 0c977ad` 更新可用，0 error。
 - 升级（newbie-starter）：spec 保持 `*`，`npm update @devbie/newbie-cli --package-lock-only` 使 lock 落在 1.15.0；`check:template`、`build`、`lint`、`format:check` 均通过。
-- 遗留：nightwatch-backend 的 account 与 registry 当前 dev 存在漂移（`59ff47c` 快照读不到该模块目录），是否 `modules update` 采用 registry 版本需先确认本地宿主改动是否需回写 registry，未在本次发版中处理。
-
-
-
-
+- 遗留（已澄清，非缺陷）：首发 `apply --check` 报 account 漂移是容器内环境产物——`DEFAULT_LOCAL_REGISTRY` 取 `os.homedir()/src/newbie-modules`，容器 HOME=/root 找不到本地仓，退回缓存克隆（停在 `0c977ad`，缺 `59ff47c`）→ 报 `unavailable-pin`。补 `NEWBIE_MODULES_PATH=/home/worldzhy/src/newbie-modules` 复跑，输出 `✓ Module copies, sources and generated wiring match modules.json`，无真实漂移。
 
