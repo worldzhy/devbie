@@ -122,8 +122,8 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 |---|---|---|---|---|---|---|
 | R6-01 | nightwatch-backend | Copilot `remove_dashboard_metric`/`list_dashboard_metrics` 无项目授权，跨项目读写看板指标（R5-02 修复不完整） | P0 | live | 任意登录用户（需受害者 projectId） | **verified**（W8→PR #115 合入 main，2026-11-04）：修复 `bc0d69e`；两个 handler 与 `add_dashboard_metric` 同走项目级 `SCOPE_PERMISSION_CHECKER`（List=VIEWER、Delete=ADMIN），拒绝/放行各 2 例回归测试，backend 659/659 通过 |
 | R6-02 | nightwatch-backend | `BackendMonitorLog` 未纳入 host-scope，MEMBER 按任意 `applicationId` 跨租户读请求/错误日志（R5-04 修复不完整） | P1 | live | MEMBER | **verified**（W8→PR #115 合入 main，2026-11-04）：修复 `bc0d69e`；资源入 host-scope + 矩阵 List=VIEWER，`application` resolver 兼读 query/body，日志查询按所属项目授权。不变量由三层测试闭合：① `authorization.guard.test.ts` R6-02 块 4 例（真实 Guard + 真实 host-scoped 列表 + 真实 resolver factory：列表成员性、query.applicationId→所属 project scope、未知 app fail-closed、无 identifier 亦 fail-closed 不降级 system-level）`ecec78f`；② `scope-resolvers.test.ts` application resolver 单测（query/path/未知 app）；③ RBAC 矩阵契约测试遍历 host-scoped 列表；backend 663/663 |
-| R6-03 | devbie (newbie-cli) | `modules update --check` 对已安装目录缺失 fail-open（`module-source-drift.ts` 跳过 null copy） | P2 | source / ops | CI | open |
-| R6-04 | devbie (newbie-cli) | 无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json，失败后声明与目录不一致 | P2 | source | 开发者 | open |
+| R6-03 | devbie (newbie-cli) | `modules update --check` 对已安装目录缺失 fail-open（`module-source-drift.ts` 跳过 null copy） | P2 | source / ops | CI | fixed（2026-11-04）：`56207ac2`；`ModuleDriftReason` 新增 `missing-copy` + `diffModuleSources({requireInstalled})`，`runUpdateCheck` 传 `true`，`apply --check` 保持不重复报；`modules-update.test.ts` 新增「目录丢失 → 抛 `CliError`」1 例 |
+| R6-04 | devbie (newbie-cli) | 无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json，失败后声明与目录不一致 | P2 | source | 开发者 | fixed（2026-11-04）：`437b8cd7`；抽出 `assertRegistryCommitForCopy`，在 `runSteps`、`applyModuleKeys`、`applyPlanned` 三处写前 preflight；`assemble-pipeline.test.ts` 新增「无 commit → modules.json 不采纳新 key 且不拷贝」1 例 |
 | R6-05 | fewbie-cli / fewbie-starter | 模板完整性守卫未生效：已发布 1.4.2 不含 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE`，fewbie-starter 锁 1.4.0 | P2 | template | 所有 fewbie 宿主 CI | **verified**（W8→PR #23 合入 main，2026-11-04）：`@devbie/fewbie-cli@1.4.3` 发布，tarball `dist/program.js` 含守卫（grep=1）；fewbie-starter `ebd6132` 锁 1.4.3 且 `check:template` exit 0 |
 | R6-06 | devbie (aws-secrets-cli) / nightwatch-backend | 1.1.5 未发布，宿主仍 1.1.4 静默 exit 0；非 TTY 缺 `-e` 时 push/pull/check 仍“取消即成功” | P2 | ops / artifact | 开发者 / 运维 | **verified**（W8→PR #115 合入 main，2026-11-04）：`@devbie/aws-secrets-cli@1.1.6` 发布，tarball 含非 TTY fail-closed 分支；nightwatch-backend `88034e6` lock 1.1.6
 | R6-07 | devbie / newbie-modules | 台账与事实相反：W7 把 `apply --check` 记成 exit 0（实测 exit 1）；registry 的 R5-13/R4-04/R4-09 状态陈旧；R5-P2-03 未降级 | P2 | docs | 后续评审 | open |
@@ -133,7 +133,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 | R6-11 | newbie-modules | event-emitter 保留期用 `config.env` 形状，`apply` 未渲染到宿主 env；清理为单条无上限 deleteMany | P2 | artifact | 运维 | open（未运行时复现） |
 | R6-12 | newbie-modules / nightwatch-backend | account “组织键跳过 user 表”分支 schema 不可达，测试用非法数据；`CACHE_APIKEY_LRU_SIZE` 死配置残留 | P2 | artifact / ops | 文档与测试 | open |
 | R6-13 | newbie-modules / nightwatch-backend | web-monitor 历史 appId 不符合白名单的存量数据读取 400，ingest 整批丢弃 | P2 | live | 已认证 WebMonitor 用户 | open（未上线，限于开发数据） |
-| R6-14 | newbie-modules | registry CI `modules lint` 仍钉 1.14.5，落后已发布 1.15.0 | P2 | source / CI | 所有 registry PR | open |
+| R6-14 | newbie-modules | registry CI `modules lint` 仍钉 1.14.5，落后已发布 1.15.0 | P2 | source / CI | 所有 registry PR | fixed（2026-11-04）：`2d9ea7b`；钉到 `@devbie/newbie-cli@1.15.0`，容器内实测 `modules lint` → `0 error(s), 27 warning(s)` |
 | R6-15 | devbie (apits / newbie-cli) | apits watch 重生成失败仅日志、退出码可 0；`create` 保留 `--template-path .` 使新项目 `check:template` 恒绿 | P2 | source / template | 开发者 / 新项目 CI | open |
 
 重验说明（不改变历史行，仅更正事实）：
@@ -154,10 +154,14 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 取证：`npm run check:template-deps -w @devbie/newbie-cli`（模板=main）exit 0，三条依赖（newbie 1.11.3 / newbie-cli 1.15.0 / style-guide 1.5.0）全对齐 latest；`npm run check:template-deps -w @devbie/fewbie-cli`（模板=main）exit 0，四条依赖（fewbie-cli 1.4.3 / style-guide 1.5.0 / heartbeat-sdk 1.2.0 / web-monitor-sdk 1.4.0）全对齐 latest；clean install 复现 release-check.yml 路径（`rm -rf node_modules && npm ci && npm run build -w @devbie/cli-kit && npm run check:template-drift -w @devbie/fewbie-cli`）exit 0，registry vs starter 1 个重叠文件（web-monitor-sdk）字节一致。
 - 台账置 verified：R6-01、R6-02、R6-05、R6-06（经 PR #115 合入 main）；R6-08（经 PR #39/#23/#115/#116 全链路闭合）。
 
+## W8++ 门禁补漏（2026-11-04）
+
+- 变更：devbie `56207ac2`（R6-03 `modules update --check` 报 `missing-copy`）、`437b8cd7`（R6-04 写前 preflight，三处调用点共用 `assertRegistryCommitForCopy`）；newbie-modules `2d9ea7b`（R6-14 registry CI 钉 `@devbie/newbie-cli@1.15.0`）。
+- 取证：容器内 `npm test`（newbie-cli）223/223（原 221，+2 新用例）、`npx tsc --noEmit` exit 0、改动文件 prettier `--check` 全通过；registry `modules lint`（1.15.0）`0 error(s) / 27 warning(s)`；`findings.md`/`ci.yml` prettier 均通过。
+- 设计取舍：`missing-copy` 只由 `update --check` 要求（`requireInstalled: true`），`apply --check` 仍由 `planReconcile` 独占该信号，避免两套门禁对同一缺失目录重复报错。
+
 ## 待下一轮评审处理（仍 open）
 
-- R6-03：newbie-cli `modules update --check` 对已安装目录缺失 fail-open（仅 `apply --check` 兜住，单独跑 update 门禁会漏报模块丢失）。
-- R6-04：无 commit 拒绝运行前 `applyModuleKeys` 已写 modules.json。
 - R6-07：台账与事实相反、registry 条目陈旧（治理类，需逐仓核对）。
-- R6-09 ~ R6-15：registry 模块级问题（R4-04 verdict cache、shortcut 白名单、event-emitter 保留期、account 死配置等）。
+- R6-09 ~ R6-15：registry 模块级问题（R4-04 verdict cache、shortcut 白名单、event-emitter 保留期、account 死配置等）；R6-14 已于 W8++ 关闭。
 
