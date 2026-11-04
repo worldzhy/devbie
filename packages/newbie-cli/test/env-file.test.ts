@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { envDefaults } from "../src/assemble/env";
+import { envExampleValues } from "../src/assemble/env";
 import {
   MODULES_MARKER_END,
   MODULES_MARKER_START,
@@ -44,20 +44,20 @@ describe("parseEnv / serializeEnv", () => {
   });
 });
 
-describe("envDefaults", () => {
+describe("envExampleValues", () => {
   it("renders typed declarations as plain values", () => {
     assert.deepEqual(
-      envDefaults({
+      envExampleValues({
         PLAIN: "value",
-        TYPED: { type: "int", default: 30, description: "keep N days" },
-        NO_DEFAULT: { type: "string" },
+        TYPED: { type: "int", example: 30, description: "keep N days" },
+        NO_EXAMPLE: { type: "string" },
       }),
-      { PLAIN: "value", TYPED: "30", NO_DEFAULT: "" },
+      { PLAIN: "value", TYPED: "30", NO_EXAMPLE: "" },
     );
   });
 
   it("returns an empty map when the manifest declares no env", () => {
-    assert.deepEqual(envDefaults(undefined), {});
+    assert.deepEqual(envExampleValues(undefined), {});
   });
 });
 

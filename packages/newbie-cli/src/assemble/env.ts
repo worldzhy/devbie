@@ -23,19 +23,22 @@ function sectionTitle(key: string): string {
 }
 
 /**
- * Manifests may declare a plain default (a string) or a typed descriptor
- * (`{ type, default, description }`). Both collapse to the value written into
- * `.env` / `.env.example`; descriptors without an explicit default render as
- * an empty value so the operator fills it in.
+ * Manifests may declare a plain example value (a string) or a typed descriptor
+ * (`{ type, example, description }`). Both collapse to the value written into
+ * `.env` / `.env.example`; descriptors without an explicit example render as an
+ * empty value so the operator fills it in.
+ *
+ * The rendered value is scaffolding only — every environment still has to
+ * declare each key explicitly (ADR-033), so this must never be read at runtime.
  */
-export function envDefaults(env: Record<string, EnvDeclaration> | undefined): Record<string, string> {
+export function envExampleValues(env: Record<string, EnvDeclaration> | undefined): Record<string, string> {
   const result: Record<string, string> = {};
   for (const [key, declaration] of Object.entries(env ?? {})) {
     if (typeof declaration === "string") {
       result[key] = declaration;
       continue;
     }
-    result[key] = declaration?.default === undefined ? "" : String(declaration.default);
+    result[key] = declaration?.example === undefined ? "" : String(declaration.example);
   }
   return result;
 }
@@ -70,7 +73,7 @@ export async function assembleEnv(params: {
       reportIssue(issues, sink, `Missing newbie.module.json for '${key}'; its env variables were not added.`);
       continue;
     }
-    lines = upsertEnvSection(lines, sectionTitle(key), envDefaults(manifest.env));
+    lines = upsertEnvSection(lines, sectionTitle(key), envExampleValues(manifest.env));
   }
 
   // Variables still declared by an enabled module must survive even when a
@@ -129,7 +132,7 @@ export async function assembleEnvExample(params: {
       continue;
     }
     sectionLines.push(decoration, `# ! ${sectionTitle(key)} variables`, decoration);
-    const entries = Object.entries(envDefaults(manifest.env));
+    const entries = Object.entries(envExampleValues(manifest.env));
     entries.sort(([a], [b]) => compareStrings(a, b));
     for (const [envKey, value] of entries) {
       sectionLines.push(`${envKey}=${value}`);
