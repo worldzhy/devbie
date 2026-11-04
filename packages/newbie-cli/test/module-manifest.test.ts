@@ -95,6 +95,39 @@ describe("normalizeModuleManifest", () => {
     assert.equal(normalizeModuleManifest(valid).publicNamespace, undefined);
   });
 
+  it("preserves typed env declarations with an example value", () => {
+    const manifest = normalizeModuleManifest({
+      ...valid,
+      env: { ACCOUNT_SECRET: "<PLEASE_SET_THIS_VALUE>", RETENTION: { type: "int", example: 30 } },
+    });
+    assert.deepEqual(manifest.env, {
+      ACCOUNT_SECRET: "<PLEASE_SET_THIS_VALUE>",
+      RETENTION: { type: "int", example: 30 },
+    });
+    assert.equal(normalizeModuleManifest({ ...valid, env: undefined }).env, undefined);
+  });
+
+  it("rejects the pre-ADR-033 'default' env field in favour of 'example'", () => {
+    assert.throws(
+      () => normalizeModuleManifest({ ...valid, env: { RETENTION: { type: "int", default: 30 } } }),
+      /declares unsupported field 'default'.*renamed to 'example'/,
+    );
+  });
+
+  it("rejects malformed env declarations", () => {
+    assert.throws(() => normalizeModuleManifest({ ...valid, env: [] }), /'env' must map variable names/);
+    assert.throws(() => normalizeModuleManifest({ ...valid, env: { "": "x" } }), /empty variable name/);
+    assert.throws(() => normalizeModuleManifest({ ...valid, env: { A: 42 } }), /must be a string or an object/);
+    assert.throws(
+      () => normalizeModuleManifest({ ...valid, env: { A: { type: "", example: "x" } } }),
+      /'env 'A'\.type' must be a non-empty string/,
+    );
+    assert.throws(
+      () => normalizeModuleManifest({ ...valid, env: { A: { example: { nested: 1 } } } }),
+      /\.example must be a string, number or boolean/,
+    );
+  });
+
   it("rejects a non-boolean 'publicNamespace'", () => {
     assert.throws(
       () => normalizeModuleManifest({ ...valid, publicNamespace: "true" }),

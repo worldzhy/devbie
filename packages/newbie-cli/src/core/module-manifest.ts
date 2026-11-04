@@ -28,13 +28,17 @@ export function isModuleRole(value: string): value is ModuleRole {
   return (MODULE_ROLES as readonly string[]).includes(value);
 }
 
-export type EnvDeclaration =
-  | string
-  | {
-      type?: string;
-      default?: string | number | boolean;
-      description?: string;
-    };
+export interface EnvDescriptor {
+  type?: string;
+  /** Sample value written to `.env` / `.env.example`; never a runtime default. */
+  example?: string | number | boolean;
+  description?: string;
+}
+
+export type EnvDeclaration = string | EnvDescriptor;
+
+/** Fields an object-form env declaration may carry (ADR-033). */
+const ENV_DECLARATION_FIELDS = ["type", "example", "description"] as const;
 
 export interface ModuleWiring {
   /** Module file without extension, e.g. "account.module". */
@@ -64,8 +68,11 @@ export interface ModuleManifest {
   "config-service"?: Record<string, unknown>;
   /**
    * Environment variables the module needs. A plain string is the value written
-   * to `.env`; an object declares a typed default plus a description
-   * (`{ type, default, description }`) and is rendered as `KEY=<default>`.
+   * to `.env`; an object carries an optional type, an example value rendered as
+   * `KEY=<example>` and a description. The example only seeds `.env` /
+   * `.env.example` on the developer machine or a fresh host: it is never a
+   * runtime default, and every environment (including production) must declare
+   * each key explicitly (ADR-033).
    */
   env?: Record<string, EnvDeclaration>;
   dependencies?: Record<string, string>;
@@ -126,6 +133,62 @@ function assertOptionalString(value: unknown, field: string, key: string): void 
   }
 }
 
+/**
+ * Validate and normalise the optional `env` declaration map.
+ *
+ * Object declarations accept exactly `type`, `example` and `description`
+ * (ADR-033). In particular the pre-ADR-033 field name `default` is rejected
+ * loudly rather than silently ignored: it read as a runtime fallback while it
+ * only ever seeded `.env.example`, which is how a required production key
+ * ends up missing from the secret.
+ */
+function normalizeEnvDeclarations(raw: unknown, key: string): Record<string, EnvDeclaration> | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Invalid newbie.module.json for '${key}': 'env' must map variable names to declarations.`);
+  }
+
+  const result: Record<string, EnvDeclaration> = {};
+  for (const [envKey, declaration] of Object.entries(raw as Record<string, unknown>)) {
+    if (envKey.trim().length === 0) {
+      throw new Error(`Invalid newbie.module.json for '${key}': 'env' contains an empty variable name.`);
+    }
+    if (typeof declaration === "string") {
+      result[envKey] = declaration;
+      continue;
+    }
+    if (!declaration || typeof declaration !== "object" || Array.isArray(declaration)) {
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': env '${envKey}' must be a string or an object declaration.`,
+      );
+    }
+
+    const fields = declaration as Record<string, unknown>;
+    for (const field of Object.keys(fields)) {
+      if ((ENV_DECLARATION_FIELDS as readonly string[]).includes(field)) continue;
+      const hint =
+        field === "default"
+          ? " 'default' was renamed to 'example' (ADR-033): it seeds .env.example only, never a runtime value."
+          : "";
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': env '${envKey}' declares unsupported field '${field}'. ` +
+          `Supported fields: ${ENV_DECLARATION_FIELDS.join(", ")}.${hint}`,
+      );
+    }
+
+    assertOptionalString(fields.type, `env '${envKey}'.type`, key);
+    assertOptionalString(fields.description, `env '${envKey}'.description`, key);
+    const example = fields.example;
+    if (example !== undefined && !["string", "number", "boolean"].includes(typeof example)) {
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': env '${envKey}'.example must be a string, number or boolean when declared.`,
+      );
+    }
+    result[envKey] = fields as EnvDescriptor;
+  }
+  return result;
+}
+
 /** Validate that the optional `role` field, when declared, is a known role. */
 function assertOptionalRole(value: unknown, key: string): void {
   if (value === undefined) return;
@@ -176,12 +239,18 @@ export function normalizeModuleManifest(raw: unknown, expectedKey?: string): Mod
   assertOptionalString(data.deprecated, "deprecated", data.key);
   assertOptionalRole(data.role, data.key);
   assertOptionalBoolean(data.publicNamespace, "publicNamespace", data.key);
+  const env = normalizeEnvDeclarations(data.env, data.key);
   const manifest: ModuleManifest = {
     ...(data as object),
     key: data.key,
     module: { file: wiring.file, className: wiring.className },
   };
   if (typeof data.schema !== "string") delete manifest.schema;
+  if (env) {
+    manifest.env = env;
+  } else {
+    delete manifest.env;
+  }
   if (moduleDependencies) {
     manifest.moduleDependencies = moduleDependencies;
   } else {
