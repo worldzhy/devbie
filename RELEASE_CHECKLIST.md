@@ -11,7 +11,7 @@ Run through every step below before publishing any package in this repo (package
 7. After publishing, run `npm view <package> dist-tags` to confirm `latest` points to the new version. Registry propagation can take 1-2 minutes — wait and re-check instead of re-publishing.
 8. If packages in this repo depend on each other, publish the dependencies first and the dependents last.
 9. Update consuming projects' dependency version and record the change in project memory.
-10. If any `@devbie/*` package was published in this release, update the starter template lockfile in the newbie-starter repo (commit to dev), then run `npm run check:template-deps -w @devbie/newbie-cli` from the repo root to confirm no drift remains. The script clones the template's default branch — the same source `newbie create` uses — so it only turns green once the dev changes have been merged into main. For `@devbie/fewbie-cli` releases the same applies to the fewbie-starter repo, verified with `npm run check:template-drift -w @devbie/fewbie-cli -- --check-deps`.
+10. If any `@devbie/*` package was published in this release, update the starter template lockfile in the newbie-starter repo (commit to dev), then run `npm run check:template-deps -w @devbie/newbie-cli` from the repo root to confirm no drift remains. The script clones the template's default branch — the same source `newbie create` uses — so it only turns green once the dev changes have been merged into main. For `@devbie/fewbie-cli` releases the same applies to the fewbie-starter repo, verified with `npm run check:template-deps -w @devbie/fewbie-cli` (the `--check-deps` flag belongs to no script — `check:template-drift` only compares file drift and ignores it).
 
 ## Version identities
 
