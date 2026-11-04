@@ -129,12 +129,12 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 | R6-07 | devbie / newbie-modules | 台账与事实相反：W7 把 `apply --check` 记成 exit 0（实测 exit 1）；registry 的 R5-13/R4-04/R4-09 状态陈旧；R5-P2-03 未降级 | P2 | docs | 后续评审 | fixed（2026-11-04）：W8++ 已在本节「重验说明」更正 `apply --check`（exit 1）；newbie-modules `439ae76` 把 R4-04/R4-09/R5-13/R5-P2-03 行内状态改为 round6 裁决（partial/verified/fixed/partial），表格与更正块不再自相矛盾 |
 | R6-08 | newbie-starter / fewbie-starter / devbie | 模板依赖锁与 npm latest 漂移：newbie-starter `"*"`、fewbie-starter style-guide 1.4.1；release-check.yml 缺 cli-kit build 前置 | P2 | artifact / ops | 下一次 `npm ci` | **verified**（2026-11-04）：newbie-starter `1c653b6` pin `^1.15.0`（PR #39），fewbie-starter `a7418a6` style-guide 升 1.5.0（PR #23），devbie `2f1f8e6` 修正发布清单第 10 步命令，`b836e79c` release-check.yml 补 cli-kit build（PR #116）；`npm run check:template-deps` 两仓均 exit 0 |
 | R6-09 | newbie-modules | R4-04 的实体集/模型版本维度仍未落地，verdict cache 唯一键只有 `(knowledgeItemId, scopeKey)`，仅靠 7 天 TTL | P2 | live | OPERATOR 变更实体后 INTEL 运行 | open |
-| R6-10 | newbie-modules / nightwatch-backend | shortcut 更新 DTO 的 `ValidateIf` 可跳过协议白名单，`javascript:`/`data:` 可落库 | P2 | artifact / live | 项目 EDITOR | open |
-| R6-11 | newbie-modules | event-emitter 保留期用 `config.env` 形状，`apply` 未渲染到宿主 env；清理为单条无上限 deleteMany | P2 | artifact | 运维 | open（未运行时复现） |
-| R6-12 | newbie-modules / nightwatch-backend | account “组织键跳过 user 表”分支 schema 不可达，测试用非法数据；`CACHE_APIKEY_LRU_SIZE` 死配置残留 | P2 | artifact / ops | 文档与测试 | open |
-| R6-13 | newbie-modules / nightwatch-backend | web-monitor 历史 appId 不符合白名单的存量数据读取 400，ingest 整批丢弃 | P2 | live | 已认证 WebMonitor 用户 | open（未上线，限于开发数据） |
+| R6-10 | newbie-modules / nightwatch-backend | shortcut 更新 DTO 的 `ValidateIf` 可跳过协议白名单，`javascript:`/`data:` 可落库 | P2 | artifact / live | 项目 EDITOR | fixed（W9，2026-11-04）：registry `26247a3`+`ca2ba33`、宿主 `b99b27a`；update 改为校验合并后的有效 type/content，非法 scheme 400，缺行 404，controller 8 例 |
+| R6-11 | newbie-modules | event-emitter 保留期用 `config.env` 形状，`apply` 未渲染到宿主 env；清理为单条无上限 deleteMany | P2 | artifact | 运维 | fixed（W9，2026-11-04）：registry `0f191c0`、宿主 `b99b27a`；`EVENT_EMISSION_RETENTION_DAYS` 已出现在 `.env`/`.env.example`；无上限清理保留（注释已说明为设计内摊还成本） |
+| R6-12 | newbie-modules / nightwatch-backend | account “组织键跳过 user 表”分支 schema 不可达，测试用非法数据；`CACHE_APIKEY_LRU_SIZE` 死配置残留 | P2 | artifact / ops | 文档与测试 | fixed（W9，2026-11-04，初段）：registry `66fa30d`、宿主 `b99b27a`+`d6b5e33`；注释/测试与 schema 对齐、宿主 `.env` 与 `deploy/env.template` 死键删除；组织专属键是否落地待 B 批次决策 |
+| R6-13 | newbie-modules / nightwatch-backend | web-monitor 历史 appId 不符合白名单的存量数据读取 400，ingest 整批丢弃 | P2 | live | 已认证 WebMonitor 用户 | open（未上线，限于开发数据）；盘点（2026-11-04）：本地 `WebMonitorInstallation` 1 行（`fsQNmFK`）、Mongo 17 个分区键全部合规，0 行需 backfill |
+| R6-15 | devbie (apits / newbie-cli) | apits watch 重生成失败仅日志、退出码可 0；`create` 保留 `--template-path .` 使新项目 `check:template` 恒绿 | P2 | source / template | 开发者 / 新项目 CI | fixed（W9，2026-11-04）：devbie `7e5d2922`；watch 失败置 `process.exitCode=1`，`create` 同时剥离 `--template-path .` 与 `--template-path=.`，新增 1 例（CLI 224/224） |
 | R6-14 | newbie-modules | registry CI `modules lint` 仍钉 1.14.5，落后已发布 1.15.0 | P2 | source / CI | 所有 registry PR | fixed（2026-11-04）：`2d9ea7b`；钉到 `@devbie/newbie-cli@1.15.0`，容器内实测 `modules lint` → `0 error(s), 27 warning(s)` |
-| R6-15 | devbie (apits / newbie-cli) | apits watch 重生成失败仅日志、退出码可 0；`create` 保留 `--template-path .` 使新项目 `check:template` 恒绿 | P2 | source / template | 开发者 / 新项目 CI | open |
 
 重验说明（不改变历史行，仅更正事实）：
 - W7 节「`apply --check` … exit 0（门禁只告警不阻断）」不成立：`packages/newbie-cli/src/commands/modules/apply.ts` 对 `unavailable-pin` 也 `throw CliError`，容器内实测 exit 1；原文记录已过期/错误。
@@ -160,7 +160,32 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - 取证：容器内 `npm test`（newbie-cli）223/223（原 221，+2 新用例）、`npx tsc --noEmit` exit 0、改动文件 prettier `--check` 全通过；registry `modules lint`（1.15.0）`0 error(s) / 27 warning(s)`；`findings.md`/`ci.yml` prettier 均通过。
 - 设计取舍：`missing-copy` 只由 `update --check` 要求（`requireInstalled: true`），`apply --check` 仍由 `planReconcile` 独占该信号，避免两套门禁对同一缺失目录重复报错。
 
+## R6 open 条目复核（2026-11-04）
+
+锚点：devbie `dev 07510a5c`（dirty 2 个：`packages/aws-secrets-cli/sst/*`，属并行会话，不在复核域）；newbie-modules `dev 439ae76`（clean）；nightwatch-backend `dev ecec78f`（clean）。security-evaluation / shortcut / event-emitter / account / web-monitor 五模块 registry↔宿主 `diff -rq` 零差异，故 `live`/`artifact` 标注成立。
+
+裁决：**6/6 真实存在，无撤回；R6-10、R6-13 的表述需修正**。
+
+- R6-09 确认（correctness / live）。`security-evaluation-intel-negative-cache.repository.ts#L45-L62` 的过滤条件只有 `scopeKey + knowledgeItemId ∈ ids + verdict=not-relevant + updatedAt > cutoff`，Prisma 唯一键同为 `(knowledgeItemId, scopeKey)`。`knowledgeItemId` 是条目身份，不含实体集/模型版本维度，所以 OPERATOR 变更实体后旧 not-relevant 行仍抑制重评估至 TTL（7 天）。反驳轮：同文件 L48-L50 注释称"pair 每次重进管道"——只对 hard-hit 行成立，not-relevant 行被过滤，注释与实现相反。
+- R6-10 确认存在，但"已可利用 XSS"不成立。`shortcut-item.dto.ts#L95` 的 update `content` 用 `@ValidateIf((_o, value) => value !== undefined && /^[a-z]+:\/\//i.test(value))`；`javascript:alert(1)`、`data:text/html,...` 不含 `://` → 条件为假 → `IsUrl` 被跳过，可落库（create 侧 `#L73` 按 `type` 判定，说明 update 是漏改）。可达：`PATCH /shortcut-items/:id` 需 ShortcutItem Update（项目 EDITOR）。反驳轮结论：前端确有消费方，但 `shortcut/page.tsx#L14-L25,L84-L89` 在 `window.open` 前用 `isSafeExternalUrl`（仅 http/https）拦截并 toast 拒绝，故"已可利用 XSS"不成立，收益是存储契约缺口（其他消费方/导出/未来 UI 会直接拿到非法 scheme）；定级维持 P2，去掉 live 利用表述。
+- R6-11 确认（artifact，静态可证）。`event-emitter/newbie.module.json` 把 `EVENT_EMISSION_RETENTION_DAYS` 放在 `config.env`，而 CLI 只读顶层 `env`（`assemble/env.ts#L73,L83`；`ModuleManifest#L70` 且带 `[key: string]: unknown`）→ 未知 `config` 键被静默忽略，宿主 `.env`/`.env.example` 实测 0 命中，`newbie doctor` 同样发现不了。次要部分成立但属成本：`record()` 每次插入前单条无上限 `deleteMany`，长期无写入后首次插入会一次性清理全部过期行。
+- R6-12 确认（artifact / ops）。`account/prisma/schema.prisma#L242-L244`：`userId String @db.Uuid` 必填 + `organizationId String?`，组织专属键在 schema 层不可写入；`api-key.verifier.ts#L35-L40` 的 `if (apiKey.userId)` 恒真，注释所称"组织键跳过 user 表"分支不可达；`api-key.verifier.test.ts` 用 `userId: null` 构造 schema 不允许的行。死配置：宿主 `.env#L75-L76` 仍留 `CACHE_APIKEY_LRU_SIZE` / `CACHE_APIKEY_LRU_TTL_MS`，代码零引用（已随 N-1 删除）。
+- R6-13 确认存在，丢失机制描述须修正。`5adec55` 之前 `site.service.ts` 接受 `body.appId`（`appId = body.appId ? String(body.appId) : func.randomString()`），存量行可为任意字符串；`assertAppId` 放在 Mongo/ClickHouse 模型工厂内，读写共用，故不匹配 `^[A-Za-z0-9_]{1,64}$` 的存量 appId 在读取/写入即抛 `BadRequestException`。修正："ingest 整批丢弃"不准确——`report-task.service.ts#L296-L306` 逐条 try/catch，仅该条丢失；flush 阶段失败 app 进入 `failedAppIds` 无限重新入队（L307-L322），是毒消息重试循环＋每 tick 错误日志，不是整批丢弃。定级：台账按"未上线、仅开发数据"保留 P2；若生产存在 `5adec55` 之前创建的安装，应升 P1。
+- R6-15 确认。`apits/src/cli.ts#L340-L346` watch 重建异常只 `logger.error`，进程存活且退出码 0（与 R5-07 同类静默失败）；`newbie-starter/package.json#L11`、`fewbie-starter/package.json#L8` 的 `check:template` 硬编码 `--template-path .`，`template/update.ts#L84-L96`（`isSelfComparison`）明确 self-comparison 时内容门禁恒零漂移，`create.ts#L110-L117` 又剥掉 `NEWBIE/FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1` → 新建项目的 `check:template` 必然 exit 0。反驳轮：apits watch 是交互式开发进程，日志即反馈，"退出码"论据偏弱；真缺陷是新建项目空门禁，定级维持 P2。
+
+复核未改动任何代码；本轮无新增 finding，无撤回。
+
+## W9 落地（2026-11-04，A 批次）
+
+- 变更：newbie-modules `26247a3`+`ca2ba33`（R6-10 合并行校验 + 测试）、`0f191c0`（R6-11 manifest 顶层 env）、`66fa30d`（R6-12 注释/测试对齐）；nightwatch-backend `b99b27a`（三模块按 `origin/dev ca2ba33` 装配）、`d6b5e33`（deploy 模板死键）、`ceaf7e2`（R6-02 集成测试迁入 `src/application`，使 `src/modules/security` 恢复与 registry 逐字节一致）；devbie `7e5d2922`（R6-15）。
+- 装配注意：CLI 的 `resolveRegistry` 只认 `NEWBIE_MODULES_REF`，不读 `modules.json#registry.ref`；未设置时缓存仓按 remote 默认分支（main）检出，本轮首次 `modules update` 因此误取了 `e30526b`（main 合并点）。加 `NEWBIE_MODULES_REF=origin/dev` 重跑后 pin 才落到 dev HEAD。
+- 取证：`modules update --check` / `modules apply --check` 均零漂移；backend full suite 670/670、`npm run build` OK；shortcut controller 8 例、api-key verifier 6 例通过；`EVENT_EMISSION_RETENTION_DAYS` 实测出现在 `.env` 与 `.env.example`；newbie-cli 224/224、apits 25/25；registry `modules lint` 0 error。
+- R6-13 盘点（并入本轮）：本地 `WebMonitorInstallation` 1 行（`appKey=fsQNmFK`）与 Mongo 17 个分区键全部符合 `^[A-Za-z0-9_]{1,64}$`，**0 行需 backfill**，维持 P2；修复方向确定为「读容忍 + 写拒绝」，待 B 批次。
+- 未采纳：R6-11 的“单条无上限 deleteMany”未改代码 —— 逐写全量清理是既有注释明示的摊还设计，改为分批会引入热路径额外查询，收益不成比例。
+
 ## 待下一轮评审处理（仍 open）
 
-- R6-09 ~ R6-13、R6-15：registry 模块级与工具链问题（R4-04 verdict cache 维度、shortcut 白名单、event-emitter 保留期、account 死配置、web-monitor 存量 appId、apits watch 退出码/`--template-path .`）；R6-14 已于 W8++ 关闭。
+- R6-09：负缓存缺少实体集/模型版本维度（B 批次，需先定维度方案）。
+- R6-13：存量 appId「读容忍 + 写拒绝」实现（B 批次）。
+- R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-12 的组织专属键去留并入 B 批次决策；R6-14 已于 W8++ 关闭。
 
