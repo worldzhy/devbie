@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { MODULES_DIR } from "@devbie/modules-state";
 
-import { renderPublicNamespaceBody, spliceModulesBlock } from "../core/caddyfile-modules";
+import { spliceModulesBlock } from "../core/caddyfile-modules";
 import { buildComposeModulesYaml, ComposeModulesInput } from "../core/deploy-compose";
 import { isRegisteredDatastore } from "../core/datastore-registry";
 import { DEPLOY_CADDYFILE_TMPL, DEPLOY_COMPOSE_MODULES } from "../constants/paths";
@@ -55,7 +55,9 @@ export async function planDeployRenders(params: {
   const { cwd, sink, issues, enabledKeys } = params;
 
   const datastores: ComposeModulesInput[] = [];
-  const publicNamespaces: string[] = [];
+  // publicNamespace removed (ADR-034): all routes now go through the
+  // unified /api/* Caddy block. The @@newbie-modules marker stays but its
+  // body is always empty now — handled below via spliceModulesBlock(caddyCurrent, "").
   for (const key of enabledKeys) {
     const manifest = await readInstalledManifest(cwd, key);
     if (manifest === null) {
@@ -71,9 +73,10 @@ export async function planDeployRenders(params: {
       }
       datastores.push({ key, hasMigrator: await hasMigrator(cwd, key) });
     }
-    if (manifest.publicNamespace === true) {
-      publicNamespaces.push(key);
-    }
+    // publicNamespace removed (ADR-034): all routes now go through the
+    // unified /api/* Caddy block. web-monitor's independent handle was a
+    // v1/v2 version-number era leftover that became unnecessary after ADR-007
+    // stripped the version prefix from external endpoints.
   }
 
   const plans: DeployRenderPlan[] = [];
@@ -88,7 +91,7 @@ export async function planDeployRenders(params: {
   // render (not every consumer ships the production stack).
   const caddyCurrent = await readOrNull(path.resolve(cwd, DEPLOY_CADDYFILE_TMPL));
   if (caddyCurrent !== null) {
-    const caddyNext = spliceModulesBlock(caddyCurrent, renderPublicNamespaceBody(publicNamespaces));
+    const caddyNext = spliceModulesBlock(caddyCurrent, "");
     if (caddyNext === null) {
       reportIssue(
         issues,

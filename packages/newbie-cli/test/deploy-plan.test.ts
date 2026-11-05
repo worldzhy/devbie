@@ -38,7 +38,7 @@ async function makeProject(params: {
     await fs.mkdir(moduleDir, { recursive: true });
     await fs.writeFile(
       path.join(moduleDir, "newbie.module.json"),
-      JSON.stringify({ key, module: { file: `${key}.module`, className: `${key}Module` }, ...manifest }),
+      JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, ...manifest }),
       "utf8",
     );
   }
@@ -102,7 +102,7 @@ describe("planDeployRenders", () => {
 
   it("reports no drift once the rendered assets are applied", async () => {
     const cwd = await makeProject({
-      modules: { mongo: { layer: "datastore" }, account: { publicNamespace: true } },
+      modules: { mongo: { layer: "datastore" }, account: {} },
       caddyfile: CADDY_TEMPLATE,
     });
 
@@ -114,17 +114,22 @@ describe("planDeployRenders", () => {
     assert.deepEqual(second.plans, []);
   });
 
-  it("claims the public namespace of every module that declares one", async () => {
+  it("keeps the Caddyfile markers but renders an empty module block (ADR-034)", async () => {
     const cwd = await makeProject({
-      modules: { account: { publicNamespace: true }, internal: {} },
+      modules: { account: {}, internal: {} },
       caddyfile: CADDY_TEMPLATE,
     });
 
     const { plans } = await plan(cwd, ["account", "internal"]);
     const caddy = plans.find((entry) => entry.path === "deploy/Caddyfile.tmpl");
     assert.ok(caddy);
-    assert.match(caddy.next, /# @@newbie-modules-start\n\thandle \/account\/\* \{/);
-    assert.doesNotMatch(caddy.next, /\/internal\/\*/);
+    // ADR-034 removed publicNamespace: the @@newbie-modules markers remain
+    // but their body is always empty (spliceModulesBlock with "").
+    assert.match(caddy.next, /# @@newbie-modules-start/);
+    assert.match(caddy.next, /# @@newbie-modules-end/);
+    // ADR-034 removed publicNamespace: between @@start and @@end there is
+    // nothing (or only whitespace). No per-module route blocks remain.
+    assert.match(caddy.next, /@@newbie-modules-start\n# @@newbie-modules-end/);
     assert.match(caddy.next, /handle \/api\/\*/);
   });
 

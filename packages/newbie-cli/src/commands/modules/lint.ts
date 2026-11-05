@@ -59,7 +59,7 @@ export async function runLint(options: { cwd: string }): Promise<void> {
       key,
       layer: typeof mod.manifest.layer === "string" ? mod.manifest.layer : undefined,
       dependencies: await moduleDependencies(mod.dir, key),
-      declaredDependencies: mod.manifest.moduleDependencies ?? [],
+      declaredDependencies: mod.manifest.requires?.modules ?? [],
     });
   }
 

@@ -4,29 +4,20 @@
  *
  * The manifest lives at the root of every module directory, both inside the
  * newbie-modules registry and in the consuming project (`src/modules/<key>`).
- */
-
-/**
- * Cross-deployment topological role of a module.
  *
- * Absent for ordinary modules whose capabilities serve the host application
- * itself. "collector" modules receive information from remote deployments
- * through token-only ingestion endpoints and model those remote endpoints as
- * installations (heartbeat / backend-monitor / web-monitor / module-hub /
- * health): the other half of the protocol lives in a separately distributed
- * SDK or CLI. The name follows the industry-standard agent/probe -> collector
- * split (OpenTelemetry Collector etc.); observation happens on both sides of
- * the protocol, so "observer" cannot distinguish the central receiving end.
- * This axis is orthogonal to `layer`, which constrains in-process dependency
- * direction.
+ * Schema (ADR-034):
+ *   key / layer          — identity domain (2 keys)
+ *   wiring               — functional: NestJS entry + Prisma fragment + CLI namespace
+ *   requires             — functional: module deps + env + config + npm packages
+ *   collector            — metadata: collector-protocol participation + peer SDK
+ *   deprecated           — metadata: end-of-life notice
+ *
+ * Unknown top-level or nested fields fail loudly (strict whitelist, not
+ * fail-open). Empty child objects are omitted so the JSON stays minimal.
  */
-export type ModuleRole = "collector";
 
-export const MODULE_ROLES: readonly ModuleRole[] = ["collector"];
-
-export function isModuleRole(value: string): value is ModuleRole {
-  return (MODULE_ROLES as readonly string[]).includes(value);
-}
+/** Architectural layer of a module. */
+const VALID_LAYERS = new Set(["datastore", "infrastructure", "capability", "feature"]);
 
 export interface EnvDescriptor {
   type?: string;
@@ -41,61 +32,52 @@ export type EnvDeclaration = string | EnvDescriptor;
 const ENV_DECLARATION_FIELDS = ["type", "example", "description"] as const;
 
 export interface ModuleWiring {
-  /** Module file without extension, e.g. "account.module". */
+  /** NestJS module file without extension, e.g. "account.module". */
   file: string;
   /** Exported NestJS module class name, e.g. "AccountModule". */
   className: string;
+  /** Project-relative path of the Prisma model fragment; absent = no models. */
+  prismaSchema?: string;
+  /**
+   * Namespace this module registers under the Newbie CLI. When declared,
+   * `newbie modules apply` loads `<modulesDir>/<key>/cli/index.ts` at
+   * startup and registers the exported `register(parent, options)` hook
+   * under this namespace. Produces `newbie <namespace> <subcommand>`.
+   */
+  newbieCli?: string;
+}
+
+export interface ModuleRequires {
+  /** Registry module keys this module imports via `@modules/<key>`. */
+  modules?: string[];
+  env?: Record<string, EnvDeclaration>;
+  /**
+   * Arbitrary config object that the consumer's config-service should inject.
+   * May reference `process.env.<VAR>` — every referenced key must also be
+   * declared in `env` (bidirectional guard, ADR-033).
+   */
+  config?: Record<string, unknown>;
+  dependencies?: Record<string, string>;
+  devDependencies?: Record<string, string>;
+}
+
+export interface ModuleCollector {
+  /**
+   * Package name of the companion SDK that ships with this module's side of
+   * the collector protocol, or `null` when the SDK package has not been
+   * published yet (e.g. backend-monitor). Omit the whole object entirely
+   * when the module does not participate in the collector protocol.
+   */
+  peerSdk: string | null;
 }
 
 export interface ModuleManifest {
   key: string;
   /** Architectural layer of the module; absent for framework-special modules. */
   layer?: string;
-  /**
-   * Cross-deployment topological role; absent for ordinary modules that only
-   * serve the host application. Only declared values are permitted.
-   */
-  role?: ModuleRole;
-  /**
-   * Claims the public URL namespace `/<key>/*` on the site domain: assemble
-   * renders a Caddy `handle /<key>/*` pass-through block for the module
-   * (ADR-008 D4). The namespace always equals the module key.
-   */
-  publicNamespace?: boolean;
-  module: ModuleWiring;
-  /** Project-relative path of the Prisma model fragment; absent = no models. */
-  schema?: string;
-  "config-service"?: Record<string, unknown>;
-  /**
-   * Environment variables the module needs. A plain string is the value written
-   * to `.env`; an object carries an optional type, an example value rendered as
-   * `KEY=<example>` and a description. The example only seeds `.env` /
-   * `.env.example` on the developer machine or a fresh host: it is never a
-   * runtime default, and every environment (including production) must declare
-   * each key explicitly (ADR-033).
-   */
-  env?: Record<string, EnvDeclaration>;
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-  /**
-   * Registry module keys this module imports via `@modules/<key>`. The CLI
-   * expands enabled modules to the transitive closure of these declarations
-   * when planning installs, so a required module can never be left behind.
-   */
-  moduleDependencies?: string[];
-  /**
-   * CLI namespace this module exposes. When declared, the CLI dynamically
-   * loads `<modulesDir>/<key>/cli/index.ts` at startup and registers the
-   * exported `register(program)` hook under this namespace.
-   */
-  cli?: string;
-  /**
-   * Package name of the companion SDK that ships with this module. The
-   * version is declared in the consumer project's `dependencies` (or the
-   * module's own `dependencies` field); this attribute only records the
-   * pairing so tooling can locate the SDK without scanning package names.
-   */
-  sdk?: string;
+  wiring: ModuleWiring;
+  requires?: ModuleRequires;
+  collector?: ModuleCollector;
   /**
    * Deprecation notice. When declared (non-empty string), the module is at
    * end-of-life: the interactive picker (`newbie modules`) hides it and
@@ -106,26 +88,80 @@ export interface ModuleManifest {
    * the reason / successor guidance surfaced in those messages.
    */
   deprecated?: string;
-  [key: string]: unknown;
 }
 
-/** Validate and normalise the optional `moduleDependencies` manifest field. */
-function normalizeModuleDependencies(raw: unknown, key: string): string[] | undefined {
-  if (raw === undefined) return undefined;
-  if (!Array.isArray(raw) || !raw.every((item) => typeof item === "string" && item.trim().length > 0)) {
+// — Strict whitelists —
+
+const VALID_TOP_LEVEL = new Set<keyof ModuleManifest>([
+  "key",
+  "layer",
+  "wiring",
+  "requires",
+  "collector",
+  "deprecated",
+]);
+
+const VALID_WIRING_FIELDS = new Set<keyof ModuleWiring>(["file", "className", "prismaSchema", "newbieCli"]);
+
+const VALID_REQUIRES_FIELDS = new Set<keyof ModuleRequires>([
+  "modules",
+  "env",
+  "config",
+  "dependencies",
+  "devDependencies",
+]);
+
+// — Guards —
+
+function assertTopLevelKeys(data: Record<string, unknown>, key: string): void {
+  for (const field of Object.keys(data)) {
+    if (!VALID_TOP_LEVEL.has(field as keyof ModuleManifest)) {
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': unknown top-level field '${field}'. ` +
+          `Supported fields: ${[...VALID_TOP_LEVEL].join(", ")}.`,
+      );
+    }
+  }
+}
+
+function assertWiringFieldKeys(data: Record<string, unknown>, key: string): void {
+  for (const field of Object.keys(data)) {
+    if (!VALID_WIRING_FIELDS.has(field as keyof ModuleWiring)) {
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': wiring.${field} is not supported. ` +
+          `Supported wiring fields: ${[...VALID_WIRING_FIELDS].join(", ")}.`,
+      );
+    }
+  }
+}
+
+function assertRequiresFieldKeys(data: Record<string, unknown>, key: string): void {
+  for (const field of Object.keys(data)) {
+    if (!VALID_REQUIRES_FIELDS.has(field as keyof ModuleRequires)) {
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': requires.${field} is not supported. ` +
+          `Supported requires fields: ${[...VALID_REQUIRES_FIELDS].join(", ")}.`,
+      );
+    }
+  }
+}
+
+function assertStringMap(value: unknown, fieldPath: string, key: string): void {
+  if (value === undefined) return;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new Error(
-      `Invalid newbie.module.json for '${key}': moduleDependencies must be an array of non-empty strings.`,
+      `Invalid newbie.module.json for '${key}': '${fieldPath}' must be a string → version map when declared.`,
     );
   }
-  return [...new Set(raw.map((item) => (item as string).trim()))];
+  for (const [pkg, version] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof version !== "string" || version.length === 0) {
+      throw new Error(
+        `Invalid newbie.module.json for '${key}': '${fieldPath}.${pkg}' must be a non-empty string when declared.`,
+      );
+    }
+  }
 }
 
-/**
- * Validate that an optional manifest field is either absent or a non-empty
- * string. Used for fields like `cli` and `sdk` whose presence triggers runtime
- * behaviour (dynamic CLI loading, SDK pairing), so a malformed value must fail
- * loudly instead of silently being dropped.
- */
 function assertOptionalString(value: unknown, field: string, key: string): void {
   if (value === undefined) return;
   if (typeof value !== "string" || value.length === 0) {
@@ -133,14 +169,32 @@ function assertOptionalString(value: unknown, field: string, key: string): void 
   }
 }
 
+function assertOptionalLayer(value: unknown, key: string): void {
+  if (value === undefined) return;
+  if (typeof value !== "string" || !VALID_LAYERS.has(value)) {
+    throw new Error(
+      `Invalid newbie.module.json for '${key}': 'layer' must be one of ${[...VALID_LAYERS].join(", ")} when declared.`,
+    );
+  }
+}
+
+/** Validate and normalise the optional `requires.modules` declaration. */
+function normalizeModuleDependencies(raw: unknown, key: string): string[] | undefined {
+  if (raw === undefined) return undefined;
+  if (!Array.isArray(raw) || !raw.every((item) => typeof item === "string" && item.trim().length > 0)) {
+    throw new Error(`Invalid newbie.module.json for '${key}': requires.modules must be an array of non-empty strings.`);
+  }
+  return [...new Set(raw.map((item) => (item as string).trim()))];
+}
+
 /**
- * Validate and normalise the optional `env` declaration map.
+ * Validate and normalise the optional `env` declaration map (ADR-033).
  *
- * Object declarations accept exactly `type`, `example` and `description`
- * (ADR-033). In particular the pre-ADR-033 field name `default` is rejected
- * loudly rather than silently ignored: it read as a runtime fallback while it
- * only ever seeded `.env.example`, which is how a required production key
- * ends up missing from the secret.
+ * Object declarations accept exactly `type`, `example` and `description`.
+ * The pre-ADR-033 field name `default` is rejected loudly rather than
+ * silently ignored: it read as a runtime fallback while it only ever seeded
+ * `.env.example`, which is how a required production key ends up missing
+ * from the secret.
  */
 function normalizeEnvDeclarations(raw: unknown, key: string): Record<string, EnvDeclaration> | undefined {
   if (raw === undefined) return undefined;
@@ -189,13 +243,13 @@ function normalizeEnvDeclarations(raw: unknown, key: string): Record<string, Env
   return result;
 }
 
-/** Matches a `process.env.<NAME>` reference inside a config-service expression. */
+/** Matches a `process.env.<NAME>` reference inside a config expression. */
 const ENV_REFERENCE = /process\.env\.([A-Za-z_][A-Za-z0-9_]*)/g;
 
 /**
- * Collect every environment variable a config-service block reads. Used by the
- * guards that keep the two manifest blocks in sync: a referenced key must be
- * declared in `env`, and an undeclared reference means the key never reaches
+ * Collect every environment variable a config block reads. Used by the guards
+ * that keep the two manifest blocks in sync: a referenced key must be declared
+ * in `env`, and an undeclared reference means the key never reaches
  * `.env.example` or the per-environment secret check (ADR-033).
  */
 export function collectEnvReferences(value: unknown, into: Set<string> = new Set()): Set<string> {
@@ -214,42 +268,103 @@ export function collectEnvReferences(value: unknown, into: Set<string> = new Set
 }
 
 /**
- * Reject a config-service that reads an env key the same manifest never
+ * Reject a config block that reads an env key the same manifest never
  * declares: the expression would render into `modules.config.ts`, but the key
  * would be missing from `.env.example` and from every environment's secret —
  * a boot-time failure that only surfaces in production (ADR-033).
  */
 function assertEnvReferencesDeclared(
-  configService: unknown,
+  config: unknown,
   env: Record<string, EnvDeclaration> | undefined,
   key: string,
 ): void {
-  const referenced = collectEnvReferences(configService);
+  const referenced = collectEnvReferences(config);
   const declared = new Set(Object.keys(env ?? {}));
   const undeclared = [...referenced].filter((name) => !declared.has(name));
   if (undeclared.length === 0) return;
   throw new Error(
-    `Invalid newbie.module.json for '${key}': config-service references environment variable(s) 'env' does not declare: ` +
+    `Invalid newbie.module.json for '${key}': requires.config references environment variable(s) 'env' does not declare: ` +
       `${undeclared.join(", ")}. Declare each one so it reaches .env.example and the secret check (ADR-033).`,
   );
 }
 
-/** Validate that the optional `role` field, when declared, is a known role. */
-function assertOptionalRole(value: unknown, key: string): void {
-  if (value === undefined) return;
-  if (typeof value !== "string" || !isModuleRole(value)) {
+function normalizeWiring(raw: unknown, key: string): ModuleWiring {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Invalid newbie.module.json for '${key}': 'wiring' must be an object.`);
+  }
+  assertWiringFieldKeys(raw as Record<string, unknown>, key);
+
+  const w = raw as Record<string, unknown>;
+  const file = w.file;
+  const className = w.className;
+  if (typeof file !== "string" || file.length === 0 || typeof className !== "string" || className.length === 0) {
     throw new Error(
-      `Invalid newbie.module.json for '${key}': 'role' must be one of: ${MODULE_ROLES.join(", ")} when declared.`,
+      `Invalid newbie.module.json for '${key}': wiring.file and wiring.className are required non-empty strings.`,
     );
   }
+
+  const result: ModuleWiring = { file, className };
+  if (typeof w.prismaSchema === "string" && w.prismaSchema.length > 0) {
+    result.prismaSchema = w.prismaSchema;
+  }
+  assertOptionalString(w.newbieCli, "wiring.newbieCli", key);
+  if (typeof w.newbieCli === "string" && w.newbieCli.length > 0) {
+    result.newbieCli = w.newbieCli;
+  }
+  return result;
 }
 
-/** Validate that an optional manifest field is either absent or a boolean. */
-function assertOptionalBoolean(value: unknown, field: string, key: string): void {
-  if (value === undefined) return;
-  if (typeof value !== "boolean") {
-    throw new Error(`Invalid newbie.module.json for '${key}': '${field}' must be a boolean when declared.`);
+function normalizeRequires(raw: unknown, key: string): ModuleRequires | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Invalid newbie.module.json for '${key}': 'requires' must be an object.`);
   }
+  assertRequiresFieldKeys(raw as Record<string, unknown>, key);
+
+  const r = raw as Record<string, unknown>;
+  const result: ModuleRequires = {};
+
+  const modules = normalizeModuleDependencies(r.modules, key);
+  if (modules) result.modules = modules;
+
+  const env = normalizeEnvDeclarations(r.env, key);
+  if (env) result.env = env;
+
+  if (r.config !== undefined) {
+    if (!r.config || typeof r.config !== "object" || Array.isArray(r.config)) {
+      throw new Error(`Invalid newbie.module.json for '${key}': requires.config must be an object when declared.`);
+    }
+    result.config = r.config as Record<string, unknown>;
+    assertEnvReferencesDeclared(result.config, env, key);
+  }
+
+  assertStringMap(r.dependencies, "requires.dependencies", key);
+  if (r.dependencies !== undefined) result.dependencies = r.dependencies as Record<string, string>;
+
+  assertStringMap(r.devDependencies, "requires.devDependencies", key);
+  if (r.devDependencies !== undefined) result.devDependencies = r.devDependencies as Record<string, string>;
+
+  return result;
+}
+
+function normalizeCollector(raw: unknown, key: string): ModuleCollector | undefined {
+  if (raw === undefined) return undefined;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Invalid newbie.module.json for '${key}': 'collector' must be an object.`);
+  }
+  const c = raw as Record<string, unknown>;
+  if (Object.keys(c).length !== 1 || !("peerSdk" in c)) {
+    throw new Error(
+      `Invalid newbie.module.json for '${key}': collector must contain exactly one key 'peerSdk' (string or null).`,
+    );
+  }
+  const peerSdk = c.peerSdk;
+  if (peerSdk !== null && (typeof peerSdk !== "string" || peerSdk.length === 0)) {
+    throw new Error(
+      `Invalid newbie.module.json for '${key}': collector.peerSdk must be a non-empty string or null when declared.`,
+    );
+  }
+  return { peerSdk: peerSdk as string | null };
 }
 
 export function normalizeModuleManifest(raw: unknown, expectedKey?: string): ModuleManifest {
@@ -258,6 +373,9 @@ export function normalizeModuleManifest(raw: unknown, expectedKey?: string): Mod
   }
   const data = raw as Record<string, unknown>;
 
+  // Strict whitelist: unknown top-level fields fail loudly.
+  assertTopLevelKeys(data, data.key as string);
+
   if (typeof data.key !== "string" || data.key.length === 0) {
     throw new Error("Invalid newbie.module.json: string 'key' is required.");
   }
@@ -265,49 +383,28 @@ export function normalizeModuleManifest(raw: unknown, expectedKey?: string): Mod
     throw new Error(`Invalid newbie.module.json: key '${data.key}' does not match directory '${expectedKey}'.`);
   }
 
-  const wiring = data.module as Partial<ModuleWiring> | undefined;
-  if (
-    !wiring ||
-    typeof wiring.file !== "string" ||
-    typeof wiring.className !== "string" ||
-    wiring.file.length === 0 ||
-    wiring.className.length === 0
-  ) {
-    throw new Error(
-      `Invalid newbie.module.json for '${data.key}': module.file and module.className strings are required.`,
-    );
-  }
-
-  const moduleDependencies = normalizeModuleDependencies(data.moduleDependencies, data.key);
-  assertOptionalString(data.cli, "cli", data.key);
-  assertOptionalString(data.sdk, "sdk", data.key);
+  assertOptionalLayer(data.layer, data.key);
   assertOptionalString(data.deprecated, "deprecated", data.key);
-  assertOptionalRole(data.role, data.key);
-  assertOptionalBoolean(data.publicNamespace, "publicNamespace", data.key);
-  const env = normalizeEnvDeclarations(data.env, data.key);
-  assertEnvReferencesDeclared(data["config-service"], env, data.key);
-  const manifest: ModuleManifest = {
-    ...(data as object),
+
+  const wiring = normalizeWiring(data.wiring, data.key);
+  const requires = normalizeRequires(data.requires, data.key);
+  const collector = normalizeCollector(data.collector, data.key);
+
+  const result: ModuleManifest = {
     key: data.key,
-    module: { file: wiring.file, className: wiring.className },
+    wiring,
   };
-  if (typeof data.schema !== "string") delete manifest.schema;
-  if (env) {
-    manifest.env = env;
-  } else {
-    delete manifest.env;
-  }
-  if (moduleDependencies) {
-    manifest.moduleDependencies = moduleDependencies;
-  } else {
-    delete manifest.moduleDependencies;
-  }
-  return manifest;
+  if (data.layer !== undefined) result.layer = data.layer as string;
+  if (requires !== undefined) result.requires = requires;
+  if (collector !== undefined) result.collector = collector;
+  if (data.deprecated !== undefined) result.deprecated = data.deprecated as string;
+
+  return result;
 }
 
 /** Import statement emitted into the generated modules.module.ts. */
 export function moduleImportLine(key: string, manifest: ModuleManifest): string {
-  return `import {${manifest.module.className}} from './${key}/${manifest.module.file}';`;
+  return `import {${manifest.wiring.className}} from './${key}/${manifest.wiring.file}';`;
 }
 
 /** Validate/sanitise user-supplied module keys against a known key set. */

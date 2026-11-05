@@ -9,13 +9,12 @@ import { ModuleManifest } from "../src/core/module-manifest";
 
 const manifestWithoutCli = {
   key: "account",
-  module: { file: "account.module", className: "AccountModule" },
+  wiring: { file: "account.module", className: "AccountModule" },
 } as unknown as ModuleManifest;
 
 const manifestWithCli = {
   key: "secrets",
-  module: { file: "secrets.module", className: "SecretsModule" },
-  cli: "secrets",
+  wiring: { file: "secrets.module", className: "SecretsModule", newbieCli: "secrets" },
 } as unknown as ModuleManifest;
 
 describe("loadModuleCliEntry", () => {
@@ -27,7 +26,7 @@ describe("loadModuleCliEntry", () => {
   it("throws a CliError when the entry file is missing", async () => {
     await assert.rejects(
       () => loadModuleCliEntry("/tmp", "missing", manifestWithCli),
-      /declares cli='secrets' but entry.*is missing/,
+      /declares wiring\.newbieCli='secrets' but entry.*is missing/,
     );
   });
 });
@@ -54,8 +53,7 @@ describe("registerModuleCommands", () => {
         path.join(project, "src", "modules", "healthy", "newbie.module.json"),
         JSON.stringify({
           key: "healthy",
-          module: { file: "healthy.module", className: "HealthyModule" },
-          cli: "healthy",
+          wiring: { file: "healthy.module", className: "HealthyModule", newbieCli: "healthy" },
         }),
       );
       await fs.writeFile(
@@ -69,8 +67,7 @@ describe("registerModuleCommands", () => {
         path.join(project, "src", "modules", "broken", "newbie.module.json"),
         JSON.stringify({
           key: "broken",
-          module: { file: "broken.module", className: "BrokenModule" },
-          cli: "broken",
+          wiring: { file: "broken.module", className: "BrokenModule", newbieCli: "broken" },
         }),
       );
 
@@ -80,8 +77,7 @@ describe("registerModuleCommands", () => {
         path.join(project, "src", "modules", "throwing", "newbie.module.json"),
         JSON.stringify({
           key: "throwing",
-          module: { file: "throwing.module", className: "ThrowingModule" },
-          cli: "throwing",
+          wiring: { file: "throwing.module", className: "ThrowingModule", newbieCli: "throwing" },
         }),
       );
       await fs.writeFile(
@@ -132,15 +128,15 @@ describe("registerModuleCommands", () => {
 
     const project = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-module-cli-lag-"));
     try {
-      // lagging: assembled copy still carries an enum value this CLI rejects
-      // (e.g. role renamed observer -> collector before `newbie update`).
+      // lagging: assembled copy still carries a legacy field this CLI rejects
+      // (e.g. a top-level key removed by ADR-034 before `newbie update`).
       await fs.mkdir(path.join(project, "src", "modules", "lagging"), { recursive: true });
       await fs.writeFile(
         path.join(project, "src", "modules", "lagging", "newbie.module.json"),
         JSON.stringify({
           key: "lagging",
-          role: "observer",
-          module: { file: "lagging.module", className: "LaggingModule" },
+          legacyRole: "observer",
+          wiring: { file: "lagging.module", className: "LaggingModule" },
         }),
       );
 
@@ -150,9 +146,7 @@ describe("registerModuleCommands", () => {
         path.join(project, "src", "modules", "healthy", "newbie.module.json"),
         JSON.stringify({
           key: "healthy",
-          role: "collector",
-          module: { file: "healthy.module", className: "HealthyModule" },
-          cli: "healthy",
+          wiring: { file: "healthy.module", className: "HealthyModule", newbieCli: "healthy" },
         }),
       );
       await fs.writeFile(

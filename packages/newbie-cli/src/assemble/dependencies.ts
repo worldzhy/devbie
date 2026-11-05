@@ -73,7 +73,13 @@ export async function assembleDependencies(params: {
     dependencies: addSpecs,
     devDependencies: addDevSpecs,
     conflicts,
-  } = planDependencyInstalls(enabledDeclarations, installed);
+  } = planDependencyInstalls(
+    enabledDeclarations.map((m) => ({
+      dependencies: m.requires?.dependencies,
+      devDependencies: m.requires?.devDependencies,
+    })),
+    installed,
+  );
 
   for (const conflict of conflicts) {
     reportIssue(
@@ -96,9 +102,13 @@ export async function assembleDependencies(params: {
   // only when this CLI installed them. A dependency the host declared itself
   // is never touched, even if a removed module named the same package.
   const removedDeclarations = await loadManifests(cwd, issues, sink, removed, "removed");
+  const mapDecl = (m: ModuleManifest) => ({
+    dependencies: m.requires?.dependencies,
+    devDependencies: m.requires?.devDependencies,
+  });
   const { dependencies: removeDeps, devDependencies: removeDevDeps } = planDependencyRemovals(
-    removedDeclarations,
-    enabledDeclarations,
+    removedDeclarations.map(mapDecl),
+    enabledDeclarations.map(mapDecl),
   );
   const uninstallNames = filterManagedRemovals({ dependencies: removeDeps, devDependencies: removeDevDeps }, managed);
 

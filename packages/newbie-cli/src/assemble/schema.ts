@@ -31,7 +31,7 @@ async function keysWithSchema(cwd: string, keys: string[]): Promise<{ key: strin
   for (const key of keys) {
     const manifest = await readInstalledManifest(cwd, key);
     if (!manifest) continue; // dry-run before copy: reported elsewhere
-    if (!manifest.schema) continue;
+    if (!manifest.wiring?.prismaSchema) continue;
     const fragment = await readInstalledSchema(cwd, key, manifest);
     result.push({ key, fragment });
   }

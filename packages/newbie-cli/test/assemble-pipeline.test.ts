@@ -24,7 +24,7 @@ async function makeRegistry(modules: Record<string, Record<string, unknown>>): P
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(
       path.join(dir, "newbie.module.json"),
-      JSON.stringify({ key, module: { file: `${key}.module`, className: `${key}Module` }, ...extra }),
+      JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, ...extra }),
       "utf8",
     );
   }
@@ -62,7 +62,7 @@ async function makeProject(params: {
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(
       path.join(dir, "newbie.module.json"),
-      JSON.stringify({ key, module: { file: `${key}.module`, className: `${key}Module` } }),
+      JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` } }),
       "utf8",
     );
   }
@@ -108,7 +108,7 @@ describe("planReconcile", () => {
   it("adopts the transitive closure, repairs interrupted copies and removes stale modules", async () => {
     const registryRoot = await makeRegistry({
       account: {},
-      audit: { moduleDependencies: ["security"] },
+      audit: { requires: { modules: ["security"] } },
       security: {},
     });
     const cwd = await makeProject({
@@ -168,7 +168,7 @@ describe("planReconcile", () => {
 
   it("fails early when a declared dependency is absent from the registry", async () => {
     const registryRoot = await makeRegistry({
-      audit: { moduleDependencies: ["ghost"] },
+      audit: { requires: { modules: ["ghost"] } },
     });
     const cwd = await makeProject({ modules: [{ key: "audit" }], copied: ["audit"] });
     const ctx = context(cwd, registryRoot);
@@ -219,7 +219,7 @@ describe("assembleEnv", () => {
     })) {
       await fs.writeFile(
         path.join(cwd, "src", "modules", key, "newbie.module.json"),
-        JSON.stringify({ key, module: { file: `${key}.module`, className: `${key}Module` }, env }),
+        JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, requires: { env } }),
         "utf8",
       );
     }
@@ -250,7 +250,7 @@ describe("applyModuleKeys", () => {
   it("expands the requested set to its dependency closure before diffing", async () => {
     const registryRoot = await makeRegistry({
       account: {},
-      audit: { moduleDependencies: ["security"] },
+      audit: { requires: { modules: ["security"] } },
       security: {},
     });
     const cwd = await makeProject({ modules: [{ key: "account" }], copied: ["account"] });

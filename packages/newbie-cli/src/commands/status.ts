@@ -53,7 +53,7 @@ export async function collectStatus(cwd: string, options?: { drift?: boolean }):
       sourceCommit: record.sourceCommit,
       localPatches: record.localPatches,
       installed,
-      hasSchema: Boolean(manifest?.schema),
+      hasSchema: Boolean(manifest?.wiring?.prismaSchema),
       missingEnv: missingEnv[key] ?? [],
       updateAvailable: Boolean(
         registry?.sourceCommit && record.sourceCommit && registry.sourceCommit !== record.sourceCommit,
