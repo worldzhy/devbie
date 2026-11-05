@@ -42,14 +42,14 @@ import init from "@devbie/web-monitor-sdk";
 
 init({
   appId: "my-app",
-  api: "https://collector.example.com/web-monitor/report",
+  api: "https://collector.example.com/api/web-monitor/report",
 });
 ```
 
 The `init` call returns helper functions for manual reporting:
 
 ```ts
-const monitor = init({ appId: "my-app", api: "https://collector.example.com/web-monitor/report" });
+const monitor = init({ appId: "my-app", api: "https://collector.example.com/api/web-monitor/report" });
 
 monitor.addCustom({
   customName: "checkout",
@@ -71,20 +71,20 @@ The component is a no-op until all three environment variables are present.
 
 ## Init options
 
-| Option              | Type       | Default      | Required | Description                                                                                                                   |
-| ------------------- | ---------- | ------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `appId`             | `string`   | —            | Yes      | Application identifier sent with every report.                                                                                |
-| `api`               | `string`   | —            | Yes      | Collector endpoint that receives report payloads.                                                                             |
-| `isPage`            | `boolean`  | `true`       | No       | Collect page-view / page performance data.                                                                                    |
-| `isAjax`            | `boolean`  | `true`       | No       | Instrument XHR and `fetch` requests.                                                                                          |
-| `isResource`        | `boolean`  | `true`       | No       | Collect resource timing and slow/failed resources.                                                                            |
-| `isError`           | `boolean`  | `true`       | No       | Collect JS errors, rejections, resource errors and console errors.                                                            |
-| `filterUrls`        | `string[]` | `[]`         | No       | URLs excluded from AJAX/resource collection. The collector endpoint (`/web-monitor/report`) is always filtered automatically. |
-| `user`              | `object`   | `{}`         | No       | Initial user identity: `{ uid?, p? }` (`p` should be pre-encrypted).                                                          |
-| `isTraceId`         | `boolean`  | `false`      | No       | Capture the trace ID response header from AJAX calls.                                                                         |
-| `traceIdHeaderName` | `string`   | `x-trace-id` | No       | Response header name to read when `isTraceId` is enabled.                                                                     |
-| `customsThrottleMs` | `number`   | `1000`       | No       | Throttle window for batching custom events, in milliseconds.                                                                  |
-| `errcodeReport`     | `function` | —            | No       | Business error resolver, see below.                                                                                           |
+| Option              | Type       | Default      | Required | Description                                                                                                                       |
+| ------------------- | ---------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `appId`             | `string`   | —            | Yes      | Application identifier sent with every report.                                                                                    |
+| `api`               | `string`   | —            | Yes      | Collector endpoint that receives report payloads.                                                                                 |
+| `isPage`            | `boolean`  | `true`       | No       | Collect page-view / page performance data.                                                                                        |
+| `isAjax`            | `boolean`  | `true`       | No       | Instrument XHR and `fetch` requests.                                                                                              |
+| `isResource`        | `boolean`  | `true`       | No       | Collect resource timing and slow/failed resources.                                                                                |
+| `isError`           | `boolean`  | `true`       | No       | Collect JS errors, rejections, resource errors and console errors.                                                                |
+| `filterUrls`        | `string[]` | `[]`         | No       | URLs excluded from AJAX/resource collection. The collector endpoint (`/api/web-monitor/report`) is always filtered automatically. |
+| `user`              | `object`   | `{}`         | No       | Initial user identity: `{ uid?, p? }` (`p` should be pre-encrypted).                                                              |
+| `isTraceId`         | `boolean`  | `false`      | No       | Capture the trace ID response header from AJAX calls.                                                                             |
+| `traceIdHeaderName` | `string`   | `x-trace-id` | No       | Response header name to read when `isTraceId` is enabled.                                                                         |
+| `customsThrottleMs` | `number`   | `1000`       | No       | Throttle window for batching custom events, in milliseconds.                                                                      |
+| `errcodeReport`     | `function` | —            | No       | Business error resolver, see below.                                                                                               |
 
 ## Returned API
 
@@ -134,7 +134,7 @@ report an error:
 ```ts
 init({
   appId: "my-app",
-  api: "https://collector.example.com/web-monitor/report",
+  api: "https://collector.example.com/api/web-monitor/report",
   errcodeReport: (responseData) => {
     return {
       isReport: responseData.code !== 0,
