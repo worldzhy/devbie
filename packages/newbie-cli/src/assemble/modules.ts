@@ -58,22 +58,8 @@ export class ModulesModule {}
 `;
 }
 
-function configValueUsesHelper(value: unknown, helper: "bool" | "int"): boolean {
-  if (typeof value === "string") {
-    return value.startsWith(`${helper}(process.`);
-  }
-  if (Array.isArray(value)) {
-    return value.some((item) => configValueUsesHelper(item, helper));
-  }
-  if (value && typeof value === "object") {
-    return Object.values(value).some((item) => configValueUsesHelper(item, helper));
-  }
-  return false;
-}
-
 /** Runtime expressions the generator is able to unwrap into real code. */
-const RUNTIME_EXPRESSION =
-  /^(?:process\.env\.[A-Za-z_][A-Za-z0-9_]*|(?:bool|int)\(process\.env\.[A-Za-z_][A-Za-z0-9_]*\))$/;
+const RUNTIME_EXPRESSION = /^process\.env\.[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** Strings that intend to be runtime expressions, not literal values. */
 const RUNTIME_EXPRESSION_INTENT = /^(?:process\.|bool\(|int\()/;
@@ -83,14 +69,17 @@ const RUNTIME_EXPRESSION_INTENT = /^(?:process\.|bool\(|int\()/;
  * as "process.env.X || 'fallback'" (quotes inside the string) is not unwrapped.
  * Reject it loudly: silently embedding it as a string literal was how a
  * fallback-shaped expression once became an always-true config value.
- * Fallbacks belong in module code, never in the manifest (ADR-033).
+ *
+ * Only a bare reference is accepted: helper calls such as int(process.env.X)
+ * cannot be emitted with a valid arity (both helpers take a mandatory default),
+ * and defaults are exactly the fallbacks ADR-033 forbids in the manifest.
  */
 function assertUnwrappableExpressions(value: unknown, path: string): void {
   if (typeof value === "string") {
     if (RUNTIME_EXPRESSION_INTENT.test(value) && !RUNTIME_EXPRESSION.test(value)) {
       throw new Error(
         `${path} looks like a runtime expression but cannot be unwrapped: ${value}. ` +
-          `Use a bare 'process.env.NAME' (or bool()/int() around one); fallbacks belong in module code (ADR-033).`,
+          `Use a bare 'process.env.NAME'; fallbacks and type coercion belong in module code (ADR-033).`,
       );
     }
     return;
@@ -128,21 +117,10 @@ function configTemplate(configs: Record<string, unknown>): string {
   // unwrap the quotes so they become real TS expressions in the generated file.
   // The `process.` requirement keeps ordinary strings such as "process-mode"
   // from being turned into (invalid) code.
-  const body = JSON.stringify(configs, null, 2)
-    .replace(/("|')(process\.[^"']*?)\1/g, "$2")
-    .replace(/("|')(bool\(process.*?)\1/g, "$2")
-    .replace(/("|')(int\(process.*?)\1/g, "$2");
-
-  // Only import the helpers actually referenced by config values. Scanning the
-  // raw configs (rather than the emitted body) avoids false positives from
-  // string literals that happen to contain "bool(" / "int(".
-  const helpers: string[] = [];
-  if (configValueUsesHelper(configs, "bool")) helpers.push("bool");
-  if (configValueUsesHelper(configs, "int")) helpers.push("int");
-  const helperImport = helpers.length ? `import {${helpers.join(", ")}} from '@devbie/newbie';\n` : "";
+  const body = JSON.stringify(configs, null, 2).replace(/("|')(process\.[^"']*?)\1/g, "$2");
 
   return `${DO_NOT_EDIT_HEADER}import {registerAs} from '@nestjs/config';
-${helperImport}
+
 export default registerAs('modules', () => (${body}));
 `;
 }

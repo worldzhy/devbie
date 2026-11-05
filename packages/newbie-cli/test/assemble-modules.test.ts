@@ -74,25 +74,21 @@ describe("assembleNestJsModules", () => {
     assert.match(await readOut(cwd, "src/modules/modules.config.ts"), /registerAs\("modules", \(\) => \(\{\}\)\)/);
   });
 
-  it("renders module config services as real expressions with the right helpers", async () => {
+  it("rejects helper calls in config values instead of emitting uncompilable code", async () => {
     const cwd = await makeProject({
       account: {
         env: { FEATURE_FLAG: { type: "bool" }, PORT: { type: "int" } },
         "config-service": {
           FEATURE_FLAG: "bool(process.env.FEATURE_FLAG)",
           PORT: "int(process.env.PORT)",
-          NAME: "account",
         },
       },
     });
 
-    await assemble(cwd, ["account"]);
-
-    const config = await readOut(cwd, "src/modules/modules.config.ts");
-    assert.match(config, /import \{ bool, int \} from "@devbie\/newbie";/);
-    assert.match(config, /FEATURE_FLAG: bool\(process\.env\.FEATURE_FLAG\)/);
-    assert.match(config, /PORT: int\(process\.env\.PORT\)/);
-    assert.match(config, /NAME: "account"/);
+    await assert.rejects(
+      () => assemble(cwd, ["account"]),
+      /account: config-service\.FEATURE_FLAG looks like a runtime expression but cannot be unwrapped/,
+    );
   });
 
   it("only unwraps strings that are real process expressions", async () => {

@@ -123,7 +123,7 @@ describe("normalizeModuleManifest", () => {
     const manifest = normalizeModuleManifest({
       ...valid,
       env: { API_KEY: { example: "x" }, PORT: { type: "int" } },
-      "config-service": { apiKey: "process.env.API_KEY", port: "int(process.env.PORT)" },
+      "config-service": { apiKey: "process.env.API_KEY", port: "process.env.PORT" },
     });
     assert.deepEqual(Object.keys(manifest.env ?? {}), ["API_KEY", "PORT"]);
   });
