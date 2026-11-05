@@ -207,3 +207,11 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - R6-12 残留已清：宿主 `.env` 的 `CACHE_APIKEY_LRU_*` 两行已删（2026-11-04，本地文件）。
 - R6-09 / R6-12 已于 W10 关闭；R6-10 / R6-11 / R6-12（初段）/ R6-15 已于 W9 关闭；R6-14 已于 W8++ 关闭。
 
+
+## round13（2026-11-05，plan scope：CLI 1.16.1 守卫 + isLocalDev 删除）
+
+真源：`.trae/documents/expert-review-2026-11-05-round13.md`
+
+- `R13-01` **fixed (2026-11-05) · P1** · devbie · 生成器白名单放行单参 `int()`/`bool()`：`RUNTIME_EXPRESSION`（`src/assemble/modules.ts:75-79`）与 helper 签名（`packages/newbie/src/utilities/int.util.ts:1`，第二参必填）不一致，生成物 `tsc` 报 TS2554；新增测试把该形态固化为期望。registry 当前 0 处使用，无 live 发生。**修复**：白名单收紧为仅裸 `process.env.NAME`，删除不可达的 helper 去引号/import 逻辑；测试改为阴性用例（`rejects helper calls in config values instead of emitting uncompilable code`）。取证：`npm run build` 通过，`npm test` 241/241 绿，`modules apply --check`（本地 dist 对 nightwatch-backend）未被新守卫拒绝。
+- `R13-02` **open · P2** · devbie · 「warning」实为 fatal：`IssueBag.warn` 入 items，`apply.ts:119,149`/`update.ts:259` 尾部 `assertEmpty()` 抛 `CliError`；registry 零违规故未触发。修复方向：语义二选一并统一文案。
+- `R13-03` **open · P2** · newbie-modules · 守卫单向：模块代码直读 `process.env` 不受校验，实例 `tencent-cos.controller.ts:84`（`STORE_PATH`）、`account/auth/auth.service.ts:186`（`ENVIRONMENT`）均未在 manifest env 声明。修复方向：加静态扫描或键集对齐检查。
