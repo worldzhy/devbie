@@ -159,3 +159,21 @@
 
 - layer 层级模型重构（插 platform 层、拆分 infrastructure 的 24 个模块）：独立 ADR，本 ADR 不覆盖。
 - message-tracker 重构 + feature 模块 AWS 资源字段命名：挂起 backlog，本 ADR 不覆盖。
+
+---
+
+## 补充（2026-11-05）：标记块机制收尾
+
+本 ADR 删除 `publicNamespace` 后，`deploy/Caddyfile.tmpl` 的 `@@newbie-modules` 标记块失去唯一渲染来源：`planDeployRenders` 每次只把空字符串写回空块，`template update` 仍为它保留 `rendered: { kind: "block" }` 的比较豁免，模板头部注释还在教用户 `publicNamespace` 的规则。这是决策落地后的机械残渣，不是新决策，故并入本 ADR 而非新开。
+
+收尾内容：
+
+| 仓库 | 变更 |
+|---|---|
+| devbie | 删 `packages/newbie-cli/src/core/caddyfile-modules.ts` 及其测试；`assemble/deploy.ts` 只计划 `deploy/compose.modules.yml`；`template-update.ts` 把 `deploy/Caddyfile.tmpl` 降级为纯 `framework-whole-file`，`RenderedFragment` 只剩 `kind: "line"`（prisma `schemas` 行） |
+| devbie | `packages/newbie-cli/README.md` 的 manifest 表（整张仍是 ADR-034 之前的旧 schema）改为指向 registry README |
+| newbie-starter | `deploy/Caddyfile.tmpl` 删标记块，重写头部路由注释（所有 API 走 `/api/*` strip） |
+| newbie-modules | `README.md` 成为 manifest schema 的单一真源；23 份 manifest 清理空子对象（`dependencies: {}` 等），对齐"空对象省略"的既有不变量 |
+
+文档真源分工：schema 结构写在 **newbie-modules**（文件的生产方），CLI README 只描述"如何消费 + 严格白名单"并指向它——避免两处表格再次漂移。
+

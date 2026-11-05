@@ -28,8 +28,6 @@ export const PACKAGE_JSON_PATH = "package.json";
 
 /** Generated module-layer compose file (ADR-008 D1), rendered by assemble. */
 export const DEPLOY_COMPOSE_MODULES = "deploy/compose.modules.yml";
-/** Caddy template carrying the @@newbie-modules route block (ADR-008 D4). */
-export const DEPLOY_CADDYFILE_TMPL = "deploy/Caddyfile.tmpl";
 
 /** Layout of the newbie-modules registry monorepo. */
 export const REGISTRY_MODULES_DIR = "packages/modules";

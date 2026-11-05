@@ -202,23 +202,16 @@ export; they never import framework internals by relative path.
 
 ## Module manifest
 
-Every registry module carries a `newbie.module.json` at its root:
+Every registry module carries a `newbie.module.json` at its root. The manifest
+schema — six top-level domains (`key`, `layer`, `wiring`, `collector`,
+`requires`, `deprecated`), their sub-fields and the collector-protocol
+semantics — is documented once, in the registry that ships the files:
 
-| Field                | Type     | Description                                                                                                                                                                                                                                                |
-| -------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `key`                | string   | Module key; must match the directory name.                                                                                                                                                                                                                 |
-| `layer`              | string   | Architectural layer (`feature` / `capability` / `infrastructure` / `datastore`); absent for framework-specials.                                                                                                                                            |
-| `module.file`        | string   | NestJS module file without extension, e.g. `account.module`.                                                                                                                                                                                               |
-| `module.className`   | string   | Exported NestJS module class name, e.g. `AccountModule`.                                                                                                                                                                                                   |
-| `schema`             | string   | Project-relative path of the Prisma model fragment; absent = no models.                                                                                                                                                                                    |
-| `config-service`     | object   | Config keys merged into the generated `modules.config.ts`.                                                                                                                                                                                                 |
-| `env`                | object   | Environment variables the module requires: `KEY` → string, or `{ type, example, description }`. `example` only seeds `.env`/`.env.example` on a fresh host; it is never a runtime default, so every environment must declare the key explicitly (ADR-033). |
-| `dependencies`       | object   | npm dependencies merged into the consuming project's `package.json`.                                                                                                                                                                                       |
-| `devDependencies`    | object   | npm devDependencies merged into the consuming project's `package.json`.                                                                                                                                                                                    |
-| `moduleDependencies` | string[] | Registry module keys imported via `@modules/<key>`; installs expand to the transitive closure.                                                                                                                                                             |
-| `cli`                | string   | Command namespace this module exposes (see "Module-provided commands").                                                                                                                                                                                    |
-| `sdk`                | string   | Package name of the companion SDK shipped alongside the module (pairing record for tooling).                                                                                                                                                               |
-| `publicNamespace`    | boolean  | Claim the public URL namespace `/<key>/*`; install renders a Caddy handle block (ADR-008).                                                                                                                                                                 |
+- [newbie-modules README](https://github.com/worldzhy/newbie-modules#manifest-structure)
+
+The CLI enforces that schema with a strict whitelist: an unknown top-level or
+nested field is a hard error. When the registry adds a field, the CLI version
+that accepts it must ship first.
 
 ## Global options
 

@@ -10,24 +10,11 @@ import { CliError } from "@devbie/cli-kit";
 import { IssueBag } from "../src/lib/issues";
 import { createSink, Sink } from "../src/lib/sink";
 
-const CADDY_TEMPLATE = `nw.inceptionpad.com {
-  encode gzip
-
-  # @@newbie-modules-start
-  # @@newbie-modules-end
-
-  handle /api/* {
-    reverse_proxy backend:3000
-  }
-}
-`;
-
 const directories: string[] = [];
 
 async function makeProject(params: {
   modules: Record<string, Record<string, unknown>>;
   migrators?: string[];
-  caddyfile?: string | null;
   existingCompose?: string;
 }): Promise<string> {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-deploy-plan-"));
@@ -47,11 +34,6 @@ async function makeProject(params: {
     const migrationDir = path.join(cwd, "src", "modules", key, "migration");
     await fs.mkdir(migrationDir, { recursive: true });
     await fs.writeFile(path.join(migrationDir, "migrate-cli.ts"), "// migrator entry\n", "utf8");
-  }
-
-  if (params.caddyfile !== null) {
-    await fs.mkdir(path.join(cwd, "deploy"), { recursive: true });
-    await fs.writeFile(path.join(cwd, "deploy", "Caddyfile.tmpl"), params.caddyfile ?? CADDY_TEMPLATE, "utf8");
   }
 
   if (params.existingCompose !== undefined) {
@@ -81,7 +63,6 @@ describe("planDeployRenders", () => {
     const cwd = await makeProject({
       modules: { mongo: { layer: "datastore" }, clickhouse: { layer: "datastore" }, account: {} },
       migrators: ["clickhouse"],
-      caddyfile: null,
     });
 
     const { plans, issues } = await plan(cwd, ["mongo", "clickhouse", "account"]);
@@ -103,38 +84,36 @@ describe("planDeployRenders", () => {
   it("reports no drift once the rendered assets are applied", async () => {
     const cwd = await makeProject({
       modules: { mongo: { layer: "datastore" }, account: {} },
-      caddyfile: CADDY_TEMPLATE,
     });
 
     const first = await plan(cwd, ["mongo", "account"]);
-    assert.equal(first.plans.length, 2);
+    assert.equal(first.plans.length, 1);
     await applyDeployRenders(first.sink, first.plans);
 
     const second = await plan(cwd, ["mongo", "account"]);
     assert.deepEqual(second.plans, []);
   });
 
-  it("keeps the Caddyfile markers but renders an empty module block (ADR-034)", async () => {
+  it("never plans deploy/Caddyfile.tmpl (static framework file since ADR-034)", async () => {
     const cwd = await makeProject({
       modules: { account: {}, internal: {} },
-      caddyfile: CADDY_TEMPLATE,
     });
+    await fs.mkdir(path.join(cwd, "deploy"), { recursive: true });
+    await fs.writeFile(
+      path.join(cwd, "deploy", "Caddyfile.tmpl"),
+      "nw.example.com {\n  handle /api/* {\n    reverse_proxy backend:3000\n  }\n}\n",
+      "utf8",
+    );
 
     const { plans } = await plan(cwd, ["account", "internal"]);
-    const caddy = plans.find((entry) => entry.path === "deploy/Caddyfile.tmpl");
-    assert.ok(caddy);
-    // ADR-034 removed publicNamespace: the @@newbie-modules markers remain
-    // but their body is always empty (spliceModulesBlock with "").
-    assert.match(caddy.next, /# @@newbie-modules-start/);
-    assert.match(caddy.next, /# @@newbie-modules-end/);
-    // ADR-034 removed publicNamespace: between @@start and @@end there is
-    // nothing (or only whitespace). No per-module route blocks remain.
-    assert.match(caddy.next, /@@newbie-modules-start\n# @@newbie-modules-end/);
-    assert.match(caddy.next, /handle \/api\/\*/);
+    assert.deepEqual(
+      plans.map((entry) => entry.path),
+      ["deploy/compose.modules.yml"],
+    );
   });
 
   it("reports a missing installed manifest and skips that module", async () => {
-    const cwd = await makeProject({ modules: { mongo: { layer: "datastore" } }, caddyfile: null });
+    const cwd = await makeProject({ modules: { mongo: { layer: "datastore" } } });
 
     const { plans, issues } = await plan(cwd, ["mongo", "ghost"]);
 
@@ -144,7 +123,7 @@ describe("planDeployRenders", () => {
   });
 
   it("rejects a datastore module missing from the CLI registry", async () => {
-    const cwd = await makeProject({ modules: { vault: { layer: "datastore" } }, caddyfile: null });
+    const cwd = await makeProject({ modules: { vault: { layer: "datastore" } } });
 
     await assert.rejects(plan(cwd, ["vault"]), (error: unknown) => {
       assert.ok(error instanceof CliError);
@@ -153,23 +132,8 @@ describe("planDeployRenders", () => {
     });
   });
 
-  it("reports a Caddyfile without markers but still plans compose", async () => {
-    const cwd = await makeProject({
-      modules: { mongo: { layer: "datastore" } },
-      caddyfile: "nw.inceptionpad.com {\n  handle /api/* {\n    reverse_proxy backend:3000\n  }\n}\n",
-    });
-
-    const { plans, issues } = await plan(cwd, ["mongo"]);
-
-    assert.equal(issues.count, 1);
-    assert.deepEqual(
-      plans.map((entry) => entry.path),
-      ["deploy/compose.modules.yml"],
-    );
-  });
-
   it("writes planned assets only when the sink is not a dry run", async () => {
-    const cwd = await makeProject({ modules: { mongo: { layer: "datastore" } }, caddyfile: null });
+    const cwd = await makeProject({ modules: { mongo: { layer: "datastore" } } });
     const { plans } = await plan(cwd, ["mongo"]);
     const drySink = createSink(cwd, true);
 
