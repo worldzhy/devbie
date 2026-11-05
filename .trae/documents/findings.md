@@ -222,8 +222,8 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 |---|---|---|---|---|---|---|
-| R14-01 | nightwatch-backend | `project-application.service.ts:58-62` 注释断言 appKey "never leaves the process"，实际仍经 `WebMonitorSummaryDto`/`WebMonitorCredentialDto` 返回，并被 14 个监控页当 `appId` 使用 | P2 | source（影响面 live） | 项目成员 | open |
-| R14-02 | devbie (web-monitor-sdk) | 测试只删掉 `appId` 入参，未断言出站 payload 含 `token`、不含 `appId`，无阴性对照 | P2 | source | 下一次契约改动 | open |
+| R14-01 | nightwatch-backend | `project-application.service.ts:58-62` 注释断言 appKey "never leaves the process"，实际仍经 `WebMonitorSummaryDto`/`WebMonitorCredentialDto` 返回，并被 14 个监控页当 `appId` 使用 | P2 | source（影响面 live） | 项目成员 | fixed（`208df63`） |
+| R14-02 | devbie (web-monitor-sdk) | 测试只删掉 `appId` 入参，未断言出站 payload 含 `token`、不含 `appId`，无阴性对照 | P2 | source | 下一次契约改动 | fixed（`fa2978bf`，阴性对照：回填 `appId` 后 1 failed） |
 | R14-03 | nightwatch-backend / nightwatch-frontend | onboarding `envVars` 无 `@ApiProperty`，生成物为 `{}`（5 处），本轮删除 `envVars.appKey` 在 `@/api` 中不可见，前端靠 `as` 断言兜底（既有缺陷） | P2 | source / artifact | 消费者 | open |
 | R14-04 | nightwatch-frontend / e2e-deploy | 旧契约残留：本地 `.env:8` 仍有 `APP_ID`；`e2e-deploy` 两个前端手写上报仍带 `appId`，README/.env.example 仍教配置该变量 | P2 | docs / ops | 开发者 / E2E | open |
 
