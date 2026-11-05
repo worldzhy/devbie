@@ -215,3 +215,17 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - `R13-01` **fixed (2026-11-05) · P1** · devbie · 生成器白名单放行单参 `int()`/`bool()`：`RUNTIME_EXPRESSION`（`src/assemble/modules.ts:75-79`）与 helper 签名（`packages/newbie/src/utilities/int.util.ts:1`，第二参必填）不一致，生成物 `tsc` 报 TS2554；新增测试把该形态固化为期望。registry 当前 0 处使用，无 live 发生。**修复**：白名单收紧为仅裸 `process.env.NAME`，删除不可达的 helper 去引号/import 逻辑；测试改为阴性用例（`rejects helper calls in config values instead of emitting uncompilable code`）。取证：`npm run build` 通过，`npm test` 241/241 绿，`modules apply --check`（本地 dist 对 nightwatch-backend）未被新守卫拒绝。
 - `R13-02` **open · P2** · devbie · 「warning」实为 fatal：`IssueBag.warn` 入 items，`apply.ts:119,149`/`update.ts:259` 尾部 `assertEmpty()` 抛 `CliError`；registry 零违规故未触发。修复方向：语义二选一并统一文案。
 - `R13-03` **open · P2** · newbie-modules · 守卫单向：模块代码直读 `process.env` 不受校验，实例 `tencent-cos.controller.ts:84`（`STORE_PATH`）、`account/auth/auth.service.ts:186`（`ENVIRONMENT`）均未在 manifest env 声明。修复方向：加静态扫描或键集对齐检查。
+
+## round14（2026-11-06，plan scope：`NEXT_PUBLIC_WEB_MONITOR_APP_ID` 全链路移除）
+
+真源：`.trae/documents/expert-review-2026-11-06-round14.md`。锚点：devbie `f3d1197b` / fewbie-starter `72ff9ef` / nightwatch-backend `86e41bd` / nightwatch-frontend `63cd1ef0`。无 P0/P1。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+|---|---|---|---|---|---|---|
+| R14-01 | nightwatch-backend | `project-application.service.ts:58-62` 注释断言 appKey "never leaves the process"，实际仍经 `WebMonitorSummaryDto`/`WebMonitorCredentialDto` 返回，并被 14 个监控页当 `appId` 使用 | P2 | source（影响面 live） | 项目成员 | open |
+| R14-02 | devbie (web-monitor-sdk) | 测试只删掉 `appId` 入参，未断言出站 payload 含 `token`、不含 `appId`，无阴性对照 | P2 | source | 下一次契约改动 | open |
+| R14-03 | nightwatch-backend / nightwatch-frontend | onboarding `envVars` 无 `@ApiProperty`，生成物为 `{}`（5 处），本轮删除 `envVars.appKey` 在 `@/api` 中不可见，前端靠 `as` 断言兜底（既有缺陷） | P2 | source / artifact | 消费者 | open |
+| R14-04 | nightwatch-frontend / e2e-deploy | 旧契约残留：本地 `.env:8` 仍有 `APP_ID`；`e2e-deploy` 两个前端手写上报仍带 `appId`，README/.env.example 仍教配置该变量 | P2 | docs / ops | 开发者 / E2E | open |
+
+误报剔除（1 条）："e2e-deploy 依赖旧版 SDK 会编译失败" 不成立——两个前端都不依赖 `@devbie/web-monitor-sdk`，上报为手写 `fetch`。
+
