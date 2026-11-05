@@ -11,7 +11,7 @@ console.error = hostError;
 // Required after the stub so the SDK captures it as the previous implementation.
 const { default: init } = require("../src/index");
 
-init({ appId: "appid_test", api: "http://localhost/report", token: "token_test" });
+init({ api: "http://localhost/report", token: "token_test" });
 
 test("web api: console.error forwards a single Error to the host console", () => {
   const error = new Error("must reach the host console");

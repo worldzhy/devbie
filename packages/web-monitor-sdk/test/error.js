@@ -4,9 +4,7 @@ import { mockOnerrorInfo } from "./mock/mock";
 import { overrideFetch } from "./mock/utils";
 import { ERRORTYPES, ERRORAPIS } from "../src/common/utils";
 import webMonitorSdk from "../src/index";
-const appId = "appid_test";
 const _monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
 });
@@ -27,7 +25,6 @@ test("web api: console.error", (done) => {
   console.error(errMsg);
   setTimeout(() => {
     // page error report payload
-    expect(reportTypeError[0].appId).toEqual(appId);
     expect(reportTypeError[0].errorList.length).toEqual(1);
     expect(reportTypeError[0].errorList[0].msg).toEqual(errMsg);
     expect(reportTypeError[0].errorList[0].type).toEqual(ERRORTYPES.log);
@@ -40,7 +37,6 @@ test("web api: onerror", (done) => {
   window.onerror.apply(window, mockOnerrorInfo);
   setTimeout(() => {
     // page error report payload
-    expect(reportTypeError[1].appId).toEqual(appId);
     expect(reportTypeError[1].errorList.length).toEqual(1);
     expect(reportTypeError[1].errorList[0].msg.indexOf("xx is not defined")).not.toEqual(-1);
     expect(reportTypeError[1].errorList[0].type).toEqual(ERRORTYPES.script);

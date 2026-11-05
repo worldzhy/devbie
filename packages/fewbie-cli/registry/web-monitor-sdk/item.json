@@ -6,5 +6,5 @@
   "dependencies": ["@devbie/web-monitor-sdk"],
   "registryDependencies": [],
   "files": ["src/components/web-monitor.tsx"],
-  "postInstall": "Add <WebMonitor /> inside your root layout <body> (src/app/layout.tsx), then set NEXT_PUBLIC_WEB_MONITOR_ENDPOINT (report endpoint URL), NEXT_PUBLIC_WEB_MONITOR_APP_ID and NEXT_PUBLIC_WEB_MONITOR_TOKEN. The component is a no-op until all three env vars are present."
+  "postInstall": "Add <WebMonitor /> inside your root layout <body> (src/app/layout.tsx), then set NEXT_PUBLIC_WEB_MONITOR_ENDPOINT (report endpoint URL) and NEXT_PUBLIC_WEB_MONITOR_TOKEN. The component is a no-op until both env vars are present."
 }

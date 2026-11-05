@@ -3,7 +3,6 @@ export type RedactKind = "url" | "query" | "body" | "response";
 export type RedactFn = (value: string, kind: RedactKind) => string;
 
 export interface PerformanceOptions {
-  appId: string;
   api: string;
   token: string;
   outTime: number;
@@ -27,9 +26,8 @@ export interface PerformanceOptions {
 }
 
 export interface InitOptions {
-  appId: string;
   api: string;
-  /** Secret report token (distinct from the public appId partition key). */
+  /** Report token issued for this deployment; it identifies the installation and its storage partition. */
   token: string;
   filterUrls?: string[];
   isPage?: boolean;

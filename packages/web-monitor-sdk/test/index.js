@@ -3,9 +3,7 @@ import "./mock/web.env";
 import { encryptP } from "../src/common/utils";
 import { overrideFetch } from "./mock/utils";
 import webMonitorSdk from "../src/index";
-const appId = "appid_test";
 const monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
 });

@@ -8,7 +8,6 @@ import "./mock/web.env";
 import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
 
-const appId = "appid_test";
 const createdApi = {
   api: "http://localhost:8993/created",
   port: 8993,
@@ -25,7 +24,6 @@ const plainTextApi = {
 };
 
 const _monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
   errcodeReport(res) {

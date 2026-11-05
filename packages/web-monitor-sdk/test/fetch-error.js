@@ -2,9 +2,7 @@ import "./mock/web.env";
 import { mockPerformanceResource, mockHttpStatusError } from "./mock/mock";
 import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
-const appId = "appid_test";
 const _monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
 });

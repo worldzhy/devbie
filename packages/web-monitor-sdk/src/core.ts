@@ -73,7 +73,7 @@ function Performance(options: InitOptions): void {
   if (globalScope[INITIALIZED_KEY]) return;
   globalScope[INITIALIZED_KEY] = true;
 
-  if (!options.appId || !options.api || !options.token) throw new Error("appId, api or token is not defined");
+  if (!options.api || !options.token) throw new Error("api or token is not defined");
   /**
    * URLs always excluded from AJAX/resource collection, on top of the
    * user-configured filterUrls. The collector endpoint itself fires as an
@@ -651,14 +651,13 @@ function Performance(options: InitOptions): void {
   }
 
   function getBaseData(type: ReportType, time?: number) {
-    const { appId, token } = opt;
+    const { token } = opt;
     const markuser = markUser(type);
     if (conf.markPageUrl !== location.href) {
       conf.markPageUrl = location.href;
       conf.markPage = randomString();
     }
     const result = {
-      appId,
       token,
       time: time || new Date().getTime(),
       markUser: markuser.markUser,
