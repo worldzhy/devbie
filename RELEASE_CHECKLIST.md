@@ -69,3 +69,17 @@ move the tag separately when the milestone ships.
     both upstream latests (advisories range `*`), so no upgrade path exists.
     Waived since 1.1.2; re-check when Jest 30 lands a new micromatch pin or
     upstream patches brace parsing.
+
+- Lint toolchain — 10 moderate findings reported by
+  `npm audit --omit=dev --workspaces`: `glob` (GHSA AbortSignal cancellation
+  bypass), `minimatch` (globparts DoS), `@typescript-eslint/typescript-estree`,
+  `@typescript-eslint/parser`, `@typescript-eslint/utils`,
+  `@typescript-eslint/type-utils`, `@typescript-eslint/eslint-plugin`,
+  `typescript-eslint`, `eslint-config-next` and
+  `@darraghor/eslint-plugin-nestjs-typed`. Every chain is lint-time only: the
+  ESLint toolchain that `@devbie/style-guide` and the backend lint layer depend
+  on. No published package ships them (`files = dist`, runtime dependencies = 0) and nothing resolves attacker-controlled globs at runtime. npm's only
+  remediation is a semver-major bump/downgrade of `eslint-config-next` or
+  `typescript-eslint`, which the dependency-major policy defers to a dedicated
+  upgrade milestone. Recorded 2026-11-06 while releasing
+  `@devbie/web-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.
