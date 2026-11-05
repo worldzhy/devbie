@@ -29,6 +29,10 @@ test("web setConfig", (done) => {
   setTimeout(() => {
     expect(reportTypePage.uid).toEqual(test_uid);
     expect(reportTypePage.p).toEqual(encryptP(test_p));
+    // The collector derives the storage partition from the token, so appId must
+    // never be part of the report contract again.
+    expect(reportTypePage.token).toEqual("token_test");
+    expect(reportTypePage).not.toHaveProperty("appId");
     done();
   }, 3000);
 });
