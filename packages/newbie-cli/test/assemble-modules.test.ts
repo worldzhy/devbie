@@ -77,6 +77,7 @@ describe("assembleNestJsModules", () => {
   it("renders module config services as real expressions with the right helpers", async () => {
     const cwd = await makeProject({
       account: {
+        env: { FEATURE_FLAG: { type: "bool" }, PORT: { type: "int" } },
         "config-service": {
           FEATURE_FLAG: "bool(process.env.FEATURE_FLAG)",
           PORT: "int(process.env.PORT)",
@@ -97,6 +98,7 @@ describe("assembleNestJsModules", () => {
   it("only unwraps strings that are real process expressions", async () => {
     const cwd = await makeProject({
       account: {
+        env: { NODE_ENV: { example: "production" } },
         "config-service": {
           MODE: "process-mode",
           NODE_ENV: "process.env.NODE_ENV",
@@ -109,6 +111,30 @@ describe("assembleNestJsModules", () => {
     const config = await readOut(cwd, "src/modules/modules.config.ts");
     assert.match(config, /MODE: "process-mode"/);
     assert.match(config, /NODE_ENV: process\.env\.NODE_ENV/);
+  });
+
+  it("rejects an expression the generator cannot unwrap instead of embedding it as a literal", async () => {
+    const cwd = await makeProject({
+      account: {
+        env: { FEATURE_FLAG: { type: "bool" } },
+        "config-service": { FEATURE_FLAG: "process.env.FEATURE_FLAG || 'x'" },
+      },
+    });
+
+    await assert.rejects(
+      () => assemble(cwd, ["account"]),
+      /account: config-service\.FEATURE_FLAG looks like a runtime expression but cannot be unwrapped/,
+    );
+  });
+
+  it("warns about env keys the module never reads", async () => {
+    const cwd = await makeProject({
+      account: { env: { LEFTOVER: { example: "x" } } },
+    });
+
+    const { issues } = await assemble(cwd, ["account"]);
+
+    assert.equal(issues.count, 1);
   });
 
   it("reports no drift when the written files are checked again", async () => {

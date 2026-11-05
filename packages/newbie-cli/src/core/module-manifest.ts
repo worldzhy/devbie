@@ -189,6 +189,51 @@ function normalizeEnvDeclarations(raw: unknown, key: string): Record<string, Env
   return result;
 }
 
+/** Matches a `process.env.<NAME>` reference inside a config-service expression. */
+const ENV_REFERENCE = /process\.env\.([A-Za-z_][A-Za-z0-9_]*)/g;
+
+/**
+ * Collect every environment variable a config-service block reads. Used by the
+ * guards that keep the two manifest blocks in sync: a referenced key must be
+ * declared in `env`, and an undeclared reference means the key never reaches
+ * `.env.example` or the per-environment secret check (ADR-033).
+ */
+export function collectEnvReferences(value: unknown, into: Set<string> = new Set()): Set<string> {
+  if (typeof value === "string") {
+    for (const match of value.matchAll(ENV_REFERENCE)) into.add(match[1]);
+    return into;
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectEnvReferences(item, into);
+    return into;
+  }
+  if (value && typeof value === "object") {
+    collectEnvReferences(Object.values(value), into);
+  }
+  return into;
+}
+
+/**
+ * Reject a config-service that reads an env key the same manifest never
+ * declares: the expression would render into `modules.config.ts`, but the key
+ * would be missing from `.env.example` and from every environment's secret —
+ * a boot-time failure that only surfaces in production (ADR-033).
+ */
+function assertEnvReferencesDeclared(
+  configService: unknown,
+  env: Record<string, EnvDeclaration> | undefined,
+  key: string,
+): void {
+  const referenced = collectEnvReferences(configService);
+  const declared = new Set(Object.keys(env ?? {}));
+  const undeclared = [...referenced].filter((name) => !declared.has(name));
+  if (undeclared.length === 0) return;
+  throw new Error(
+    `Invalid newbie.module.json for '${key}': config-service references environment variable(s) 'env' does not declare: ` +
+      `${undeclared.join(", ")}. Declare each one so it reaches .env.example and the secret check (ADR-033).`,
+  );
+}
+
 /** Validate that the optional `role` field, when declared, is a known role. */
 function assertOptionalRole(value: unknown, key: string): void {
   if (value === undefined) return;
@@ -240,6 +285,7 @@ export function normalizeModuleManifest(raw: unknown, expectedKey?: string): Mod
   assertOptionalRole(data.role, data.key);
   assertOptionalBoolean(data.publicNamespace, "publicNamespace", data.key);
   const env = normalizeEnvDeclarations(data.env, data.key);
+  assertEnvReferencesDeclared(data["config-service"], env, data.key);
   const manifest: ModuleManifest = {
     ...(data as object),
     key: data.key,

@@ -3,7 +3,7 @@ import path from "node:path";
 import prettier from "prettier";
 
 import { MODULES_CONFIG_TS, MODULES_MODULE_TS } from "../constants/paths";
-import { moduleImportLine, ModuleManifest } from "../core/module-manifest";
+import { collectEnvReferences, moduleImportLine, ModuleManifest } from "../core/module-manifest";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest } from "../lib/module-install";
 import { Sink } from "../lib/sink";
@@ -75,32 +75,52 @@ function configValueUsesHelper(value: unknown, helper: "bool" | "int"): boolean 
 const RUNTIME_EXPRESSION =
   /^(?:process\.env\.[A-Za-z_][A-Za-z0-9_]*|(?:bool|int)\(process\.env\.[A-Za-z_][A-Za-z0-9_]*\))$/;
 
+/** Strings that intend to be runtime expressions, not literal values. */
+const RUNTIME_EXPRESSION_INTENT = /^(?:process\.|bool\(|int\()/;
+
 /**
  * Manifest config values are emitted by string substitution, so a value such
- * as "process.env.X || 'fallback'" (quotes inside the string) is not unwrapped
- * and ends up as a literal in the generated config. Surface those instead of
- * letting them silently become runtime strings.
+ * as "process.env.X || 'fallback'" (quotes inside the string) is not unwrapped.
+ * Reject it loudly: silently embedding it as a string literal was how a
+ * fallback-shaped expression once became an always-true config value.
+ * Fallbacks belong in module code, never in the manifest (ADR-033).
  */
-function reportUnwrappableExpressions(value: unknown, path: string, issues: IssueBag, sink: Sink): void {
+function assertUnwrappableExpressions(value: unknown, path: string): void {
   if (typeof value === "string") {
-    if (value.startsWith("process.") && !RUNTIME_EXPRESSION.test(value)) {
-      reportIssue(
-        issues,
-        sink,
-        `${path} looks like a runtime expression but cannot be unwrapped and will be embedded as a string literal: ${value}`,
+    if (RUNTIME_EXPRESSION_INTENT.test(value) && !RUNTIME_EXPRESSION.test(value)) {
+      throw new Error(
+        `${path} looks like a runtime expression but cannot be unwrapped: ${value}. ` +
+          `Use a bare 'process.env.NAME' (or bool()/int() around one); fallbacks belong in module code (ADR-033).`,
       );
     }
     return;
   }
   if (Array.isArray(value)) {
-    value.forEach((item, index) => reportUnwrappableExpressions(item, `${path}[${index}]`, issues, sink));
+    value.forEach((item, index) => assertUnwrappableExpressions(item, `${path}[${index}]`));
     return;
   }
   if (value && typeof value === "object") {
     for (const [key, item] of Object.entries(value)) {
-      reportUnwrappableExpressions(item, `${path}.${key}`, issues, sink);
+      assertUnwrappableExpressions(item, `${path}.${key}`);
     }
   }
+}
+
+/**
+ * Warn about env keys the module declares but its config-service never reads:
+ * the deployment contract would carry a variable that no code consumes, which
+ * is either a leftover or a misnamed reference (ADR-033).
+ */
+function reportUnusedEnvKeys(manifest: ModuleManifest, issues: IssueBag, sink: Sink): void {
+  const referenced = collectEnvReferences(manifest["config-service"] ?? {});
+  const unused = Object.keys(manifest.env ?? {}).filter((name) => !referenced.has(name));
+  if (unused.length === 0) return;
+  reportIssue(
+    issues,
+    sink,
+    `${manifest.key}: env variable(s) never read by config-service: ${unused.join(", ")}. ` +
+      `Declare only the keys the module consumes (ADR-033).`,
+  );
 }
 
 function configTemplate(configs: Record<string, unknown>): string {
@@ -168,7 +188,8 @@ export async function assembleNestJsModules(params: {
   let configs: Record<string, unknown> = {};
   for (const { key, manifest } of entries) {
     const manifestConfigs = manifest["config-service"] ?? {};
-    reportUnwrappableExpressions(manifestConfigs, `${key}: config-service`, issues, sink);
+    assertUnwrappableExpressions(manifestConfigs, `${key}: config-service`);
+    reportUnusedEnvKeys(manifest, issues, sink);
     configs = { ...configs, ...manifestConfigs };
   }
 

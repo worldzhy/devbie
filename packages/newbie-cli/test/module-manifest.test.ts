@@ -107,6 +107,48 @@ describe("normalizeModuleManifest", () => {
     assert.equal(normalizeModuleManifest({ ...valid, env: undefined }).env, undefined);
   });
 
+  it("rejects a config-service reference to an env key the manifest never declares", () => {
+    assert.throws(
+      () =>
+        normalizeModuleManifest({
+          ...valid,
+          env: { DECLARED_KEY: { example: "x" } },
+          "config-service": { apiKey: "process.env.UNDECLARED_KEY" },
+        }),
+      /config-service references environment variable\(s\) 'env' does not declare: UNDECLARED_KEY/,
+    );
+  });
+
+  it("accepts a config-service whose references are all declared in env", () => {
+    const manifest = normalizeModuleManifest({
+      ...valid,
+      env: { API_KEY: { example: "x" }, PORT: { type: "int" } },
+      "config-service": { apiKey: "process.env.API_KEY", port: "int(process.env.PORT)" },
+    });
+    assert.deepEqual(Object.keys(manifest.env ?? {}), ["API_KEY", "PORT"]);
+  });
+
+  it("collects env references from nested config-service values", () => {
+    const manifest = normalizeModuleManifest({
+      ...valid,
+      env: { A: { example: "x" }, B: { example: "y" } },
+      "config-service": { nested: { list: ["process.env.A", "process.env.B"] } },
+    });
+    assert.equal(manifest.key, "account");
+  });
+
+  it("rejects a nested config-service reference to an undeclared key", () => {
+    assert.throws(
+      () =>
+        normalizeModuleManifest({
+          ...valid,
+          env: { A: { example: "x" } },
+          "config-service": { nested: { list: ["process.env.A", "process.env.MISSING"] } },
+        }),
+      /config-service references environment variable\(s\) 'env' does not declare: MISSING/,
+    );
+  });
+
   it("rejects the pre-ADR-033 'default' env field in favour of 'example'", () => {
     assert.throws(
       () => normalizeModuleManifest({ ...valid, env: { RETENTION: { type: "int", default: 30 } } }),
