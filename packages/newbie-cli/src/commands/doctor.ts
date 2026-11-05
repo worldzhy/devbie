@@ -97,9 +97,9 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
       error(`${label}: newbie.module.json missing or unreadable.`);
       continue;
     }
-    moduleGraph.set(key, manifest.moduleDependencies ?? []);
+    moduleGraph.set(key, manifest.requires?.modules ?? []);
 
-    if (manifest.schema) {
+    if (manifest.wiring?.prismaSchema) {
       if (!(await fileExists(cwd, path.posix.join(PRISMA_SCHEMA_MODELS_DIR, `${key}.prisma`)))) {
         error(`${label}: ${PRISMA_SCHEMA_MODELS_DIR}/${key}.prisma missing; run 'newbie modules apply'.`);
       }

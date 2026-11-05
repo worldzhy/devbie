@@ -22,9 +22,9 @@ export async function collectMissingEnv(cwd: string, enabledKeys: string[]): Pro
 
   for (const key of enabledKeys) {
     const manifest = await readInstalledManifest(cwd, key);
-    if (!manifest?.env) continue;
+    if (!manifest?.requires?.env) continue;
 
-    const absent = Object.keys(manifest.env).filter((envKey) => !present.has(envKey));
+    const absent = Object.keys(manifest.requires.env).filter((envKey) => !present.has(envKey));
     if (absent.length > 0) missing[key] = absent;
   }
 

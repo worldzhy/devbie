@@ -74,14 +74,15 @@ export async function loadModuleCliEntry(
   key: string,
   manifest: ModuleManifest,
 ): Promise<{ namespace: string; entry: ModuleCliEntry } | null> {
-  if (!manifest.cli) return null;
+  const namespace = manifest.wiring?.newbieCli;
+  if (!namespace) return null;
 
   const entryPath = path.join(installedModuleDir(cwd, key), CLI_ENTRY_RELATIVE);
   try {
     await fs.access(entryPath);
   } catch {
     throw new CliError(
-      `Module '${key}' declares cli='${manifest.cli}' but entry 'src/modules/${key}/${CLI_ENTRY_RELATIVE}' is missing.`,
+      `Module '${key}' declares wiring.newbieCli='${namespace}' but entry 'src/modules/${key}/${CLI_ENTRY_RELATIVE}' is missing.`,
     );
   }
 
@@ -89,13 +90,13 @@ export async function loadModuleCliEntry(
   try {
     mod = loadEntryModule(entryPath);
   } catch (error) {
-    throw new CliError(`Failed to load cli entry for module '${key}' (${manifest.cli}): ${(error as Error).message}`);
+    throw new CliError(`Failed to load cli entry for module '${key}' (${namespace}): ${(error as Error).message}`);
   }
 
   if (typeof mod.register !== "function") {
     throw new CliError(`Module '${key}' cli entry must export a 'register(parent, options)' function.`);
   }
-  return { namespace: manifest.cli, entry: { register: mod.register as ModuleCliRegister } };
+  return { namespace, entry: { register: mod.register as ModuleCliRegister } };
 }
 
 /**
@@ -134,7 +135,7 @@ export async function registerModuleCommands(program: Command, options: GlobalOp
     } catch (error) {
       console.error(
         yellow(
-          `[warn] Skipped CLI namespace '${manifest?.cli ?? key}' of module '${key}': ${(error as Error).message}`,
+          `[warn] Skipped CLI namespace '${manifest?.wiring?.newbieCli ?? key}' of module '${key}': ${(error as Error).message}`,
         ),
       );
       if (process.env.NEWBIE_DEBUG && (error as Error).stack) {

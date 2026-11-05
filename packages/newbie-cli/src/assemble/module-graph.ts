@@ -43,7 +43,7 @@ export async function expandRegistryClosure(
       missingModules.add(key);
       continue;
     }
-    const deps = resolved.manifest.moduleDependencies ?? [];
+    const deps = resolved.manifest.requires?.modules ?? [];
     graph.set(key, deps);
     for (const dep of deps) {
       if (!satisfied.has(dep) && !visited.has(dep)) queue.push(dep);

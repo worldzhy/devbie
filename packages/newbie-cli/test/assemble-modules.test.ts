@@ -18,7 +18,7 @@ async function makeProject(modules: Record<string, Record<string, unknown>>): Pr
     await fs.mkdir(dir, { recursive: true });
     await fs.writeFile(
       path.join(dir, "newbie.module.json"),
-      JSON.stringify({ key, module: { file: `${key}.module`, className: `${key}Module` }, ...extra }),
+      JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, ...extra }),
       "utf8",
     );
   }
@@ -48,7 +48,7 @@ describe("assembleNestJsModules", () => {
   it("wires every enabled module into the global ModulesModule", async () => {
     const cwd = await makeProject({
       account: {},
-      audit: { moduleDependencies: ["security"] },
+      audit: { requires: { modules: ["security"] } },
       security: {},
     });
 
@@ -77,27 +77,31 @@ describe("assembleNestJsModules", () => {
   it("rejects helper calls in config values instead of emitting uncompilable code", async () => {
     const cwd = await makeProject({
       account: {
-        env: { FEATURE_FLAG: { type: "bool" }, PORT: { type: "int" } },
-        "config-service": {
-          FEATURE_FLAG: "bool(process.env.FEATURE_FLAG)",
-          PORT: "int(process.env.PORT)",
+        requires: {
+          env: { FEATURE_FLAG: { type: "bool" }, PORT: { type: "int" } },
+          config: {
+            FEATURE_FLAG: "bool(process.env.FEATURE_FLAG)",
+            PORT: "int(process.env.PORT)",
+          },
         },
       },
     });
 
     await assert.rejects(
       () => assemble(cwd, ["account"]),
-      /account: config-service\.FEATURE_FLAG looks like a runtime expression but cannot be unwrapped/,
+      /account: requires\.config\.FEATURE_FLAG looks like a runtime expression but cannot be unwrapped/,
     );
   });
 
   it("only unwraps strings that are real process expressions", async () => {
     const cwd = await makeProject({
       account: {
-        env: { NODE_ENV: { example: "production" } },
-        "config-service": {
-          MODE: "process-mode",
-          NODE_ENV: "process.env.NODE_ENV",
+        requires: {
+          env: { NODE_ENV: { example: "production" } },
+          config: {
+            MODE: "process-mode",
+            NODE_ENV: "process.env.NODE_ENV",
+          },
         },
       },
     });
@@ -112,20 +116,22 @@ describe("assembleNestJsModules", () => {
   it("rejects an expression the generator cannot unwrap instead of embedding it as a literal", async () => {
     const cwd = await makeProject({
       account: {
-        env: { FEATURE_FLAG: { type: "bool" } },
-        "config-service": { FEATURE_FLAG: "process.env.FEATURE_FLAG || 'x'" },
+        requires: {
+          env: { FEATURE_FLAG: { type: "bool" } },
+          config: { FEATURE_FLAG: "process.env.FEATURE_FLAG || 'x'" },
+        },
       },
     });
 
     await assert.rejects(
       () => assemble(cwd, ["account"]),
-      /account: config-service\.FEATURE_FLAG looks like a runtime expression but cannot be unwrapped/,
+      /account: requires\.config\.FEATURE_FLAG looks like a runtime expression but cannot be unwrapped/,
     );
   });
 
   it("warns about env keys the module never reads", async () => {
     const cwd = await makeProject({
-      account: { env: { LEFTOVER: { example: "x" } } },
+      account: { requires: { env: { LEFTOVER: { example: "x" } } } },
     });
 
     const { issues } = await assemble(cwd, ["account"]);

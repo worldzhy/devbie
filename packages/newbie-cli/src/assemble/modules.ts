@@ -41,7 +41,7 @@ function moduleTemplate(entries: { key: string; manifest: ModuleManifest }[]): s
 
   const importModuleNames = [
     hasConfigService ? `ConfigModule.forRoot({load: [ModulesConfiguration], isGlobal: true})` : "",
-    ...entries.map(({ manifest }) => manifest.module.className),
+    ...entries.map(({ manifest }) => manifest.wiring.className),
   ]
     .filter(Boolean)
     .join(",\n    ");
@@ -101,13 +101,13 @@ function assertUnwrappableExpressions(value: unknown, path: string): void {
  * is either a leftover or a misnamed reference (ADR-033).
  */
 function reportUnusedEnvKeys(manifest: ModuleManifest, issues: IssueBag, sink: Sink): void {
-  const referenced = collectEnvReferences(manifest["config-service"] ?? {});
-  const unused = Object.keys(manifest.env ?? {}).filter((name) => !referenced.has(name));
+  const referenced = collectEnvReferences(manifest.requires?.config ?? {});
+  const unused = Object.keys(manifest.requires?.env ?? {}).filter((name) => !referenced.has(name));
   if (unused.length === 0) return;
   reportIssue(
     issues,
     sink,
-    `${manifest.key}: env variable(s) never read by config-service: ${unused.join(", ")}. ` +
+    `${manifest.key}: env variable(s) never read by requires.config: ${unused.join(", ")}. ` +
       `Declare only the keys the module consumes (ADR-033).`,
   );
 }
@@ -165,8 +165,8 @@ export async function assembleNestJsModules(params: {
 
   let configs: Record<string, unknown> = {};
   for (const { key, manifest } of entries) {
-    const manifestConfigs = manifest["config-service"] ?? {};
-    assertUnwrappableExpressions(manifestConfigs, `${key}: config-service`);
+    const manifestConfigs = manifest.requires?.config ?? {};
+    assertUnwrappableExpressions(manifestConfigs, `${key}: requires.config`);
     reportUnusedEnvKeys(manifest, issues, sink);
     configs = { ...configs, ...manifestConfigs };
   }

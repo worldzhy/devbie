@@ -17,13 +17,13 @@
  * reported by the guard (ADR-009 D4: unlisted = error), mirroring the
  * check-template-deps convention.
  *
- * Two files carry fragments rendered by `newbie modules apply` inside otherwise
- * framework-owned content: the `schemas = [...]` line of prisma/schema.prisma
- * and the @@newbie-modules block of deploy/Caddyfile.tmpl. Those fragments are
- * ignored when comparing and preserved when applying the template version.
+ * One file carries a fragment rendered by `newbie modules apply` inside
+ * otherwise framework-owned content: the `schemas = [...]` line of
+ * prisma/schema.prisma. That fragment is ignored when comparing and preserved
+ * when applying the template version.
  */
 
-import { compareStrings, MODULES_MARKER_END, MODULES_MARKER_START } from "./env-file";
+import { compareStrings } from "./env-file";
 
 /** Comment prefix of the @@newbie-framework markers in a given file type. */
 export type MarkerSyntax = "//" | "#" | "<!--";
@@ -49,10 +49,9 @@ export type TemplateFileOwnership =
 
 /**
  * Fragment inside a framework-owned file rendered by `newbie modules apply`:
- * a whole marker block (Caddyfile route block) or a single line (prisma
- * datasource schemas array).
+ * currently only the `schemas = [...]` line of prisma/schema.prisma.
  */
-export type RenderedFragment = { kind: "line"; pattern: RegExp } | { kind: "block"; start: string; end: string };
+export type RenderedFragment = { kind: "line"; pattern: RegExp };
 
 export interface TemplateFile {
   /** POSIX-style path relative to the project / template root. */
@@ -78,13 +77,11 @@ export const TEMPLATE_FILES: readonly TemplateFile[] = [
   { path: "prisma.config.ts", ownership: "framework-whole-file" },
 
   // Framework deploy stack (ADR-006 / ADR-008 D1): static files stay
-  // byte-identical; only the module block of the Caddyfile is rendered.
+  // byte-identical. The Caddyfile is fully static: ADR-034 dropped
+  // `publicNamespace`, so the former @@newbie-modules route block is gone
+  // (ADR-008 D4 retired).
   { path: "deploy/compose.framework.yml", ownership: "framework-whole-file" },
-  {
-    path: "deploy/Caddyfile.tmpl",
-    ownership: "framework-whole-file",
-    rendered: { kind: "block", start: MODULES_MARKER_START, end: MODULES_MARKER_END },
-  },
+  { path: "deploy/Caddyfile.tmpl", ownership: "framework-whole-file" },
   { path: "deploy/scripts/lib.sh", ownership: "framework-whole-file" },
   { path: "deploy/scripts/render-env.sh", ownership: "framework-whole-file" },
   { path: "deploy/scripts/deploy.sh", ownership: "framework-whole-file" },
@@ -208,37 +205,21 @@ export function replaceMarkerBlock(content: string, block: string, syntax: Marke
 
 /** Extract the assembly-rendered fragment; null when absent. */
 function extractRendered(content: string, fragment: RenderedFragment): string | null {
-  if (fragment.kind === "line") {
-    return content.match(fragment.pattern)?.[0] ?? null;
-  }
-  const start = content.indexOf(fragment.start);
-  const end = content.indexOf(fragment.end);
-  if (start === -1 || end === -1 || end < start) return null;
-  return content.slice(start, end + fragment.end.length);
+  return content.match(fragment.pattern)?.[0] ?? null;
 }
 
 /** Replace the assembly-rendered fragment; null when absent. */
 function replaceRendered(content: string, fragment: RenderedFragment, replacement: string): string | null {
-  if (fragment.kind === "line") {
-    if (content.match(fragment.pattern) === null) return null;
-    return content.replace(fragment.pattern, () => replacement);
-  }
-  const start = content.indexOf(fragment.start);
-  const end = content.indexOf(fragment.end);
-  if (start === -1 || end === -1 || end < start) return null;
-  return content.slice(0, start) + replacement + content.slice(end + fragment.end.length);
+  if (content.match(fragment.pattern) === null) return null;
+  return content.replace(fragment.pattern, () => replacement);
 }
 
 /** Drop the assembly-rendered fragment so rendered content never counts as drift. */
 function stripRendered(content: string, fragment: RenderedFragment): string {
-  if (fragment.kind === "line") {
-    return content
-      .split("\n")
-      .filter((line) => line.match(fragment.pattern) === null)
-      .join("\n");
-  }
-  const current = extractRendered(content, fragment);
-  return current === null ? content : content.replace(current, "");
+  return content
+    .split("\n")
+    .filter((line) => line.match(fragment.pattern) === null)
+    .join("\n");
 }
 
 /**

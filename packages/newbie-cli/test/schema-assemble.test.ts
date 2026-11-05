@@ -50,7 +50,7 @@ async function makeProject(params: {
     await fs.mkdir(moduleDir, { recursive: true });
     await fs.writeFile(path.join(moduleDir, "newbie.module.json"), JSON.stringify(manifest), "utf8");
     if (fragment !== undefined) {
-      const relative = String(manifest.schema);
+      const relative = String((manifest.wiring as Record<string, unknown>).prismaSchema);
       const file = path.join(moduleDir, relative);
       await fs.mkdir(path.dirname(file), { recursive: true });
       await fs.writeFile(file, fragment, "utf8");
@@ -74,10 +74,18 @@ async function makeProject(params: {
 
 /** Manifest preamble shared by every fixture. */
 function manifest(key: string, extra: Record<string, unknown> = {}): Record<string, unknown> {
+  const { wiring: ew, requires: er, schema, ...rest } = extra;
+  const mergedWiring: Record<string, unknown> = {
+    file: `${key}.module`,
+    className: `${key}Module`,
+    ...((ew as object) ?? {}),
+  };
+  if (schema !== undefined) mergedWiring.prismaSchema = schema;
   return {
     key,
-    module: { file: `${key}.module`, className: `${key}Module` },
-    ...extra,
+    wiring: mergedWiring,
+    ...(er !== undefined ? { requires: er } : {}),
+    ...rest,
   };
 }
 

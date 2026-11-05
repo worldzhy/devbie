@@ -73,7 +73,7 @@ export async function assembleEnv(params: {
       reportIssue(issues, sink, `Missing newbie.module.json for '${key}'; its env variables were not added.`);
       continue;
     }
-    lines = upsertEnvSection(lines, sectionTitle(key), envExampleValues(manifest.env));
+    lines = upsertEnvSection(lines, sectionTitle(key), envExampleValues(manifest.requires?.env));
   }
 
   // Variables still declared by an enabled module must survive even when a
@@ -83,14 +83,14 @@ export async function assembleEnv(params: {
   for (const key of enabled) {
     const manifest = await readInstalledManifest(cwd, key);
     if (manifest === null) continue;
-    for (const envKey of Object.keys(manifest.env ?? {})) retainedKeys.add(envKey);
+    for (const envKey of Object.keys(manifest.requires?.env ?? {})) retainedKeys.add(envKey);
   }
 
   const removedKeys = new Set<string>();
   for (const key of removed) {
     const manifest = await readInstalledManifest(cwd, key);
     if (manifest === null) continue;
-    for (const envKey of Object.keys(manifest.env ?? {})) {
+    for (const envKey of Object.keys(manifest.requires?.env ?? {})) {
       if (!retainedKeys.has(envKey)) removedKeys.add(envKey);
     }
   }
@@ -132,7 +132,7 @@ export async function assembleEnvExample(params: {
       continue;
     }
     sectionLines.push(decoration, `# ! ${sectionTitle(key)} variables`, decoration);
-    const entries = Object.entries(envExampleValues(manifest.env));
+    const entries = Object.entries(envExampleValues(manifest.requires?.env));
     entries.sort(([a], [b]) => compareStrings(a, b));
     for (const [envKey, value] of entries) {
       sectionLines.push(`${envKey}=${value}`);

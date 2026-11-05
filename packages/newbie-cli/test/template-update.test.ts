@@ -33,7 +33,7 @@ const TEMPLATE_CONTENT: Readonly<Record<string, string>> = {
   ".env.example": `HOST=1\n${frameworkBlock(HASH)}\n`,
   ".gitignore": `${frameworkBlock(HASH)}\nHOST_IGNORE\n`,
   "prisma/schema.prisma": `// header\n${PRISMA_BLOCK}\nmodel User {\n  id Int @id\n}\n`,
-  "deploy/Caddyfile.tmpl": `site {\n# @@newbie-modules-start\n# @@newbie-modules-end\n}\n`,
+  "deploy/Caddyfile.tmpl": `site {\n\thandle /api/* {\n\t\treverse_proxy backend:3000\n\t}\n}\n`,
   "AGENTS.md": `# Agents\n${frameworkBlock(HTML)}\n`,
 };
 
@@ -250,21 +250,13 @@ describe("planTemplateUpdate", () => {
     assert.match(next, /model Order \{/);
   });
 
-  it("ignores the assemble-rendered module block of deploy/Caddyfile.tmpl", () => {
+  it("treats deploy/Caddyfile.tmpl as a static whole-file entry (ADR-034)", () => {
     const { project, template } = identicalMaps();
-    const rendered = `site {\n# @@newbie-modules-start\n\thandle /web-monitor/* {\n\t\treverse_proxy backend:3000\n\t}\n# @@newbie-modules-end\n}\n`;
-    project.set("deploy/Caddyfile.tmpl", rendered);
-    assert.deepEqual(planTemplateUpdate(project, template), []);
-  });
-
-  it("preserves the project's module block when the Caddyfile static part drifts", () => {
-    const { project, template } = identicalMaps();
-    const rendered = `site {\n# @@newbie-modules-start\n\thandle /web-monitor/* {\n\t\treverse_proxy backend:3000\n\t}\n# @@newbie-modules-end\n}\n`;
-    project.set("deploy/Caddyfile.tmpl", `${rendered}\n# host comment\n`);
+    const hostEdited = `site {\n\thandle /api/* {\n\t\treverse_proxy backend:3001\n\t}\n}\n`;
+    project.set("deploy/Caddyfile.tmpl", hostEdited);
     const changes = planTemplateUpdate(project, template);
     assert.equal(changes.length, 1);
-    const next = changes[0].nextContent ?? "";
-    assert.match(next, /handle \/web-monitor\/\*/);
+    assert.equal(changes[0].nextContent, template.get("deploy/Caddyfile.tmpl"));
   });
 
   it("throws when the template marker block is malformed", () => {

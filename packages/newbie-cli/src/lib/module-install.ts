@@ -35,8 +35,8 @@ export async function readInstalledManifest(cwd: string, key: string): Promise<M
 
 /** Absolute path of a module's Prisma fragment, or null when it has none. */
 export function installedSchemaPath(cwd: string, key: string, manifest: ModuleManifest): string | null {
-  if (!manifest.schema) return null;
-  return path.join(installedModuleDir(cwd, key), manifest.schema);
+  if (!manifest.wiring?.prismaSchema) return null;
+  return path.join(installedModuleDir(cwd, key), manifest.wiring.prismaSchema);
 }
 
 /** Read the Prisma fragment; null means absent (missing file or no schema). */

@@ -3,10 +3,9 @@ import path from "node:path";
 
 import { MODULES_DIR } from "@devbie/modules-state";
 
-import { renderPublicNamespaceBody, spliceModulesBlock } from "../core/caddyfile-modules";
 import { buildComposeModulesYaml, ComposeModulesInput } from "../core/deploy-compose";
 import { isRegisteredDatastore } from "../core/datastore-registry";
-import { DEPLOY_CADDYFILE_TMPL, DEPLOY_COMPOSE_MODULES } from "../constants/paths";
+import { DEPLOY_COMPOSE_MODULES } from "../constants/paths";
 import { CliError } from "@devbie/cli-kit";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest } from "../lib/module-install";
@@ -41,10 +40,14 @@ async function hasMigrator(cwd: string, key: string): Promise<boolean> {
 
 /**
  * Compute the deploy assets drifting from the installed module set:
- * deploy/compose.modules.yml always (datastore runtime values come from the
- * CLI registry, ADR-008 D3), and the @@newbie-modules block of
- * deploy/Caddyfile.tmpl when the template carries the markers (ADR-008 D4).
- * Planning is read-only; only drifted files are returned.
+ * deploy/compose.modules.yml (datastore runtime values come from the CLI
+ * registry, ADR-008 D3). Planning is read-only; only drifted files are
+ * returned.
+ *
+ * deploy/Caddyfile.tmpl is deliberately not part of this plan: since ADR-034
+ * dropped `publicNamespace`, no module claims a public URL namespace, so every
+ * route goes through the unified `/api/*` strip block and the file is fully
+ * framework-owned and static (ADR-008 D4 retired).
  */
 export async function planDeployRenders(params: {
   cwd: string;
@@ -55,7 +58,6 @@ export async function planDeployRenders(params: {
   const { cwd, sink, issues, enabledKeys } = params;
 
   const datastores: ComposeModulesInput[] = [];
-  const publicNamespaces: string[] = [];
   for (const key of enabledKeys) {
     const manifest = await readInstalledManifest(cwd, key);
     if (manifest === null) {
@@ -71,9 +73,6 @@ export async function planDeployRenders(params: {
       }
       datastores.push({ key, hasMigrator: await hasMigrator(cwd, key) });
     }
-    if (manifest.publicNamespace === true) {
-      publicNamespaces.push(key);
-    }
   }
 
   const plans: DeployRenderPlan[] = [];
@@ -82,22 +81,6 @@ export async function planDeployRenders(params: {
   const composeCurrent = await readOrNull(path.resolve(cwd, DEPLOY_COMPOSE_MODULES));
   if (composeCurrent !== composeNext) {
     plans.push({ path: DEPLOY_COMPOSE_MODULES, current: composeCurrent, next: composeNext });
-  }
-
-  // A project without deploy/Caddyfile.tmpl simply has no route block to
-  // render (not every consumer ships the production stack).
-  const caddyCurrent = await readOrNull(path.resolve(cwd, DEPLOY_CADDYFILE_TMPL));
-  if (caddyCurrent !== null) {
-    const caddyNext = spliceModulesBlock(caddyCurrent, renderPublicNamespaceBody(publicNamespaces));
-    if (caddyNext === null) {
-      reportIssue(
-        issues,
-        sink,
-        `${DEPLOY_CADDYFILE_TMPL} is missing the @@newbie-modules markers; the module route block was skipped.`,
-      );
-    } else if (caddyNext !== caddyCurrent) {
-      plans.push({ path: DEPLOY_CADDYFILE_TMPL, current: caddyCurrent, next: caddyNext });
-    }
   }
 
   return plans;

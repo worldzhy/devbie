@@ -80,7 +80,7 @@ function Performance(options: InitOptions): void {
    * AJAX request — without this filter the SDK would measure and report
    * its own report calls as page performance data.
    */
-  const alwaysFilteredUrls = ["/web-monitor/report"];
+  const alwaysFilteredUrls = ["/api/web-monitor/report"];
   const opt: PerformanceOptions = {
     outTime: 300,
     filterUrls: [],
