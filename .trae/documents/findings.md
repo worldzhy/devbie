@@ -229,3 +229,26 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 误报剔除（1 条）："e2e-deploy 依赖旧版 SDK 会编译失败" 不成立——两个前端都不依赖 `@devbie/web-monitor-sdk`，上报为手写 `fetch`。
 
+## round15（2026-11-06，scope=`workspace`）
+
+报告：`.trae/documents/expert-review-2026-11-06-round15.md`。锚点：devbie `149eeaef` / newbie-modules `a3ab33c` / newbie-starter `10bccce` / fewbie-starter `c4da9ea` / nightwatch-backend `f1321cc` / nightwatch-frontend `fe36ab0`。P1：1；P2：12（含 R13-02/03 重验维持开放）。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+|---|---|---|---|---|---|---|
+| R15-01 | newbie-modules ↔ nightwatch-backend | web-monitor ingest Mongo 毒丸第二向量簇（`customName={}`、`resourceList` 四字段、`p={}` 经 decryptPhone 透传）→ CastError → 永久重入队；CH 向量反驳成立 | P1 | live | anonymous（installation token） | open |
+| R15-03 | nightwatch-backend | deploy.yml BuildKit secret 配置失效（`type=env,id=npm_token,NPM_TOKEN` 被按 key=value 解析，`npm_token` 从未注入；当前未爆因 `@devbie/*` 为 public） | P2 | ops | 部署时 | open |
+| R15-04 | nightwatch-frontend | copilot-tool-card 外链缺协议白名单（纵深防御缺口；可利用性反驳成立） | P2 | live | 未来技能直塞外部字段时 | open |
+| R15-06 | newbie-starter / fewbie-starter / nightwatch | 3 仓 Dockerfile 无 CI 构建门禁 | P2 | template / ops | CI / 部署 | open |
+| R15-07 | newbie-starter / nightwatch-backend | deploy 脚本 13 处 `curl` 无 `--max-time` | P2 | ops | provision 网络挂起 | open |
+| R15-08 | devbie (web-monitor-sdk) | 上报 fetch 无 `AbortSignal` 超时（其余 4 SDK 均有） | P2 | source / artifact | SDK 消费方 | open |
+| R15-09 | nightwatch-backend | `render-env.sh:77-80` sed 替换未转义，值含 `&`/`|` 可破坏 Caddyfile | P2 | ops | 运维配置 | open |
+| R15-10 | newbie-modules | registry 代码裸引用宿主 ADR-034/036 无仓名前缀（5 文件），违反 R5-P2-20 跨仓引用规则 | P2 | docs | 未来编号碰撞 | open |
+| R15-11 | newbie-starter / fewbie-starter | 缺 `.github/pull_request_template.md` | P2 | docs | PR 流程 | open |
+| R15-12 | newbie-modules | backlog 2 处过期条目（装配配置字面量已清零、CI pin 已升 1.18.0） | P2 | docs | — | open |
+| R13-02 | devbie (newbie-cli) | `IssueBag.warn` 语义实际致命（`assertEmpty` 在 apply/default/remove/add/update 共 6 处抛出） | P2 | source | 开发者 | open（round15 重验维持） |
+| R13-03 | newbie-modules | 模块代码直读 `process.env` 且 manifest 未声明：tencent-cos `STORE_PATH`、account `ENVIRONMENT`；apply 永不渲染进 `.env.example` | P2 | artifact / live（account） | 部署时缺键 | open（round15 重验维持，且比记录更重） |
+
+registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws-cloudformation UncheckedCreateInput、R13-03）详见 `newbie-modules/.trae/documents/findings.md`。
+
+误报剔除（5 条）：微信登录 P0（已裁决缓修，backlog R2#6）；copilot-tool-card XSS（scheme 注入不可能）；F-14-01 CH 向量（探针反驳）；R13-01 未发布（1.17.0/1.18.0 已落库）；registry CI pin 滞后（已升 1.18.0）。详见报告 §7。
+
