@@ -29,7 +29,7 @@
 
 ## P2
 
-- [ ] `[2026-11-06 告警排查]` **web-monitor-sdk 的 tracekit 把异常消息首行误判为栈帧**：`common/tracekit.ts` 的 gecko 正则允许 `@` 省略，消息首行以 URL 结尾时（如 next-intl 开发态 `ENVIRONMENT_FALLBACK` 提示）会把文档链接写进 `url`/`line`，导致 `resourceUrl` 归因失真（实证：nightwatch-frontend 告警 `[script] Error @ https://next-intl.dev/docs/usage/dates-times:?`）。修复方向：gecko 帧行要求含 `@` 或以 `at ` 开头，并补一条解析单测；改后需发版并升级消费方。
+- [ ] `[2026-11-06 告警排查]` **web-monitor-sdk 的 tracekit 把异常消息首行误判为栈帧**：`common/tracekit.ts` 的 gecko 正则允许 `@` 省略，消息首行以 URL 结尾时（如 next-intl 开发态 `ENVIRONMENT_FALLBACK` 提示）会把文档链接写进 `url`/`line`，导致 `resourceUrl` 归因失真（实证：nightwatch-frontend 告警 `[script] Error @ https://next-intl.dev/docs/usage/dates-times:?`）。修复方向（2026-11-06 订正）：有函数前缀时强制 `@` 分隔（`func@url` / `@url`），裸 `url:line:col` 与 `[native code]` 保留空前缀分支；原「要求含 `@` 或以 `at ` 开头」不充分——消息同时含邮箱和 URL 时 `(.*?)` 前缀仍会吞掉消息，且 `at ` 行本由 chrome/winjs 正则处理。必须带阴性对照单测（`v8_header_url` / `v8_url_middle` / `v8_email_then_url` 修复前红、修复后绿）与 Firefox/Safari/RN 正例。状态：2026-11-06 代码已改，`test/tracekit.js` 5 条红→绿、SDK 全量 13 suites/25 tests 通过、dist 探针首帧归因正确；待发 `@devbie/web-monitor-sdk@1.5.3` 并升级 nightwatch-frontend / fewbie-starter。
 
 > `@devbie/apits@1.2.1` 与 `@devbie/fewbie-cli@1.4.2` 于 2026-10-31 发布（`fd0ab734`、`b0299e82`）：apits 的 bin 直指 `dist/cli.js`（shebang + 自执行守卫，替代 1.2.0 的 `bin/apits` wrapper）；fewbie 脚手架 spec 收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（存量 1.2.0 安装继续可用）。端到端验证：临时项目用已发布的 `npx @devbie/fewbie-cli@1.4.2 apits` 成功安装 `@devbie/apits@1.2.1` 并生成 `src/api/_gen/api.ts`。
 

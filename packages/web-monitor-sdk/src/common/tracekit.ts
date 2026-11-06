@@ -30,8 +30,13 @@ const chrome =
 // gecko regex: `(?:bundle|\d+\.js)`: `bundle` is for react native, `\d+\.js` also but specifically for ram bundles because it
 // generates filenames without a prefix like `file://` the filenames in the stacktrace are just 42.js
 // We need this specific case for now because we want no other regex to match.
+// The `@` separator is mandatory whenever a function/args prefix is present.
+// It used to be optional (`(?:^|@)?`), which let error *message* headers such
+// as `Error: … https://…` parse as a frame: the prefix group swallowed the
+// message and the trailing link became `url`. A bare `url:line:col` frame (no
+// prefix, no `@`) is still accepted through the empty branch.
 const gecko =
-  /^\s*(.*?)(?:\((.*?)\))?(?:^|@)?((?:file|https?|blob|webpack|resource|moz-extension|capacitor).*?:\/.*?|\[native code\]|[^@]*(?:bundle|\d+\.js)|\/[\w\-. /=]+)(?::(\d+))?(?::(\d+))?\s*$/i;
+  /^\s*(?:(.*?)(?:\((.*?)\))?@|)((?:file|https?|blob|webpack|resource|moz-extension|capacitor).*?:\/.*?|\[native code\]|[^@]*(?:bundle|\d+\.js)|\/[\w\-. /=]+)(?::(\d+))?(?::(\d+))?\s*$/i;
 const winjs =
   /^\s*at (?:((?:\[object object\])?.+) )?\(?((?:file|ms-appx|https?|webpack|blob):.*?):(\d+)(?::(\d+))?\)?\s*$/i;
 const geckoEval = /(\S+) line (\d+)(?: > eval line \d+)* > eval/i;
