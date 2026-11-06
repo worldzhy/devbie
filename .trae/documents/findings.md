@@ -248,6 +248,10 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 | R13-02 | devbie (newbie-cli)                          | `IssueBag.warn` 语义实际致命（`assertEmpty` 在 apply/default/remove/add/update 共 6 处抛出）                                                            | P2                 | source                     | 开发者                          | fixed（`35d84d1b`；改名 `fatal` 走 stderr 红字，aws-secrets-cli 调用点同步；newbie-cli 239 测试全过） |
 | R13-03 | newbie-modules                               | 模块代码直读 `process.env` 且 manifest 未声明：tencent-cos `STORE_PATH`、account `ENVIRONMENT`；apply 永不渲染进 `.env.example`                         | P2                 | artifact / live（account） | 部署时缺键                      | fixed（`51821c4` 初修后按设计更正：`ENVIRONMENT` 属框架级键（框架 env 块已声明），account 按宿主键读取、不占 `account.*` 命名空间；`7974ac6` + 宿主 `3c6cc72` 撤掉 `account.environment`。tencent-cos 仅补声明，未装配） |
 
+| R18-01 | devbie（fewbie-cli） | 发布产物携带 `dist/.tsbuildinfo`（43.8 KB，约占 tarball 29%；无绝对路径泄露、无功能影响） | P2 | artifact（1.4.4，已由 1.4.5 取代） | 不可达 | fixed → **verified**（round19，2026-11-06；`1edb5742`）：`tsconfig.base.json` 去掉默认 `incremental: true`，`newbie-cli`/`web-monitor-sdk` 显式开启（缓存落包根），其余包删除 `incremental:false` + `tsBuildInfoFile` 死配置；13 包 clean 重建 `dist` 内 tsbuildinfo 计数 0、包根 2，registry 1.4.5 tarball 135772 B / 81 文件 / 计数 0（与本地 pack 字节一致），1.4.4 = 148732 B 且含 `dist/.tsbuildinfo`，fewbie-cli 54 测试全过 |
+
+| R19-01 | devbie（backlog） | 1.4.5 发布未记入 backlog 发布记录（说明仍止于 1.4.4） | P2 | docs | 不可达 | fixed（2026-11-06，round19 收尾）：backlog 补记 1.4.5 发布（`1edb5742`，tarball 135772 B / 81 文件 / 0 缓存） |
+
 registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws-cloudformation UncheckedCreateInput、R13-03）详见 `newbie-modules/.trae/documents/findings.md`。
 
 处置记录（2026-11-06，round15 收尾）：
@@ -257,3 +261,53 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 - 仍未处置（本轮未动，维持 open 台账）：R6-13 appId 异常语义分层（裁定待执行）、R3-25 及 round12/13 其余 P2。
 
 误报剔除（5 条）：微信登录 P0（已裁决缓修，backlog R2#6）；copilot-tool-card XSS（scheme 注入不可能）；F-14-01 CH 向量（探针反驳）；R13-01 未发布（1.17.0/1.18.0 已落库）；registry CI pin 滞后（已升 1.18.0）。详见报告 §7。
+
+## round20（2026-11-06，scope=`workspace`）
+
+报告：`.trae/documents/expert-review-2026-11-06-round20.md`（时点快照，不改写）。锚点（结束态）：devbie `5e59366a` / newbie-modules `dabce5a` / newbie-starter `254ed72` / fewbie-starter `1032cfe` / nightwatch-backend `ae3aa34` / nightwatch-frontend `8e01d56`。评审期间 newbie-modules、nightwatch-backend 各有并行提交前进（`ead62ef→dabce5a`、`1f06d3a→ae3aa34`）。P0：0；P1：4；P2：19；P3：18。
+
+| ID     | 仓                                  | 标题                                                                                                                       | 严重度 | 暴露面        | 可达性                          | 状态 |
+| ------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------------------------- | ---- |
+| R20-01 | newbie-modules                      | web-monitor `/system/update` 跨租户改写站点配置（鉴权取 body.projectId，写入键 `updateOne({appKey})`，无绑定）              | P1     | live          | 自有项目 EDITOR + 已知他人 appKey（需链条） | fixed（2026-11-07）：newbie-modules `5c47402` + 宿主 `b54062d`；controller 取参与 guard 同源（params→query→body），appKey 由安装注册表派生并经项目成员校验，body 他人 appKey 被忽略；E2E 受害文档未被改写（403） |
+| R20-02 | newbie-modules                      | web-monitor `/remove/customDeleteData` 跨租户删除遥测（鉴权取 body.projectId/applicationId，删除按 body.appKey 分表）        | P1     | live          | 自有项目 ADMIN + 已知他人 appKey（需链条）  | fixed（2026-11-07）：newbie-modules `5c47402` + 宿主 `b54062d`；customDelete 改为 (appKey, filter)，分表键由注册表派生；E2E 受害时间窗删除 403、victim 文档数不变 |
+| R20-03 | nightwatch-backend / newbie-modules | 金蝶 `params.access_token`、Lark `Authorization` 经 raw `AxiosError` 写入 `docker logs`（无 redactor）                       | P1     | live          | 调用失败即写；读需日志/SSM 权限 | open |
+| R20-04 | newbie-modules                      | ingest 毒丸第 4 向量：ajax `duration` 无上限（1e21 → CH `Code: 27`），整批失败 + 全量重排 + 死信                              | P1     | live          | anonymous（公开 installation token） | open |
+| R20-05 | devbie（newbie）                    | module-hub 快照 `hasSchema` 读 `manifest.schema`（不存在），应为 `wiring.prismaSchema`，线上恒 false                         | P2     | artifact      | 前端模块徽章读取者              | open |
+| R20-06 | devbie（newbie-cli）                | 新建工程首次 `modules add/apply` 在完成全部写入后因缺 `.env` 非零退出                                                       | P2     | source        | 开发者                          | open |
+| R20-07 | devbie（newbie-cli）                | `--check` 把 fatal issue 记为 `[dry-run] skip` 不计数，门禁可绿而真实 apply 失败                                            | P2     | source        | CI / 开发者                     | open |
+| R20-08 | newbie-modules                      | `message-tracker` 不可拷贝装配（`sst/**` 被整目录复制、引用 gitignore 的生成类型与未声明依赖）+ 19 个未声明 env 读取          | P2     | artifact      | 采用该模块者                    | open |
+| R20-09 | newbie-modules                      | `alert-lifecycle.test.ts` 的 fail-open/fail-closed 为文本断言，无行为覆盖                                                    | P2     | source        | 回归防护                        | open |
+| R20-10 | newbie-modules                      | API Key `ipRestrictions`/`referrerRestrictions` 只存不校验                                                                  | P2     | live          | API Key 持有者                  | open |
+| R20-11 | newbie-modules                      | 会话表明文保存 `refreshTokenNext`                                                                                           | P2     | live          | DB 读取者                       | open |
+| R20-12 | nightwatch-frontend                 | 401 刷新复用进行中的 forced refresh，可能复用陈旧 token 误登出                                                              | P2     | live          | 任意登录用户（需运行时确认）    | open |
+| R20-13 | devbie + nightwatch-backend         | Redis 密码进入进程 argv（`--requirepass`、`redis-cli -a`）                                                                  | P2     | ops           | 同机进程读取者                  | open |
+| R20-14 | nightwatch-backend                  | 数据/备份容器 `env_file: ./.env` 获取全量生产密钥                                                                           | P2     | ops           | 容器内进程 / 日志               | open |
+| R20-15 | newbie-modules                      | webhook 模块 SSRF 仅字符串黑名单、`axios.post` 无 timeout                                                                   | P2     | artifact      | 采用该模块者                    | open |
+| R20-16 | newbie-modules                      | secrets-manager get/update/delete 不校验 `devbie:managed` 标签                                                              | P2     | artifact      | 模块调用方                      | open |
+| R20-17 | nightwatch-backend                  | CI 角色可读 `nightwatch/prod/*` 全部密钥；`npm ci` 先于 secrets 检查                                                        | P2     | ops           | CI 生命周期脚本                 | open |
+| R20-18 | nightwatch-backend                  | `stack.yml` UserData 与 `provision.sh` 漂移（废弃 `compose.prod.yml`、`aws-cli`）                                            | P2     | ops           | 实例重建                        | open |
+| R20-19 | devbie（newbie）                    | 未配置 `trust proxy`，Caddy 后 `req.ip` 退化为容器 IP                                                                        | P2     | live          | 限流/审计/审批子网              | open |
+| R20-20 | newbie-modules                      | `order/wechat-workflow` 仅类级 API Key 守卫，可读写全量订单（未装配）                                                       | P2     | artifact      | API Key 持有者（采用后）        | open |
+| R20-21 | credentials（仓外）                 | 明文 AWS AK/SK 文件 `0644`                                                                                                  | P2     | 本机文件      | 同机用户                        | open |
+| R20-22 | newbie-modules                      | 框架仓 README/代码含中文（仅 `.trae/` 与 worldzhy-knowledge 豁免）                                                          | P2     | source        | 规则一致性                      | open |
+| R20-23 | nightwatch-frontend                 | jdy 凭证工作区约 600+ 字符硬编码中文 UI，绕过 next-intl                                                                     | P2     | live          | en locale 用户                  | open |
+| R20-24 | nightwatch-frontend                 | 通知/设置英文兜底绕过字典（`getErrorMessage` 优先返回 `error.message`）                                                     | P3     | live          | zh locale 用户                  | open |
+| R20-25 | nightwatch-frontend                 | backlog 过期 2 条：Accept-Language 已实现仍写“待决策”；字典叶数 2094 实为 2096                                              | P3     | docs          | —                               | open |
+| R20-26 | newbie-starter / fewbie-starter     | CI 不运行 `npm test`，`smoke.test.ts` 为死测试                                                                              | P3     | source        | CI                              | open |
+| R20-27 | devbie（newbie-cli）                | 跨模块重复 env 命中全局去重，后声明模块段落可能为空                                                                         | P3     | artifact      | 开发者                          | open |
+| R20-28 | devbie（fewbie-cli）                | `modules apply` 部分失败后重试被 “file already exists” 拦截                                                                 | P3     | source        | 开发者                          | open |
+| R20-29 | devbie（CLI）                       | 相对 `--template-path` 按进程 cwd 解析而非 `-C` 工程目录                                                                    | P3     | source        | 开发者                          | open |
+| R20-30 | devbie（newbie-cli）                | wiring 路径/`className`/`prismaSchema` 无校验（registry 供应链）                                                            | P3     | artifact      | 恶意/错误 manifest 提交         | open |
+| R20-31 | newbie-modules                      | ioredis 无命令超时，断连期告警评估被阻塞                                                                                    | P3     | live          | 故障期                          | open |
+| R20-32 | newbie-modules                      | CH `DateTime` 越界静默夹取，未文档化                                                                                        | P3     | live          | 数据完整性                      | open |
+| R20-33 | newbie-modules                      | 告警查询依赖 CH 服务端时区 UTC，无断言                                                                                      | P3     | live          | 环境变更                        | open |
+| R20-34 | nightwatch-backend                  | 无 `AWS::Logs::LogGroup`，日志仅本地 10m×3                                                                                  | P3     | ops           | 取证                          | open |
+| R20-35 | nightwatch-backend                  | `BackupFailureAlarm` namespace 硬编码                                                                                       | P3     | ops           | 告警                          | open |
+| R20-36 | nightwatch-backend                  | 基础镜像仅可变 tag，未固定 digest                                                                                           | P3     | ops           | 供给链                          | open |
+| R20-37 | newbie-modules                      | LLM `baseUrl` 服务端请求可指向内网（仅管理员可写）                                                                          | P3     | artifact      | 管理员                          | open |
+| R20-38 | nightwatch-frontend                 | dev Dockerfile 以 root 运行、`npm install`、node 未固定                                                                     | P3     | source        | 开发容器                        | open |
+| R20-39 | nightwatch-backend                  | CI 角色 `ssm:SendCommand` 作用于 `instance/*`                                                                               | P3     | ops           | CI 生命周期脚本                 | open |
+| R20-40 | nightwatch-backend                  | `render-env.sh` 预存 0644 `.env` 窗口                                                                                       | P3     | ops           | 同机多用户                      | open |
+| R20-41 | newbie-modules                      | Approved Subnet 增删无审计事件                                                                                              | P3     | live          | 审计一致性                      | open |
+
+误报剔除（7 条）：“round19 findings 静默丢弃”不成立（并行会话 `dabce5a` 已落盘 R19-01..R19-10）；“fewbie template update 丢 nightwatch-frontend 宿主定制”对象错误（该仓非 fewbie 消费仓）；credentials AK/SK 由 P1 降 P2；“order wechat-workflow”由 P1 降 P2（未装配）；“DateTime 越界可作毒丸”不成立（实测静默夹取）；“R13-03 已完全修复”仅部分成立（代码直读 19 键未声明，归入 R20-08）；“装配漂移”不成立（34 模块零内容差异）。详见报告 §8。

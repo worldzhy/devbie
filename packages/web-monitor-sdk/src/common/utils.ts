@@ -83,8 +83,19 @@ export const ERRORTYPES = {
   resource: "resource",
 } as const;
 
-export const ERRORAPIS = {
-  consoleError: "conso.err",
+/**
+ * Error sources written to the `api` column, and the single source of truth for
+ * where an error came from (error-source classification, ADR-050). Values are
+ * matched literally by the alert predicates in the web-monitor module, so they
+ * are part of the published contract: change them only together with those.
+ */
+export const ERROR_APIS = {
+  /** `console.error` output, including stack-bearing single-argument calls. Reported as `log`. */
+  consoleError: "console-error",
+  /** Uncaught JS exception (`window.onerror`). Reported as `script`. */
   onerror: "onerror",
-  unhandleReject: "reject",
+  /** Unhandled promise rejection. Reported as `script`. */
+  unhandledRejection: "unhandled-rejection",
+  /** Failed resource load (image/script/link). Reported as `resource`. */
+  resourceError: "resource-error",
 } as const;

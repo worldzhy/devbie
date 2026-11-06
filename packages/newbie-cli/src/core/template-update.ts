@@ -64,7 +64,7 @@ export interface TemplateFile {
 }
 
 /**
- * Full ownership registry of the 38 tracked starter-template files
+ * Full ownership registry of the 39 tracked starter-template files
  * (package-lock.json is per-project by nature and excluded, see
  * TEMPLATE_SCAN_IGNORED_FILES).
  */
@@ -131,6 +131,7 @@ export const TEMPLATE_FILES: readonly TemplateFile[] = [
   { path: ".github/dependabot.yml", ownership: "template-shipped-host-owned" },
   { path: ".github/workflows/ci.yml", ownership: "template-shipped-host-owned" },
   { path: ".github/workflows/dependabot-triage.yml", ownership: "template-shipped-host-owned" },
+  { path: ".github/pull_request_template.md", ownership: "template-shipped-host-owned" },
 ];
 
 /** Files that never participate in template update (owned by no one file class). */

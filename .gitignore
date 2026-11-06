@@ -33,3 +33,7 @@ packages/*/node_modules
 
 # npm pack tarballs (staging artifacts, consumed from the registry)
 *.tgz
+# monorepo: root package-lock.json tracked; sub-packages resolve via hoisted node_modules
+packages/*/package-lock.json
+# aws-secrets-cli/sst is a standalone Lambda + SST deployment unit — needs its own lock file
+# (packages/*/sst/package-lock.json intentionally NOT ignored)
