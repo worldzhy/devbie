@@ -3,8 +3,6 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "incremental": false,
-    "tsBuildInfoFile": "dist/.tsbuildinfo",
     "module": "node16",
     "moduleResolution": "node16",
     "types": ["node"]

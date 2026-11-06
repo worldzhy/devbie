@@ -4,6 +4,7 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
+    "incremental": true,
     "resolveJsonModule": true,
     "types": ["node"]
   },
