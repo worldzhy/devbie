@@ -7,7 +7,7 @@ import type { RemoteModule } from "./client";
  * the hub recorded for this installation.
  *
  * This is the remote counterpart of `newbie status`: it answers "does the
- * hub's view of this deployment match the modules.json I have on disk?", not
+ * hub's view of this deployment match the newbie-modules.json I have on disk?", not
  * "did the host's target spec land?" — the latter is the hub's own
  * target-vs-actual view and is already rendered by the UI.
  */
@@ -15,7 +15,7 @@ import type { RemoteModule } from "./client";
 export type MismatchReason =
   /** Enabled locally but absent from the hub snapshot. */
   | "missing-on-hub"
-  /** Recorded by the hub but no longer in the local modules.json. */
+  /** Recorded by the hub but no longer in the local newbie-modules.json. */
   | "missing-locally"
   /** Same module, different registry commit — the deployment lags the assembly. */
   | "source-commit-differs";

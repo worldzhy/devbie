@@ -42,7 +42,7 @@ export function register(parent: Command, options: GlobalOptions): void {
 
   parent
     .command("verify")
-    .description("Fail when the hub's snapshot of this installation differs from the local modules.json")
+    .description("Fail when the hub's snapshot of this installation differs from the local newbie-modules.json")
     .option("--expect-label <label>", "abort when the token resolves to a different installation label")
     .option("--modules-url <url>", "override the derived caller-scoped modules URL")
     .option("--token <token>", "override the installation report token")
