@@ -75,7 +75,7 @@ describe("startModuleHubReporting", () => {
 
   it("sends full report with correct URL, headers, and snapshot", async () => {
     await fs.writeFile(
-      path.join(root, "modules.json"),
+      path.join(root, "newbie-modules.json"),
       JSON.stringify({
         modules: [{ key: "account", version: "1.0.0", sourceCommit: "abc", localPatches: [] }],
       }),

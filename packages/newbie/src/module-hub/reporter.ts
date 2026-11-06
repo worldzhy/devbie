@@ -38,7 +38,7 @@ export interface ModuleHubReportOptions {
   endpoint: string;
   /** Report token sent as X-Module-Hub-Token header. */
   token: string;
-  /** Project root where modules.json lives. Defaults to process.cwd(). */
+  /** Project root where newbie-modules.json lives. Defaults to process.cwd(). */
   projectRoot?: string;
   /** Deployed application version (git sha / semver). Defaults to APP_VERSION env. */
   appVersion?: string;
@@ -71,7 +71,7 @@ function resolvePingIntervalMs(reportIntervalSeconds: unknown): number | null {
  * Starts the module-hub reporting loop.
  *
  * Immediately sends a `kind="full"` report (with the module snapshot read
- * from `modules.json`), then sends `kind="ping"` every
+ * from `newbie-modules.json`), then sends `kind="ping"` every
  * `reportIntervalSeconds` (from the hub response, default 60s).
  *
  * Idempotent: calling twice returns the existing handle. The timer is
@@ -143,7 +143,7 @@ export function startModuleHubReporting(options: ModuleHubReportOptions): Module
     try {
       modules = await readModuleSnapshot(projectRoot);
     } catch {
-      // modules.json read failed; report without a snapshot.
+      // newbie-modules.json read failed; report without a snapshot.
     }
 
     const response = await send({
