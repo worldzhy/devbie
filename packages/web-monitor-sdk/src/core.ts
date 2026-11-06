@@ -1,5 +1,5 @@
 import { StackTrace, computeStackTrace } from "./common/tracekit";
-import { ERRORAPIS, ERRORTYPES, getConsoleErrorMsg, isObject } from "./common/utils";
+import { ERROR_APIS, ERRORTYPES, getConsoleErrorMsg, isObject } from "./common/utils";
 import { filterResourceError, getHeaderMap, randomString, reportUrl, sanitizeText } from "./utils";
 import { markDevice, markUser, markUv } from "./identity";
 import {
@@ -43,11 +43,13 @@ const reportDebounce = function () {
   return false;
 };
 
-const ErrorInstanceReport = function (error: StackTrace, api: string): void {
+const ErrorInstanceReport = function (error: StackTrace, api: string, type: string): void {
   const defaults = Object.assign({}, errorEntryTemplate);
   setTimeout(() => {
     defaults.msg = error.message;
-    defaults.type = ERRORTYPES.script;
+    // The caller decides the type (ADR-050): runtime crashes are `script`,
+    // console output stays `log` even when it carries a parseable stack.
+    defaults.type = type;
     defaults.name = error.name;
     defaults.api = api;
     defaults.stack = error.stack;
@@ -470,7 +472,7 @@ function Performance(options: InitOptions): void {
         defaults.createTime = new Date().getTime();
         defaults.msg = e.target.localName + " is load error";
         defaults.method = "GET";
-        defaults.api = ERRORAPIS.onerror;
+        defaults.api = ERROR_APIS.resourceError;
         defaults.data = {
           target: e.target.localName,
           type: e.type,
@@ -488,13 +490,13 @@ function Performance(options: InitOptions): void {
         const defaults = Object.assign({}, errorEntryTemplate);
         defaults.msg = msg;
         defaults.type = ERRORTYPES.log;
-        defaults.api = ERRORAPIS.onerror;
+        defaults.api = ERROR_APIS.onerror;
         defaults.createTime = new Date().getTime();
         defaults.data = { resourceUrl: _url, line, col };
         conf.errorList.push(defaults);
         if (reportDebounce()) reportData(ReportType.Error);
       } else {
-        ErrorInstanceReport(stack, ERRORAPIS.onerror);
+        ErrorInstanceReport(stack, ERROR_APIS.onerror, ERRORTYPES.script);
       }
       if (_oldOnerror) {
         return _oldOnerror.apply(this, args as any);
@@ -511,13 +513,13 @@ function Performance(options: InitOptions): void {
           defaults.msg = "" + error;
         }
         defaults.type = ERRORTYPES.log;
-        defaults.api = ERRORAPIS.unhandleReject;
+        defaults.api = ERROR_APIS.unhandledRejection;
         defaults.createTime = new Date().getTime();
         defaults.data = { resourceUrl: location.href };
         conf.errorList.push(defaults);
         if (reportDebounce()) reportData(ReportType.Error);
       } else {
-        ErrorInstanceReport(stack, ERRORAPIS.unhandleReject);
+        ErrorInstanceReport(stack, ERROR_APIS.unhandledRejection, ERRORTYPES.script);
       }
     });
     const oldError = console.error;
@@ -525,7 +527,9 @@ function Performance(options: InitOptions): void {
       if (args.length === 1) {
         const stack = computeStackTrace(args[0]);
         if (!stack.failed) {
-          ErrorInstanceReport(stack, ERRORAPIS.consoleError);
+          // A stack-bearing console call is still console output, not a crash:
+          // report it as `log` (ADR-050) while keeping message/stack/line/col.
+          ErrorInstanceReport(stack, ERROR_APIS.consoleError, ERRORTYPES.log);
           // Still forward to the host console: swallowing the call hid the
           // developer's own diagnostics whenever the argument was an Error.
           return (oldError as any).apply(console, args);
@@ -537,7 +541,7 @@ function Performance(options: InitOptions): void {
         setTimeout(() => {
           defaults.msg = msg;
           defaults.type = ERRORTYPES.log;
-          defaults.api = ERRORAPIS.consoleError;
+          defaults.api = ERROR_APIS.consoleError;
           defaults.createTime = new Date().getTime();
           defaults.data = { resourceUrl: location.href };
           conf.errorList.push(defaults);
