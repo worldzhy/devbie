@@ -29,7 +29,7 @@
 
 ## P2
 
-（暂无）
+- [ ] `[2026-11-06 告警排查]` **web-monitor-sdk 的 tracekit 把异常消息首行误判为栈帧**：`common/tracekit.ts` 的 gecko 正则允许 `@` 省略，消息首行以 URL 结尾时（如 next-intl 开发态 `ENVIRONMENT_FALLBACK` 提示）会把文档链接写进 `url`/`line`，导致 `resourceUrl` 归因失真（实证：nightwatch-frontend 告警 `[script] Error @ https://next-intl.dev/docs/usage/dates-times:?`）。修复方向：gecko 帧行要求含 `@` 或以 `at ` 开头，并补一条解析单测；改后需发版并升级消费方。
 
 > `@devbie/apits@1.2.1` 与 `@devbie/fewbie-cli@1.4.2` 于 2026-10-31 发布（`fd0ab734`、`b0299e82`）：apits 的 bin 直指 `dist/cli.js`（shebang + 自执行守卫，替代 1.2.0 的 `bin/apits` wrapper）；fewbie 脚手架 spec 收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（存量 1.2.0 安装继续可用）。端到端验证：临时项目用已发布的 `npx @devbie/fewbie-cli@1.4.2 apits` 成功安装 `@devbie/apits@1.2.1` 并生成 `src/api/_gen/api.ts`。
 
