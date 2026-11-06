@@ -4,7 +4,7 @@
 [![license](https://img.shields.io/npm/l/@devbie/modules-state?style=flat-square)](https://github.com/worldzhy/devbie/blob/dev/LICENSE)
 [![node](https://img.shields.io/node/v/@devbie/modules-state?style=flat-square)](https://www.npmjs.com/package/@devbie/modules-state)
 
-Shared reader and types for the project-root `modules.json` install manifest
+Shared reader and types for the project-root `newbie-modules.json` install manifest
 used by the newbie module system. The CLI (`@devbie/newbie-cli`) writes and
 validates this file; the runtime (`@devbie/newbie`) reads it from inside a
 running process for module-hub reporting. Both import from this package so the
@@ -37,15 +37,15 @@ console.log(moduleKeys(state)); // ["account", "heartbeat", ...]
 
 ### Constants
 
-| Export                 | Value                |
-| ---------------------- | -------------------- |
-| `MODULES_JSON`         | `modules.json`       |
-| `MODULES_DIR`          | `src/modules`        |
-| `MODULE_MANIFEST_FILE` | `newbie.module.json` |
+| Export                 | Value                 |
+| ---------------------- | --------------------- |
+| `MODULES_JSON`         | `newbie-modules.json` |
+| `MODULES_DIR`          | `src/modules`         |
+| `MODULE_MANIFEST_FILE` | `newbie.module.json`  |
 
 ### Functions
 
-- `readModulesState(cwd)` — read and normalize `<cwd>/modules.json`. Returns an
+- `readModulesState(cwd)` — read and normalize `<cwd>/newbie-modules.json`. Returns an
   empty state when the file is absent; propagates the `SyntaxError` from
   `JSON.parse` when the file contains invalid JSON.
 - `normalizeModulesState(raw)` — coerce unknown input into a valid

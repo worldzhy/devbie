@@ -7,7 +7,7 @@
  */
 
 /** Project-root install manifest (shadcn components.json style). */
-export const MODULES_JSON = "modules.json";
+export const MODULES_JSON = "newbie-modules.json";
 
 /** Directory where assembled modules live in a consuming project. */
 export const MODULES_DIR = "src/modules";

@@ -1,5 +1,5 @@
 /**
- * Pure operations on the project-root `modules.json` install manifest.
+ * Pure operations on the project-root `newbie-modules.json` install manifest.
  *
  * Shape (registry-copy model):
  * {
