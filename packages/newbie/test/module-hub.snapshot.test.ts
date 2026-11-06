@@ -4,6 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
+import { MODULES_JSON } from "@devbie/modules-state";
+
 import { readModuleSnapshot } from "../src/module-hub/snapshot";
 
 async function makeTempDir(): Promise<string> {
@@ -27,13 +29,13 @@ describe("readModuleSnapshot", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it("returns empty array when modules.json is absent", async () => {
+  it("returns empty array when newbie-modules.json is absent", async () => {
     const entries = await readModuleSnapshot(root);
     assert.deepEqual(entries, []);
   });
 
-  it("returns empty array when modules.json is invalid JSON", async () => {
-    await writeFile(root, "modules.json", "{ not json");
+  it("returns empty array when newbie-modules.json is invalid JSON", async () => {
+    await writeFile(root, MODULES_JSON, "{ not json");
     const entries = await readModuleSnapshot(root);
     assert.deepEqual(entries, []);
   });
@@ -41,7 +43,7 @@ describe("readModuleSnapshot", () => {
   it("reads module records and detects installed + hasSchema", async () => {
     await writeFile(
       root,
-      "modules.json",
+      MODULES_JSON,
       JSON.stringify({
         modules: [
           { key: "account", version: "1.0.0", sourceCommit: "abc123", localPatches: ["patch-1"] },
@@ -55,15 +57,14 @@ describe("readModuleSnapshot", () => {
       "src/modules/account/newbie.module.json",
       JSON.stringify({
         key: "account",
-        module: { file: "account.module", className: "AccountModule" },
-        schema: "prisma/schema.prisma",
+        wiring: { file: "account.module", className: "AccountModule", prismaSchema: "prisma/schema.prisma" },
       }),
     );
     // heartbeat: installed without schema
     await writeFile(
       root,
       "src/modules/heartbeat/newbie.module.json",
-      JSON.stringify({ key: "heartbeat", module: { file: "heartbeat.module", className: "HeartbeatModule" } }),
+      JSON.stringify({ key: "heartbeat", wiring: { file: "heartbeat.module", className: "HeartbeatModule" } }),
     );
 
     const entries = await readModuleSnapshot(root);
@@ -87,7 +88,7 @@ describe("readModuleSnapshot", () => {
   it("marks uninstalled modules as installed=false", async () => {
     await writeFile(
       root,
-      "modules.json",
+      MODULES_JSON,
       JSON.stringify({
         modules: [{ key: "ghost", version: null, sourceCommit: "sha", localPatches: [] }],
       }),
@@ -103,7 +104,7 @@ describe("readModuleSnapshot", () => {
   it("skips records with missing or non-string key", async () => {
     await writeFile(
       root,
-      "modules.json",
+      MODULES_JSON,
       JSON.stringify({
         modules: [
           { key: "valid", version: null, sourceCommit: null, localPatches: [] },
