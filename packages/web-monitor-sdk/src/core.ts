@@ -692,6 +692,9 @@ function Performance(options: InitOptions): void {
         fetch(api, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
+          // A hung connection must not stall the backoff timer forever: the
+          // other SDKs bound their report calls the same way (R15-08).
+          signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(30_000) : undefined,
           // @ts-expect-error -- custom marker so the patched fetch skips re-reporting SDK report calls
           type: "report-data" as any,
           body,
