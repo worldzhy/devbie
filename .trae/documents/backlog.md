@@ -36,8 +36,6 @@
 
 > 2026-11-06 批量发布补齐"已修未发"的 7 个包（版本 bump 提交 `523f21a8`，registry `latest` 已逐个核对）：`@devbie/apits@1.2.2`（路径参数不进 body/query 且编码、15s 超时、watcher fd 泄漏、watch 重建失败非 0 退出）、`@devbie/health-sdk@1.2.2`（上报 10s 超时 + watcher 泄漏）、`@devbie/heartbeat-sdk@1.2.1`（心跳 10s 超时）、`@devbie/backend-monitor-sdk@1.3.2`（事件字段按 DTO 上限 clamp）、`@devbie/modules-state@1.1.1`（只记录/卸载 CLI 自装依赖）、`@devbie/aws-secrets-cli@1.1.7`（拉取失败改 fatal，sst v4 随之入库）、`@devbie/fewbie-cli@1.4.4`（脚手架 web-monitor 去掉 APP_ID）。发布前按 checklist 做过 clean build + 全量测试 + `npm audit`（仅剩已登记的 10 条 lint 工具链 moderate）；tarball 解包核对修复标记均在位。fewbie-starter 已随之升 `@devbie/fewbie-cli@^1.4.4` 与 `@devbie/heartbeat-sdk@^1.2.1`（`1032cfe`，dev 已推送）；`check:template-deps` 的 web-monitor 1.5.2 报错仍来自脚本克隆 main，待 dev 合入后转绿。
 
-- [ ] `[2026-11-06 发布发现]` **fewbie-cli 的 tarball 带出 `dist/.tsbuildinfo`**：`files: ["dist"]` 把 tsc 增量缓存一并打包（1.4.4 的 tarball 内 43.8kB），属构建产物噪音。修复方向：build 后删除 `dist/.tsbuildinfo`，或 tsbuildinfo 输出到 `dist` 之外、由 clean 脚本一并清理。
-
 ## 安全评审 round3 P2（devbie 仓自身条目，二次取证后 open，2026-11-02 入账）
 
 > 来源：`.trae/documents/expert-review-2026-10-31-round3.md` §P2「CLI 健壮性 / 契约一致性 / 无界增长」中归属 devbie 的条目。P2-26（cli-kit 网络调用无超时）、P2-27（fewbie create 泄漏临时 clone）复核为误报；P2-29（NewbieFactory.create god object）属有意 bootstrap 门面，out-of-scope。
