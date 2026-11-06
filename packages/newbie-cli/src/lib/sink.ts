@@ -79,6 +79,12 @@ export function createSink(cwd: string, dryRun: boolean, options: { check?: bool
 
     async writeJson(file: string, value: unknown): Promise<void> {
       await this.writeText(file, `${JSON.stringify(value, null, 2)}\n`);
+      // Post-format with the consumer's prettier so arrays/objects that fit on
+      // one line stay on one line (printWidth: 120). Only runs in real mode —
+      // check/dry-run never write, so prettier has nothing to fix.
+      if (!check && !dryRun) {
+        await this.run("npx", ["prettier", "--write", file], `prettier ${file}`);
+      }
     },
 
     async remove(fileOrDir: string): Promise<void> {
