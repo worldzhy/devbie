@@ -20,7 +20,7 @@ This repository is an npm-workspaces monorepo:
 | [packages/style-guide](packages/style-guide)                 | `@devbie/style-guide`         | Shared prettier config and composable eslint flat layers (`base`, `nest`, `next`)                       |
 | [packages/aws-secrets-cli](packages/aws-secrets-cli)         | `@devbie/aws-secrets-cli`     | CLI plugin of the aws-secrets-manager module: pull/push env secrets, deploy the rotation Lambda         |
 | [packages/cli-kit](packages/cli-kit)                         | `@devbie/cli-kit`             | Shared CLI primitives (user-facing errors, process execution, filesystem helpers)                       |
-| [packages/modules-state](packages/modules-state)             | `@devbie/modules-state`       | Shared reader and types for the project-root `modules.json` install manifest                            |
+| [packages/modules-state](packages/modules-state)             | `@devbie/modules-state`       | Shared reader and types for the project-root `newbie-modules.json` install manifest                     |
 | [packages/module-hub-cli](packages/module-hub-cli)           | `@devbie/module-hub-cli`      | CLI plugin of the module-hub module: inspect this installation's wiring and module set                  |
 | [packages/worklog](packages/worklog)                         | `@devbie/worklog`             | Member-side worklog agent for work-evaluation: sends declared work evidence to the host                 |
 | [packages/heartbeat-sdk](packages/heartbeat-sdk)             | `@devbie/heartbeat-sdk`       | Framework-agnostic heartbeat client for installation liveness reporting                                 |
@@ -51,7 +51,7 @@ npx @devbie/newbie-cli create my-app
 cd my-app && npm install
 
 npx newbie modules        # interactive module selection
-npx newbie modules apply  # reconcile project files with modules.json
+npx newbie modules apply  # reconcile project files with newbie-modules.json
 ```
 
 ## Development
