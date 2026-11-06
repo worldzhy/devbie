@@ -1,6 +1,6 @@
 {
   "name": "@devbie/module-hub-cli",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "CLI plugin of the module-hub newbie module: inspect this installation's reported module snapshot and verify it against the local newbie-modules.json",
   "license": "MIT",
   "repository": {
