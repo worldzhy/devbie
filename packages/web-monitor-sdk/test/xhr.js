@@ -2,9 +2,7 @@ import "./mock/web.env";
 import { mockPerformanceResource, XMLConstructorEnum, mockBaseXhrApi } from "./mock/mock";
 import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
-const appId = "appid_test";
 const _monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
 });
@@ -37,7 +35,6 @@ test("web api: XMLHttpRequest", async () => {
 
   // Phase 1: page-load report
   await waitFor(() => reportTypePage, 8000);
-  expect(reportTypePage.appId).toEqual(appId);
   expect(reportTypePage.performance.andt).toEqual(
     Math.round(
       window.performance.getEntriesByType("navigation")[0].domComplete -

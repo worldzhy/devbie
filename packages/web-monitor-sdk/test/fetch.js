@@ -2,9 +2,7 @@ import "./mock/web.env";
 import { mockPerformanceResource, mockBaseFetchApi } from "./mock/mock";
 import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
-const appId = "appid_test";
 const _monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
   // This suite asserts the legacy opt-in behaviour: bodies/queries are only
@@ -18,7 +16,11 @@ httpServer(mockBaseFetchApi);
 // Override the fetch patched by monitor; verify auto-reporting after a request completes
 // Intercept and store reported payloads for assertions in test()
 let reportTypePage, reportTypeAjax;
+// R15-08: every report call must carry a timeout signal, otherwise a hung
+// connection stalls the SDK's backoff timer forever.
+const reportSignals = [];
 overrideFetch(function () {
+  reportSignals.push(arguments[1].signal);
   const body = JSON.parse(arguments[1].body);
   // page report
   if (body.type === "PagePerf") {
@@ -36,7 +38,6 @@ overrideFetch(function () {
 test("web api: fetch", async () => {
   // Phase 1: page-load report
   await waitFor(() => reportTypePage, 8000);
-  expect(reportTypePage.appId).toEqual(appId);
   expect(reportTypePage.performance.andt).toEqual(
     Math.round(
       window.performance.getEntriesByType("navigation")[0].domComplete -
@@ -60,4 +61,8 @@ test("web api: fetch", async () => {
   expect(reportTypeAjax.resourceList[0].options).toEqual(requestAddress.split("?")[1]);
   expect(reportTypeAjax.markUser.length).toBeGreaterThan(0);
   expect(reportTypeAjax.markUv.length).toBeGreaterThan(0);
+
+  // R15-08: the report fetch is bounded in time, like the other SDKs.
+  expect(reportSignals.length).toBeGreaterThan(0);
+  reportSignals.forEach((signal) => expect(signal).toBeInstanceOf(AbortSignal));
 }, 20000);

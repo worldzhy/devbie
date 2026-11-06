@@ -3,8 +3,6 @@ import "./mock/web.env";
 import { filterResourceError } from "../src/utils";
 import { filterResource, perforPage } from "../src/performance";
 
-const _appId = "appid_test";
-
 test("web options: filterUrls -> filterResourceError", () => {
   const opt = { filterUrls: ["/api/ignore/v1", ".com/api/v2/ignore"] };
   const conf = {

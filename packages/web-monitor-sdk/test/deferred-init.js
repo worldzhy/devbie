@@ -12,7 +12,7 @@ function initAfterWindowLoad(options, reports) {
   });
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- loaded after readyState is forced
   const init = require("../src/index").default;
-  init({ appId: "appid_test", api: "http://localhost/report", token: "token_test", ...options });
+  init({ api: "http://localhost/report", token: "token_test", ...options });
 }
 
 test("reports PagePerf when initialized after the window load event", async () => {

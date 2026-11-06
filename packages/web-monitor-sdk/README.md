@@ -41,15 +41,18 @@ your root layout or application entry:
 import init from "@devbie/web-monitor-sdk";
 
 init({
-  appId: "my-app",
   api: "https://collector.example.com/api/web-monitor/report",
+  token: "<report token>",
 });
 ```
 
 The `init` call returns helper functions for manual reporting:
 
 ```ts
-const monitor = init({ appId: "my-app", api: "https://collector.example.com/api/web-monitor/report" });
+const monitor = init({
+  api: "https://collector.example.com/api/web-monitor/report",
+  token: "<report token>",
+});
 
 monitor.addCustom({
   customName: "checkout",
@@ -66,15 +69,15 @@ npx @devbie/fewbie-cli add web-monitor-sdk
 ```
 
 Then add the scaffolded `<WebMonitor />` component to your root layout and
-configure `NEXT_PUBLIC_WEB_MONITOR_ENDPOINT`, `NEXT_PUBLIC_WEB_MONITOR_APP_ID` and `NEXT_PUBLIC_WEB_MONITOR_TOKEN`.
-The component is a no-op until all three environment variables are present.
+configure `NEXT_PUBLIC_WEB_MONITOR_ENDPOINT` and `NEXT_PUBLIC_WEB_MONITOR_TOKEN`.
+The component is a no-op until both environment variables are present.
 
 ## Init options
 
 | Option              | Type       | Default      | Required | Description                                                                                                                       |
 | ------------------- | ---------- | ------------ | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `appId`             | `string`   | —            | Yes      | Application identifier sent with every report.                                                                                    |
 | `api`               | `string`   | —            | Yes      | Collector endpoint that receives report payloads.                                                                                 |
+| `token`             | `string`   | —            | Yes      | Report token issued for the deployment; the collector resolves it to the application partition.                                   |
 | `isPage`            | `boolean`  | `true`       | No       | Collect page-view / page performance data.                                                                                        |
 | `isAjax`            | `boolean`  | `true`       | No       | Instrument XHR and `fetch` requests.                                                                                              |
 | `isResource`        | `boolean`  | `true`       | No       | Collect resource timing and slow/failed resources.                                                                                |
@@ -133,8 +136,8 @@ report an error:
 
 ```ts
 init({
-  appId: "my-app",
   api: "https://collector.example.com/api/web-monitor/report",
+  token: "<report token>",
   errcodeReport: (responseData) => {
     return {
       isReport: responseData.code !== 0,

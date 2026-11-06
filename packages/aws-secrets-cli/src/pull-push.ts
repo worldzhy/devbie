@@ -169,7 +169,7 @@ export async function runSecretsPull(options: SecretsCommandOptions): Promise<vo
         green(`    ✓ ${Object.keys(parsed.envVars).length + Object.keys(parsed.keysOnlyVars).length} variables\n`),
       );
     } catch (error) {
-      issues.warn(`Failed to pull ${secretConfig.name}: ${(error as Error).message}`);
+      issues.fatal(`Failed to pull ${secretConfig.name}: ${(error as Error).message}`);
     }
   }
 

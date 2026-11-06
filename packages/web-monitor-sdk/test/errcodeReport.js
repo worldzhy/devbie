@@ -3,12 +3,10 @@ import "./mock/web.env";
 import { mockErrcodeReportApi, mockPerformanceResource } from "./mock/mock";
 import { overrideFetch, httpServer, waitFor } from "./mock/utils";
 import webMonitorSdk from "../src/index";
-const appId = "appid_test";
 // Start a server to receive requests
 httpServer(mockErrcodeReportApi);
 /** default env domain; also used as the test instance for errcodeReport and filterUrls */
 const _monitor = webMonitorSdk({
-  appId,
   api: "http://localhost/report",
   token: "token_test",
   errcodeReport(res) {

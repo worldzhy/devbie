@@ -73,7 +73,7 @@ function Performance(options: InitOptions): void {
   if (globalScope[INITIALIZED_KEY]) return;
   globalScope[INITIALIZED_KEY] = true;
 
-  if (!options.appId || !options.api || !options.token) throw new Error("appId, api or token is not defined");
+  if (!options.api || !options.token) throw new Error("api or token is not defined");
   /**
    * URLs always excluded from AJAX/resource collection, on top of the
    * user-configured filterUrls. The collector endpoint itself fires as an
@@ -651,14 +651,13 @@ function Performance(options: InitOptions): void {
   }
 
   function getBaseData(type: ReportType, time?: number) {
-    const { appId, token } = opt;
+    const { token } = opt;
     const markuser = markUser(type);
     if (conf.markPageUrl !== location.href) {
       conf.markPageUrl = location.href;
       conf.markPage = randomString();
     }
     const result = {
-      appId,
       token,
       time: time || new Date().getTime(),
       markUser: markuser.markUser,
@@ -693,6 +692,9 @@ function Performance(options: InitOptions): void {
         fetch(api, {
           method: "POST",
           headers: { "Content-Type": "text/plain" },
+          // A hung connection must not stall the backoff timer forever: the
+          // other SDKs bound their report calls the same way (R15-08).
+          signal: typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(30_000) : undefined,
           // @ts-expect-error -- custom marker so the patched fetch skips re-reporting SDK report calls
           type: "report-data" as any,
           body,

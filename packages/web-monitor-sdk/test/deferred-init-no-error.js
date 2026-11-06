@@ -13,6 +13,6 @@ test("reports PagePerf with isError disabled", async () => {
   });
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- loaded after readyState is forced
   const init = require("../src/index").default;
-  init({ appId: "appid_test", api: "http://localhost/report", token: "token_test", isError: false });
+  init({ api: "http://localhost/report", token: "token_test", isError: false });
   await waitFor(() => reports.some((report) => report.type === "PagePerf"));
 });
