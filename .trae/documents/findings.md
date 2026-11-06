@@ -248,6 +248,8 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 | R13-02 | devbie (newbie-cli)                          | `IssueBag.warn` 语义实际致命（`assertEmpty` 在 apply/default/remove/add/update 共 6 处抛出）                                                            | P2                 | source                     | 开发者                          | fixed（`35d84d1b`；改名 `fatal` 走 stderr 红字，aws-secrets-cli 调用点同步；newbie-cli 239 测试全过） |
 | R13-03 | newbie-modules                               | 模块代码直读 `process.env` 且 manifest 未声明：tencent-cos `STORE_PATH`、account `ENVIRONMENT`；apply 永不渲染进 `.env.example`                         | P2                 | artifact / live（account） | 部署时缺键                      | fixed（`51821c4` 初修后按设计更正：`ENVIRONMENT` 属框架级键（框架 env 块已声明），account 按宿主键读取、不占 `account.*` 命名空间；`7974ac6` + 宿主 `3c6cc72` 撤掉 `account.environment`。tencent-cos 仅补声明，未装配） |
 
+| R18-01 | devbie（fewbie-cli） | 发布产物携带 `dist/.tsbuildinfo`（43.8 KB，约占 tarball 29%；无绝对路径泄露、无功能影响） | P2 | artifact（1.4.4） | 不可达 | open（round18；修复方向：tsconfig 覆盖 `incremental:false` 并删 `tsBuildInfoFile`，探针已证明 emit 不变） |
+
 registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws-cloudformation UncheckedCreateInput、R13-03）详见 `newbie-modules/.trae/documents/findings.md`。
 
 处置记录（2026-11-06，round15 收尾）：
