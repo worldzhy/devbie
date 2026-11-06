@@ -29,7 +29,6 @@
 
 ## P2
 
-- [ ] `[2026-11-06 装配发现]` **newbie-cli 写 modules.json 不过 prettier**：装配/更新模块时 CLI 重写 `modules.json`（sourceCommit pin 归位），短数组按多行展开输出（如 `"dependencies": [\n "xlsx"\n]`），与消费仓 prettier（@devbie/style-guide，printWidth 内折成单行）不一致，导致装配后 `npm run format:check` 必失败、每次需手工 `prettier --write modules.json` 才能过提交门禁。修复方向：CLI 写完 modules.json 后用项目 prettier 格式化一次（sink 层对生成文件统一处理），或按 printWidth 规则直接生成。证据：nightwatch-backend 装配 registry @501d5e9 后 modules.json 被 prettier 改写（随 `6232c3b` 提交）。
 
 > `@devbie/apits@1.2.1` 与 `@devbie/fewbie-cli@1.4.2` 于 2026-10-31 发布（`fd0ab734`、`b0299e82`）：apits 的 bin 直指 `dist/cli.js`（shebang + 自执行守卫，替代 1.2.0 的 `bin/apits` wrapper）；fewbie 脚手架 spec 收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（存量 1.2.0 安装继续可用）。端到端验证：临时项目用已发布的 `npx @devbie/fewbie-cli@1.4.2 apits` 成功安装 `@devbie/apits@1.2.1` 并生成 `src/api/_gen/api.ts`。
 
