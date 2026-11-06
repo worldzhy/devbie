@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@devbie/cli-kit": "^1.0.0",
-    "@devbie/modules-state": "^1.0.0",
+    "@devbie/modules-state": "^1.2.0",
     "@inquirer/prompts": "^7.0.0",
     "colorette": "^2.0.20",
     "commander": "^12.1.0",

@@ -16,7 +16,7 @@ import {
 } from "../src/lib/registry";
 
 /**
- * R7-01: modules.json#registry.ref/url must actually govern resolution.
+ * R7-01: newbie-modules.json#registry.ref/url must actually govern resolution.
  * Before the fix the block was write-only metadata — the cache clone silently
  * followed the remote default branch (main), and local checkouts ignored the
  * declared ref entirely.
@@ -72,10 +72,14 @@ async function makeLocalRegistry(): Promise<{ root: string; head: string }> {
   return { root, head: git(root, "rev-parse", "HEAD") };
 }
 
-/** A consumer project whose modules.json declares the given registry block. */
+/** A consumer project whose newbie-modules.json declares the given registry block. */
 async function makeProject(registryBlock: unknown): Promise<string> {
   const cwd = await makeTemp("newbie-reg-project-");
-  await fs.writeFile(path.join(cwd, "modules.json"), JSON.stringify({ registry: registryBlock, modules: [] }), "utf8");
+  await fs.writeFile(
+    path.join(cwd, "newbie-modules.json"),
+    JSON.stringify({ registry: registryBlock, modules: [] }),
+    "utf8",
+  );
   return cwd;
 }
 
@@ -94,7 +98,7 @@ async function captureWarnings(run: () => Promise<unknown>): Promise<string[]> {
 }
 
 describe("R7-01: registry resolution honors declared ref/url", () => {
-  it("modules.json#registry.ref governs when NEWBIE_MODULES_REF is absent", async () => {
+  it("newbie-modules.json#registry.ref governs when NEWBIE_MODULES_REF is absent", async () => {
     const { root } = await makeLocalRegistry();
     const cwd = await makeProject({ url: "https://example.invalid/registry.git", ref: "origin/dev" });
     process.env[REGISTRY_PATH_ENV] = root;
@@ -105,7 +109,7 @@ describe("R7-01: registry resolution honors declared ref/url", () => {
     assert.equal(location?.url, "https://example.invalid/registry.git");
   });
 
-  it("NEWBIE_MODULES_REF wins over modules.json#registry.ref", async () => {
+  it("NEWBIE_MODULES_REF wins over newbie-modules.json#registry.ref", async () => {
     const { root } = await makeLocalRegistry();
     const cwd = await makeProject({ ref: "origin/dev" });
     process.env[REGISTRY_PATH_ENV] = root;
@@ -115,7 +119,7 @@ describe("R7-01: registry resolution honors declared ref/url", () => {
     assert.equal(location?.ref, "origin/release");
   });
 
-  it("an invalid modules.json#registry.ref is a hard error, not a silent fallback", async () => {
+  it("an invalid newbie-modules.json#registry.ref is a hard error, not a silent fallback", async () => {
     const { root } = await makeLocalRegistry();
     const cwd = await makeProject({ ref: "-oops" });
     process.env[REGISTRY_PATH_ENV] = root;

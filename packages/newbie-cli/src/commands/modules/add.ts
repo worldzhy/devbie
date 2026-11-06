@@ -9,7 +9,7 @@ import { createContext, GlobalOptions } from "../shared";
 
 export interface ModulesAddOptions extends GlobalOptions {
   yes?: boolean;
-  /** Module keys to declare in modules.json and install (npm-style add). */
+  /** Module keys to declare in newbie-modules.json and install (npm-style add). */
   keys: string[];
 }
 

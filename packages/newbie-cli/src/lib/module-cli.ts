@@ -100,7 +100,7 @@ export async function loadModuleCliEntry(
 }
 
 /**
- * Walk the enabled module list in `modules.json`, load any manifest that
+ * Walk the enabled module list in `newbie-modules.json`, load any manifest that
  * declares a `cli` namespace, and let each entry register its subcommands
  * under that namespace on the root program.
  *

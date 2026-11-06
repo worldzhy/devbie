@@ -46,7 +46,7 @@ describe("installSpecName / filterManagedRemovals", () => {
     const removals = { dependencies: ["cli-owned", "host-owned"], devDependencies: ["cli-dev"] };
     const managed = { dependencies: ["cli-owned"], devDependencies: ["cli-dev"] };
     assert.deepEqual(filterManagedRemovals(removals, managed), ["cli-owned", "cli-dev"]);
-    // No record (legacy modules.json): uninstall nothing rather than risk a host dependency.
+    // No record (legacy newbie-modules.json): uninstall nothing rather than risk a host dependency.
     assert.deepEqual(filterManagedRemovals(removals, undefined), []);
   });
 });

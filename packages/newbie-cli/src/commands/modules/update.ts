@@ -280,7 +280,7 @@ export async function backupInstalledModules(cwd: string, keys: string[]): Promi
 
 /**
  * CI gate (ADR-024 F7): every installed module copy must stay byte-identical to
- * the registry tree pinned in modules.json (ADR-019/ADR-021). Runs offline:
+ * the registry tree pinned in newbie-modules.json (ADR-019/ADR-021). Runs offline:
  * CI points NEWBIE_MODULES_PATH at a local checkout, so no fetch. A copy
  * without a usable pin is reported instead of skipped (R5-06/N-2).
  */

@@ -32,11 +32,11 @@ describe("sink.writeJson", () => {
   it("keeps a short dependencies array on one line via the consumer's prettier", async () => {
     const root = await makeConsumer();
     const sink = createSink(root, false);
-    await sink.writeJson("modules.json", {
+    await sink.writeJson("newbie-modules.json", {
       version: 1,
       modules: [{ key: "xlsx", dependencies: ["xlsx"], devDependencies: [] }],
     });
-    const content = await fs.readFile(path.join(root, "modules.json"), "utf8");
+    const content = await fs.readFile(path.join(root, "newbie-modules.json"), "utf8");
     assert.match(content, /"dependencies": \["xlsx"\],/);
   });
 });

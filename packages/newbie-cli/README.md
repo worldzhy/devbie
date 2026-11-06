@@ -101,7 +101,7 @@ inventory and never writes.
 
 #### `newbie modules add <keys...>`
 
-Declare modules in `modules.json` (npm-style add) and install them: fetch the
+Declare modules in `newbie-modules.json` (npm-style add) and install them: fetch the
 registry, reject unknown or deprecated keys, then land the copies and wiring.
 
 | Option      | Description                |
@@ -110,13 +110,13 @@ registry, reject unknown or deprecated keys, then land the copies and wiring.
 
 #### `newbie modules apply`
 
-Reconcile the project with `modules.json`: copy missing modules, remove extra
+Reconcile the project with `newbie-modules.json`: copy missing modules, remove extra
 ones, regenerate wiring.
 
-| Option      | Description                                                                                  |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| `--check`   | CI gate: verify module copies, `modules.json` and generated wiring without writing anything. |
-| `-y, --yes` | Skip confirmation prompts.                                                                   |
+| Option      | Description                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| `--check`   | CI gate: verify module copies, `newbie-modules.json` and generated wiring without writing anything. |
+| `-y, --yes` | Skip confirmation prompts.                                                                          |
 
 #### `newbie modules remove <keys...>`
 

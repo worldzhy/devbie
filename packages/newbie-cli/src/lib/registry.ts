@@ -16,7 +16,7 @@ export const REGISTRY_URL = "https://github.com/worldzhy/newbie-modules.git";
 
 /** Override the cloned cache with a local checkout (the dev loop). */
 export const REGISTRY_PATH_ENV = "NEWBIE_MODULES_PATH";
-/** Pin a registry tag/commit/branch; takes precedence over modules.json#registry.ref. */
+/** Pin a registry tag/commit/branch; takes precedence over newbie-modules.json#registry.ref. */
 export const REGISTRY_REF_ENV = "NEWBIE_MODULES_REF";
 
 /** Fallback local checkout discovered automatically when it exists. */
@@ -53,14 +53,14 @@ function registryRefFromEnv(): string | undefined {
   return ref;
 }
 
-/** The registry block declared by the consumer's modules.json. */
+/** The registry block declared by the consumer's newbie-modules.json. */
 interface DeclaredRegistry {
   url?: string;
   ref?: string | null;
 }
 
 /**
- * Read modules.json's registry block. A missing/broken modules.json is the
+ * Read newbie-modules.json's registry block. A missing/broken newbie-modules.json is the
  * command's own concern — resolution stays best-effort and falls back to the
  * built-in defaults.
  */
@@ -76,7 +76,7 @@ async function declaredRegistry(cwd?: string): Promise<DeclaredRegistry> {
 
 /**
  * Effective registry ref: NEWBIE_MODULES_REF wins (per-invocation override),
- * then modules.json#registry.ref (project-declared default), then the remote
+ * then newbie-modules.json#registry.ref (project-declared default), then the remote
  * default branch. A declared-but-invalid ref is a hard error — never silently
  * assemble a different line than the project asked for.
  */
@@ -87,13 +87,13 @@ function effectiveRef(declared: DeclaredRegistry): string | undefined {
   if (!ref) return undefined;
   if (!isValidRegistryRef(ref)) {
     throw new CliError(
-      `Invalid registry.ref '${ref}' in modules.json: expected a branch, tag, or commit name (no leading '-' and no '..').`,
+      `Invalid registry.ref '${ref}' in newbie-modules.json: expected a branch, tag, or commit name (no leading '-' and no '..').`,
     );
   }
   return ref;
 }
 
-/** Effective registry url: modules.json#registry.url (forks) or the built-in default. */
+/** Effective registry url: newbie-modules.json#registry.url (forks) or the built-in default. */
 function effectiveUrl(declared: DeclaredRegistry): string {
   const url = declared.url?.trim();
   return url ? url : REGISTRY_URL;
@@ -118,7 +118,7 @@ export interface RegistryLocation {
   sourceCommit: string | null;
   /** Local checkouts are never mutated; the cache is cloned/updated by us. */
   local: boolean;
-  /** Effective ref that governed resolution (env > modules.json), when declared. */
+  /** Effective ref that governed resolution (env > newbie-modules.json), when declared. */
   ref?: string;
 }
 
@@ -161,7 +161,7 @@ async function warnIfLocalOffRef(root: string, ref: string): Promise<void> {
   if (target !== head) {
     console.warn(
       `[warn] local registry checkout ${root} is at ${head.slice(0, 7)}, but the declared registry ref ` +
-        `'${ref}' points at ${target.slice(0, 7)}. Check out ${ref} or adjust ${REGISTRY_REF_ENV}/modules.json.`,
+        `'${ref}' points at ${target.slice(0, 7)}. Check out ${ref} or adjust ${REGISTRY_REF_ENV}/newbie-modules.json.`,
     );
   }
 }
@@ -184,7 +184,7 @@ async function updateCachedClone(url: string, ref?: string): Promise<string> {
     await execCapture("git", ["clone", url, dir]);
   }
 
-  // Keep the cache pointed at the declared upstream, so a modules.json url
+  // Keep the cache pointed at the declared upstream, so a newbie-modules.json url
   // change (fork) takes effect without manual cache surgery.
   await execCapture("git", ["-C", dir, "remote", "set-url", "origin", url]);
   await execCapture("git", ["-C", dir, "fetch", "--quiet", "origin", "--tags"]);
@@ -193,7 +193,7 @@ async function updateCachedClone(url: string, ref?: string): Promise<string> {
     const commit = await resolveRefCommit(dir, ref);
     if (!commit) {
       throw new CliError(
-        `Registry ref '${ref}' could not be resolved in ${url}. Fix modules.json#registry.ref or ${REGISTRY_REF_ENV}.`,
+        `Registry ref '${ref}' could not be resolved in ${url}. Fix newbie-modules.json#registry.ref or ${REGISTRY_REF_ENV}.`,
       );
     }
     await execCapture("git", ["-C", dir, "checkout", "--quiet", "--detach", commit]);
@@ -216,7 +216,7 @@ async function updateCachedClone(url: string, ref?: string): Promise<string> {
  * - `fetch: false` (status/doctor): never touch the network; use a local
  *   checkout or the cache as-is, and report unavailable when neither exists.
  * - `cwd` (the consumer project root) lets resolution honor the registry
- *   block declared in modules.json (url + ref).
+ *   block declared in newbie-modules.json (url + ref).
  */
 export interface RegistryResolutionOptions {
   fetch?: boolean;

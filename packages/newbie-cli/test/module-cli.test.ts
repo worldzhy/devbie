@@ -32,11 +32,11 @@ describe("loadModuleCliEntry", () => {
 });
 
 describe("registerModuleCommands", () => {
-  it("is a no-op when the project has no modules.json", async () => {
+  it("is a no-op when the project has no newbie-modules.json", async () => {
     const { registerModuleCommands } = await import("../src/lib/module-cli");
     const { Command } = await import("commander");
     const program = new Command();
-    // /nonexistent/path has no modules.json; the loader must skip silently.
+    // /nonexistent/path has no newbie-modules.json; the loader must skip silently.
     await registerModuleCommands(program, { cwd: "/nonexistent/path", dryRun: false, skipPrismaGenerate: false });
     assert.equal(program.commands.length, 0);
   });
@@ -86,7 +86,7 @@ describe("registerModuleCommands", () => {
       );
 
       await fs.writeFile(
-        path.join(project, "modules.json"),
+        path.join(project, "newbie-modules.json"),
         JSON.stringify({
           registry: null,
           modules: [
@@ -155,7 +155,7 @@ describe("registerModuleCommands", () => {
       );
 
       await fs.writeFile(
-        path.join(project, "modules.json"),
+        path.join(project, "newbie-modules.json"),
         JSON.stringify({
           registry: null,
           modules: [

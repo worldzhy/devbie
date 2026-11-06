@@ -180,7 +180,7 @@ export async function runWatch(options: ModulesWatchOptions): Promise<void> {
       yellow(
         options.all
           ? "No matching modules found in the registry."
-          : "This project has no enabled modules. Run `newbie modules add <key>` to declare one (or `newbie modules apply` when modules.json already declares a set), or use --all to watch every registry module.",
+          : "This project has no enabled modules. Run `newbie modules add <key>` to declare one (or `newbie modules apply` when newbie-modules.json already declares a set), or use --all to watch every registry module.",
       ),
     );
     return;

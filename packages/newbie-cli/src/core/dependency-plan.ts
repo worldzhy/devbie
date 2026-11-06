@@ -72,7 +72,7 @@ export function installSpecName(spec: string): string {
 
 /**
  * Restrict planned removals to packages this CLI installed (recorded in
- * modules.json). Anything the host declared itself — even when a removed
+ * newbie-modules.json). Anything the host declared itself — even when a removed
  * module also named it — is left in package.json.
  */
 export function filterManagedRemovals(

@@ -105,7 +105,7 @@ async function runPicker(options: ModulesDefaultOptions): Promise<void> {
 
   const registryModules = await listRegistryModules(ctx.registry.root);
   const deprecatedNotices = deprecatedNoticesOf(registryModules);
-  // Enabled keys come from modules.json, not from the registry: a module whose
+  // Enabled keys come from newbie-modules.json, not from the registry: a module whose
   // registry entry disappeared must stay visible, otherwise leaving it out of
   // the picker would silently turn it into a removal on the next apply.
   const enabled = moduleKeys(ctx.state);
