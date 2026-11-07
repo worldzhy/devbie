@@ -25,7 +25,7 @@ describe("R5-12: modules update refuses unpinned overwrite", () => {
     await fs.writeFile(path.join(project, "src/modules/alpha/index.ts"), "// host copy\n", "utf8");
     // No sourceCommit: the installed copy has no pristine baseline.
     await fs.writeFile(
-      path.join(project, "modules.json"),
+      path.join(project, "newbie-modules.json"),
       JSON.stringify({ registry: null, modules: [{ key: "alpha", version: null, sourceCommit: null }] }),
       "utf8",
     );
@@ -69,10 +69,10 @@ describe("R6-03: modules update --check reports an enabled copy that is gone", (
     project = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-up-check-project-"));
     registry = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-up-check-registry-"));
     await fs.mkdir(path.join(registry, "packages/modules"), { recursive: true });
-    // Pinned in modules.json, but the copy under src/modules is absent: until
+    // Pinned in newbie-modules.json, but the copy under src/modules is absent: until
     // R6-03 this path printed the green verdict and exited 0.
     await fs.writeFile(
-      path.join(project, "modules.json"),
+      path.join(project, "newbie-modules.json"),
       JSON.stringify({ registry: null, modules: [{ key: "alpha", version: null, sourceCommit: "deadbeef" }] }),
       "utf8",
     );

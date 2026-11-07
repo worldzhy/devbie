@@ -9,7 +9,7 @@ import { RegistryLocation } from "../lib/registry";
 /**
  * Why a module has no comparable registry baseline.
  *
- * - `missing-pin`: modules.json carries no `sourceCommit` for the key.
+ * - `missing-pin`: newbie-modules.json carries no `sourceCommit` for the key.
  * - `unavailable-pin`: the local registry clone cannot serve the pinned
  *   commit (shallow clone, pruned history, or the module did not exist yet).
  * - `missing-copy`: the key is enabled but `src/modules/<key>` is gone;
@@ -43,7 +43,7 @@ export interface ModuleSourceDrift {
 
 /**
  * Compare every installed module against the registry tree pinned in
- * modules.json. The comparison is content-only (file hashes, POSIX-relative
+ * newbie-modules.json. The comparison is content-only (file hashes, POSIX-relative
  * paths): empty directories and OS metadata never register as drift.
  *
  * The baseline is `sourceCommit` (R5-06/N-2), not the registry working tree:
@@ -108,11 +108,11 @@ const short = (commit: string | null): string => (commit ? commit.slice(0, 7) : 
 /** Print one drift entry; shared by `apply --check` and `update --check`. */
 export function printSourceDrift(drift: ModuleSourceDrift): void {
   if (drift.reason === "missing-pin") {
-    console.info(bold(`\n# ${drift.installedPath} (no sourceCommit pin in modules.json)`));
+    console.info(bold(`\n# ${drift.installedPath} (no sourceCommit pin in newbie-modules.json)`));
     return;
   }
   if (drift.reason === "missing-copy") {
-    console.info(bold(`\n# ${drift.installedPath} (enabled in modules.json but the copy is missing)`));
+    console.info(bold(`\n# ${drift.installedPath} (enabled in newbie-modules.json but the copy is missing)`));
     return;
   }
   if (drift.reason === "unavailable-pin") {

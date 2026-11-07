@@ -1,7 +1,7 @@
 {
   "name": "@devbie/module-hub-cli",
-  "version": "1.0.2",
-  "description": "CLI plugin of the module-hub newbie module: inspect this installation's reported module snapshot and verify it against the local modules.json",
+  "version": "1.1.1",
+  "description": "CLI plugin of the module-hub newbie module: inspect this installation's reported module snapshot and verify it against the local newbie-modules.json",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -33,10 +33,10 @@
     "colorette": "^2.0.20"
   },
   "peerDependencies": {
-    "@devbie/newbie-cli": "^1.12.0"
+    "@devbie/newbie-cli": "^1.19.0"
   },
   "devDependencies": {
-    "@devbie/newbie-cli": "^1.12.0",
+    "@devbie/newbie-cli": "^1.19.0",
     "@types/node": "^22.20.5",
     "commander": "^12.1.0",
     "rimraf": "^6.1.3",

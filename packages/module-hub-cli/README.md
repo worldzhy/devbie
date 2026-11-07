@@ -6,7 +6,7 @@
 
 CLI plugin of the `module-hub` newbie module. Inspect the module snapshot the
 hub recorded for this installation and verify it against the local
-`modules.json`.
+`newbie-modules.json`.
 
 Registered as the `module-hub` namespace on the framework CLI by the module
 manifest (`"cli": "module-hub"`). Requires `@devbie/newbie-cli`.
@@ -35,7 +35,7 @@ and can never see other installations. The host-wide view lives on
 
 ```bash
 newbie module-hub show     # installation facts + reported module snapshot
-newbie module-hub verify   # fail when the hub snapshot differs from modules.json
+newbie module-hub verify   # fail when the hub snapshot differs from newbie-modules.json
 ```
 
 `verify` exits non-zero when:

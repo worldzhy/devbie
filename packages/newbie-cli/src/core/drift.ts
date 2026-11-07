@@ -47,7 +47,7 @@ export function diffSnapshots(local: FileSnapshot, pristine: FileSnapshot): Drif
   };
 }
 
-/** Stable identifier list usable as the modules.json `localPatches` entries. */
+/** Stable identifier list usable as the newbie-modules.json `localPatches` entries. */
 export function driftPatchIds(report: DriftReport): string[] {
   return [...report.added, ...report.changed, ...report.removed].sort();
 }

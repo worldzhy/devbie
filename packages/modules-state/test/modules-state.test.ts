@@ -53,11 +53,11 @@ describe("readModulesState", () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it("returns an empty state when modules.json is absent", async () => {
+  it("returns an empty state when newbie-modules.json is absent", async () => {
     assert.deepEqual(await readModulesState(root), createEmptyModulesState());
   });
 
-  it("reads and normalizes a valid modules.json", async () => {
+  it("reads and normalizes a valid newbie-modules.json", async () => {
     await fs.writeFile(
       path.join(root, MODULES_JSON),
       JSON.stringify({
@@ -71,7 +71,7 @@ describe("readModulesState", () => {
     assert.equal(state.registry?.sourceCommit, "abc");
   });
 
-  it("throws a SyntaxError when modules.json is invalid JSON", async () => {
+  it("throws a SyntaxError when newbie-modules.json is invalid JSON", async () => {
     await fs.writeFile(path.join(root, MODULES_JSON), "{ not json", "utf8");
     await assert.rejects(readModulesState(root), SyntaxError);
   });

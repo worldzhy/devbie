@@ -10,7 +10,7 @@ import { assertExpectedLabel, formatTimestamp, renderMismatch, renderVerificatio
 
 /**
  * `newbie module-hub verify` — fail when the hub's snapshot of this
- * installation differs from the local modules.json.
+ * installation differs from the local newbie-modules.json.
  *
  * Exit semantics (for CI and post-deploy checks):
  *   - no snapshot yet           -> failure (the instance never reported)
@@ -54,7 +54,7 @@ export async function runVerify(options: HubCommandOptions): Promise<void> {
   }
 
   console.log();
-  console.log(red(`${mismatches.length} mismatch(es) between local modules.json and the hub snapshot:`));
+  console.log(red(`${mismatches.length} mismatch(es) between local newbie-modules.json and the hub snapshot:`));
   for (const mismatch of mismatches) {
     renderMismatch(mismatch);
   }

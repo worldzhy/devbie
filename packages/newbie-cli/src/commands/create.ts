@@ -108,7 +108,7 @@ export async function runCreate(options: CreateOptions): Promise<void> {
     packageJson.name = name;
     // The template repository gates its own CI with
     // NEWBIE_TEMPLATE_REGISTRY_COMPLETE=1. A created project owns files that
-    // are not template assets (src/application, modules.json, generated
+    // are not template assets (src/application, newbie-modules.json, generated
     // modules), so the copied gate must not demand that those be classified
     // (R5-11).
     const scripts = packageJson.scripts as Record<string, string> | undefined;

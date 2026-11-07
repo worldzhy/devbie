@@ -40,7 +40,7 @@ async function makeProject(params: {
   directories.push(cwd);
 
   await fs.writeFile(
-    path.join(cwd, "modules.json"),
+    path.join(cwd, "newbie-modules.json"),
     JSON.stringify(
       {
         registry: null,
@@ -86,7 +86,7 @@ function context(cwd: string, registryRoot: string, dryRun = false): PipelineCon
 }
 
 async function readState(cwd: string): Promise<{ modules: Array<{ key: string; sourceCommit: string | null }> }> {
-  return JSON.parse(await fs.readFile(path.join(cwd, "modules.json"), "utf8"));
+  return JSON.parse(await fs.readFile(path.join(cwd, "newbie-modules.json"), "utf8"));
 }
 
 /** The pipeline prints step banners; keep test output readable. */
@@ -288,12 +288,12 @@ describe("applyModuleKeys", () => {
     assert.deepEqual(
       persisted.modules.map((entry) => entry.key),
       ["account"],
-      "modules.json must not adopt a key that was never copied",
+      "newbie-modules.json must not adopt a key that was never copied",
     );
     await assert.rejects(fs.readdir(path.join(cwd, "src", "modules", "audit")));
   });
 
-  it("refuses an unknown module before touching modules.json", async () => {
+  it("refuses an unknown module before touching newbie-modules.json", async () => {
     const registryRoot = await makeRegistry({ account: {} });
     const cwd = await makeProject({ modules: [{ key: "account" }], copied: ["account"] });
     const ctx = context(cwd, registryRoot);

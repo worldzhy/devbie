@@ -109,7 +109,7 @@ function stampCopiedModules(
         }
       : record,
   );
-  // Closure-expanded dependencies may have no modules.json record yet.
+  // Closure-expanded dependencies may have no newbie-modules.json record yet.
   const known = new Set(stamped.map((record) => record.key));
   for (const key of addedKeys) {
     if (!known.has(key)) {
@@ -129,13 +129,13 @@ function stampCopiedModules(
 
 /**
  * A copy must be pinned: without a commit the drift gate can never verify it.
- * Callers run this before writing modules.json, so a refusal leaves both
- * modules.json and `src/modules` unchanged (R6-04).
+ * Callers run this before writing newbie-modules.json, so a refusal leaves both
+ * newbie-modules.json and `src/modules` unchanged (R6-04).
  */
 function assertRegistryCommitForCopy(registry: RegistryLocation, added: readonly string[]): void {
   if (added.length === 0 || registry.sourceCommit) return;
   throw new CliError(
-    "Refusing to copy modules without a registry commit: modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+    "Refusing to copy modules without a registry commit: newbie-modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
   );
 }
 
@@ -203,7 +203,7 @@ export async function applyPlanned(ctx: PipelineContext, changes: PlannedChange)
   assertRegistryCommitForCopy(ctx.registry, changes.added);
 
   // Planning stays read-only: adopt the closure-expanded enabled set into
-  // modules.json only when the plan is actually applied.
+  // newbie-modules.json only when the plan is actually applied.
   if (changes.enabledKeys) {
     ctx.state = withModuleKeys(ctx.state, changes.enabledKeys);
     if (!ctx.sink.dryRun) {
@@ -214,7 +214,7 @@ export async function applyPlanned(ctx: PipelineContext, changes: PlannedChange)
 }
 
 /**
- * Interactive/`apply` flow: modules.json changes from old keys to next keys.
+ * Interactive/`apply` flow: newbie-modules.json changes from old keys to next keys.
  * The requested set is expanded to the transitive moduleDependencies closure
  * before assembling. The new state is persisted before assembling.
  */
@@ -239,7 +239,7 @@ export async function applyModuleKeys(
 
   const diff = diffModuleKeys(moduleKeys(ctx.state), expandedKeys);
 
-  // Refuse before rewriting modules.json: runSteps would throw after the
+  // Refuse before rewriting newbie-modules.json: runSteps would throw after the
   // enabled set had been persisted (R6-04), leaving the file claiming modules
   // that were never copied.
   assertRegistryCommitForCopy(ctx.registry, diff.added);
@@ -257,13 +257,13 @@ export async function applyModuleKeys(
 }
 
 /**
- * `newbie modules apply` planning (read-only): modules.json is the source of truth;
+ * `newbie modules apply` planning (read-only): newbie-modules.json is the source of truth;
  * modules missing from src/modules (or lacking a registry pin, e.g. after an
  * interrupted install) are reinstalled, extra copied modules are removed.
  *
  * The declared set is expanded to the transitive moduleDependencies closure:
  * dependencies added by a newer manifest (or missing since an interrupted
- * install) are adopted into modules.json when the plan is applied.
+ * install) are adopted into newbie-modules.json when the plan is applied.
  */
 export async function planReconcile(
   ctx: PipelineContext,

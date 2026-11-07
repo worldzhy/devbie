@@ -47,7 +47,7 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
     findings.push({ level: "notice", message });
   };
 
-  // [check 1] modules.json
+  // [check 1] newbie-modules.json
   if (!(await stateExists(cwd))) {
     throw new CliError(`${MODULES_JSON} not found. Run 'newbie modules' to declare modules first.`);
   }
@@ -153,7 +153,7 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
     );
   }
 
-  // [check 5] copied module directories that modules.json does not know about.
+  // [check 5] copied module directories that newbie-modules.json does not know about.
   const copied = new Set(
     (
       await fs

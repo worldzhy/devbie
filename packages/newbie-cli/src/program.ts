@@ -112,7 +112,7 @@ export function buildProgram(): Command {
 
   modules
     .command("add <keys...>")
-    .description("Declare modules in modules.json and install them (npm-style add)")
+    .description("Declare modules in newbie-modules.json and install them (npm-style add)")
     .option("-y, --yes", "skip confirmation prompts", false)
     .action(function (this: Command, keys: string[]) {
       const flags = this.opts();
@@ -127,7 +127,7 @@ export function buildProgram(): Command {
 
   modules
     .command("apply")
-    .description("Reconcile the project with modules.json; --check is the CI gate")
+    .description("Reconcile the project with newbie-modules.json; --check is the CI gate")
     .option("--check", "CI gate: verify module copies and generated wiring without writing anything", false)
     .option("-y, --yes", "skip confirmation prompts", false)
     .action(function (this: Command) {

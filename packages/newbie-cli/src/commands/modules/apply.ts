@@ -26,10 +26,10 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
 }
 
 /**
- * CI gate (ADR-024 F7): prove that module copies, modules.json and every
+ * CI gate (ADR-024 F7): prove that module copies, newbie-modules.json and every
  * generated wiring file match what a plain `modules apply` would write, and
  * that every installed copy still matches the registry tree pinned in
- * modules.json (R5-06/N-2). Runs offline (no registry fetch) so CI stays
+ * newbie-modules.json (R5-06/N-2). Runs offline (no registry fetch) so CI stays
  * deterministic.
  */
 async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
@@ -39,10 +39,10 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   if (plan.installed.length > 0 || plan.uninstalled.length > 0) {
     const lines = [
       ...plan.installed.map((key) => `  - ${key}: copy missing from src/modules`),
-      ...plan.uninstalled.map((key) => `  - ${key}: extra copy not declared in modules.json`),
+      ...plan.uninstalled.map((key) => `  - ${key}: extra copy not declared in newbie-modules.json`),
     ];
     throw new CliError(
-      `Module copies are out of sync with modules.json:\n${lines.join("\n")}\nRun \`newbie modules apply\`.`,
+      `Module copies are out of sync with newbie-modules.json:\n${lines.join("\n")}\nRun \`newbie modules apply\`.`,
     );
   }
 
@@ -50,7 +50,7 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   const undeclaredDependencies = plan.enabledKeys.filter((key) => !declared.includes(key));
   if (undeclaredDependencies.length > 0) {
     throw new CliError(
-      `modules.json is missing module(s) required by the enabled set: ${undeclaredDependencies.join(", ")}. ` +
+      `newbie-modules.json is missing module(s) required by the enabled set: ${undeclaredDependencies.join(", ")}. ` +
         "Run `newbie modules add` to declare them.",
     );
   }
@@ -69,7 +69,7 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
     );
   }
 
-  // Source drift: modules.json agreeing with src/modules does not prove the
+  // Source drift: newbie-modules.json agreeing with src/modules does not prove the
   // copies are unmodified; only the pinned registry tree can (R5-06/N-2).
   const drifts = await diffModuleSources({
     cwd: ctx.cwd,
@@ -81,12 +81,12 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
     for (const drift of drifts) printSourceDrift(drift);
     const keys = drifts.map((drift) => drift.key).join(", ");
     throw new CliError(
-      `${drifts.length} installed module(s) do not match the registry pin in modules.json (${keys}); ` +
+      `${drifts.length} installed module(s) do not match the registry pin in newbie-modules.json (${keys}); ` +
         "back-port the host changes to newbie-modules, or run `newbie modules update` to adopt the registry version.",
     );
   }
 
-  console.info(green(bold("✓ Module copies, sources and generated wiring match modules.json.")));
+  console.info(green(bold("✓ Module copies, sources and generated wiring match newbie-modules.json.")));
 }
 
 /**
@@ -99,7 +99,7 @@ function isCountedFinding(finding: SinkFinding): boolean {
   return true;
 }
 
-/** No selector: reconcile the project with the declared modules.json set. */
+/** No selector: reconcile the project with the declared newbie-modules.json set. */
 async function runApplyReconcile(options: ModulesApplyOptions): Promise<void> {
   const { ctx } = await createContext(options, { fetch: true });
 
@@ -117,7 +117,7 @@ async function runApplyReconcile(options: ModulesApplyOptions): Promise<void> {
   if (installed.length === 0 && uninstalled.length === 0) {
     await applyPlanned(ctx, plan);
     ctx.issues.assertEmpty();
-    console.info(green("[info] Project is in sync with modules.json; wiring refreshed."));
+    console.info(green("[info] Project is in sync with newbie-modules.json; wiring refreshed."));
     return;
   }
 

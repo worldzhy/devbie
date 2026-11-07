@@ -39,7 +39,7 @@ export function printBanner(): void {
 }
 
 export interface ContextOptions {
-  /** Create modules.json when it does not exist yet. */
+  /** Create newbie-modules.json when it does not exist yet. */
   ensureConfig?: boolean;
   /** Update (or clone) the remote registry cache; otherwise use it as-is. */
   fetch?: boolean;
@@ -49,7 +49,7 @@ export interface ContextOptions {
 
 /**
  * Build the shared pipeline context: sink (dry-run boundary), issue bag,
- * project modules.json state and the resolved newbie-modules registry.
+ * project newbie-modules.json state and the resolved newbie-modules registry.
  */
 export async function createContext(
   options: GlobalOptions,

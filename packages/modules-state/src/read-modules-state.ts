@@ -5,7 +5,7 @@ import { createEmptyModulesState, ModulesState, normalizeModulesState } from "./
 import { MODULES_JSON } from "./paths";
 
 /**
- * Read and normalize the project-root `modules.json`.
+ * Read and normalize the project-root `newbie-modules.json`.
  *
  * Returns an empty state when the file does not exist. Invalid JSON surfaces
  * as the raw `SyntaxError` from `JSON.parse` — callers decide how to present

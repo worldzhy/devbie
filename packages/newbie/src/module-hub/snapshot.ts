@@ -8,7 +8,7 @@ import { MODULES_DIR, MODULE_MANIFEST_FILE, ModulesState, readModulesState } fro
  *
  * The CLI's `newbie status --json` is the canonical source for the module
  * inventory shape, but the running process cannot invoke the CLI. This module
- * reads the project-root `modules.json` via the shared `@devbie/modules-state`
+ * reads the project-root `newbie-modules.json` via the shared `@devbie/modules-state`
  * package and enriches each record with disk probes:
  *   - whether the module directory exists under `src/modules/`
  *   - whether the installed module's `newbie.module.json` declares a Prisma
@@ -34,10 +34,10 @@ export interface ModuleSnapshotEntry {
 }
 
 /**
- * Read the project's `modules.json` and produce a snapshot array in the same
+ * Read the project's `newbie-modules.json` and produce a snapshot array in the same
  * shape as `newbie status --json` modules[] entries.
  *
- * Returns an empty array when `modules.json` is absent or unparseable — the
+ * Returns an empty array when `newbie-modules.json` is absent or unparseable — the
  * caller (reporter) still sends a `kind="full"` report, just without a module
  * list. This keeps the self-registration path resilient: a project that hasn't
  * been assembled via the CLI can still register its installation.
@@ -67,8 +67,8 @@ export async function readModuleSnapshot(projectRoot: string): Promise<ModuleSna
     if (installed) {
       try {
         const manifestRaw = await fs.readFile(path.join(moduleDir, MODULE_MANIFEST_FILE), "utf8");
-        const manifest = JSON.parse(manifestRaw) as { schema?: unknown };
-        hasSchema = typeof manifest.schema === "string";
+        const manifest = JSON.parse(manifestRaw) as { wiring?: { prismaSchema?: unknown } };
+        hasSchema = typeof manifest.wiring?.prismaSchema === "string";
       } catch {
         hasSchema = false;
       }
