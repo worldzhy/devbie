@@ -390,8 +390,10 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 
 | ID     | 仓                                             | 标题                                                                                                    | 严重度 | 暴露面 | 可达性                | 状态 |
 | ------ | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------ | ------ | --------------------- | ---- |
-| R27-01 | nightwatch-frontend                            | `onError` 单槽且在 mount effect 注册；注册前失败的请求静默丢失，多实例会互相覆盖                        | P3     | live   | 理论（未找到可达路径） | open |
-| R27-02 | nightwatch-frontend / newbie-modules / backend | routePath 同源不变量三份实现（前端谓词 / 后端谓词 / registry regex），无跨仓共享向量测试；registry DTO 与表单零单测 | P3     | source | 开发者                | open |
-| R27-03 | nightwatch-frontend                            | 存量非法 routePath 仍渲染为导航项，点击被守卫静默 no-op，无提示/过滤                                    | P3     | live   | 历史脏数据            | open |
+| R27-01 | nightwatch-frontend                            | `onError` 单槽且在 mount effect 注册；注册前失败的请求静默丢失，多实例会互相覆盖                        | P3     | live   | 理论（未找到可达路径） | fixed（frontend `6c85c8b`） |
+| R27-02 | nightwatch-frontend / newbie-modules / backend | routePath 同源不变量三份实现（前端谓词 / 后端谓词 / registry regex），无跨仓共享向量测试；registry DTO 与表单零单测 | P3     | source | 开发者                | fixed（registry `4817d10` / backend `47c692d`） |
+| R27-03 | nightwatch-frontend                            | 存量非法 routePath 仍渲染为导航项，点击被守卫静默 no-op，无提示/过滤                                    | P3     | live   | 历史脏数据            | fixed（frontend `6c85c8b`） |
 
 处置：评审只读，未改代码；三项均入 frontend/registry backlog 待修（R27-02 优先）。
+
+修复（2026-11-08）：R27-01 error handler 改 Set 多订阅 + 注册前 5 条缓冲回放，`ApiErrorToast` cleanup 退订；R27-02 registry `permission-group.dto.test.ts` 用前端同一张向量表（含控制字符）断言 Create/Update DTO 并装配进 backend，5/5 通过；R27-03 导航项构建时过滤 `isSafeInternalPath` 失败值。回归测试：`api-client.test.ts`（4 例）、`use-header-navigation.test.tsx`（9 例）、DTO 套件（5 例）。
