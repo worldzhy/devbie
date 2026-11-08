@@ -103,6 +103,16 @@ describe("upsertEnvSection", () => {
     assert.equal(values.B, "3");
     assert.equal(serializeEnv(twice).match(/A=/g)?.length, 1);
   });
+
+  it("mirrors a key shared with an earlier module instead of leaving an empty section (R20-27)", () => {
+    const withAlpha = upsertEnvSection(parseEnv(""), "Alpha", { SHARED_TOKEN: "a", ALPHA_ONLY: "1" });
+    const withBeta = upsertEnvSection(withAlpha, "Beta", { SHARED_TOKEN: "b" });
+
+    const text = serializeEnv(withBeta);
+    const betaBody = text.slice(text.indexOf("# ! Beta variables"));
+    assert.ok(betaBody.includes("SHARED_TOKEN=b"), "the later module's section lists its own shared key");
+    assert.equal(betaBody.match(/SHARED_TOKEN=/g)?.length, 1, "the key is written once per section");
+  });
 });
 
 describe("pruneEmptySections", () => {

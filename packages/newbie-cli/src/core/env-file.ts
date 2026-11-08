@@ -161,33 +161,35 @@ function sectionHeader(title: string): EnvLine[] {
 
 /**
  * Insert missing entries under a `# ! <title> variables` section.
- * Existing keys (in any section) are never duplicated or overwritten.
- * Idempotent across re-runs.
+ *
+ * Deduplication is scoped to the section itself: a key shared with another
+ * module is still written into this module's section so the section stays
+ * self-describing (matching .env.example, which renders the full list per
+ * module). A global filter left later-declared modules with an empty section.
+ * Keys already present in this section are never overwritten. Idempotent
+ * across re-runs.
  */
 export function upsertEnvSection(lines: EnvLine[], title: string, entries: Record<string, string>): EnvLine[] {
   const newKeys = Object.keys(entries);
   if (newKeys.length === 0) return lines;
 
-  const existingKeys = new Set(Object.keys(envValues(lines)));
   const range = findSectionRange(lines, title);
+  const sectionKeys = new Set<string>();
+  if (range) {
+    for (const line of lines.slice(range.start, range.end)) {
+      if (line.kind === "entry") sectionKeys.add(line.key);
+    }
+  }
+  const missing: EnvLine[] = newKeys
+    .filter((key) => !sectionKeys.has(key))
+    .map((key) => ({ kind: "entry", key, value: entries[key] }));
 
   if (!range) {
-    const next = [...lines];
-    next.push(...sectionHeader(title));
-    for (const key of newKeys) {
-      next.push({ kind: "entry", key, value: entries[key] });
-    }
-    return next;
+    return [...lines, ...sectionHeader(title), ...missing];
   }
 
   const next = [...lines];
-  const insertAt: EnvLine[] = [];
-  for (const key of newKeys) {
-    if (!existingKeys.has(key)) {
-      insertAt.push({ kind: "entry", key, value: entries[key] });
-    }
-  }
-  next.splice(range.end, 0, ...insertAt);
+  next.splice(range.end, 0, ...missing);
   return next;
 }
 
