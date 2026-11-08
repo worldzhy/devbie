@@ -140,6 +140,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
   const template = await resolveTemplate({
     templatePath: options.templatePath,
     templateRef: options.templateRef,
+    cwd: projectRoot,
   });
   try {
     console.info(cyan(`Template source: ${template.source}`));

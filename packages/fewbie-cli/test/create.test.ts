@@ -19,6 +19,18 @@ describe("resolveTemplate", () => {
     const resolved = await resolveTemplate({ templatePath: templateDir });
     assert.equal(resolved.root, path.resolve(templateDir));
   });
+
+  it("resolves a relative template path against the project cwd (R20-29)", async () => {
+    const parent = await makeTempDir("fewbie-test-create-");
+    after(async () => fs.rm(parent, { recursive: true, force: true }));
+    const templateDir = path.join(parent, "templates", "basic");
+    await fs.mkdir(templateDir, { recursive: true });
+    await fs.writeFile(path.join(templateDir, "package.json"), "{}");
+
+    const resolved = await resolveTemplate({ templatePath: "./templates/basic", cwd: parent });
+
+    assert.equal(resolved.root, templateDir);
+  });
 });
 
 async function writeTemplateFixture(root: string): Promise<void> {
