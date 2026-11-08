@@ -67,7 +67,6 @@ export * from "./utilities/crypto.util";
 export * from "./utilities/datetime.util";
 export * from "./utilities/delay.util";
 export * from "./utilities/error-message.util";
-export * from "./utilities/error-status.util";
 export * from "./utilities/file.util";
 export * from "./utilities/int.util";
 export * from "./utilities/parse-object-literal.util";
