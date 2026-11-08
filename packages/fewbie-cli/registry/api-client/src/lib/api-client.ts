@@ -94,6 +94,8 @@ export function getAccessToken(): string {
 export function setSession(token: string, expiresInSeconds?: number): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  // A fresh session re-arms the session-expired notification (R22-06).
+  sessionExpiredNotified = false;
   if (typeof expiresInSeconds === "number" && expiresInSeconds > 0) {
     window.localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(Date.now() + expiresInSeconds * 1000));
   }
@@ -106,12 +108,20 @@ export function clearSession(): void {
   window.localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
 }
 
+// Fires at most once per session: after the first notification the user is on
+// their way to the login page, so repeat calls (concurrent 401s, or the SSE
+// and axios paths racing) must not stack redirects (R22-06). setSession()
+// re-arms it.
+let sessionExpiredNotified = false;
+
 /**
  * Fire the session-expired handler directly. Used by non-axios transports
  * (raw fetch for SSE streams) that can't go through the response interceptor
  * but still need the same "refresh cookie gone → bounce to login" path.
  */
 export function triggerSessionExpired(): void {
+  if (sessionExpiredNotified) return;
+  sessionExpiredNotified = true;
   sessionExpiredHandler?.();
 }
 
@@ -185,29 +195,52 @@ async function requestRefreshOnce(): Promise<string | null> {
   return token;
 }
 
+/**
+ * Outcome of one refresh attempt: the renewed token plus whether the session
+ * is definitively over.
+ */
+export interface RefreshOutcome {
+  token: string | null;
+  /**
+   * True only when the server rejected the refresh exchange (401/400) or a 2xx
+   * response carried no token — i.e. the refresh credential is dead. Network
+   * errors and 5xx are transient: the session must be kept and the caller
+   * surfaces the original failure instead of forcing a logout (R22-05).
+   */
+  sessionOver: boolean;
+}
+
 /** Send the refresh request with one retry on 401 (cross-tab cookie race). */
-async function requestRefreshWithRetry(): Promise<string | null> {
+async function requestRefreshWithRetry(): Promise<RefreshOutcome> {
+  const classify = (error: unknown): RefreshOutcome =>
+    // Only an auth rejection proves the cookie is dead; anything else
+    // (offline, timeout, 5xx) is transient and must not end the session.
+    axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 400)
+      ? { token: null, sessionOver: true }
+      : { token: null, sessionOver: false };
   try {
-    return await requestRefreshOnce();
+    const token = await requestRefreshOnce();
+    return { token, sessionOver: token === null };
   } catch (firstError) {
     if (isUnauthorized(firstError)) {
       // Possible cross-tab rotation race: retry once with the renewed cookie.
       await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
       try {
-        return await requestRefreshOnce();
-      } catch {
-        return null;
+        const token = await requestRefreshOnce();
+        return { token, sessionOver: token === null };
+      } catch (secondError) {
+        return classify(secondError);
       }
     }
     // Network or other non-auth failure: nothing a retry can fix.
-    return null;
+    return classify(firstError);
   }
 }
 
 // Shared in-flight refresh. The backend rotates the refresh cookie on every
 // call, so concurrent 401s must await the same request instead of issuing
 // parallel refreshes that invalidate each other's cookie.
-let refreshPromise: Promise<string | null> | null = null;
+let refreshPromise: Promise<RefreshOutcome> | null = null;
 
 /**
  * Exchange the httpOnly refresh cookie for a new access token.
@@ -224,16 +257,18 @@ let refreshPromise: Promise<string | null> | null = null;
  * single-flight + retry mitigation.
  *
  * Exported so non-axios transports (raw fetch for SSE streams) can also
- * participate in the 401 silent-refresh chain.
+ * participate in the 401 silent-refresh chain. The outcome distinguishes a
+ * dead refresh credential (`sessionOver`) from a transient failure, so
+ * callers only end the session on the former (R22-05).
  */
-export function refreshAccessToken(force = false): Promise<string | null> {
+export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
   if (refreshPromise) return refreshPromise;
 
-  refreshPromise = (async () => {
+  refreshPromise = (async (): Promise<RefreshOutcome> => {
     try {
       if (typeof navigator !== "undefined" && navigator.locks) {
         return await navigator.locks.request(REFRESH_LOCK_NAME, async () => {
-          if (!force && !isRefreshStillDue()) return getAccessToken();
+          if (!force && !isRefreshStillDue()) return { token: getAccessToken(), sessionOver: false };
           return requestRefreshWithRetry();
         });
       }
@@ -268,7 +303,14 @@ export function initProactiveTokenRefresh(): void {
     // omitted expiresIn) still needs renewal: refresh now and persist the
     // expiry the backend returns, instead of never scheduling a refresh.
     if (!expiresAt || Date.now() >= expiresAt - PROACTIVE_REFRESH_LEAD_MS) {
-      void refreshAccessToken();
+      void refreshAccessToken().then((outcome) => {
+        // A dead refresh cookie found proactively bounces to login now
+        // instead of waiting for the next business request to 401 (R22-05).
+        if (outcome.sessionOver) {
+          clearSession();
+          triggerSessionExpired();
+        }
+      });
     }
   };
 
@@ -319,15 +361,11 @@ api.interceptors.request.use((config) => {
 /**
  * Request config fields owned by the response interceptor.
  *
- * `_sessionExpiredFailure` marks the one request whose refresh exchange
- * failed: its failure is a by-product of a session that just ended, so the
- * host's error handler skips its toast. Suppression travels with that request
- * only — anything issued afterwards (a fresh login attempt, say) still
- * reports its own failure.
+ * `_retriedAfterRefresh` marks a request that already went through the silent
+ * refresh + replay chain once, so a second 401 does not recurse.
  */
 type RotatingRequestConfig = InternalAxiosRequestConfig & {
   _retriedAfterRefresh?: boolean;
-  _sessionExpiredFailure?: boolean;
 };
 
 // Success channel: only unwrap the envelope; failures never arrive here
@@ -347,26 +385,32 @@ api.interceptors.response.use(
 
     if (isUnauthorized(error) && original && canSilentlyRefresh) {
       original._retriedAfterRefresh = true;
-      const renewed = await refreshAccessToken(true);
-      if (renewed) {
-        original.headers.set("Authorization", `Bearer ${renewed}`);
+      const outcome = await refreshAccessToken(true);
+      if (outcome.token) {
+        original.headers.set("Authorization", `Bearer ${outcome.token}`);
         // Replay goes through the same interceptor chain; its outcome is
         // returned directly so this failure never reaches the handler.
         return api(original);
       }
-      // Refresh cookie missing or expired: the session is over.
-      clearSession();
-      triggerSessionExpired();
-      // This request failed because the session was already gone; the user is
-      // being bounced to the login page, so its message is noise (R21-01).
-      original._sessionExpiredFailure = true;
+      if (outcome.sessionOver) {
+        // The server rejected the refresh credential: the session is over.
+        clearSession();
+        triggerSessionExpired();
+        // This request failed because the session was already gone; the user is
+        // being bounced to the login page, so its message is noise (R21-01).
+        // Suppress it through the public per-request opt-out rather than a
+        // private marker — one suppression concept, not two (R22-01).
+        original.enabledDefaultErrorToast = false;
+      }
+      // Transient refresh failure (offline/5xx): keep the session and let the
+      // original 401 surface normally (R22-05).
     }
 
     // Single exit for every final failure: normalize once, notify once.
     // Callers that render their own error UX pass enabledDefaultErrorToast:
     // false to suppress the default toast and avoid double notification.
     const normalized = toApiError(error);
-    if (!original?._sessionExpiredFailure && error?.config?.enabledDefaultErrorToast !== false) {
+    if (error?.config?.enabledDefaultErrorToast !== false) {
       errorHandler?.(normalized);
     }
     throw normalized;
