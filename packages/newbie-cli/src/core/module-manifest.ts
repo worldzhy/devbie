@@ -337,7 +337,8 @@ function normalizeWiring(raw: unknown, key: string): ModuleWiring {
   }
 
   const result: ModuleWiring = { file, className };
-  if (typeof w.prismaSchema === "string" && w.prismaSchema.length > 0) {
+  assertOptionalString(w.prismaSchema, "wiring.prismaSchema", key);
+  if (typeof w.prismaSchema === "string") {
     assertModuleRelativePath(w.prismaSchema, "wiring.prismaSchema", key);
     result.prismaSchema = w.prismaSchema;
   }

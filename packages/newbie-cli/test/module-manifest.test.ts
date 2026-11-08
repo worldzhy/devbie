@@ -67,6 +67,16 @@ describe("normalizeModuleManifest", () => {
     }
   });
 
+  it("rejects a non-string wiring.prismaSchema instead of dropping it (R21-07)", () => {
+    for (const prismaSchema of [42, {}, [], "", true]) {
+      assert.throws(
+        () => normalizeModuleManifest({ ...valid, wiring: { ...valid.wiring, prismaSchema } }),
+        /wiring\.prismaSchema/,
+        JSON.stringify(prismaSchema),
+      );
+    }
+  });
+
   it("rejects a wiring.className that is not a JavaScript identifier (R20-30)", () => {
     for (const className of ["AccountModule; process.exit()", "1Module", "Account Module", ""]) {
       assert.throws(
