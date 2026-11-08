@@ -179,8 +179,13 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
       }
       // Idempotent re-install of an already-declared module: leave it alone.
       if (currentTargets.has(file.target)) continue;
+      const content = await readItemFileContent(file);
+      // An interrupted earlier install may have landed files before recording
+      // the declaration; identical bytes are already the end state this run
+      // wants, so finishing the install is not a conflict.
+      if ((await readTextIfExists(path.join(projectRoot, file.target))) === content) continue;
       if (options.force) {
-        writes.push({ target: file.target, content: await readItemFileContent(file) });
+        writes.push({ target: file.target, content });
       } else {
         conflicts.push(file.target);
       }
