@@ -50,6 +50,37 @@ describe("normalizeModuleManifest", () => {
     );
   });
 
+  it("rejects wiring paths that leave the module directory or break the import specifier (R20-30)", () => {
+    for (const file of ["../escape.module", "/abs/path.module", "a//b.module", "a\\b.module", "a'q.module"]) {
+      assert.throws(
+        () => normalizeModuleManifest({ ...valid, wiring: { ...valid.wiring, file } }),
+        /wiring\.file/,
+        file,
+      );
+    }
+    for (const prismaSchema of ["../../prisma/schema.prisma", "/etc/schema.prisma", "prisma/../x.prisma"]) {
+      assert.throws(
+        () => normalizeModuleManifest({ ...valid, wiring: { ...valid.wiring, prismaSchema } }),
+        /wiring\.prismaSchema/,
+        prismaSchema,
+      );
+    }
+  });
+
+  it("rejects a wiring.className that is not a JavaScript identifier (R20-30)", () => {
+    for (const className of ["AccountModule; process.exit()", "1Module", "Account Module", ""]) {
+      assert.throws(
+        () => normalizeModuleManifest({ ...valid, wiring: { ...valid.wiring, className } }),
+        /wiring\.className/,
+        className,
+      );
+    }
+    assert.equal(
+      normalizeModuleManifest({ ...valid, wiring: { ...valid.wiring, className: "_$Nested2" } }).wiring.className,
+      "_$Nested2",
+    );
+  });
+
   it("enforces the expected directory key", () => {
     assert.throws(() => normalizeModuleManifest(valid, "workflow"), /does not match directory/);
   });
