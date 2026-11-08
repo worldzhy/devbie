@@ -378,3 +378,20 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 报告：`expert-review-2026-11-08-round25.md`。
 
 修复后回到本段更新状态；R25-01 关闭需同时补 R25-02 的阴性用例（未改谓词时用例必须红）。
+
+## round27（2026-11-08，scope=`changeset`：R25 修复批次复核）
+
+编号说明：round26 已由并行会话用于 url-check 测试评审（报告在 `newbie-modules/.trae/documents/expert-review-2026-11-08-round26.md`，registry `7f45bb6`），本轮改用 round27。
+报告：`.trae/documents/expert-review-2026-11-08-round27.md`（时点快照，不改写）。
+锚点：nightwatch-frontend `10d9a9d`（6 dirty，并行 web-monitor 收尾，均在 changeset 外）/ nightwatch-backend `9aaf8c4` / newbie-modules `7f45bb6` / devbie `8977e500`；changeset = frontend `a31fd8b`+`e77e475`、backend `bbb0b34`、registry `93a4797`。
+主张判定：C1–C6（R25-01/02/03/05/06 fixed + 无回归）全部成立；P0/P1 无。
+executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` 且 `origin=https://evil.com`；登录双解码链 6 条危险向量全拒绝、`/projects` 接受；class-validator 直驱装配 DTO 的 Create/Update 8/8 判定一致；registry↔装配 `diff` 为空；`router.push(entry.routePath)` = 2 且均守卫；`isSafeExternalUrl` 7 处 = 1 定义 + 3 import + 3 调用；vitest 9 files / 77 tests passed；定向 eslint 干净；backend `tsc --noEmit` 干净。误报剔除 3 条（403 文案 grep 命中、点段/编码向量、登录二次解码 URIError）。
+独立反驳代理：4 条主张 not refuted，前后端 fuzz 0 bypass。
+
+| ID     | 仓                                             | 标题                                                                                                    | 严重度 | 暴露面 | 可达性                | 状态 |
+| ------ | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------ | ------ | --------------------- | ---- |
+| R27-01 | nightwatch-frontend                            | `onError` 单槽且在 mount effect 注册；注册前失败的请求静默丢失，多实例会互相覆盖                        | P3     | live   | 理论（未找到可达路径） | open |
+| R27-02 | nightwatch-frontend / newbie-modules / backend | routePath 同源不变量三份实现（前端谓词 / 后端谓词 / registry regex），无跨仓共享向量测试；registry DTO 与表单零单测 | P3     | source | 开发者                | open |
+| R27-03 | nightwatch-frontend                            | 存量非法 routePath 仍渲染为导航项，点击被守卫静默 no-op，无提示/过滤                                    | P3     | live   | 历史脏数据            | open |
+
+处置：评审只读，未改代码；三项均入 frontend/registry backlog 待修（R27-02 优先）。
