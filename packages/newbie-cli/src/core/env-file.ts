@@ -160,34 +160,78 @@ function sectionHeader(title: string): EnvLine[] {
 }
 
 /**
+ * Map each generated section title to the indices of its body entries: the
+ * entry run immediately following the `# ! <title> variables` header (after
+ * its closing decoration). This is the same body convention
+ * `normalizeSections` uses, so both agree on what the CLI owns.
+ */
+function generatedSectionBodies(lines: EnvLine[]): Map<string, Set<number>> {
+  const bodies = new Map<string, Set<number>>();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line.kind !== "comment") continue;
+    const match = line.text.match(SECTION_TITLE_RE);
+    if (!match) continue;
+
+    let j = i + 1;
+    const decoration = lines[j];
+    if (decoration?.kind === "comment" && DECORATION_RE.test(decoration.text)) j += 1;
+
+    const body = bodies.get(match[1]) ?? new Set<number>();
+    while (j < lines.length && lines[j].kind === "entry") {
+      body.add(j);
+      j += 1;
+    }
+    bodies.set(match[1], body);
+    i = j - 1;
+  }
+  return bodies;
+}
+
+/**
  * Insert missing entries under a `# ! <title> variables` section.
  *
  * Deduplication is scoped to the section itself: a key shared with another
  * module is still written into this module's section so the section stays
  * self-describing (matching .env.example, which renders the full list per
  * module). A global filter left later-declared modules with an empty section.
- * Keys already present in this section are never overwritten. Idempotent
- * across re-runs.
+ *
+ * Entries written outside every generated section are user-authored, so a key
+ * the user already defined by hand counts as satisfied — appending an empty
+ * example would produce a duplicate that dotenv resolves last-wins, silently
+ * blanking the real value. Keys already present in this section are never
+ * overwritten. Idempotent across re-runs.
  */
 export function upsertEnvSection(lines: EnvLine[], title: string, entries: Record<string, string>): EnvLine[] {
   const newKeys = Object.keys(entries);
   if (newKeys.length === 0) return lines;
 
-  const range = findSectionRange(lines, title);
-  const sectionKeys = new Set<string>();
-  if (range) {
-    for (const line of lines.slice(range.start, range.end)) {
-      if (line.kind === "entry") sectionKeys.add(line.key);
-    }
+  const bodies = generatedSectionBodies(lines);
+  const ownBody = bodies.get(title) ?? new Set<number>();
+  const managed = new Set<number>();
+  for (const body of bodies.values()) {
+    for (const index of body) managed.add(index);
   }
+
+  const sectionKeys = new Set<string>();
+  const handwrittenKeys = new Set<string>();
+  lines.forEach((line, index) => {
+    if (line.kind !== "entry") return;
+    if (ownBody.has(index)) sectionKeys.add(line.key);
+    else if (!managed.has(index)) handwrittenKeys.add(line.key);
+  });
+
   const missing: EnvLine[] = newKeys
-    .filter((key) => !sectionKeys.has(key))
+    .filter((key) => !sectionKeys.has(key) && !handwrittenKeys.has(key))
     .map((key) => ({ kind: "entry", key, value: entries[key] }));
 
+  const range = findSectionRange(lines, title);
   if (!range) {
+    if (missing.length === 0) return lines;
     return [...lines, ...sectionHeader(title), ...missing];
   }
 
+  if (missing.length === 0) return lines;
   const next = [...lines];
   next.splice(range.end, 0, ...missing);
   return next;

@@ -113,6 +113,34 @@ describe("upsertEnvSection", () => {
     assert.ok(betaBody.includes("SHARED_TOKEN=b"), "the later module's section lists its own shared key");
     assert.equal(betaBody.match(/SHARED_TOKEN=/g)?.length, 1, "the key is written once per section");
   });
+
+  it("leaves an in-section key untouched instead of appending an example (R21-01)", () => {
+    const seeded = parseEnv([deco, "# ! Alpha variables", deco, "ALPHA_TOKEN=real"].join("\n"));
+    const text = serializeEnv(upsertEnvSection(seeded, "Alpha", { ALPHA_TOKEN: "" }));
+
+    assert.equal(text.match(/ALPHA_TOKEN=/g)?.length, 1);
+    assert.deepEqual(envValues(parseEnv(text)), { ALPHA_TOKEN: "real" });
+  });
+
+  it("treats an out-of-section handwritten key as satisfied and adds no section (R21-01)", () => {
+    const text = serializeEnv(upsertEnvSection(parseEnv("MANUAL_TOKEN=from-user\n"), "Alpha", { MANUAL_TOKEN: "" }));
+
+    assert.equal(text.match(/MANUAL_TOKEN=/g)?.length, 1, "no empty example is appended");
+    assert.equal(text, "MANUAL_TOKEN=from-user\n", "the file is left untouched");
+    assert.deepEqual(envValues(parseEnv(text)), { MANUAL_TOKEN: "from-user" });
+  });
+
+  it("keeps both copies when the key exists in the section and outside (R21-01)", () => {
+    const seeded = parseEnv(
+      ["SHARED_TOKEN=outside", "", deco, "# ! Alpha variables", deco, "SHARED_TOKEN=inside", "ALPHA_ONLY=1"].join("\n"),
+    );
+    const lines = upsertEnvSection(seeded, "Alpha", { SHARED_TOKEN: "" });
+    const text = serializeEnv(lines);
+
+    assert.equal(text.match(/SHARED_TOKEN=/g)?.length, 2, "no third copy is appended");
+    assert.equal(envValues(parseEnv(text)).SHARED_TOKEN, "inside", "existing order is preserved");
+    assert.equal(serializeEnv(upsertEnvSection(lines, "Alpha", { SHARED_TOKEN: "" })), text, "still idempotent");
+  });
 });
 
 describe("pruneEmptySections", () => {
