@@ -68,9 +68,25 @@ export function getAccessToken(): string {
   return window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? "";
 }
 
+/**
+ * Set when the session is known to be over — the refresh exchange was
+ * rejected or an explicit expiry signal arrived from a non-axios transport —
+ * and cleared when a new token is stored. The host's error handler reads this
+ * to suppress failure toasts from requests racing the logout/redirect bounce:
+ * their backend messages ("Unauthorized") are noise to a user who is already
+ * signed out.
+ */
+let sessionEnded = false;
+
+/** Whether the session has ended and no new token has been stored yet. */
+export function isSessionEnded(): boolean {
+  return sessionEnded;
+}
+
 /** Persist token + expiry after login or refresh. */
 export function setSession(token: string, expiresInSeconds?: number): void {
   if (typeof window === "undefined") return;
+  sessionEnded = false;
   window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
   if (typeof expiresInSeconds === "number" && expiresInSeconds > 0) {
     window.localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(Date.now() + expiresInSeconds * 1000));
@@ -107,6 +123,16 @@ export class ApiError extends Error {
 let sessionExpiredHandler: (() => void) | null = null;
 export function onSessionExpired(handler: () => void): void {
   sessionExpiredHandler = handler;
+}
+
+/**
+ * Fire the session-expired handler directly. Used by non-axios transports
+ * (raw fetch for SSE streams) that can't go through the response interceptor
+ * but still need the same "refresh cookie gone → bounce to login" path.
+ */
+export function triggerSessionExpired(): void {
+  sessionEnded = true;
+  sessionExpiredHandler?.();
 }
 
 /**
@@ -302,7 +328,7 @@ api.interceptors.response.use(
       }
       // Refresh cookie missing or expired: the session is over.
       clearSession();
-      sessionExpiredHandler?.();
+      triggerSessionExpired();
     }
 
     // Single exit for every final failure: normalize once, notify once.
