@@ -90,25 +90,9 @@ export function getAccessToken(): string {
   return window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? "";
 }
 
-/**
- * Set when the session is known to be over — the refresh exchange was
- * rejected or an explicit expiry signal arrived from a non-axios transport —
- * and cleared when a new token is stored. The host's error handler reads this
- * to suppress failure toasts from requests racing the logout/redirect bounce:
- * their backend messages ("Unauthorized") are noise to a user who is already
- * signed out.
- */
-let sessionEnded = false;
-
-/** Whether the session has ended and no new token has been stored yet. */
-export function isSessionEnded(): boolean {
-  return sessionEnded;
-}
-
 /** Persist token + expiry after login or refresh. */
 export function setSession(token: string, expiresInSeconds?: number): void {
   if (typeof window === "undefined") return;
-  sessionEnded = false;
   window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
   if (typeof expiresInSeconds === "number" && expiresInSeconds > 0) {
     window.localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(Date.now() + expiresInSeconds * 1000));
@@ -128,7 +112,6 @@ export function clearSession(): void {
  * but still need the same "refresh cookie gone → bounce to login" path.
  */
 export function triggerSessionExpired(): void {
-  sessionEnded = true;
   sessionExpiredHandler?.();
 }
 
@@ -333,6 +316,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+/**
+ * Request config fields owned by the response interceptor.
+ *
+ * `_sessionExpiredFailure` marks the one request whose refresh exchange
+ * failed: its failure is a by-product of a session that just ended, so the
+ * host's error handler skips its toast. Suppression travels with that request
+ * only — anything issued afterwards (a fresh login attempt, say) still
+ * reports its own failure.
+ */
+type RotatingRequestConfig = InternalAxiosRequestConfig & {
+  _retriedAfterRefresh?: boolean;
+  _sessionExpiredFailure?: boolean;
+};
+
 // Success channel: only unwrap the envelope; failures never arrive here
 // (they carry non-2xx status — see newbie ADR-001).
 api.interceptors.response.use(
@@ -343,7 +340,7 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
-    const original = error?.config as (InternalAxiosRequestConfig & { _retriedAfterRefresh?: boolean }) | undefined;
+    const original = error?.config as RotatingRequestConfig | undefined;
     const url: string = original?.url ?? "";
     const canSilentlyRefresh =
       typeof window !== "undefined" && !original?._retriedAfterRefresh && !AUTH_PATH_PATTERN.test(url);
@@ -360,13 +357,16 @@ api.interceptors.response.use(
       // Refresh cookie missing or expired: the session is over.
       clearSession();
       triggerSessionExpired();
+      // This request failed because the session was already gone; the user is
+      // being bounced to the login page, so its message is noise (R21-01).
+      original._sessionExpiredFailure = true;
     }
 
     // Single exit for every final failure: normalize once, notify once.
     // Callers that render their own error UX pass enabledDefaultErrorToast:
     // false to suppress the default toast and avoid double notification.
     const normalized = toApiError(error);
-    if (error?.config?.enabledDefaultErrorToast !== false) {
+    if (!original?._sessionExpiredFailure && error?.config?.enabledDefaultErrorToast !== false) {
       errorHandler?.(normalized);
     }
     throw normalized;
