@@ -244,6 +244,34 @@ describe("assembleEnv", () => {
     assert.ok(raw.includes("SHARED_TOKEN=a") && raw.includes("SHARED_TOKEN=b"), "the shared key survives");
     assert.equal(issues.count, 0);
   });
+
+  it("creates .env on a fresh project without counting an issue (R20-06)", async () => {
+    const cwd = await makeProject({ modules: [{ key: "alpha" }] });
+    await fs.mkdir(path.join(cwd, "src", "modules", "alpha"), { recursive: true });
+    await fs.writeFile(
+      path.join(cwd, "src", "modules", "alpha", "newbie.module.json"),
+      JSON.stringify({
+        key: "alpha",
+        wiring: { file: "alpha.module", className: "AlphaModule" },
+        requires: { env: { ALPHA_TOKEN: "" } },
+      }),
+      "utf8",
+    );
+
+    const issues = new IssueBag();
+    await assembleEnv({
+      cwd,
+      sink: createSink(cwd, false),
+      issues,
+      added: ["alpha"],
+      removed: [],
+      enabled: ["alpha"],
+    });
+
+    const raw = await fs.readFile(path.join(cwd, ".env"), "utf8");
+    assert.match(raw, /ALPHA_TOKEN=/);
+    assert.equal(issues.count, 0, "a missing .env is first-run state, not a failure");
+  });
 });
 
 describe("applyModuleKeys", () => {

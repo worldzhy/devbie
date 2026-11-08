@@ -62,7 +62,11 @@ export async function assembleEnv(params: {
   try {
     raw = await fs.readFile(path.resolve(cwd, ENV_PATH), "utf8");
   } catch {
-    reportIssue(issues, sink, `${ENV_PATH} not found; a new file will be created with module variables only.`);
+    // A missing .env is the normal first-run state: `create` copies the
+    // template without .env, and only .env.example ships. This step creates
+    // the file with the enabled modules' declared variables, so it must not
+    // be reported as an issue — a fatal entry here made the first
+    // `modules add`/`apply` exit non-zero after every write had landed.
   }
 
   let lines: EnvLine[] = parseEnv(raw);
