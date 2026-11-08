@@ -311,3 +311,14 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 | R20-41 | newbie-modules                      | Approved Subnet 增删无审计事件                                                                                              | P3     | live          | 审计一致性                      | open |
 
 误报剔除（7 条）：“round19 findings 静默丢弃”不成立（并行会话 `dabce5a` 已落盘 R19-01..R19-10）；“fewbie template update 丢 nightwatch-frontend 宿主定制”对象错误（该仓非 fewbie 消费仓）；credentials AK/SK 由 P1 降 P2；“order wechat-workflow”由 P1 降 P2（未装配）；“DateTime 越界可作毒丸”不成立（实测静默夹取）；“R13-03 已完全修复”仅部分成立（代码直读 19 键未声明，归入 R20-08）；“装配漂移”不成立（34 模块零内容差异）。详见报告 §8。
+
+## round21 主张核验（2026-11-08，scope=`plan`：session-ended toast 抑制）
+
+报告：`.trae/documents/expert-review-2026-11-08-round21-claim-verification.md`（时点快照，不改写）。锚点：devbie `2b79f711` / nightwatch-frontend `6c09b2a` / nightwatch-backend `25cf3b3` / newbie-modules `3fb36c0`。被审域无并行改动。主张判定：C1 成立（P2）、C2 成立（C1 支撑事实）、C3 成立（P3）。
+
+| ID     | 仓                  | 标题                                                                                                                                       | 严重度 | 暴露面 | 可达性                          | 状态 |
+| ------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------ | ------------------------------- | ---- |
+| R21-01 | nightwatch-frontend | session-ended 全局闸门吞掉登录页失败提示（`sessionEnded` 只在 `setSession` 复位；登出走客户端导航不重载 → 在途请求 401+refresh 失败落地晚于导航 → 登录失败零提示） | P2     | live   | 任意登出用户 + 在途请求竞态     | fixed（本地未提交；改拦截器按请求标记 `_sessionExpiredFailure`；阴性对照：新测试对旧实现 2 红，修复后 14/14 绿） |
+| R21-02 | nightwatch-frontend / devbie（fewbie-cli） | 按请求抑制后 `sessionEnded`/`isSessionEnded` 无读者成死状态；registry 副本与宿主仅差 4 常量+1 注释，无漂移门禁，须 registry-first 同步 | P3     | source | 开发者                          | fixed（本地未提交；两份副本同步删除标志，diff 仍仅剩 4 常量+1 注释） |
+
+订正（不静默删除）：上一轮 review 称登录端点为 `POST /auth/login` 且返回 401——实际为 `POST /auth/login-by-password`、错误密码映射 400（`newbie.exception.ts:31-38`）；称登录页有 `catch {}`——实际该页无任何 `onError`/`catch`。两处不影响结论。
