@@ -1,5 +1,20 @@
 import axios, { type AxiosRequestConfig, type AxiosResponse, type InternalAxiosRequestConfig } from "axios";
 
+/**
+ * Per-request opt-out for the framework's default error toast.
+ *
+ * By default every failed request surfaces the backend error via the
+ * `onError` hook (currently wired to `toast.error` in request.ts). Set
+ * `enabledDefaultErrorToast: false` when the caller renders its own richer
+ * error UX (a confirm dialog, an inline form error, ...) so the same
+ * failure is not surfaced twice. Defaults to true for backward safety.
+ */
+declare module "axios" {
+  interface AxiosRequestConfig {
+    enabledDefaultErrorToast?: boolean;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Project-specific configuration — edit these for your backend contract.
 // ---------------------------------------------------------------------------
@@ -18,6 +33,13 @@ const REFRESH_PATH = "/auth/refresh-access-token";
 
 /** Paths that must never trigger a silent refresh (would recurse). */
 const AUTH_PATH_PATTERN = /^\/auth\//;
+
+/**
+ * Hard ceiling for every API request, including the refresh exchange. Without
+ * it a hung request (or a refresh that never settles) keeps `refreshPromise`
+ * locked forever and every later 401 waits on it (R5-P2-13).
+ */
+const API_TIMEOUT_MS = 15_000;
 
 /** Cross-tab Web Lock that serializes refresh calls (see ADR-001). */
 const REFRESH_LOCK_NAME = "refresh-token";
@@ -100,6 +122,16 @@ export function clearSession(): void {
   window.localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
 }
 
+/**
+ * Fire the session-expired handler directly. Used by non-axios transports
+ * (raw fetch for SSE streams) that can't go through the response interceptor
+ * but still need the same "refresh cookie gone → bounce to login" path.
+ */
+export function triggerSessionExpired(): void {
+  sessionEnded = true;
+  sessionExpiredHandler?.();
+}
+
 /** Normalized error so callers never depend on the axios error shape. */
 export class ApiError extends Error {
   readonly status: number;
@@ -123,16 +155,6 @@ export class ApiError extends Error {
 let sessionExpiredHandler: (() => void) | null = null;
 export function onSessionExpired(handler: () => void): void {
   sessionExpiredHandler = handler;
-}
-
-/**
- * Fire the session-expired handler directly. Used by non-axios transports
- * (raw fetch for SSE streams) that can't go through the response interceptor
- * but still need the same "refresh cookie gone → bounce to login" path.
- */
-export function triggerSessionExpired(): void {
-  sessionEnded = true;
-  sessionExpiredHandler?.();
 }
 
 /**
@@ -168,6 +190,7 @@ function isRefreshStillDue(): boolean {
 async function requestRefreshOnce(): Promise<string | null> {
   const response = await axios.get(`${BASE_URL}${REFRESH_PATH}`, {
     withCredentials: true,
+    timeout: API_TIMEOUT_MS,
   });
   const body = response.data as ApiEnvelope<{
     token?: string;
@@ -216,8 +239,11 @@ let refreshPromise: Promise<string | null> | null = null;
  * invalid regardless of the stored expiry, so the lock-time re-check must
  * not short-circuit. Environments without Web Locks fall back to the
  * single-flight + retry mitigation.
+ *
+ * Exported so non-axios transports (raw fetch for SSE streams) can also
+ * participate in the 401 silent-refresh chain.
  */
-function refreshAccessToken(force = false): Promise<string | null> {
+export function refreshAccessToken(force = false): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
@@ -253,8 +279,12 @@ export function initProactiveTokenRefresh(): void {
 
   const refreshIfDue = (): void => {
     const token = getAccessToken();
+    if (!token) return;
     const expiresAt = Number(window.localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY) ?? 0);
-    if (token && expiresAt && Date.now() >= expiresAt - PROACTIVE_REFRESH_LEAD_MS) {
+    // A session without a stored expiry (legacy login or a provider that
+    // omitted expiresIn) still needs renewal: refresh now and persist the
+    // expiry the backend returns, instead of never scheduling a refresh.
+    if (!expiresAt || Date.now() >= expiresAt - PROACTIVE_REFRESH_LEAD_MS) {
       void refreshAccessToken();
     }
   };
@@ -291,6 +321,7 @@ function toApiError(error: unknown): ApiError {
 export const api = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
+  timeout: API_TIMEOUT_MS,
 });
 
 api.interceptors.request.use((config) => {
@@ -332,8 +363,12 @@ api.interceptors.response.use(
     }
 
     // Single exit for every final failure: normalize once, notify once.
+    // Callers that render their own error UX pass enabledDefaultErrorToast:
+    // false to suppress the default toast and avoid double notification.
     const normalized = toApiError(error);
-    errorHandler?.(normalized);
+    if (error?.config?.enabledDefaultErrorToast !== false) {
+      errorHandler?.(normalized);
+    }
     throw normalized;
   },
 );

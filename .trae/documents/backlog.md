@@ -29,8 +29,6 @@
 
 ## P2
 
-- [ ] `[2026-11-08 回写 session-ended 时发现]` **收敛 fewbie registry api-client 与 nightwatch-frontend 宿主副本的漂移**：宿主侧领先注册表的特性尚未回写——`API_TIMEOUT_MS` 超时兜底（含 refresh 请求）、`enabledDefaultErrorToast` 逐请求关闭默认 toast 的 axios 声明、`refreshAccessToken` 导出（SSE raw fetch 复用）、无 expiresAt 时也触发刷新。session-ended 标志已回写（`d451f74e`），其余四项待统一回移注册表并核对消费方。
-
 > `@devbie/apits@1.2.1` 与 `@devbie/fewbie-cli@1.4.2` 于 2026-10-31 发布（`fd0ab734`、`b0299e82`）：apits 的 bin 直指 `dist/cli.js`（shebang + 自执行守卫，替代 1.2.0 的 `bin/apits` wrapper）；fewbie 脚手架 spec 收紧到 `@devbie/apits@^1.2.1`，bin 仍按已安装包的 `bin` 字段解析（存量 1.2.0 安装继续可用）。端到端验证：临时项目用已发布的 `npx @devbie/fewbie-cli@1.4.2 apits` 成功安装 `@devbie/apits@1.2.1` 并生成 `src/api/_gen/api.ts`。
 
 > 2026-11-06 批量发布补齐"已修未发"的 7 个包（版本 bump 提交 `523f21a8`，registry `latest` 已逐个核对）：`@devbie/apits@1.2.2`（路径参数不进 body/query 且编码、15s 超时、watcher fd 泄漏、watch 重建失败非 0 退出）、`@devbie/health-sdk@1.2.2`（上报 10s 超时 + watcher 泄漏）、`@devbie/heartbeat-sdk@1.2.1`（心跳 10s 超时）、`@devbie/backend-monitor-sdk@1.3.2`（事件字段按 DTO 上限 clamp）、`@devbie/modules-state@1.1.1`（只记录/卸载 CLI 自装依赖）、`@devbie/aws-secrets-cli@1.1.7`（拉取失败改 fatal，sst v4 随之入库）、`@devbie/fewbie-cli@1.4.4`（脚手架 web-monitor 去掉 APP_ID）。发布前按 checklist 做过 clean build + 全量测试 + `npm audit`（仅剩已登记的 10 条 lint 工具链 moderate）；tarball 解包核对修复标记均在位。fewbie-starter 已随之升 `@devbie/fewbie-cli@^1.4.4` 与 `@devbie/heartbeat-sdk@^1.2.1`（`1032cfe`，dev 已推送）；`check:template-deps` 的 web-monitor 1.5.2 报错仍来自脚本克隆 main，待 dev 合入后转绿。
