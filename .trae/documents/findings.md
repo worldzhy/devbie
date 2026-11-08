@@ -363,3 +363,18 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 | R24-06 | nightwatch-frontend | `UserRole` 枚举滞后：仅 ADMIN/USER，后端为 ADMIN/OPERATOR/MEMBER，`USER` 无对应角色（`enums/index.ts:15-22`、`prisma/seeds/roles.ts:11-46`）                                | P2     | source | 开发者                              | fixed（2026-11-08：`UserRole` 改为 ADMIN/OPERATOR/MEMBER；`user-modal` 去掉 `["USER"]` 默认值，角色改由 Role 表选择） |
 | R24-07 | nightwatch-frontend | 路由级授权覆盖不一致：64 个 dashboard page 仅 6 个含客户端权限门，其余靠后端 403，拒绝表现分裂                                                                              | P2     | live   | 任意登录用户（直输 URL）            | partial（6 个门已收敛到 `RequirePermission`；其余 58 页维持后端 403，剩余覆盖入 frontend backlog） |
 | R24-08 | nightwatch-frontend | 测试缺口：两条 SSE 传输与权限门零测试；4 个测试文件集中在 axios 客户端                                                                                                     | P2     | source | 开发者                              | fixed（2026-11-08：新增 `safe-path` / `route-access` / copilot `chat-stream` / OAuth 回跳门测试与 `isTrustedApiTarget` 用例，测试文件 4→8、用例 38→64） |
+
+### round25（2026-11-08，nightwatch-frontend 权限 / HTTP / 鉴权域）
+
+| ID     | 仓                  | 标题                                                                                                                                                                                                 | 等级 | 暴露面 | 可达性                                  | 状态 |
+| ------ | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | ------ | --------------------------------------- | ---- |
+| R25-01 | nightwatch-frontend | `isSafeInternalPath` 未拒绝 C0 控制字符：`?redirectUrl=%2F%0A%2Fevil.com` 过谓词，WHATWG URL 解析剥除换行后成 `https://evil.com/`，登录成功后 `location.assign`（R24-01 修复不完整；后端 `redirect-path.ts:20` 已有拒绝，注释称"mirror"实为漂移） | P1   | live   | 匿名构造链接 + 受害者完成登录            | open |
+| R25-02 | nightwatch-frontend | 开放重定向边界测试缺口：`safe-path.test.ts` 拒绝集合无 `\t \n \r` 用例，71 用例全绿但挡不住 R25-01 回归                                                                                              | P2   | source | 开发者                                  | open |
+| R25-03 | nightwatch-frontend | 权限组 `routePath`（表单仅 required+max128、后端 DTO 仅 string）由 `use-header-navigation` 直达 `router.push`，无 `isSafeInternalPath`；ADMIN 可写入 `//evil.com` 形态致持有人点击顶部导航被跳转站外                        | P2   | live   | 权限组写持有者（seed 中 IAM 仅 ADMIN）   | open |
+| R25-04 | nightwatch-frontend | R24-07 carry-over：56/64 dashboard page 无路由级权限门（仅 6 个 `/iam` 页 + audit-logs + work-evaluation 受门；54 页无任何客户端门；projects 38 页 0 门）；后端 11/13 控制器带 `@RequirePermission`，2 例外有正当守卫 → 维持 P2 | P2   | live   | 任意登录用户（直输 URL）                | partial |
+| R25-05 | nightwatch-frontend | 403 文案硬编码英文（`api/request.ts:27`），en/zh messages 均无对应 key，zh 用户收英文 toast                                                                                                        | P2   | live   | 任意登录用户                            | open |
+| R25-06 | nightwatch-frontend | "仅 http(s)" 外链谓词 3 份等价实现（shortcut `isSafeExternalUrl`、url-check `httpUrlOrNull`、copilot `safeHref` 绝对分支），与前端的内部路径谓词合计 4 份同一不变量实现                                    | P3   | source | 开发者                                  | open |
+
+报告：`expert-review-2026-11-08-round25.md`。
+
+修复后回到本段更新状态；R25-01 关闭需同时补 R25-02 的阴性用例（未改谓词时用例必须红）。
