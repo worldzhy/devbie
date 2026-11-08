@@ -56,6 +56,9 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   }
 
   await applyPlanned(ctx, plan);
+  // Issues collected while planning/rendering are failures a real apply would
+  // also exit on; the gate must not stay green past them (R20-07).
+  ctx.issues.assertEmpty();
 
   const findings = ctx.sink.findings.filter(isCountedFinding);
   if (findings.length > 0) {
