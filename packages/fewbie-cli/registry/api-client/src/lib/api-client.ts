@@ -241,6 +241,8 @@ async function requestRefreshWithRetry(): Promise<RefreshOutcome> {
 // call, so concurrent 401s must await the same request instead of issuing
 // parallel refreshes that invalidate each other's cookie.
 let refreshPromise: Promise<RefreshOutcome> | null = null;
+/** Whether the in-flight refresh was started with force=true (R20-12). */
+let refreshPromiseForced = false;
 
 /**
  * Exchange the httpOnly refresh cookie for a new access token.
@@ -253,8 +255,11 @@ let refreshPromise: Promise<RefreshOutcome> | null = null;
  * After acquiring the lock, re-check whether refresh is still needed.
  * Pass force=true from the 401 reactive path: a 401 proves the token is
  * invalid regardless of the stored expiry, so the lock-time re-check must
- * not short-circuit. Environments without Web Locks fall back to the
- * single-flight + retry mitigation.
+ * not short-circuit. A forced caller must not ride a non-forced in-flight
+ * refresh either — that promise may resolve through the not-due shortcut
+ * with a token the server already rejects — so it chains a forced refresh
+ * after the in-flight one instead (R20-12). Environments without Web Locks
+ * fall back to the single-flight + retry mitigation.
  *
  * Exported so non-axios transports (raw fetch for SSE streams) can also
  * participate in the 401 silent-refresh chain. The outcome distinguishes a
@@ -262,8 +267,12 @@ let refreshPromise: Promise<RefreshOutcome> | null = null;
  * callers only end the session on the former (R22-05).
  */
 export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
-  if (refreshPromise) return refreshPromise;
+  if (refreshPromise) {
+    if (!force || refreshPromiseForced) return refreshPromise;
+    return refreshPromise.then((outcome) => (outcome.sessionOver ? outcome : refreshAccessToken(true)));
+  }
 
+  refreshPromiseForced = force;
   refreshPromise = (async (): Promise<RefreshOutcome> => {
     try {
       if (typeof navigator !== "undefined" && navigator.locks) {
@@ -272,13 +281,39 @@ export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
           return requestRefreshWithRetry();
         });
       }
-      return requestRefreshWithRetry();
+      // The await matters: without it the finally below runs at construction
+      // time and refreshPromise would keep the settled outcome forever, so
+      // no-locks environments could never refresh again (R20-12).
+      return await requestRefreshWithRetry();
     } finally {
       refreshPromise = null;
+      refreshPromiseForced = false;
     }
   })();
 
   return refreshPromise;
+}
+
+/**
+ * Shared 401 handling for non-axios transports (raw fetch for SSE streams):
+ * force a silent refresh and replay once with the renewed token. The session
+ * ends only when the refresh credential is dead; a transient refresh failure
+ * keeps the session and hands the original 401 back to the caller (R22-05,
+ * R23-06).
+ */
+export async function replayOnUnauthorized(
+  response: Response,
+  replay: (token: string) => Promise<Response>,
+): Promise<Response> {
+  if (response.status !== 401) return response;
+  const outcome = await refreshAccessToken(true);
+  if (outcome.token) return replay(outcome.token);
+  if (outcome.sessionOver) {
+    // Dead refresh credential: same session-end path as the axios interceptor.
+    clearSession();
+    triggerSessionExpired();
+  }
+  return response;
 }
 
 // ---------------------------------------------------------------------------
@@ -349,10 +384,27 @@ export const api = axios.create({
   timeout: API_TIMEOUT_MS,
 });
 
+/**
+ * Whether the request resolves to our own origin (the configured baseURL, or
+ * the page origin when baseURL is empty). The bearer token must never be
+ * attached to an absolute URL pointing at a third party (R23-02).
+ */
+function isOwnOriginRequest(config: InternalAxiosRequestConfig): boolean {
+  const base = config.baseURL ?? BASE_URL;
+  const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+  try {
+    const resolved = new URL(config.url ?? "", base || fallbackOrigin);
+    const baseOrigin = new URL(base || fallbackOrigin, fallbackOrigin).origin;
+    return resolved.origin === baseOrigin;
+  } catch {
+    return false;
+  }
+}
+
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   // Within the interceptor chain headers is always an AxiosHeaders instance.
-  if (token) {
+  if (token && isOwnOriginRequest(config)) {
     config.headers.set("Authorization", `Bearer ${token}`);
   }
   return config;
