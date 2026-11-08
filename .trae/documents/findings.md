@@ -322,3 +322,16 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 | R21-02 | nightwatch-frontend / devbie（fewbie-cli） | 按请求抑制后 `sessionEnded`/`isSessionEnded` 无读者成死状态；registry 副本与宿主仅差 4 常量+1 注释，无漂移门禁，须 registry-first 同步 | P3     | source | 开发者                          | fixed（本地未提交；两份副本同步删除标志，diff 仍仅剩 4 常量+1 注释） |
 
 订正（不静默删除）：上一轮 review 称登录端点为 `POST /auth/login` 且返回 401——实际为 `POST /auth/login-by-password`、错误密码映射 400（`newbie.exception.ts:31-38`）；称登录页有 `catch {}`——实际该页无任何 `onError`/`catch`。两处不影响结论。
+
+## round22 设计评审（2026-11-08，scope=`plan`：最终实现是否最优雅/最标准）
+
+报告：`.trae/documents/expert-review-2026-11-08-round22-design-verdict.md`（时点快照，不改写）。锚点：nightwatch-frontend `807c2b8` / devbie `ca41350c`；被审域无并行改动。主张判定：C1/C2/C4/C6 成立，C5 基本成立，C3（最优雅）与 C7（覆盖一致性）不成立。executed 证据：`vitest run src/lib/api-client.test.ts` 14/14；阴性对照（旧实现 `446c52f` + 新宿主接线）2 failed / 12 passed；`tsc --noEmit` 干净；宿主 vs registry `diff -u` 仅 4 常量 + 1 注释。
+
+| ID     | 仓                                | 标题                                                                                                       | 严重度 | 暴露面 | 可达性                     | 状态 |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------ | ------ | -------------------------- | ---- |
+| R22-01 | nightwatch-frontend / devbie（fewbie-cli） | 抑制语义两套机制并存：私有 `_sessionExpiredFailure` 与公共 `enabledDefaultErrorToast` 语义重叠，复用后者可删一个类型字段与一处条件判断 | P3     | live   | 开发者                     | fixed（本地未提交；拦截器改为 `enabledDefaultErrorToast = false`，删除私有字段与双重条件，两仓锁步） |
+| R22-02 | nightwatch-frontend               | analysis SSE 401 未接入 refresh/session-end 链路，仅 inline 显示过期；与 axios/copilot 语义不一致（`analysis/chat-stream.ts:50-67`、`analysis-tab.tsx:250-257`） | P3     | live   | 任意登录用户               | fixed（本地未提交；接入 `refreshAccessToken` 重放 + sessionOver 清会话跳登录） |
+| R22-03 | nightwatch-frontend               | copilot SSE 会话结束后仍渲染 unauthorized banner；主动刷新失败被 `void` 静默丢弃、无会话检测（`copilot/chat-stream.ts:55-68`、`api-client.ts:260-278`） | P3     | live   | 任意登录用户               | fixed（本地未提交；banner 对 `unauthorized` 跳过；主动刷新 sessionOver 时清会话跳登录） |
+| R22-04 | nightwatch-frontend               | 测试缺口："刷新成功 + 重放仍 401 必须照常 toast"未覆盖；宿主 `request.ts:19-29` 接线无测试 | P3     | source | 开发者                     | fixed（本地未提交；新增重放仍 401、刷新瞬时失败 2 条用例 + `src/api/request.test.ts` 3 条接线用例，19/19 绿） |
+| R22-05 | nightwatch-frontend / devbie（fewbie-cli） | 非 401 的刷新失败（网络/5xx）被当作"会话结束"→ `clearSession` + 静默登出；主动刷新同因失败无检测（`api-client.ts:188-205,357-359`；自 `65bd8aa` 起，非本轮回归） | P2     | live   | 任意登录用户 + 刷新请求遇网络/5xx | fixed（本地未提交；`refreshAccessToken` 返回 `RefreshOutcome{token,sessionOver}`，仅 401/400/空 token 判会话终止，网络/5xx 保留会话并照常上报） |
+| R22-06 | nightwatch-frontend               | 并发会话结束每个失败请求各触发一次 `triggerSessionExpired` → 多次 `location.replace`（`api-client.ts:359`、`request.ts:10-17`） | P3     | live   | 任意登录用户               | fixed（本地未提交；`sessionExpiredNotified` once-per-session 去重，`setSession` 重置） |
