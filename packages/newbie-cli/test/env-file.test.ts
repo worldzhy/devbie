@@ -10,6 +10,7 @@ import {
   normalizeSections,
   parseEnv,
   pruneEmptySections,
+  relocateSharedEnvKeys,
   removeEnvKeys,
   replaceMarkedBlock,
   serializeEnv,
@@ -102,6 +103,140 @@ describe("upsertEnvSection", () => {
     assert.equal(values.A, "1");
     assert.equal(values.B, "3");
     assert.equal(serializeEnv(twice).match(/A=/g)?.length, 1);
+  });
+
+  it("mirrors a key shared with an earlier module instead of leaving an empty section (R20-27)", () => {
+    const withAlpha = upsertEnvSection(parseEnv(""), "Alpha", { SHARED_TOKEN: "a", ALPHA_ONLY: "1" });
+    const withBeta = upsertEnvSection(withAlpha, "Beta", { SHARED_TOKEN: "b" });
+
+    const text = serializeEnv(withBeta);
+    const betaBody = text.slice(text.indexOf("# ! Beta variables"));
+    assert.ok(betaBody.includes("SHARED_TOKEN=b"), "the later module's section lists its own shared key");
+    assert.equal(betaBody.match(/SHARED_TOKEN=/g)?.length, 1, "the key is written once per section");
+  });
+
+  it("leaves an in-section key untouched instead of appending an example (R21-01)", () => {
+    const seeded = parseEnv([deco, "# ! Alpha variables", deco, "ALPHA_TOKEN=real"].join("\n"));
+    const text = serializeEnv(upsertEnvSection(seeded, "Alpha", { ALPHA_TOKEN: "" }));
+
+    assert.equal(text.match(/ALPHA_TOKEN=/g)?.length, 1);
+    assert.deepEqual(envValues(parseEnv(text)), { ALPHA_TOKEN: "real" });
+  });
+
+  it("treats an out-of-section handwritten key as satisfied and adds no section (R21-01)", () => {
+    const text = serializeEnv(upsertEnvSection(parseEnv("MANUAL_TOKEN=from-user\n"), "Alpha", { MANUAL_TOKEN: "" }));
+
+    assert.equal(text.match(/MANUAL_TOKEN=/g)?.length, 1, "no empty example is appended");
+    assert.equal(text, "MANUAL_TOKEN=from-user\n", "the file is left untouched");
+    assert.deepEqual(envValues(parseEnv(text)), { MANUAL_TOKEN: "from-user" });
+  });
+
+  it("keeps both copies when the key exists in the section and outside (R21-01)", () => {
+    const seeded = parseEnv(
+      ["SHARED_TOKEN=outside", "", deco, "# ! Alpha variables", deco, "SHARED_TOKEN=inside", "ALPHA_ONLY=1"].join("\n"),
+    );
+    const lines = upsertEnvSection(seeded, "Alpha", { SHARED_TOKEN: "" });
+    const text = serializeEnv(lines);
+
+    assert.equal(text.match(/SHARED_TOKEN=/g)?.length, 2, "no third copy is appended");
+    assert.equal(envValues(parseEnv(text)).SHARED_TOKEN, "inside", "existing order is preserved");
+    assert.equal(serializeEnv(upsertEnvSection(lines, "Alpha", { SHARED_TOKEN: "" })), text, "still idempotent");
+  });
+});
+
+describe("relocateSharedEnvKeys", () => {
+  const deco = "# ----------------------------------------------------------------------------------";
+  const owners = new Map([["SHARED_TOKEN", "Alpha"]]);
+
+  it("migrates the real value from a non-owner section into the owner's empty entry (R29-01)", () => {
+    const seeded = parseEnv(
+      [
+        deco,
+        "# ! Alpha variables",
+        deco,
+        "SHARED_TOKEN=",
+        "ALPHA_ONLY=1",
+        "",
+        deco,
+        "# ! Beta variables",
+        deco,
+        "SHARED_TOKEN=real",
+        "BETA_ONLY=2",
+      ].join("\n"),
+    );
+
+    const { lines, migrated } = relocateSharedEnvKeys(seeded, owners);
+    const text = serializeEnv(normalizeSections(lines));
+
+    assert.equal(text.match(/SHARED_TOKEN=/g)?.length, 1, "exactly one generated copy remains");
+    assert.equal(envValues(parseEnv(text)).SHARED_TOKEN, "real", "the real value wins over the empty owner entry");
+    const alphaStart = text.indexOf("# ! Alpha variables");
+    const betaStart = text.indexOf("# ! Beta variables");
+    const sharedAt = text.indexOf("SHARED_TOKEN=real");
+    assert.ok(
+      alphaStart !== -1 && alphaStart < sharedAt && sharedAt < betaStart,
+      "the copy lives in the owner section",
+    );
+    assert.equal(migrated.get("SHARED_TOKEN"), "real");
+    assert.ok(text.includes("BETA_ONLY=2"), "unrelated keys are untouched");
+  });
+
+  it("is a no-op when no non-owner copies exist", () => {
+    const seeded = parseEnv([deco, "# ! Alpha variables", deco, "SHARED_TOKEN=real"].join("\n"));
+
+    const { lines, migrated } = relocateSharedEnvKeys(seeded, owners);
+
+    assert.equal(serializeEnv(lines), serializeEnv(seeded));
+    assert.equal(migrated.size, 0);
+  });
+
+  it("keeps a hand-written copy as the single source and strips generated duplicates", () => {
+    const seeded = parseEnv(
+      [
+        deco,
+        "# ! Alpha variables",
+        deco,
+        "SHARED_TOKEN=",
+        "",
+        deco,
+        "# ! Beta variables",
+        deco,
+        "SHARED_TOKEN=generated",
+        "",
+        "SHARED_TOKEN=from-user",
+      ].join("\n"),
+    );
+
+    const { lines } = relocateSharedEnvKeys(seeded, owners);
+    const text = serializeEnv(lines);
+
+    assert.equal(text.match(/SHARED_TOKEN=/g)?.length, 1, "no generated copy is re-added");
+    assert.equal(envValues(parseEnv(text)).SHARED_TOKEN, "from-user");
+  });
+
+  it("creates the owner section when it is missing", () => {
+    const seeded = parseEnv([deco, "# ! Beta variables", deco, "SHARED_TOKEN=real"].join("\n"));
+
+    const { lines } = relocateSharedEnvKeys(seeded, owners);
+    const text = serializeEnv(normalizeSections(lines));
+
+    assert.ok(text.includes("# ! Alpha variables"));
+    assert.equal(text.match(/SHARED_TOKEN=/g)?.length, 1);
+    assert.equal(envValues(parseEnv(text)).SHARED_TOKEN, "real");
+  });
+
+  it("converges all-empty copies to a single empty owner entry", () => {
+    const seeded = parseEnv(
+      [deco, "# ! Alpha variables", deco, "SHARED_TOKEN=", deco, "# ! Beta variables", deco, "SHARED_TOKEN="].join(
+        "\n",
+      ),
+    );
+
+    const { lines } = relocateSharedEnvKeys(seeded, owners);
+    const text = serializeEnv(lines);
+
+    assert.equal(text.match(/SHARED_TOKEN=/g)?.length, 1);
+    assert.equal(envValues(parseEnv(text)).SHARED_TOKEN, "");
   });
 });
 

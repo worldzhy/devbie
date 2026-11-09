@@ -9,7 +9,7 @@ import { runApply } from "../src/commands/modules/apply";
 import { runRemove } from "../src/commands/modules/remove";
 import { runUpdate } from "../src/commands/modules/update";
 import { MODULES_FILE, readModulesFile } from "../src/lib/modules-file";
-import { loadItem } from "../src/registry/store";
+import { loadItem, readItemFileContent, resolveRegistryRoot } from "../src/registry/store";
 
 async function makeProject(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-modules-"));
@@ -127,6 +127,25 @@ describe("fewbie modules", () => {
 
     await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true, force: true });
     assert.notEqual(await read(root, "src/components/page-header.tsx"), "// template copy\n");
+  });
+
+  it("retries an interrupted install instead of conflicting on identical files (R20-28)", async () => {
+    const root = await makeProject();
+    after(async () => fs.rm(root, { recursive: true, force: true }));
+
+    // Simulate a run that wrote the registry bytes, then died before
+    // fewbie.json recorded the declaration.
+    const item = await loadItem(await resolveRegistryRoot(), "page-header");
+    for (const file of item.files) {
+      const target = path.join(root, file.target);
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, await readItemFileContent(file));
+    }
+
+    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
+
+    assert.deepEqual(await readModulesFile(root), ["page-header"]);
+    assert.ok(await exists(root, "src/components/page-header.tsx"));
   });
 });
 

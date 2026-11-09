@@ -7,7 +7,7 @@ import { afterEach, describe, it } from "node:test";
 import { normalizeModulesState } from "@devbie/modules-state";
 
 import { applyModuleKeys, planReconcile, runSteps, PipelineContext } from "../src/assemble/pipeline";
-import { assembleEnv } from "../src/assemble/env";
+import { assembleEnv, assembleEnvExample } from "../src/assemble/env";
 import { addModules } from "../src/assemble/modules-copy";
 import { CliError } from "@devbie/cli-kit";
 import { IssueBag } from "../src/lib/issues";
@@ -243,6 +243,137 @@ describe("assembleEnv", () => {
     assert.ok(!raw.includes("ALPHA_ONLY"), "the removed module's own key is deleted");
     assert.ok(raw.includes("SHARED_TOKEN=a") && raw.includes("SHARED_TOKEN=b"), "the shared key survives");
     assert.equal(issues.count, 0);
+  });
+
+  it("creates .env on a fresh project without counting an issue (R20-06)", async () => {
+    const cwd = await makeProject({ modules: [{ key: "alpha" }] });
+    await fs.mkdir(path.join(cwd, "src", "modules", "alpha"), { recursive: true });
+    await fs.writeFile(
+      path.join(cwd, "src", "modules", "alpha", "newbie.module.json"),
+      JSON.stringify({
+        key: "alpha",
+        wiring: { file: "alpha.module", className: "AlphaModule" },
+        requires: { env: { ALPHA_TOKEN: "" } },
+      }),
+      "utf8",
+    );
+
+    const issues = new IssueBag();
+    await assembleEnv({
+      cwd,
+      sink: createSink(cwd, false),
+      issues,
+      added: ["alpha"],
+      removed: [],
+      enabled: ["alpha"],
+    });
+
+    const raw = await fs.readFile(path.join(cwd, ".env"), "utf8");
+    assert.match(raw, /ALPHA_TOKEN=/);
+    assert.equal(issues.count, 0, "a missing .env is first-run state, not a failure");
+  });
+
+  it("writes a shared key only into the alphabetically first declarer's section (R29-01)", async () => {
+    const cwd = await makeProject({
+      modules: [{ key: "alpha" }, { key: "beta" }],
+      copied: ["alpha", "beta"],
+    });
+    for (const [key, env] of Object.entries({
+      alpha: { SHARED_TOKEN: "", ALPHA_ONLY: "x" },
+      beta: { SHARED_TOKEN: "", BETA_ONLY: "y" },
+    })) {
+      await fs.writeFile(
+        path.join(cwd, "src", "modules", key, "newbie.module.json"),
+        JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, requires: { env } }),
+        "utf8",
+      );
+    }
+
+    const issues = new IssueBag();
+    await assembleEnv({
+      cwd,
+      sink: createSink(cwd, false),
+      issues,
+      added: ["alpha", "beta"],
+      removed: [],
+      enabled: ["alpha", "beta"],
+    });
+
+    const raw = await fs.readFile(path.join(cwd, ".env"), "utf8");
+    assert.equal(raw.match(/SHARED_TOKEN=/g)?.length, 1, "the shared key is written exactly once");
+    const betaBody = raw.slice(raw.indexOf("# ! Beta variables"));
+    assert.ok(!betaBody.includes("SHARED_TOKEN"), "the later declarer's section omits the shared key");
+    assert.ok(betaBody.includes("BETA_ONLY=y"), "the later declarer keeps its own keys");
+  });
+
+  it("converges an existing duplicate shared key onto the owner section, keeping the real value (R29-01)", async () => {
+    const cwd = await makeProject({
+      modules: [{ key: "alpha" }, { key: "beta" }],
+      copied: ["alpha", "beta"],
+    });
+    for (const [key, env] of Object.entries({
+      alpha: { SHARED_TOKEN: "" },
+      beta: { SHARED_TOKEN: "", BETA_ONLY: "y" },
+    })) {
+      await fs.writeFile(
+        path.join(cwd, "src", "modules", key, "newbie.module.json"),
+        JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, requires: { env } }),
+        "utf8",
+      );
+    }
+    await fs.writeFile(
+      path.join(cwd, ".env"),
+      "# ! Alpha variables\nSHARED_TOKEN=\n# ! Beta variables\nSHARED_TOKEN=real\nBETA_ONLY=y\n",
+      "utf8",
+    );
+
+    const issues = new IssueBag();
+    await assembleEnv({
+      cwd,
+      sink: createSink(cwd, false),
+      issues,
+      added: [],
+      removed: [],
+      enabled: ["alpha", "beta"],
+    });
+
+    const raw = await fs.readFile(path.join(cwd, ".env"), "utf8");
+    assert.equal(raw.match(/SHARED_TOKEN=/g)?.length, 1, "the duplicate is converged");
+    const alphaStart = raw.indexOf("# ! Alpha variables");
+    const betaStart = raw.indexOf("# ! Beta variables");
+    const sharedAt = raw.indexOf("SHARED_TOKEN=real");
+    assert.ok(alphaStart !== -1 && alphaStart < sharedAt && sharedAt < betaStart, "the real value moves to the owner");
+  });
+
+  it("renders a shared key once, under the owner section, in .env.example (R29-01)", async () => {
+    const cwd = await makeProject({
+      modules: [{ key: "alpha" }, { key: "beta" }],
+      copied: ["alpha", "beta"],
+    });
+    for (const [key, env] of Object.entries({
+      alpha: { SHARED_TOKEN: "" },
+      beta: { SHARED_TOKEN: "", BETA_ONLY: "y" },
+    })) {
+      await fs.writeFile(
+        path.join(cwd, "src", "modules", key, "newbie.module.json"),
+        JSON.stringify({ key, wiring: { file: `${key}.module`, className: `${key}Module` }, requires: { env } }),
+        "utf8",
+      );
+    }
+
+    const issues = new IssueBag();
+    await assembleEnvExample({
+      cwd,
+      sink: createSink(cwd, false),
+      issues,
+      enabled: ["alpha", "beta"],
+    });
+
+    const raw = await fs.readFile(path.join(cwd, ".env.example"), "utf8");
+    assert.equal(raw.match(/SHARED_TOKEN=/g)?.length, 1, "the shared key renders exactly once");
+    const betaBody = raw.slice(raw.indexOf("# ! Beta variables"));
+    assert.ok(betaBody.includes("BETA_ONLY=y"), "the later declarer keeps its own keys");
+    assert.ok(!betaBody.includes("SHARED_TOKEN"), "the later declarer's section omits the shared key");
   });
 });
 

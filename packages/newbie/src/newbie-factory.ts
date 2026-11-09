@@ -69,6 +69,15 @@ export interface NewbieAppOptions {
    */
   swagger?: NewbieSwaggerOptions | false;
   cluster?: boolean;
+  /**
+   * Reverse-proxy hops trusted for the client address and protocol
+   * (`X-Forwarded-For` / `X-Forwarded-Proto`). Production deployments terminate
+   * TLS at Caddy on the same network (ADR-008), so the default is 1 there and
+   * `req.ip` stays the real client instead of the proxy container; development
+   * runs are direct connections and default to false. Pass `false` when a
+   * production host exposes the app without a proxy.
+   */
+  trustProxy?: boolean | number | string;
 }
 
 export interface NewbieBootstrapResult {
@@ -136,6 +145,7 @@ export class NewbieFactory {
     const bodyLimit = options.bodyLimit ?? "10mb";
     const requestTimeout = options.requestTimeout ?? 60_000;
     const portRaceRecovery = options.portRaceRecovery ?? environment !== "production";
+    const trustProxy = options.trustProxy ?? (environment === "production" ? 1 : false);
 
     const bootstrap = async (): Promise<NewbieBootstrapResult> => {
       // [step 1] Create a nestjs application.
@@ -159,6 +169,10 @@ export class NewbieFactory {
       // themselves, so Nest's built-in signal listeners stay disabled to
       // avoid double-registration.
       app.set("query parser", "extended");
+      // Without this, req.ip is the Caddy container's address behind the
+      // production proxy, so audit records and IP-keyed throttling see one
+      // client for every request (R20-19).
+      app.set("trust proxy", trustProxy);
       app.use(cookieParser());
       app.use(json({ limit: bodyLimit }));
       app.use(urlencoded({ limit: bodyLimit, extended: true }));

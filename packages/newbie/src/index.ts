@@ -60,11 +60,13 @@ export * from "./transformers/boolean.transformer";
 
 // Utilities
 export * from "./utilities/array.util";
+export * from "./utilities/base64.util";
 export * from "./utilities/bool.util";
 export * from "./utilities/common.util";
 export * from "./utilities/crypto.util";
 export * from "./utilities/datetime.util";
 export * from "./utilities/delay.util";
+export * from "./utilities/error-message.util";
 export * from "./utilities/file.util";
 export * from "./utilities/int.util";
 export * from "./utilities/parse-object-literal.util";

@@ -4,8 +4,22 @@ import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { runCreate } from "../src/commands/create";
+import { resolveTemplate, runCreate } from "../src/commands/create";
 import { parseModuleSelector } from "../src/lib/module-selector";
+
+describe("resolveTemplate", () => {
+  it("resolves a relative template path against the project cwd (R20-29)", async () => {
+    const parent = await fs.mkdtemp(path.join(os.tmpdir(), "newbie-template-cwd-"));
+    after(async () => fs.rm(parent, { recursive: true, force: true }));
+    const template = path.join(parent, "templates", "basic");
+    await fs.mkdir(template, { recursive: true });
+    await fs.writeFile(path.join(template, "package.json"), "{}");
+
+    const resolved = await resolveTemplate({ templatePath: "./templates/basic", cwd: parent });
+
+    assert.equal(resolved.root, template);
+  });
+});
 
 describe("runCreate", () => {
   it("copies a project without the template repository's registry-completeness gate", async () => {

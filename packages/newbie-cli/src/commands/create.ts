@@ -21,6 +21,11 @@ export interface TemplateReference {
   templateRef?: string;
 }
 
+export interface TemplateResolutionOptions extends TemplateReference {
+  /** Base directory for a relative templatePath (global --cwd). */
+  cwd?: string;
+}
+
 export interface CreateOptions extends TemplateReference {
   name: string;
   /** Parent directory of the new project (global --cwd). */
@@ -44,10 +49,13 @@ export async function cleanupTemplate(template: ResolvedTemplate): Promise<void>
 }
 
 /** Resolve the basic template: explicit path -> git clone of newbie-starter. */
-export async function resolveTemplate(options: TemplateReference): Promise<ResolvedTemplate> {
+export async function resolveTemplate(options: TemplateResolutionOptions): Promise<ResolvedTemplate> {
   const explicit = options.templatePath ?? process.env[TEMPLATE_PATH_ENV];
   if (explicit) {
-    const root = path.resolve(explicit);
+    // Resolve against the project root the command operates on (global --cwd),
+    // not the process directory, so `-C other/dir --template-path ./tpl` reads
+    // the template the caller pointed at (R20-29).
+    const root = path.resolve(options.cwd ?? process.cwd(), explicit);
     await fs.access(path.join(root, "package.json"));
     return { root, source: root };
   }

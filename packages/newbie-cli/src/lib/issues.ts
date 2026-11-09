@@ -35,11 +35,15 @@ export class IssueBag {
  * Report a recoverable problem. In dry-run mode missing settings/schemas are
  * expected (repositories were never cloned), so they are printed as skipped
  * notes instead of counting as failures.
+ *
+ * Check mode is not a dry run: `--check` is a CI gate that must fail wherever
+ * the real apply would fail. Downgrading its issues to skipped notes let a
+ * green gate mask a failing apply.
  */
 export function reportIssue(issues: IssueBag, sink: Sink, message: string): void {
-  if (sink.dryRun) {
+  if (sink.dryRun && !sink.check) {
     console.info(cyan(`[dry-run] skip: ${message}`));
-  } else {
-    issues.fatal(message);
+    return;
   }
+  issues.fatal(message);
 }

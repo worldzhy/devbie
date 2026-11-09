@@ -7,19 +7,48 @@ import {
   normalizeSections,
   parseEnv,
   pruneEmptySections,
+  relocateSharedEnvKeys,
   removeEnvKeys,
   replaceMarkedBlock,
   serializeEnv,
   upsertEnvSection,
 } from "../core/env-file";
 import { ENV_EXAMPLE_PATH, ENV_PATH } from "../constants/paths";
-import { EnvDeclaration } from "../core/module-manifest";
+import { EnvDeclaration, ModuleManifest } from "../core/module-manifest";
 import { IssueBag, reportIssue } from "../lib/issues";
 import { readInstalledManifest } from "../lib/module-install";
 import { Sink } from "../lib/sink";
 
 function sectionTitle(key: string): string {
   return key.length === 0 ? key : key.charAt(0).toUpperCase() + key.slice(1);
+}
+
+/**
+ * Ownership of env declarations (R29-01): a key declared by several enabled
+ * modules belongs to the alphabetically first declarer, so exactly one
+ * generated section carries it — an empty example in a later section can
+ * never blank the real value (dotenv last-wins).
+ */
+async function readEnvOwnership(
+  cwd: string,
+  enabled: string[],
+): Promise<{ manifests: Map<string, ModuleManifest | null>; declarers: Map<string, string[]> }> {
+  const manifests = new Map<string, ModuleManifest | null>();
+  const declarers = new Map<string, string[]>();
+  for (const key of [...enabled].sort(compareStrings)) {
+    const manifest = await readInstalledManifest(cwd, key);
+    manifests.set(key, manifest);
+    for (const envKey of Object.keys(manifest?.requires?.env ?? {})) {
+      const list = declarers.get(envKey) ?? [];
+      list.push(key);
+      declarers.set(envKey, list);
+    }
+  }
+  return { manifests, declarers };
+}
+
+function ownsEnvKey(declarers: ReadonlyMap<string, string[]>, envKey: string, moduleKey: string): boolean {
+  return (declarers.get(envKey) ?? [moduleKey])[0] === moduleKey;
 }
 
 /**
@@ -62,26 +91,50 @@ export async function assembleEnv(params: {
   try {
     raw = await fs.readFile(path.resolve(cwd, ENV_PATH), "utf8");
   } catch {
-    reportIssue(issues, sink, `${ENV_PATH} not found; a new file will be created with module variables only.`);
+    // A missing .env is the normal first-run state: `create` copies the
+    // template without .env, and only .env.example ships. This step creates
+    // the file with the enabled modules' declared variables, so it must not
+    // be reported as an issue — a fatal entry here made the first
+    // `modules add`/`apply` exit non-zero after every write had landed.
   }
 
   let lines: EnvLine[] = parseEnv(raw);
 
+  // Shared-key ownership (R29-01): converge existing duplicates onto the
+  // owner section before any upsert, migrating the best value found, then
+  // upsert each added module with only the keys it owns.
+  const { manifests, declarers } = await readEnvOwnership(cwd, enabled);
+
+  const ownerTitles = new Map<string, string>();
+  for (const [envKey, list] of declarers) {
+    if (list.length > 1) ownerTitles.set(envKey, sectionTitle(list[0]));
+  }
+  let migrated = new Map<string, string>();
+  if (ownerTitles.size > 0) {
+    const relocated = relocateSharedEnvKeys(lines, ownerTitles);
+    lines = pruneEmptySections(relocated.lines);
+    migrated = relocated.migrated;
+  }
+
   for (const key of added) {
-    const manifest = await readInstalledManifest(cwd, key);
+    const manifest = manifests.has(key) ? manifests.get(key)! : await readInstalledManifest(cwd, key);
     if (manifest === null) {
       reportIssue(issues, sink, `Missing newbie.module.json for '${key}'; its env variables were not added.`);
       continue;
     }
-    lines = upsertEnvSection(lines, sectionTitle(key), envExampleValues(manifest.requires?.env));
+    const owned: Record<string, string> = {};
+    for (const [envKey, example] of Object.entries(envExampleValues(manifest.requires?.env))) {
+      if (!ownsEnvKey(declarers, envKey, key)) continue;
+      owned[envKey] = migrated.get(envKey) ?? example;
+    }
+    lines = upsertEnvSection(lines, sectionTitle(key), owned);
   }
 
   // Variables still declared by an enabled module must survive even when a
   // removed module happened to declare the same name (e.g. a shared
   // DATABASE_URL): deletion is per module key, not per raw env name.
   const retainedKeys = new Set<string>();
-  for (const key of enabled) {
-    const manifest = await readInstalledManifest(cwd, key);
+  for (const manifest of manifests.values()) {
     if (manifest === null) continue;
     for (const envKey of Object.keys(manifest.requires?.env ?? {})) retainedKeys.add(envKey);
   }
@@ -110,10 +163,12 @@ export async function assembleEnv(params: {
 
 /**
  * Regenerate the CLI-managed block inside .env.example. All enabled modules
- * contribute their full variable list; sections are ordered by module key and
- * variables alphabetically within each section (ADR-005), so the same module
- * set always renders byte-identical content. Hand-written content outside the
- * @@newbie-modules markers is preserved.
+ * contribute the variables they own (a key shared by several modules renders
+ * once, under the alphabetically first declarer — same ownership as .env,
+ * R29-01); sections are ordered by module key and variables alphabetically
+ * within each section (ADR-005), so the same module set always renders
+ * byte-identical content. Hand-written content outside the @@newbie-modules
+ * markers is preserved.
  */
 export async function assembleEnvExample(params: {
   cwd: string;
@@ -125,14 +180,19 @@ export async function assembleEnvExample(params: {
 
   const decoration = "# ----------------------------------------------------------------------------------";
   const sectionLines: string[] = [];
+  const { manifests, declarers } = await readEnvOwnership(cwd, enabled);
   for (const key of [...enabled].sort(compareStrings)) {
-    const manifest = await readInstalledManifest(cwd, key);
+    const manifest = manifests.get(key) ?? null;
     if (manifest === null) {
       reportIssue(issues, sink, `Missing newbie.module.json for '${key}'; excluded from ${ENV_EXAMPLE_PATH}.`);
       continue;
     }
+    const declared = envExampleValues(manifest.requires?.env);
+    const entries = Object.entries(declared).filter(([envKey]) => ownsEnvKey(declarers, envKey, key));
+    // A module whose declared keys are all owned by earlier declarers renders
+    // no section; modules declaring no env keep their (empty) header as before.
+    if (entries.length === 0 && Object.keys(declared).length > 0) continue;
     sectionLines.push(decoration, `# ! ${sectionTitle(key)} variables`, decoration);
-    const entries = Object.entries(envExampleValues(manifest.requires?.env));
     entries.sort(([a], [b]) => compareStrings(a, b));
     for (const [envKey, value] of entries) {
       sectionLines.push(`${envKey}=${value}`);
