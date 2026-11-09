@@ -58,10 +58,11 @@ describe("@devbie/style-guide published surface", () => {
     // optional peer documents the contract without forcing anything; the dev
     // dependency exists so this package's own test suite can load the layer.
     assert.equal(pkg.peerDependenciesMeta?.next?.optional, true);
-    // Any Next.js 16 satisfies the contract; the dev dependency is the
-    // version the test suite runs against, not the supported floor.
+    // Any Next.js 16 satisfies the contract; the dev dependency only needs to
+    // stay on that major so the suite exercises the same layer the peer range
+    // describes. Its patch/minor tracks upstream upgrades, not the floor.
     assert.equal(pkg.peerDependencies.next, "^16.0.0");
-    assert.equal(pkg.devDependencies.next, "^16.4.3");
+    assert.match(pkg.devDependencies.next, /^\^16\.\d+\.\d+$/);
   });
 });
 
