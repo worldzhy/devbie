@@ -419,3 +419,11 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 | R28-11 | nightwatch-backend      | round28 复核新发现：lock 已锁 1.14.0 / 1.19.1，但 `node_modules` 实装仍为 1.13.2 / 1.19.0（入口无 `getErrorMessage`、旧 `.env` 文案仍在）                 | P2     | source   | 宿主开发者 | fixed（2026-11-09，backend 收口于 `a25cbe1` 后 `npm ci`）：实装 1.14.0 / 1.19.1，`getErrorMessage`/`octokitStatus`/`decodeBase64Utf8` 均可用，CLI 产物含 `handwrittenKeys` 且旧 `.env` 文案消失；`npm run build` 通过、834 测试全绿，无跟踪文件变化 |
 | R28-12 | newbie-starter          | round28 复核新发现：starter `node_modules` 实装落后于 lock（1.13.0 / 1.19.0 vs 1.14.0 / 1.19.1）                                                          | P3     | template | 模板维护者 | fixed（2026-11-09）：`npm ci` 重装后实装 1.14.0 / 1.19.1，三个入口导出均为 function，`check:template-deps` 无 drift（lock 沿用 starter `7589c48`，无文件变更） |
 
+## round29（2026-11-09，scope=`workspace`：最近 8 小时各仓代码修改）
+
+报告：`.trae/documents/expert-review-2026-11-09-round29.md`（时点快照，不改写）。锚点见报告 §1。P1 × 2、P2 × 1、P3 × 9；误报剔除与 12 项正面不变量见报告 §7/§9。本仓登记 R29-01；registry 侧（R29-02、R29-04..08）在 newbie-modules 台账，宿主侧（R29-03、R29-09/10）在 nightwatch-backend backlog，前端侧（R29-11/12 及无编号 P3）在 nightwatch-frontend backlog。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R29-01 | devbie（newbie-cli） | 共享 env key（实测 `LARK_APP_ID`/`LARK_APP_SECRET` 被 account+lark 共享、`GOOGLE_CREDENTIALS_*` 被 googlemaps+googleapis 共享）写入每个声明模块生成段，dotenv last-wins + `normalizeSections` 强制字母序 → 字母序靠后段的空示例静默覆盖真实值 | P1 | live | 维护者配置路径 | fixed（2026-11-09，`97974b21`）：方案 A 首段归属——共享 key 只写入字母序首个声明模块段；`relocateSharedEnvKeys` 把既有重复收敛进 owner 段并迁移最优值（owner 段优先、按文件序取首个非空），`.env.example` 同形渲染；8 例新测试（含装配层 3 例，修复前红/修复后绿对照）；**已发布**（`newbie-cli@1.20.0`），消费仓 newbie-starter `f1d40f4` / nightwatch-backend `6c1a322` 跟齐 `^1.20.0` |
+
