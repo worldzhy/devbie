@@ -64,3 +64,5 @@
 > 来源：本仓 `.trae/documents/expert-review-2026-11-09-round31.md`（scope = 6 份 backlog 的声明清单，判定表 R31-01…R31-53）。本文件只登记待办，不复制正文。
 
 - [x] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。**fixed（2026-11-09）**：已改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」并删除「目前有」。
+
+- [ ] `[2026-11-09 环境变量管理面已上线，Lambda 另立]` **`aws-secrets-cli` 轮换 Lambda 支持组 secret `__rotation`（ADR-005 §5）**：现策略按 `devbie:secret-type` tag 选型，组 secret 的配方在组 JSON 的 `__rotation`（engine/passwordKey/secretArnOfMaster/automaticallyAfterDays）。改造为读整组、只改 `passwordKey` 指向的变量并回写；部署仍复用项目级单 ARN `awsSecretsManagerRotationLambdaArn`。前提：`newbie secrets deploy-rotation` 重新部署并以一个组 secret 做端到端轮换取证。
