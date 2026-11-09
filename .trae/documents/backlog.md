@@ -21,9 +21,7 @@
 
 ## P1（安全评审 round3 2026-10-31，未修复）
 
-> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失；R3-16 于 2026-11-02 关闭（aws-ses 发送接口已有 `@RequirePermission(Create, "AwsSesEmail")`，任意收件人是模块的合理能力，不再视为缺陷）；R3-19 于 2026-11-02 用户拍板保持现状，作为 artifact 标在 registry 仓 backlog。以下为剩余条目。
-
-- frontend：R3-25 关键流程测试缺位（长期工程门禁，未排期）。
+> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失；R3-16 于 2026-11-02 关闭（aws-ses 发送接口已有 `@RequirePermission(Create, "AwsSesEmail")`，任意收件人是模块的合理能力，不再视为缺陷）；R3-19 于 2026-11-02 用户拍板保持现状，作为 artifact 标在 registry 仓 backlog；R3-25 于 2026-11-09 按 round30 裁决关闭（前端测试现况 12 文件/109 用例全绿，open 引用失真，详见 findings.md round30 节 R30-01）。本节自此无未修复条目。
 
 > 治理残余（2026-11-03 清理）：newbie-starter / fewbie-starter ci.yml timeout-minutes、devbie release-check.yml concurrency+timeout 已于 2026-11-03 全部修复推送（d71749e、35eb3bb、1366d8e8）。Wave 4 运维脚本安全（newbie-starter G4-1~G4-4）+ 模板 Dockerfile + smoke test 骨架已全部完成（981e14f、80b3e66、beca0bb、e8b907d）。
 
@@ -59,13 +57,10 @@
 
 > 来源：本仓 `.trae/documents/expert-review-2026-11-09-round30.md`；台账见同目录 `findings.md` round30 节（R30-01~06 全量字段）。
 
-- [ ] `[R30-01]` **findings 台账订正（P2，docs）**：① R28-06 引用的 `packages/fewbie-cli/src/lib/registry.ts` 已不存在，fewbie-cli 现 7 处统一 `options.cwd ?? process.cwd()` 口径，按现状复核关闭；② 本文件上文「P1（安全评审 round3）」节的 `R3-25 关键流程测试缺位` 引用失真——前端测试现况 12 文件/109 用例全绿（executed），按 round30 裁决关闭该引用并同步两仓 findings.md carry-over 注记；③ R28-08 按 R30-03 复核裁决关闭。
 - [ ] `[R30-02 待拍板]` **ClickHouseModel 原始插值面收敛（P3）**：`objectToSql` 的 select/where/groupBy/orderBy 与 `delete()` where 原样插值（现全部调用方已验证参数化，无可达路径）；待拍板：加标识符白名单入口（API 层）或仅 API 约束注释（文档层）。
-- [x] `[R30-03]` R28-08 状态复核：`assertModuleRelativePath` 文案与现行语义一致，原指控不成立——关闭动作已并入 R30-01②。
 
 ## round31 backlog 核对入账（2026-11-09，plan scope）
 
 > 来源：本仓 `.trae/documents/expert-review-2026-11-09-round31.md`（scope = 6 份 backlog 的声明清单，判定表 R31-01…R31-53）。本文件只登记待办，不复制正文。
 
-- [ ] `[R31-05]` **本文件 `:26` 的 frontend `R3-25` 引用与 `:62` R30-01②「关闭该引用」并存（P3，内部矛盾）**：按 R30-01 一并执行，删除/改写 `:26` 该行；前端侧现况见其 `findings.md`。
 - [ ] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」，删除「目前有」。
