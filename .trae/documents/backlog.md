@@ -41,7 +41,7 @@
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
-> 其他仓的条目已按仓登记到各自 backlog（2026-11-02 状态）：newbie-modules 目前有 round4 的 R4-04/R4-09（P2）+ round3 拆 ID 入账的 13 条 P2 + 2 条 G1 P2，另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 有 round3 拆 ID 入账的 4 条 P2（G2-1/G2-2/G2-3/G2-5）+ 1 条 P3 搁置（一键部署 M1）；nightwatch-frontend 有 R3-25（P1，长期工程门禁）+ round3 拆 ID 入账的 5 条 P2。本文件只保留 devbie 自身条目。
+> 其他仓的条目已按仓登记到各自 backlog；截至 2026-11-09 这些条目已在各仓 backlog 结清（round3/round4 拆 ID 入账的 P2 均已修复或按现状标定，详见各仓 `backlog.md` 的 round31 核对段）。本文件只保留 devbie 自身条目。
 
 ## 暂不做（条件触发后再启动）
 
@@ -63,4 +63,4 @@
 
 > 来源：本仓 `.trae/documents/expert-review-2026-11-09-round31.md`（scope = 6 份 backlog 的声明清单，判定表 R31-01…R31-53）。本文件只登记待办，不复制正文。
 
-- [ ] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」，删除「目前有」。
+- [x] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。**fixed（2026-11-09）**：已改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」并删除「目前有」。
