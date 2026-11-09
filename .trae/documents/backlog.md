@@ -57,7 +57,7 @@
 
 > 来源：本仓 `.trae/documents/expert-review-2026-11-09-round30.md`；台账见同目录 `findings.md` round30 节（R30-01~06 全量字段）。
 
-- [ ] `[R30-02 待拍板]` **ClickHouseModel 原始插值面收敛（P3）**：`objectToSql` 的 select/where/groupBy/orderBy 与 `delete()` where 原样插值（现全部调用方已验证参数化，无可达路径）；待拍板：加标识符白名单入口（API 层）或仅 API 约束注释（文档层）。
+> R30-02（ClickHouseModel 原始插值面收敛，P3）真源登记在 newbie-modules backlog（`packages/modules/clickhouse/clickhouse.model.ts` 属 registry），此处不再重复跟踪。
 
 ## round31 backlog 核对入账（2026-11-09，plan scope）
 
