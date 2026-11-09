@@ -1,6 +1,6 @@
 {
   "name": "@devbie/newbie",
-  "version": "1.14.0",
+  "version": "1.17.0",
   "description": "newbie backend framework runtime",
   "license": "MIT",
   "repository": {
@@ -70,7 +70,7 @@
   "devDependencies": {
     "@nestjs/axios": "^12.0.1",
     "@nestjs/common": "^12.3.3",
-    "@nestjs/config": "^12.0.1",
+    "@nestjs/config": "^12.1.0",
     "@nestjs/core": "^12.3.3",
     "@nestjs/platform-express": "^12.3.3",
     "@nestjs/swagger": "^12.1.0",

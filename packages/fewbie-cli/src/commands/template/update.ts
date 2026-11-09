@@ -7,12 +7,14 @@ import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
   assetMarkers,
   findUnclassifiedTemplateFiles,
+  FRAMEWORK_DEPENDENCIES,
   isTemplateScanIgnored,
   planTemplateUpdate,
   SYNCABLE_ASSETS,
   TemplateAsset,
   TemplateChange,
 } from "../../lib/template-ownership";
+import { missingPackages } from "../../lib/npm-spec";
 import { unifiedDiff } from "../../lib/diff";
 import { resolveTemplate } from "../create";
 
@@ -170,6 +172,28 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
         ),
       );
       return;
+    }
+
+    // ADR-025: package.json stays host-owned, so framework dependencies can
+    // only be reported here. Writing the framework files below without them
+    // would leave a project that cannot build.
+    const missingFrameworkDependencies = await missingPackages(
+      projectRoot,
+      FRAMEWORK_DEPENDENCIES.map((dependency) => dependency.name),
+    );
+    if (missingFrameworkDependencies.length > 0) {
+      const detail = FRAMEWORK_DEPENDENCIES.filter((dependency) =>
+        missingFrameworkDependencies.includes(dependency.name),
+      ).map((dependency) => `${dependency.name} (required by ${dependency.importedBy})`);
+      const install = `npm install ${missingFrameworkDependencies.join(" ")}`;
+      if (options.check) {
+        throw new CliError(`Missing framework dependencies:\n  - ${detail.join("\n  - ")}\nRun \`${install}\` first.`);
+      }
+      console.warn(
+        yellow(
+          `! Framework dependencies missing from package.json:\n  - ${detail.join("\n  - ")}\n  Run \`${install}\`.`,
+        ),
+      );
     }
 
     const projectFiles = new Map<string, string | null>();

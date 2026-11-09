@@ -14,6 +14,10 @@
  * Registry items are not listed here: `modules add` / `modules update` own
  * those paths, and template update refuses to run if the two sets ever overlap
  * (see `assertNoRegistryOverlap`).
+ *
+ * Framework runtime dependencies are declared in the same file so the file
+ * classification, `template update` and `doctor` read one source instead of
+ * each keeping its own copy.
  */
 
 export const FRAMEWORK_MARKER_START = "/* fewbie:framework:start */";
@@ -96,6 +100,31 @@ export function isSyncableAsset(asset: TemplateAsset): boolean {
 }
 
 export const SYNCABLE_ASSETS: readonly TemplateAsset[] = TEMPLATE_ASSETS.filter(isSyncableAsset);
+
+/** A framework runtime dependency declared by framework-owned files. */
+export interface FrameworkDependency {
+  /** npm package name (version is owned by the template's package.json). */
+  name: string;
+  /** Framework-owned file(s) that import it; shown by template update and doctor. */
+  importedBy: string;
+}
+
+/**
+ * Non-baseline npm packages imported by framework-owned runtime/build files
+ * (ADR-025). package.json stays host-owned, so `template update` / `doctor`
+ * can only detect these through this list. `next` / `react` are the baseline
+ * of any Next.js project and deliberately excluded. Packages are declared
+ * without versions: the template's package.json owns those.
+ */
+export const FRAMEWORK_DEPENDENCIES: readonly FrameworkDependency[] = [
+  { name: "next-intl", importedBy: "next.config.ts, src/i18n/config.ts, src/app/layout.tsx" },
+  { name: "@devbie/heartbeat-sdk", importedBy: "src/instrumentation.ts" },
+  { name: "cn", importedBy: "src/lib/utils.ts" },
+  { name: "@tailwindcss/postcss", importedBy: "postcss.config.mjs" },
+  { name: "tailwindcss", importedBy: "src/app/globals.css" },
+  { name: "tw-animate-css", importedBy: "src/app/globals.css" },
+  { name: "shadcn", importedBy: "src/app/globals.css (shadcn/tailwind.css)" },
+];
 
 /**
  * True when a registry path matches `filePath`: a path ending in `/**` owns its

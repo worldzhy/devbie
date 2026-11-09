@@ -191,10 +191,10 @@ function generatedSectionBodies(lines: EnvLine[]): Map<string, Set<number>> {
 /**
  * Insert missing entries under a `# ! <title> variables` section.
  *
- * Deduplication is scoped to the section itself: a key shared with another
- * module is still written into this module's section so the section stays
- * self-describing (matching .env.example, which renders the full list per
- * module). A global filter left later-declared modules with an empty section.
+ * Deduplication is scoped to the section itself. Ownership of keys shared by
+ * several modules is the caller's concern (assembleEnv grants a shared key to
+ * the alphabetically first declarer and only upserts owned keys, R29-01);
+ * this primitive stays section-scoped.
  *
  * Entries written outside every generated section are user-authored, so a key
  * the user already defined by hand counts as satisfied — appending an empty
@@ -235,6 +235,55 @@ export function upsertEnvSection(lines: EnvLine[], title: string, entries: Recor
   const next = [...lines];
   next.splice(range.end, 0, ...missing);
   return next;
+}
+
+/**
+ * Converge shared keys onto their owner section (R29-01).
+ *
+ * assembleEnv grants a key declared by several modules to the alphabetically
+ * first declarer. Copies left in non-owner sections are duplicates dotenv
+ * resolves last-wins, so an empty example in a later section can silently
+ * blank the real value: every generated copy of the key is removed and the
+ * key is re-added under the owner section with the best value found (owner's
+ * own copy first, then other copies in file order; first non-empty wins).
+ * Hand-written entries outside generated sections are never touched, and when
+ * one exists it counts as satisfied (see upsertEnvSection), so no generated
+ * copy is re-added. Idempotent; keys without non-owner copies are left
+ * byte-identical.
+ */
+export function relocateSharedEnvKeys(
+  lines: EnvLine[],
+  owners: ReadonlyMap<string, string>,
+): { lines: EnvLine[]; migrated: Map<string, string> } {
+  let next = lines;
+  const migrated = new Map<string, string>();
+
+  for (const [key, ownerTitle] of owners) {
+    const bodies = generatedSectionBodies(next);
+    const copies: { index: number; value: string; owner: boolean }[] = [];
+    for (const [title, body] of bodies) {
+      for (const index of body) {
+        const line = next[index];
+        if (line.kind === "entry" && line.key === key) {
+          copies.push({ index, value: line.value, owner: title === ownerTitle });
+        }
+      }
+    }
+
+    const nonOwnerCopies = copies.filter((copy) => !copy.owner);
+    if (nonOwnerCopies.length === 0) continue;
+
+    const ownerCopy = copies.find((copy) => copy.owner);
+    const candidates = ownerCopy === undefined ? nonOwnerCopies : [ownerCopy, ...nonOwnerCopies];
+    const best = candidates.map((copy) => copy.value).find((value) => value !== "") ?? "";
+
+    const drop = new Set(copies.map((copy) => copy.index));
+    next = next.filter((_, index) => !drop.has(index));
+    migrated.set(key, best);
+    next = upsertEnvSection(next, ownerTitle, { [key]: best });
+  }
+
+  return { lines: next, migrated };
 }
 
 /**

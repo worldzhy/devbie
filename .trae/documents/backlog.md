@@ -21,9 +21,7 @@
 
 ## P1（安全评审 round3 2026-10-31，未修复）
 
-> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失；R3-16 于 2026-11-02 关闭（aws-ses 发送接口已有 `@RequirePermission(Create, "AwsSesEmail")`，任意收件人是模块的合理能力，不再视为缺陷）；R3-19 于 2026-11-02 用户拍板保持现状，作为 artifact 标在 registry 仓 backlog。以下为剩余条目。
-
-- frontend：R3-25 关键流程测试缺位（长期工程门禁，未排期）。
+> 真源：`.trae/documents/expert-review-2026-10-31-round3.md`（附录 A 台账）。已关闭：R3-01～R3-04（P0）、R3-05～R3-10（devbie）、R3-24（frontend）、R3-11/R3-12/R3-14/R3-17/R3-18/R3-20（registry）、R3-21/R3-22/R3-23（backend 宿主层）、R3-26～R3-32（模板/ops 与文档治理，2026-11-01）；R3-15 已随 ADR-047 消失；R3-16 于 2026-11-02 关闭（aws-ses 发送接口已有 `@RequirePermission(Create, "AwsSesEmail")`，任意收件人是模块的合理能力，不再视为缺陷）；R3-19 于 2026-11-02 用户拍板保持现状，作为 artifact 标在 registry 仓 backlog；R3-25 于 2026-11-09 按 round30 裁决关闭（前端测试现况 12 文件/109 用例全绿，open 引用失真，详见 findings.md round30 节 R30-01）。本节自此无未修复条目。
 
 > 治理残余（2026-11-03 清理）：newbie-starter / fewbie-starter ci.yml timeout-minutes、devbie release-check.yml concurrency+timeout 已于 2026-11-03 全部修复推送（d71749e、35eb3bb、1366d8e8）。Wave 4 运维脚本安全（newbie-starter G4-1~G4-4）+ 模板 Dockerfile + smoke test 骨架已全部完成（981e14f、80b3e66、beca0bb、e8b907d）。
 
@@ -43,7 +41,7 @@
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
-> 其他仓的条目已按仓登记到各自 backlog（2026-11-02 状态）：newbie-modules 目前有 round4 的 R4-04/R4-09（P2）+ round3 拆 ID 入账的 13 条 P2 + 2 条 G1 P2，另有一条微信登录 P0 标为「暂不做（待有微信消费端再启动）」；nightwatch-backend 有 round3 拆 ID 入账的 4 条 P2（G2-1/G2-2/G2-3/G2-5）+ 1 条 P3 搁置（一键部署 M1）；nightwatch-frontend 有 R3-25（P1，长期工程门禁）+ round3 拆 ID 入账的 5 条 P2。本文件只保留 devbie 自身条目。
+> 其他仓的条目已按仓登记到各自 backlog；截至 2026-11-09，round3/round4 拆 ID 入账的 P2 大多数已修复或按现状标定（详见各仓 `backlog.md` 的 round31 核对段），但未全部关闭：G1 的关闭记录在 `.trae/documents/backlog-plan-2026-11-03.md`（G1-1/G1-2），nightwatch-frontend 的 round3 段仍留有 2026-11-09 新入账 follow-up。本文件只保留 devbie 自身条目。
 
 ## 暂不做（条件触发后再启动）
 
@@ -54,3 +52,17 @@
 - [ ] **严格 CSP（nonce 化）**（R23-01 后续，2026-11-08）：`deploy/Caddyfile.tmpl` 已落地基线安全头，但 `script-src/style-src` 仍为 `'unsafe-inline'`（Next.js bootstrap 与 theme 内联脚本所需）。后续方向：proxy.ts（Next 16 proxy 约定）生成 per-request nonce 注入 CSP 头与内联脚本，或 theme 脚本外部化 + Next nonce 支持就绪后收紧为 `script-src 'self' 'nonce-…'`。涉及 newbie-starter（Caddyfile）与 fewbie-starter（layout/proxy 模板）。
 
 > 最近一轮（2026-10-25，installation 凭证收敛评审）登记的 5 项已全部关闭：ADR-019 勘误、审计资源常量命名统一、静态扫描覆盖加固、并发窗口结论（接受，installation 只做软吊销）、people-evaluation 契约测试修复。关闭证据见 newbie-modules `33b7b37`、nightwatch-backend `2ca7e68`。
+
+## round30 评审入账（2026-11-09，workspace scope）
+
+> 来源：本仓 `.trae/documents/expert-review-2026-11-09-round30.md`；台账见同目录 `findings.md` round30 节（R30-01~06 全量字段）。
+
+> R30-02（ClickHouseModel 原始插值面收敛，P3）真源登记在 newbie-modules backlog（`packages/modules/clickhouse/clickhouse.model.ts` 属 registry），此处不再重复跟踪。
+
+## round31 backlog 核对入账（2026-11-09，plan scope）
+
+> 来源：本仓 `.trae/documents/expert-review-2026-11-09-round31.md`（scope = 6 份 backlog 的声明清单，判定表 R31-01…R31-53）。本文件只登记待办，不复制正文。
+
+- [x] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。**fixed（2026-11-09）**：已改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」并删除「目前有」。
+
+- [ ] `[2026-11-09 环境变量管理面已上线，Lambda 另立]` **`aws-secrets-cli` 轮换 Lambda 支持组 secret `__rotation`（ADR-005 §5）**：现策略按 `devbie:secret-type` tag 选型，组 secret 的配方在组 JSON 的 `__rotation`（engine/passwordKey/secretArnOfMaster/automaticallyAfterDays）。改造为读整组、只改 `passwordKey` 指向的变量并回写；部署仍复用项目级单 ARN `awsSecretsManagerRotationLambdaArn`。前提：`newbie secrets deploy-rotation` 重新部署并以一个组 secret 做端到端轮换取证。

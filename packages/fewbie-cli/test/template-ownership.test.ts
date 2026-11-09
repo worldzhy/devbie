@@ -5,6 +5,7 @@ import {
   assetCoversPath,
   extractMarkerBlock,
   findUnclassifiedTemplateFiles,
+  FRAMEWORK_DEPENDENCIES,
   FRAMEWORK_MARKER_END,
   FRAMEWORK_MARKER_START,
   isTemplateScanIgnored,
@@ -77,6 +78,24 @@ describe("marker blocks", () => {
     assert.equal(block, `${HTML_MARKERS.start}\nUse the CLI.\n${HTML_MARKERS.end}`);
     // The default CSS markers do not match an HTML-marked file.
     assert.equal(extractMarkerBlock(content), null);
+  });
+});
+
+describe("framework dependencies (ADR-025)", () => {
+  it("declares next-intl with a non-empty required-by note", () => {
+    const nextIntl = FRAMEWORK_DEPENDENCIES.find((dependency) => dependency.name === "next-intl");
+    assert.ok(nextIntl, "next-intl must be declared as a framework dependency");
+    assert.match(nextIntl.importedBy, /next\.config\.ts/);
+  });
+
+  it("keeps every entry well-formed and unique", () => {
+    const names = FRAMEWORK_DEPENDENCIES.map((dependency) => dependency.name);
+    for (const dependency of FRAMEWORK_DEPENDENCIES) {
+      assert.ok(dependency.name.trim().length > 0, "name must be non-empty");
+      assert.ok(dependency.importedBy.trim().length > 0, "importedBy must be non-empty");
+    }
+    assert.deepEqual(names, [...new Set(names)], "dependency names must be unique");
+    assert.ok(!names.includes("next"), "next is the project baseline, not a framework dependency");
   });
 });
 
