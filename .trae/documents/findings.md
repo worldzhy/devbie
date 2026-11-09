@@ -427,3 +427,16 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 | --- | --- | --- | --- | --- | --- | --- |
 | R29-01 | devbie（newbie-cli） | 共享 env key（实测 `LARK_APP_ID`/`LARK_APP_SECRET` 被 account+lark 共享、`GOOGLE_CREDENTIALS_*` 被 googlemaps+googleapis 共享）写入每个声明模块生成段，dotenv last-wins + `normalizeSections` 强制字母序 → 字母序靠后段的空示例静默覆盖真实值 | P1 | live | 维护者配置路径 | fixed（2026-11-09，`97974b21`）：方案 A 首段归属——共享 key 只写入字母序首个声明模块段；`relocateSharedEnvKeys` 把既有重复收敛进 owner 段并迁移最优值（owner 段优先、按文件序取首个非空），`.env.example` 同形渲染；8 例新测试（含装配层 3 例，修复前红/修复后绿对照）；**已发布**（`newbie-cli@1.20.0`），消费仓 newbie-starter `f1d40f4` / nightwatch-backend `6c1a322` 跟齐 `^1.20.0` |
 
+## round30（2026-11-09，scope=`workspace`：全工作区对抗评审）
+
+报告：`.trae/documents/expert-review-2026-11-09-round30.md`（时点快照，不改写）。锚点：devbie `34776550` / newbie-modules `c4ab01e` / newbie-starter `64ce325` / fewbie-starter `257d99a` / backend `fcea72d` / frontend `2aefa8f`。无 P0/P1；executed：backend 1098/1098、frontend 12 文件/109 用例、newbie-cli 258/258 全绿；装配一致性 34/34 diff 空。误报剔除 4 条、14 项正面不变量见报告 §7/§8。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R30-01 | devbie + newbie-modules（台账） | findings 台账 open 项三处失真：a) newbie-modules findings.md `:30` R5-P2-04 已记 removed 但 `:119` 注记仍称 open（同文件矛盾）；b) R3-25（round3 报告 `:188`）在两份台账 carry-over 注记引为 open，正文条目已不在任何当前台账，前端测试现况 12 文件/109 用例全绿，open 状态失真；c) R28-06 引用路径 `packages/fewbie-cli/src/lib/registry.ts` 已不存在，fewbie-cli 现 7 处统一 `options.cwd ?? process.cwd()` 口径，「两套口径」实质已消解 | P2 | docs | 工程治理 | open（修复方向：三项台账订正，见报告 §10） |
+| R30-02 | devbie（供 backend 消费的 clickhouse 模块设计面） | `ClickHouseModel.objectToSql` 的 select/where/groupBy/orderBy 原样插值、`delete()` where 原样插值（`clickhouse.model.ts:41,62-72`），仅 limit/skip 数字强制；当前全部调用方已验证参数化占位符 + 常量 orderBy，无可达路径 | P3 | source | 未来调用方 | open（择机加标识符白名单入口或 API 约束标注） |
+| R30-03 | devbie（newbie-cli） | R28-08 状态复核：`assertModuleRelativePath` 文案与现行 `prisma/schema.prisma`（模块目录内相对路径）语义一致，原指控不再成立 | P3 | source | 台账动作 | open（建议按复核裁决关闭 R28-08） |
+| R30-04 | nightwatch-backend + newbie-modules（url-check 模块，双仓同源） | url-check IPv6 SSRF 谓词缺 `::/96`（裸 IPv4-compatible）与 `64:ff9b::/96`（NAT64）拦截：`public-url.ts:65-91` 仅处理 `::ffff:` 前缀映射，`::7f00:1` 落到 `firstHextet=""→0` 放行，write-time（:112）与 probe-time（:125）双层校验同源同缺口；同一不变量的 llm guard（`src/modules/llm/management/base-url-guard.ts:35-38`）已在 R29-08 修复并实测，两份实现谓词漂移（§12.5 模式）。现代栈对 `::/96` 不路由，可利用性理论化，但 url-check 边界面向用户可控 URL（llm 为管理员配置），较 R29-08（P3）上调 | P2 | live | url-check 目标创建端点（项目内成员） | open（static + 逐行谓词推演；修复：同步两 CIDR 或抽共享谓词） |
+| R30-05 | nightwatch-backend | `bitbucket.service.ts:67` 出站 fetch 无 AbortSignal/timeout（undici 默认 headersTimeout 300s），失败上游可挂起请求占资源 | P3 | live | 管理员配置路径 | open |
+| R30-06 | nightwatch-backend | `jdy-voucher.service.ts:186`（另 `:170`、`jdy-evidence.service.ts:170`）全量 `JSON.stringify(body)` 响应体入日志：当前为金蝶业务数据、未发现凭证字段，但字段变化有泄漏面 | P3 | live | 维护者 | open（收敛为截断 + 字段白名单） |
+

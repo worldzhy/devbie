@@ -54,3 +54,18 @@
 - [ ] **严格 CSP（nonce 化）**（R23-01 后续，2026-11-08）：`deploy/Caddyfile.tmpl` 已落地基线安全头，但 `script-src/style-src` 仍为 `'unsafe-inline'`（Next.js bootstrap 与 theme 内联脚本所需）。后续方向：proxy.ts（Next 16 proxy 约定）生成 per-request nonce 注入 CSP 头与内联脚本，或 theme 脚本外部化 + Next nonce 支持就绪后收紧为 `script-src 'self' 'nonce-…'`。涉及 newbie-starter（Caddyfile）与 fewbie-starter（layout/proxy 模板）。
 
 > 最近一轮（2026-10-25，installation 凭证收敛评审）登记的 5 项已全部关闭：ADR-019 勘误、审计资源常量命名统一、静态扫描覆盖加固、并发窗口结论（接受，installation 只做软吊销）、people-evaluation 契约测试修复。关闭证据见 newbie-modules `33b7b37`、nightwatch-backend `2ca7e68`。
+
+## round30 评审入账（2026-11-09，workspace scope）
+
+> 来源：本仓 `.trae/documents/expert-review-2026-11-09-round30.md`；台账见同目录 `findings.md` round30 节（R30-01~06 全量字段）。
+
+- [ ] `[R30-01]` **findings 台账订正（P2，docs）**：① R28-06 引用的 `packages/fewbie-cli/src/lib/registry.ts` 已不存在，fewbie-cli 现 7 处统一 `options.cwd ?? process.cwd()` 口径，按现状复核关闭；② 本文件上文「P1（安全评审 round3）」节的 `R3-25 关键流程测试缺位` 引用失真——前端测试现况 12 文件/109 用例全绿（executed），按 round30 裁决关闭该引用并同步两仓 findings.md carry-over 注记；③ R28-08 按 R30-03 复核裁决关闭。
+- [ ] `[R30-02 待拍板]` **ClickHouseModel 原始插值面收敛（P3）**：`objectToSql` 的 select/where/groupBy/orderBy 与 `delete()` where 原样插值（现全部调用方已验证参数化，无可达路径）；待拍板：加标识符白名单入口（API 层）或仅 API 约束注释（文档层）。
+- [x] `[R30-03]` R28-08 状态复核：`assertModuleRelativePath` 文案与现行语义一致，原指控不成立——关闭动作已并入 R30-01②。
+
+## round31 backlog 核对入账（2026-11-09，plan scope）
+
+> 来源：本仓 `.trae/documents/expert-review-2026-11-09-round31.md`（scope = 6 份 backlog 的声明清单，判定表 R31-01…R31-53）。本文件只登记待办，不复制正文。
+
+- [ ] `[R31-05]` **本文件 `:26` 的 frontend `R3-25` 引用与 `:62` R30-01②「关闭该引用」并存（P3，内部矛盾）**：按 R30-01 一并执行，删除/改写 `:26` 该行；前端侧现况见其 `findings.md`。
+- [ ] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」，删除「目前有」。
