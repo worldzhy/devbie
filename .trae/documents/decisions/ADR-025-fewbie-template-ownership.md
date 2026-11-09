@@ -66,6 +66,11 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | registry 项 ↔ fewbie-starter 副本 | `check:template-drift` | 仓内脚本（两侧都在框架资产内） |
 | 模板 ↔ 依赖版本 | `check:template-deps` | 仓内脚本（联网，发布时跑） |
 
+> 框架依赖声明（2026-11-09 增补）：`package.json` 仍 host-owned，`template update` 不改写它。
+> framework-owned 文件直接 import 的非基线 npm 包由 fewbie-cli 的 `FRAMEWORK_DEPENDENCIES` 声明
+> （只列包名，版本归模板 `package.json`）；`fewbie template update --check` 与 `fewbie doctor`
+> 对缺失项报错。`src/i18n/**` 属 host-owned 的结论不变。
+
 ## Cross-host check
 
 | 维度 | 框架层（fewbie-cli） | 宿主层（消费项目） |

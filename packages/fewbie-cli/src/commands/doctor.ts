@@ -5,6 +5,7 @@ import { bold, green, red, yellow } from "colorette";
 import { CliError } from "@devbie/cli-kit";
 import { readModulesFile } from "../lib/modules-file";
 import { packageNameOf } from "../lib/npm-spec";
+import { FRAMEWORK_DEPENDENCIES } from "../lib/template-ownership";
 import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
 
 export interface DoctorOptions {
@@ -169,6 +170,30 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
         message: `Module '${item.name}' is missing dependencies: ${missing.join(", ")}. Run 'npm install ${missing.join(" ")}'.`,
       });
     }
+  }
+
+  // --- 3b. Framework dependencies (ADR-025) ---
+  // Framework-owned files (next.config.ts, src/instrumentation.ts, ...) cannot
+  // compile without these, so a missing package is an error, not a warning.
+  const missingFrameworkDependencies = FRAMEWORK_DEPENDENCIES.filter(
+    (dependency) => !declaredPackages.has(dependency.name),
+  );
+  if (missingFrameworkDependencies.length > 0) {
+    findings.push({
+      severity: "error",
+      category: "dependencies",
+      message: `Framework dependencies missing: ${missingFrameworkDependencies
+        .map((dependency) => `${dependency.name} (required by ${dependency.importedBy})`)
+        .join(
+          "; ",
+        )}. Run 'npm install ${missingFrameworkDependencies.map((dependency) => dependency.name).join(" ")}'.`,
+    });
+  } else {
+    findings.push({
+      severity: "info",
+      category: "dependencies",
+      message: `All ${FRAMEWORK_DEPENDENCIES.length} framework dependencies are installed.`,
+    });
   }
 
   // --- 4. CSS variables ---

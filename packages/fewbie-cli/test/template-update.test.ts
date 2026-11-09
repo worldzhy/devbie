@@ -5,7 +5,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { runTemplateUpdate } from "../src/commands/template/update";
-import { FRAMEWORK_MARKER_END, FRAMEWORK_MARKER_START } from "../src/lib/template-ownership";
+import { FRAMEWORK_DEPENDENCIES, FRAMEWORK_MARKER_END, FRAMEWORK_MARKER_START } from "../src/lib/template-ownership";
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -41,12 +41,25 @@ async function makeTemplate(): Promise<string> {
 
 async function makeProject(): Promise<string> {
   const root = await makeTempDir("fewbie-update-project-");
-  await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fixture" }, null, 2));
+  // Framework dependencies are required (ADR-025): package.json is host-owned,
+  // so template update only warns/errors when they are absent.
+  const dependencies = Object.fromEntries(FRAMEWORK_DEPENDENCIES.map((dependency) => [dependency.name, "*"]));
+  await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fixture", dependencies }, null, 2));
   await writeFile(root, "next.config.ts", "// host next config\n");
   await writeFile(root, "src/app/globals.css", globalsCss("--primary: host;", ":root { --host: 42; }"));
   await writeFile(root, "AGENTS.md", agentsMd("Stale contract.", "## Project rules\n\nKeep me."));
   await writeFile(root, "src/app/page.tsx", "// host page\n");
   return root;
+}
+
+/** Rewrite the project manifest with a subset of the framework dependencies. */
+async function dropDependencies(root: string, names: string[]): Promise<void> {
+  const manifestPath = path.join(root, "package.json");
+  const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+    dependencies?: Record<string, string>;
+  };
+  for (const name of names) delete manifest.dependencies?.[name];
+  await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 }
 
 describe("fewbie template update", () => {
@@ -152,5 +165,50 @@ describe("fewbie template update", () => {
     // converged project's copied gate (no flag) stays green.
     await runTemplateUpdate({ cwd: project, templatePath: template });
     await runTemplateUpdate({ cwd: project, templatePath: template, check: true });
+  });
+
+  it("--check fails when a framework dependency is missing", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await dropDependencies(project, ["next-intl"]);
+
+    await assert.rejects(runTemplateUpdate({ cwd: project, check: true, templatePath: template }), (error: Error) => {
+      assert.match(error.message, /Missing framework dependencies/);
+      assert.match(error.message, /next-intl \(required by next\.config\.ts/);
+      assert.match(error.message, /npm install next-intl/);
+      return true;
+    });
+    // The gate runs before any file is written.
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// host next config\n");
+  });
+
+  it("warns about missing framework dependencies but still syncs", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await dropDependencies(project, ["next-intl"]);
+
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    };
+    try {
+      await runTemplateUpdate({ cwd: project, templatePath: template });
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// template next config\n");
+    const joined = warnings.join("\n");
+    assert.match(joined, /Framework dependencies missing/);
+    assert.match(joined, /npm install next-intl/);
   });
 });
