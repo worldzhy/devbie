@@ -459,3 +459,23 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 | R2-08 | devbie（fewbie-cli） | 「从 `next.config.ts` import 相对 `.ts` 文件」在当前 Next 装载器下缺运行期取证（报告仅 static）；应落地前跑一次 `next build` 或改 `.mjs` 伴生文件 | P2 | source | 实现批 | open → 落地第 3 步验收（一次 `next build`；失败即改 `.mjs`） |
 | R2-09 | devbie | `...hostConfig` 浅展开语义未向宿主告示：`experimental`/`images` 等嵌套对象整体替换，宿主须给全量 | P2 | docs | 宿主维护者 | withdrawn（ADR-035 重写）：`next.config.host.ts` 方案作废；`withFewbie` 三层语义与被不变量覆盖的字段清单在决策 1 明文列出 |
 | R2-10 | fewbie-starter | `.prettierignore` 加 `.trae` 会让该目录永久脱离 `format:check`，与「提交前必须过 format:check」口径存在张力，需在 ADR 显式接受或改为保持可格式化 | P2 | template | 治理 | withdrawn（ADR-035 重写）：`.prettierignore` 改 mixed，`.trae` 落宿主块，框架不向所有宿主施加格式化盲区 |
+
+## round33（2026-11-10，scope=`workspace`：全工作区可上线状态）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-10-round33.md`（时点快照，不改写）。锚点：devbie `e922bd2d`（4 dirty，ADR-035 在途，相关结论 provisional）/ newbie-modules `8f85b3c` / newbie-starter `c14705f` / fewbie-starter `bfbda11`（6 dirty，provisional）/ nightwatch-backend `3d2cae4` / nightwatch-frontend `f43fc39`。P0：0；P1：2 新增 + 1 carry-over 重验；反驳轮 3 案（1 CONFIRMED、2 REFUTED）；误报剔除 3 条；14 项正面不变量见报告 §8。编号说明：今日 round1/round2 为局部编号，本轮沿用全局序列 round33。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R33-01 | newbie-modules + nightwatch-backend | code-scan 源码摘录（≤12000 字符/文件×200）无掩码落库：manifest 整体写 EvaluationResult.manifest（JsonB）、单 finding API 原样返回、VerdictCache 行永不删除、LLM title/detail 无掩码（R31-10 升级，反驳轮 CONFIRMED） | P1 | live | 持 security-evaluation 读权限者（需被扫仓库含硬编码密钥） | fixed（newbie-modules `734541b` + `19531cd`、nightwatch-backend `4106b87`）：摘录移出不可变 manifest，存 `SecurityEvaluationCodeScanFileExcerpt`；保留期 90 天物理删除；详情读过期回落 hash + truncated；VerdictCache TTL 落地为物理删除。偏离既定 `runId + evidenceId` 键：collect 阶段无 runId，改按 `(subjectId, contentHash)` 内容寻址——同一内容跨 run 复用、旧 run 详情读到的仍是其所判内容。判定输入（出境外发）保持原文，属 ADR-054 已声明的出境界面，不在本项修复范围 |
+| R33-02 | nightwatch-backend | `jdy.service.ts:139` debug 日志打印签名 queryString，含 `app_key`/`app_signature` 明文（凭证材料进 docker logs；权重高于 R20-03 的一次性 token） | P1 | live | 每次金蝶 token 请求；读需日志权限 | open（注意与 R30-06 B-1  adjudication 的范围重叠，需用户裁决是否落入已拍板不修范围） |
+| R33-03 | devbie（fewbie-cli） | 发布轨迹在 HEAD 断裂：源 `package.json`=1.5.0 vs registry latest=1.6.1，1.6.0/1.6.1 bump 仅在 dirty 工作树（ADR-035 在途混杂未提交），即从脏树发布，RELEASE_CHECKLIST 第 11 步四方一致不成立 | P2 | source/artifact | 发布可追溯性 | open · provisional（在途会话提交后复核） |
+| R33-04 | newbie-modules | TOTP `twoFactorSecret` 明文存储（`account/prisma/schema.prisma:39`），未获 R20-11 同等的 seal 待遇；DB 读即全员 2FA 失效 | P2 | live | DB 读取者 | open |
+| R33-05 | newbie-modules | 登录审计契约测试弱化：`login-audit-coverage.test.ts:61` `SUCCESS_SESSION_PATTERN` 匹配不到现行 `generateWithTransaction`（检查空转）；`login-by-totp.controller.ts` 不在 `LOGIN_ENTRY_FILES` | P2 | source | 关键路径门禁 | fixed（newbie-modules `734541b`）：正则改为 `generate(?:WithTransaction)?\(`，TOTP 入口文件纳入扫描；测试 29 pass |
+| R33-06 | nightwatch-backend | `jdy.service.ts:484-521` `getAccessToken` 死代码 + 误导性注释（自述为已删端点保留，实际无调用方） | P3 | source | 开发者 | open |
+| R33-07 | devbie（registry 卫生） | `@devbie/frontend-monitor-sdk` 的 `0.0.0-stage` 未 deprecated，可无警告安装（staged 机制残留；1.7.x/1.8.0 的 deprecated 文案已修正为 "Use 1.8.1"） | P3 | artifact | 消费者 | open |
+| R33-08 | devbie（消费方 lockfile） | lock 滞后（`^` 范围合规但 `npm ci` 装旧版）：`@devbie/style-guide` 锁 1.5.0（latest 1.6.0）于 newbie-starter/backend/frontend；`module-hub-cli` 锁 1.1.0（latest 1.1.1）于 backend | P3 | source | 开发者 | open |
+| R33-09 | newbie-modules | `membership/membership.service.ts:13-15` 卡号 Math.random（约 10k 空间仅查重）；registry 独有，未装配 | P3 | source | 采用该模块者 | open |
+
+**2026-11-10 订正（R33-01 读面口径）**：复核 `security-evaluation.controller.ts:198-282`——详情接口**不**把全部 manifest 条目原样返回；`matchEvidence` 只返回 `item.summary === finding.metadata.path`（CODE_SCAN 的 summary 即文件路径）或 id 命中 `evidenceRefs` 的条目，`:278` 把该条目的 `payload.excerpt` 原样下发，权限为 `List EvaluationFinding`（`:199`）。故读面暴露 = 命中 finding 的那个文件，而非全部 200 个。留存面不变：全部扫描文件的摘录仍入档（`security-evaluation-evidence.provider.ts:316` → `evaluation/evaluation-result.service.ts:98`），且摘录同时是判定输入（`judgment/code-scan/security-evaluation-code-scan.mechanism.ts:204-215,298`）、`security-evaluation.dto.ts:390` 已公开该 payload 形状。报告 §5 中「单 finding 详情接口把 manifest 条目原样返回」按本条收窄理解。
+
+carry-over 重验结论（本轮）：R20-03 维持 P1 open，残余收窄至 `jdy-account.service.ts:82` + `jdy-voucher.service.ts:439`（Lark 侧已清净）；R20-13/14/17/18 重验仍存在（R20-18 上线后权重上升：stack.yml:381-382 引用废弃 compose.prod.yml，实例重建首启即失败）；R20-34/35/36/39 重验仍存在；R20-40 描述订正降级（`render-env.sh:37` umask 077 自 2026-10-16 已缓解主体，残余为预置 0644 .env 的窄窗口，维持 P3）；R20-23 重验仍存在且扩大（jdy 19 文件 1442 汉字）；R20-26、R2-03（provisional）重验仍存在；R31-03 部分已修（手动触发已补，tags 表需后端先建模，维持 open）；R31-10 升级为 R33-01（P1）。误报剔除 3 条（JDY access-token 端点不存在；Math.random appKey 非凭证——真凭证为 randomUUID token；分层"新违规"经 round30 裁决合规维持，organization membership 未装配记 R33 观察）。
