@@ -1,6 +1,6 @@
 {
   "name": "@devbie/frontend-monitor-sdk",
-  "version": "1.7.2",
+  "version": "1.7.3",
   "description": "Browser-side frontend monitoring SDK: PV, AJAX, resource, JS error and custom event reporting. No heartbeat, no credential logic.",
   "license": "MIT",
   "repository": {
