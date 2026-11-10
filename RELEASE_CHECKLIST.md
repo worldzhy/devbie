@@ -33,6 +33,29 @@ Run through every step below before publishing any package in this repo (package
 9. Update consuming projects' dependency version and record the change in project memory.
 10. If any `@devbie/*` package was published in this release, update the starter template lockfile in the newbie-starter repo (commit to dev), then run `npm run check:template-deps -w @devbie/newbie-cli` from the repo root to confirm no drift remains. The script clones the template's default branch — the same source `newbie create` uses — so it only turns green once the dev changes have been merged into main. For `@devbie/fewbie-cli` releases the same applies to the fewbie-starter repo, verified with `npm run check:template-deps -w @devbie/fewbie-cli` (the `--check-deps` flag belongs to no script — `check:template-drift` only compares file drift and ignores it).
 
+11. **Reconcile the whole registry state, not just `latest`.** A release is complete only when four things agree: the package's source `version`, `dist-tags.latest`, the `deprecated` field of every published version, and the consumers' `package.json` plus lockfile. Print all of them in one pass before deciding anything:
+
+    ```bash
+    curl -s "https://registry.npmjs.org/@devbie%2F<package-name>" | python3 -c "
+    import sys, json
+    d = json.load(sys.stdin)
+    print('dist-tags:', d['dist-tags'])
+    for v in sorted(d['versions']):
+        print(f\"  {v:14} | {d['versions'][v].get('deprecated') or '(live)'}\")
+    "
+    ```
+
+    Reading only `dist-tags` and the version list hides stale deprecation messages, which then surface one round later as a wrong migration instruction.
+
+## Post-release registry hygiene
+
+- A version whose `dist` is byte-identical to another published version is a release accident, not a release. Bump only when the artifact changes; verify with `diff -r` against the reference tarball before treating a duplicate as legitimate.
+- Withdraw accidents within the 72-hour window (`npm unpublish <pkg>@<version>`). npm's unpublish policy allows this while the version is younger than 72 hours and no package in the public registry depends on it.
+- A granular access token that bypasses 2FA cannot unpublish — the registry answers `403 ... Granular access tokens that bypass two-factor authentication may not perform this action`. Unpublishing needs a classic token or an interactive login with OTP. `npm unpublish --dry-run` only validates the command line and never sends a request, so it proves nothing about authorization.
+- When unpublishing is unavailable, deprecate the version with a message that names the version users must move to. A deprecation pointing at a version that lacks the fix is worse than no deprecation at all — read the existing message before leaving it in place.
+- `dist-tags` only affect an unversioned install. Range resolution (`^1.8.0`) picks the highest published version regardless of tags, so moving `latest` does not move consumers; only withdrawing the version or pinning an exact version does.
+- A renamed package keeps its old name as a deprecated stub rather than being unpublished, because consumers on other branches may still lock the old version and would break on `npm ci`.
+
 ## Version identities
 
 Three version numbers coexist in this repo, and none is derived from another
