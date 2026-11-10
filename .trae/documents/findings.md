@@ -440,3 +440,20 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 | R30-05 | nightwatch-backend | `bitbucket.service.ts:67` 出站 fetch 无 AbortSignal/timeout（undici 默认 headersTimeout 300s），失败上游可挂起请求占资源 | P3 | live | 管理员配置路径 | fixed（2026-11-09，宿主 `eb53af2` / registry `2ef3c0a`）：`AbortSignal.timeout(30_000)`（对齐 jdy 外部厂商 API 约定）；build 通过、dist 含超时、双仓 diff 空 |
 | R30-06 | nightwatch-backend | `jdy-voucher.service.ts:186`（另 `:170`、`jdy-evidence.service.ts:170`）全量 `JSON.stringify(body)` 响应体入日志：当前为金蝶业务数据、未发现凭证字段，但字段变化有泄漏面 | P3 | live | 维护者 | adjudicated（2026-11-09）：voucher `:178/:186`（凭证响应落日志并回传客户端）属 B-1 已拍板不修范围，撤销；jdy-evidence `:170` 不在 B-1 字面范围，按截断 + 字段白名单收敛（code/msg[:300]/evidId），宿主 `fa739e0` |
 
+
+## round2（2026-11-10，scope=`plan`：ADR-035 fewbie 宿主扩展点）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-10-round2.md`（时点快照，不改写）。锚点：devbie `6e41bc93` / fewbie-starter `08e73f3` / nightwatch-frontend `f43fc39`。10 条主张判定：成立 5、不成立 3、证据不足转不成立 1、正面 1。P1 × 4、P2 × 6；误报剔除 3 条、6 项正面不变量见报告 §7/§8。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R2-01 | devbie（fewbie-cli） | host-owned 伴生文件 `next.config.host.ts` 不会被 `template update` 创建（`SYNCABLE_ASSETS` 只含 framework/mixed），既有宿主更新后框架版 `next.config.ts` import 缺失模块 → 构建失败 | P1 | source | 执行模板更新的既有工程 | open |
+| R2-02 | devbie + fewbie-starter | 发布顺序未写：模板仓 `check:template` 走已发布 `@devbie/fewbie-cli@^1.4.6` 的 `registryComplete` 校验，新资产未分类即 CI 红；须 CLI 发版 → 模板 bump devDep+lock → 改模板 | P1 | template | 模板仓 CI | open |
+| R2-03 | nightwatch-frontend | ADR 声明的验收门禁在该仓不可运行：无 `@devbie/fewbie-cli` 依赖、无 `fewbie.json`、`.env.example` 无 framework marker（`missing-markers` 仅 warn 不写） | P1 | template/host | 维护者 | open |
+| R2-04 | devbie（fewbie-cli） | 新增资产与分类变更无测试交付项，违反 ADR-025「同批登记所有权 + 补 template sync 用例」及关键路径覆盖规则 | P1 | source | 实现批 | open |
+| R2-05 | devbie（fewbie-cli） | `eslint-plugin-unicorn` 未登记 `FRAMEWORK_DEPENDENCIES`（ADR-025 2026-11-09 增补要求） | P2 | source | 门禁 | open |
+| R2-06 | devbie | ADR-025 决策 5 未修订：mixed 默认 marker 写作 CSS 形式，`.env.example` 用 `#` 前缀属 per-asset 覆盖，需在决策 5 写明按文件类型取 marker | P2 | docs | 治理 | open |
+| R2-07 | fewbie-starter | 模板 `AGENTS.md` framework 块未列为交付项：仍写「Never edit .env.example」，与 mixed 语义冲突，且未提 `next.config.host.ts` 扩展点 | P2 | template | 宿主维护者 | open |
+| R2-08 | devbie（fewbie-cli） | 「从 `next.config.ts` import 相对 `.ts` 文件」在当前 Next 装载器下缺运行期取证（报告仅 static）；应落地前跑一次 `next build` 或改 `.mjs` 伴生文件 | P2 | source | 实现批 | open |
+| R2-09 | devbie | `...hostConfig` 浅展开语义未向宿主告示：`experimental`/`images` 等嵌套对象整体替换，宿主须给全量 | P2 | docs | 宿主维护者 | open |
+| R2-10 | fewbie-starter | `.prettierignore` 加 `.trae` 会让该目录永久脱离 `format:check`，与「提交前必须过 format:check」口径存在张力，需在 ADR 显式接受或改为保持可格式化 | P2 | template | 治理 | open |
