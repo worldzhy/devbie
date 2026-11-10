@@ -1,14 +1,34 @@
 # Release Checklist
 
-Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/cli-kit, packages/modules-state, packages/heartbeat-sdk, packages/health-sdk, packages/web-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/module-hub-cli, packages/fewbie-cli, packages/apits, packages/worklog, packages/style-guide). Do not skip steps for "trivial" patches.
+Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/cli-kit, packages/modules-state, packages/heartbeat-sdk, packages/health-sdk, packages/frontend-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/module-hub-cli, packages/fewbie-cli, packages/apits, packages/worklog, packages/style-guide). Do not skip steps for "trivial" patches.
 
 1. `git status` — working tree is clean, all intended changes are committed.
 2. Clean build: remove `dist/` and `*.tsbuildinfo` for the package(s) being released, then rebuild. Never publish from a stale `dist/`.
 3. Run the full test suite for the package(s) being released; all tests pass.
 4. Run `npm audit --omit=dev --workspaces` from the repo root; production dependencies must be free of known vulnerabilities. Any finding must be fixed or explicitly waived (with the reason recorded) before publishing.
 5. Confirm the version bump in `package.json` follows semver relative to the actual change set (feat -> minor, fix -> patch). Breaking changes ship as **minor** while the packages are pre-launch and stay on the 1.x line; the 2.0 line is opened only by an explicit decision to declare the API stable. A breaking change never ships as a patch.
-6. Publish with `npm publish --tag latest`. Never use a `stage` dist-tag or the `npm stage` workflow. (OTP is not required; decided 2026-09-29.) Keep the full publish output — never pipe it through `tail`, the server response decides the next step. If a retry answers `409 Cannot publish over the previously staged/published version`, the upload already reached the registry: run step 7 to verify instead of republishing or bumping the version.
-7. After publishing, run `npm view <package> dist-tags` to confirm `latest` points to the new version. Registry propagation can take 1-2 minutes — wait and re-check instead of re-publishing.
+6. Publish with `npm publish --tag latest --access public` (the `--access public` flag is mandatory for all `@devbie/*` scoped packages — npm defaults scoped packages to restricted access, which triggers a staging approval flow that blocks subsequent publishes). Never use a `stage` dist-tag or the `npm stage` workflow. (OTP is not required; decided 2026-09-29.) Keep the full publish output — never pipe it through `tail`, the server response decides the next step.
+
+   **Failure handling (never blind-bump the version):**
+   - If exit code is 0 → proceed to step 7.
+   - If `E409 Cannot publish over previously staged version <X>` → the prior publish reached the registry. Skip bumping; run step 7 to verify the staged version is actually available.
+   - If `403 Granular access tokens may not perform this action` → some operation (unpublish) requires a classic token. Report to the user; do not retry with the same token.
+   - If any other non-zero exit → `curl https://registry.npmjs.org/@devbie%2F<package-name>` to inspect the live state before deciding whether to retry, bump, or report.
+
+7. **Do NOT use `npm view` for verification** — it has a local cache (TTL 1-3 min) that silently serves stale values. Instead:
+   ```bash
+   sleep 60  # npm global eventual consistency takes 30-60s
+   curl -s "https://registry.npmjs.org/@devbie%2F<package-name>" | python3 -c "
+   import sys, json
+   d = json.load(sys.stdin)
+   latest = d['dist-tags']['latest']
+   tarball = d['versions'][latest].get('dist', {}).get('tarball', '')
+   assert latest == '<version>', f'latest tag mismatch: expected <version>, got {latest}'
+   assert tarball.endswith(f'-{latest}.tgz'), f'tarball missing or wrong name: {tarball}'
+   print(f'OK: {latest} published, tarball exists')
+   "
+   ```
+   Only after both assertions pass is the release confirmed. If `latest` still points to the old version after 60s, wait another 30s and re-check — never re-publish or bump.
 8. If packages in this repo depend on each other, publish the dependencies first and the dependents last.
 9. Update consuming projects' dependency version and record the change in project memory.
 10. If any `@devbie/*` package was published in this release, update the starter template lockfile in the newbie-starter repo (commit to dev), then run `npm run check:template-deps -w @devbie/newbie-cli` from the repo root to confirm no drift remains. The script clones the template's default branch — the same source `newbie create` uses — so it only turns green once the dev changes have been merged into main. For `@devbie/fewbie-cli` releases the same applies to the fewbie-starter repo, verified with `npm run check:template-deps -w @devbie/fewbie-cli` (the `--check-deps` flag belongs to no script — `check:template-drift` only compares file drift and ignores it).
@@ -56,7 +76,7 @@ move the tag separately when the milestone ships.
   (2026-10-24, re-verified 2026-10-25); revisit when NestJS ships a release
   with a patched multer pin.
 
-- `@devbie/web-monitor-sdk` — 3 findings, all **indirect**:
+- `@devbie/frontend-monitor-sdk` — 3 findings, all **indirect**:
   - `braces` high (GHSA-vfj7-8cjw-p6xm, range `*`) and `micromatch` high
     (range `>=0.2.0`) — two chains from Jest 26 devTools:
     `jest-config`/`jest-haste-map`/`jest-util` → micromatch 4.0.8 → braces
@@ -82,4 +102,4 @@ move the tag separately when the milestone ships.
   remediation is a semver-major bump/downgrade of `eslint-config-next` or
   `typescript-eslint`, which the dependency-major policy defers to a dedicated
   upgrade milestone. Recorded 2026-11-06 while releasing
-  `@devbie/web-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.
+  `@devbie/frontend-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.

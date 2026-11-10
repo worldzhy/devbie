@@ -4,7 +4,7 @@
 
 
 > 状态：设计决议（2026-09-24）
-> 本文档取代 `/Users/worldzhy/src/devbie/.trae/documents/design/newbie-framework-split-plan.md` 中第六章「@devbie/fewbie-core 设计」的旧方案（旧方案拟照抄 @devbie/newbie 的重 npm 包模式，已废弃；该后端文档已于 2026-09-24 同步修订）。
+> 本文档取代 `/Users/worldzhy/src/devbie/.trae/documents/designs/newbie-framework-split-plan.md` 中第六章「@devbie/fewbie-core 设计」的旧方案（旧方案拟照抄 @devbie/newbie 的重 npm 包模式，已废弃；该后端文档已于 2026-09-24 同步修订）。
 >
 > **命令面订正（2026-10-24，ADR-024/025/029 已采纳）**：命令面以根命令 `create` / `doctor` / `status` + `modules` 命名空间（`add` / `apply` / `remove` / `update` / `watch` / `lint`）+ `template update` 为准；本文带日期标注的决策记录保留当时的命令名（`fewbie add <name>` 读作 `fewbie modules add <name>`，`fewbie update` 读作 `fewbie modules update`（默认写入，`--check` 为门禁）），不追溯改写。
 

@@ -148,7 +148,7 @@ if (endpoint && token) {
   backend framework runtime.
 - [`@devbie/newbie-cli`](https://www.npmjs.com/package/@devbie/newbie-cli) —
   Newbie framework command-line tool.
-- [`@devbie/web-monitor-sdk`](https://www.npmjs.com/package/@devbie/web-monitor-sdk)
+- [`@devbie/frontend-monitor-sdk`](https://www.npmjs.com/package/@devbie/frontend-monitor-sdk)
   — browser-side web monitoring.
 
 ## License

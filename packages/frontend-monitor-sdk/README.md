@@ -1,7 +1,7 @@
-# @devbie/web-monitor-sdk
+# @devbie/frontend-monitor-sdk
 
-[![npm version](https://img.shields.io/npm/v/@devbie/web-monitor-sdk?style=flat-square)](https://www.npmjs.com/package/@devbie/web-monitor-sdk)
-[![license](https://img.shields.io/npm/l/@devbie/web-monitor-sdk?style=flat-square)](https://github.com/worldzhy/devbie/blob/dev/LICENSE)
+[![npm version](https://img.shields.io/npm/v/@devbie/frontend-monitor-sdk?style=flat-square)](https://www.npmjs.com/package/@devbie/frontend-monitor-sdk)
+[![license](https://img.shields.io/npm/l/@devbie/frontend-monitor-sdk?style=flat-square)](https://github.com/worldzhy/devbie/blob/dev/LICENSE)
 
 Browser-side web monitoring SDK. It automatically collects page-view and page
 performance data, AJAX calls (both `XMLHttpRequest` and `fetch`), resource
@@ -29,7 +29,7 @@ logic.
 ## Installation
 
 ```bash
-npm install @devbie/web-monitor-sdk
+npm install @devbie/frontend-monitor-sdk
 ```
 
 ## Quick start
@@ -38,7 +38,7 @@ Initialize the SDK as early as possible in your application — for example in
 your root layout or application entry:
 
 ```ts
-import init from "@devbie/web-monitor-sdk";
+import init from "@devbie/frontend-monitor-sdk";
 
 init({
   api: "https://collector.example.com/api/web-monitor/report",
@@ -65,7 +65,7 @@ monitor.addCustom({
 The Fewbie framework ships a ready-made registry wrapper:
 
 ```bash
-npx @devbie/fewbie-cli add web-monitor-sdk
+npx @devbie/fewbie-cli add frontend-monitor-sdk
 ```
 
 Then add the scaffolded `<WebMonitor />` component to your root layout and

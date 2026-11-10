@@ -1,6 +1,6 @@
 # Findings 台账（devbie 工作区）
 
-评审报告：`.trae/documents/expert-review-2026-11-03-round5.md`（scope=`workspace`）。
+评审报告：`.trae/documents/reviews/expert-review-2026-11-03-round5.md`（scope=`workspace`）。
 
 字段：ID / 仓 / 标题 / 严重度 / 暴露面 / 可达性 / 状态 / 回归指针。
 
@@ -185,7 +185,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 - R6-13 盘点（并入本轮）：本地 `WebMonitorInstallation` 1 行（`appKey=fsQNmFK`）与 Mongo 17 个分区键全部符合 `^[A-Za-z0-9_]{1,64}$`，**0 行需 backfill**，维持 P2；修复方向确定为「读容忍 + 写拒绝」，待 B 批次。
 - 未采纳：R6-11 的“单条无上限 deleteMany”未改代码 —— 逐写全量清理是既有注释明示的摊还设计，改为分批会引入热路径额外查询，收益不成比例。
 
-## W10 落地 · R6-09 内容寻址（2026-11-04，报告 `newbie-modules/.trae/documents/expert-review-2026-11-04-round7.md`）
+## W10 落地 · R6-09 内容寻址（2026-11-04，报告 `newbie-modules/.trae/documents/reviews/expert-review-2026-11-04-round7.md`）
 
 - 方案：两层签名（scope 级 `inputSignature` + 条目级 `contentFingerprint`）被自我否决——手工枚举维度、人工 bump 版本常量、读写两侧靠约定一致。改为**内容寻址单签名**：`sha256(modelId + system prompt 原文 + user payload JSON + responseFormat + temperature)`，装配即哈希，提示词/context/采样参数变化自动失效。
   - `security-evaluation-intel-request.ts#buildSecurityEvaluationIntelReRankRequest` 是唯一装配点，re-ranker 与 evidence provider 共用，读写两侧签名不可能漂移。
@@ -210,7 +210,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 ## round13（2026-11-05，plan scope：CLI 1.16.1 守卫 + isLocalDev 删除）
 
-真源：`.trae/documents/expert-review-2026-11-05-round13.md`
+真源：`.trae/documents/reviews/expert-review-2026-11-05-round13.md`
 
 - `R13-01` **fixed (2026-11-05) · P1** · devbie · 生成器白名单放行单参 `int()`/`bool()`：`RUNTIME_EXPRESSION`（`src/assemble/modules.ts:75-79`）与 helper 签名（`packages/newbie/src/utilities/int.util.ts:1`，第二参必填）不一致，生成物 `tsc` 报 TS2554；新增测试把该形态固化为期望。registry 当前 0 处使用，无 live 发生。**修复**：白名单收紧为仅裸 `process.env.NAME`，删除不可达的 helper 去引号/import 逻辑；测试改为阴性用例（`rejects helper calls in config values instead of emitting uncompilable code`）。取证：`npm run build` 通过，`npm test` 241/241 绿，`modules apply --check`（本地 dist 对 nightwatch-backend）未被新守卫拒绝。
 - `R13-02` **fixed（`35d84d1b`）· P2** · devbie · 「warning」实为 fatal：`IssueBag.warn` 入 items，`apply.ts:119,149`/`update.ts:259` 尾部 `assertEmpty()` 抛 `CliError`；registry 零违规故未触发。修复方向：语义二选一并统一文案。
@@ -218,7 +218,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 ## round14（2026-11-06，plan scope：`NEXT_PUBLIC_WEB_MONITOR_APP_ID` 全链路移除）
 
-真源：`.trae/documents/expert-review-2026-11-06-round14.md`。锚点：devbie `f3d1197b` / fewbie-starter `72ff9ef` / nightwatch-backend `86e41bd` / nightwatch-frontend `63cd1ef0`。无 P0/P1。
+真源：`.trae/documents/reviews/expert-review-2026-11-06-round14.md`。锚点：devbie `f3d1197b` / fewbie-starter `72ff9ef` / nightwatch-backend `86e41bd` / nightwatch-frontend `63cd1ef0`。无 P0/P1。
 
 | ID     | 仓                                       | 标题                                                                                                                                                                               | 严重度 | 暴露面                | 可达性         | 状态                                                                      |
 | ------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------- | -------------- | ------------------------------------------------------------------------- |
@@ -231,7 +231,7 @@ P2-01…P2-08（registry 模块级）登记在 `newbie-modules/.trae/documents/f
 
 ## round15（2026-11-06，scope=`workspace`）
 
-报告：`.trae/documents/expert-review-2026-11-06-round15.md`。锚点：devbie `149eeaef` / newbie-modules `a3ab33c` / newbie-starter `10bccce` / fewbie-starter `c4da9ea` / nightwatch-backend `f1321cc` / nightwatch-frontend `fe36ab0`。P1：1；P2：12（含 R13-02/03 重验维持开放）。
+报告：`.trae/documents/reviews/expert-review-2026-11-06-round15.md`。锚点：devbie `149eeaef` / newbie-modules `a3ab33c` / newbie-starter `10bccce` / fewbie-starter `c4da9ea` / nightwatch-backend `f1321cc` / nightwatch-frontend `fe36ab0`。P1：1；P2：12（含 R13-02/03 重验维持开放）。
 
 | ID     | 仓                                           | 标题                                                                                                                                                    | 严重度             | 暴露面                     | 可达性                          | 状态                                   |
 | ------ | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | -------------------------- | ------------------------------- | -------------------------------------- |
@@ -256,7 +256,7 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 处置记录（2026-11-06，round15 收尾）：
 
-- 上文 12 条已全部 fixed；报告正文（`.trae/documents/expert-review-2026-11-06-round15.md`）保持时点快照不改写，commit 指针以本表为准。
+- 上文 12 条已全部 fixed；报告正文（`.trae/documents/reviews/expert-review-2026-11-06-round15.md`）保持时点快照不改写，commit 指针以本表为准。
 - R15-08 的发版豁免说明：`npm audit --omit=dev --workspaces` 仍有 10 条 moderate，全部落在 `@devbie/style-guide` 的 eslint 工具链（glob/minimatch/typescript-eslint），不进任何消费端运行时；`@devbie/web-monitor-sdk` 本身零运行时依赖，故按 RELEASE_CHECKLIST 第 4 步记此豁免后发布 1.5.2。
 - 仍未处置（本轮未动，维持 open 台账）：round12/13 其余 P2（R6-13 已于 2026-11-06 fixed）。R3-25 引用已于 round30 复核关闭（2026-11-09）：前端测试现况 12 文件/109 用例全绿（executed），正文条目已不在任何当前台账，open 状态失真。
 
@@ -264,7 +264,7 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 ## round20（2026-11-06，scope=`workspace`）
 
-报告：`.trae/documents/expert-review-2026-11-06-round20.md`（时点快照，不改写）。锚点（结束态）：devbie `5e59366a` / newbie-modules `dabce5a` / newbie-starter `254ed72` / fewbie-starter `1032cfe` / nightwatch-backend `ae3aa34` / nightwatch-frontend `8e01d56`。评审期间 newbie-modules、nightwatch-backend 各有并行提交前进（`ead62ef→dabce5a`、`1f06d3a→ae3aa34`）。P0：0；P1：4；P2：19；P3：18。
+报告：`.trae/documents/reviews/expert-review-2026-11-06-round20.md`（时点快照，不改写）。锚点（结束态）：devbie `5e59366a` / newbie-modules `dabce5a` / newbie-starter `254ed72` / fewbie-starter `1032cfe` / nightwatch-backend `ae3aa34` / nightwatch-frontend `8e01d56`。评审期间 newbie-modules、nightwatch-backend 各有并行提交前进（`ead62ef→dabce5a`、`1f06d3a→ae3aa34`）。P0：0；P1：4；P2：19；P3：18。
 
 | ID     | 仓                                  | 标题                                                                                                                       | 严重度 | 暴露面        | 可达性                          | 状态 |
 | ------ | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ------ | ------------- | ------------------------------- | ---- |
@@ -314,7 +314,7 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 ## round21 主张核验（2026-11-08，scope=`plan`：session-ended toast 抑制）
 
-报告：`.trae/documents/expert-review-2026-11-08-round21-claim-verification.md`（时点快照，不改写）。锚点：devbie `2b79f711` / nightwatch-frontend `6c09b2a` / nightwatch-backend `25cf3b3` / newbie-modules `3fb36c0`。被审域无并行改动。主张判定：C1 成立（P2）、C2 成立（C1 支撑事实）、C3 成立（P3）。
+报告：`.trae/documents/reviews/expert-review-2026-11-08-round21-claim-verification.md`（时点快照，不改写）。锚点：devbie `2b79f711` / nightwatch-frontend `6c09b2a` / nightwatch-backend `25cf3b3` / newbie-modules `3fb36c0`。被审域无并行改动。主张判定：C1 成立（P2）、C2 成立（C1 支撑事实）、C3 成立（P3）。
 
 | ID     | 仓                  | 标题                                                                                                                                       | 严重度 | 暴露面 | 可达性                          | 状态 |
 | ------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ------ | ------ | ------------------------------- | ---- |
@@ -325,7 +325,7 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 ## round22 设计评审（2026-11-08，scope=`plan`：最终实现是否最优雅/最标准）
 
-报告：`.trae/documents/expert-review-2026-11-08-round22-design-verdict.md`（时点快照，不改写）。锚点：nightwatch-frontend `807c2b8` / devbie `ca41350c`；被审域无并行改动。主张判定：C1/C2/C4/C6 成立，C5 基本成立，C3（最优雅）与 C7（覆盖一致性）不成立。executed 证据：`vitest run src/lib/api-client.test.ts` 14/14；阴性对照（旧实现 `446c52f` + 新宿主接线）2 failed / 12 passed；`tsc --noEmit` 干净；宿主 vs registry `diff -u` 仅 4 常量 + 1 注释。
+报告：`.trae/documents/reviews/expert-review-2026-11-08-round22-design-verdict.md`（时点快照，不改写）。锚点：nightwatch-frontend `807c2b8` / devbie `ca41350c`；被审域无并行改动。主张判定：C1/C2/C4/C6 成立，C5 基本成立，C3（最优雅）与 C7（覆盖一致性）不成立。executed 证据：`vitest run src/lib/api-client.test.ts` 14/14；阴性对照（旧实现 `446c52f` + 新宿主接线）2 failed / 12 passed；`tsc --noEmit` 干净；宿主 vs registry `diff -u` 仅 4 常量 + 1 注释。
 
 | ID     | 仓                                | 标题                                                                                                       | 严重度 | 暴露面 | 可达性                     | 状态 |
 | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------ | ------ | -------------------------- | ---- |
@@ -338,7 +338,7 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 ## round23 权限 / HTTP / 鉴权域评审（2026-11-08，scope=`workspace`：nightwatch-frontend 鉴权/会话/HTTP 客户端/权限渲染/SSE）
 
-报告：`.trae/documents/expert-review-2026-11-08-round23.md`（时点快照，不改写）。锚点：nightwatch-frontend `382fa01` / devbie `60b1a89e`；`aws-credential.tsx` + 2 个 i18n json 为并行 dirty（落被审域边缘，相关结论标 provisional）。误报剔除 1 条（refresh cookie SameSite=Strict，跨站触发轮换不可达）。carry-over：R20-12 重验仍存在，维持 open。
+报告：`.trae/documents/reviews/expert-review-2026-11-08-round23.md`（时点快照，不改写）。锚点：nightwatch-frontend `382fa01` / devbie `60b1a89e`；`aws-credential.tsx` + 2 个 i18n json 为并行 dirty（落被审域边缘，相关结论标 provisional）。误报剔除 1 条（refresh cookie SameSite=Strict，跨站触发轮换不可达）。carry-over：R20-12 重验仍存在，维持 open。
 
 | ID     | 仓                                | 标题                                                                                                                                                     | 严重度 | 暴露面 | 可达性                       | 状态 |
 | ------ | --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------ | ---------------------------- | ---- |
@@ -351,7 +351,7 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 ## round24 权限 / HTTP / 鉴权域复审（2026-11-08，scope=`workspace` 域限定：nightwatch-frontend 权限渲染/HTTP 客户端/鉴权会话/SSE）
 
-报告：`.trae/documents/expert-review-2026-11-08-round24.md`（时点快照，不改写）。锚点：nightwatch-frontend `8b8b4c6`（5 dirty，`aws-credential.tsx` 标 provisional）/ devbie `f34cd64a`。误报剔除 1 条（`use-open-notification.ts` 反斜杠指控不成立，该函数已显式拒绝）。carry-over（R22-05、R23-01..06）全部按不变量重验仍为 fixed，命令见报告 §8.2。
+报告：`.trae/documents/reviews/expert-review-2026-11-08-round24.md`（时点快照，不改写）。锚点：nightwatch-frontend `8b8b4c6`（5 dirty，`aws-credential.tsx` 标 provisional）/ devbie `f34cd64a`。误报剔除 1 条（`use-open-notification.ts` 反斜杠指控不成立，该函数已显式拒绝）。carry-over（R22-05、R23-01..06）全部按不变量重验仍为 fixed，命令见报告 §8.2。
 
 | ID     | 仓                 | 标题                                                                                                                                                                       | 严重度 | 暴露面 | 可达性                              | 状态 |
 | ------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------ | ----------------------------------- | ---- |
@@ -381,8 +381,8 @@ registry 模块级条目（R15-01 web-monitor、R15-02 custom regex、R15-05 aws
 
 ## round27（2026-11-08，scope=`changeset`：R25 修复批次复核）
 
-编号说明：round26 已由并行会话用于 url-check 测试评审（报告在 `newbie-modules/.trae/documents/expert-review-2026-11-08-round26.md`，registry `7f45bb6`），本轮改用 round27。
-报告：`.trae/documents/expert-review-2026-11-08-round27.md`（时点快照，不改写）。
+编号说明：round26 已由并行会话用于 url-check 测试评审（报告在 `newbie-modules/.trae/documents/reviews/expert-review-2026-11-08-round26.md`，registry `7f45bb6`），本轮改用 round27。
+报告：`.trae/documents/reviews/expert-review-2026-11-08-round27.md`（时点快照，不改写）。
 锚点：nightwatch-frontend `10d9a9d`（6 dirty，并行 web-monitor 收尾，均在 changeset 外）/ nightwatch-backend `9aaf8c4` / newbie-modules `7f45bb6` / devbie `8977e500`；changeset = frontend `a31fd8b`+`e77e475`、backend `bbb0b34`、registry `93a4797`。
 主张判定：C1–C6（R25-01/02/03/05/06 fixed + 无回归）全部成立；P0/P1 无。
 executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` 且 `origin=https://evil.com`；登录双解码链 6 条危险向量全拒绝、`/projects` 接受；class-validator 直驱装配 DTO 的 Create/Update 8/8 判定一致；registry↔装配 `diff` 为空；`router.push(entry.routePath)` = 2 且均守卫；`isSafeExternalUrl` 7 处 = 1 定义 + 3 import + 3 调用；vitest 9 files / 77 tests passed；定向 eslint 干净；backend `tsc --noEmit` 干净。误报剔除 3 条（403 文案 grep 命中、点段/编码向量、登录二次解码 URIError）。
@@ -400,7 +400,7 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 
 ## round28（2026-11-09，scope=`plan`：R20 CLI/框架修复与 `@devbie/newbie` 1.13.1/1.13.2 发版）
 
-报告：`.trae/documents/expert-review-2026-11-09.md`（时点快照，不改写）。锚点：devbie `ee239e2f`（评审结束态）/ 区间 `9cfd8ca6..ee239e2f`。P1 × 1、P2 × 6、P3 × 2；误报剔除 5 条。
+报告：`.trae/documents/reviews/expert-review-2026-11-09.md`（时点快照，不改写）。锚点：devbie `ee239e2f`（评审结束态）/ 区间 `9cfd8ca6..ee239e2f`。P1 × 1、P2 × 6、P3 × 2；误报剔除 5 条。
 
 编号说明：报告建议的 `R21-01…R21-09` 与台账 2026-11-08 round21（nightwatch-frontend session-ended toast）重号，本轮改用 `R28-xx`，标题内保留报告原 ID 以便对照。
 
@@ -421,7 +421,7 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 
 ## round29（2026-11-09，scope=`workspace`：最近 8 小时各仓代码修改）
 
-报告：`.trae/documents/expert-review-2026-11-09-round29.md`（时点快照，不改写）。锚点见报告 §1。P1 × 2、P2 × 1、P3 × 9；误报剔除与 12 项正面不变量见报告 §7/§9。本仓登记 R29-01；registry 侧（R29-02、R29-04..08）在 newbie-modules 台账，宿主侧（R29-03、R29-09/10）在 nightwatch-backend backlog，前端侧（R29-11/12 及无编号 P3）在 nightwatch-frontend backlog。
+报告：`.trae/documents/reviews/expert-review-2026-11-09-round29.md`（时点快照，不改写）。锚点见报告 §1。P1 × 2、P2 × 1、P3 × 9；误报剔除与 12 项正面不变量见报告 §7/§9。本仓登记 R29-01；registry 侧（R29-02、R29-04..08）在 newbie-modules 台账，宿主侧（R29-03、R29-09/10）在 nightwatch-backend backlog，前端侧（R29-11/12 及无编号 P3）在 nightwatch-frontend backlog。
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -429,7 +429,7 @@ executed 证据：旧谓词 4 条控制字符向量 `true`→新谓词 `false` �
 
 ## round30（2026-11-09，scope=`workspace`：全工作区对抗评审）
 
-报告：`.trae/documents/expert-review-2026-11-09-round30.md`（时点快照，不改写）。锚点：devbie `34776550` / newbie-modules `c4ab01e` / newbie-starter `64ce325` / fewbie-starter `257d99a` / backend `fcea72d` / frontend `2aefa8f`。无 P0/P1；executed：backend 1098/1098、frontend 12 文件/109 用例、newbie-cli 258/258 全绿；装配一致性 34/34 diff 空。误报剔除 4 条、14 项正面不变量见报告 §7/§8。
+报告：`.trae/documents/reviews/expert-review-2026-11-09-round30.md`（时点快照，不改写）。锚点：devbie `34776550` / newbie-modules `c4ab01e` / newbie-starter `64ce325` / fewbie-starter `257d99a` / backend `fcea72d` / frontend `2aefa8f`。无 P0/P1；executed：backend 1098/1098、frontend 12 文件/109 用例、newbie-cli 258/258 全绿；装配一致性 34/34 diff 空。误报剔除 4 条、14 项正面不变量见报告 §7/§8。
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
