@@ -58,6 +58,20 @@ CRED='!f() { echo "username=worldzhy"; echo "password=$(tail -1 /Users/worldzhy/
 
 提交信息受 `commit-msg` 钩子门禁（禁止 Han 字符，英文 only）；`pre-commit` 钩子在 `public/*` 路径直接放行，不触发 docker lint/format。
 
+**每次 commit 前硬性三步（机械检查，不可跳过）**：
+```bash
+# Step 1: git add 只用显式路径（禁止裸 git add -A，除非全仓唯一改动且已确认）
+git add AGENTS.md .trae/documents/env-setup.md
+
+# Step 2: staged 清单核对——发现无关路径立即剔除
+git diff --cached --name-status
+# → 核对输出只含本轮任务涉及的路径；看到 src/modules/、newbie-modules.json 等
+#   本轮不碰的路径，立即 git restore --staged <path> 剔除后再 commit
+
+# Step 3: commit + push（模板见"Git 推送"节）
+git -c "credential.helper=$CRED" commit -m "..."
+```
+
 ## 仓库 pre-commit 钩子机制（newbie/fewbie 生态 .githooks）
 
 钩子用 `docker run --rm --network none node:24-alpine` 对挂载仓跑 eslint --fix + prettier --write 并重暂存，fail-closed。前置条件：仓内 node_modules 含 eslint/prettier 完整依赖树、本地存在 `node:24-alpine` 镜像（缺失会触发在线拉取）、钩子进程 PATH 里有真 git（裸 `git` 会落到 xcode 桩）。宿主 commit 前置 `export PATH`（GitHub Desktop git bin）+ `GIT_EXEC_PATH`。
