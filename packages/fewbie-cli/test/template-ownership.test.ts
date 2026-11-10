@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   assetCoversPath,
+  assetMarkers,
   extractMarkerBlock,
   findUnclassifiedTemplateFiles,
   FRAMEWORK_DEPENDENCIES,
@@ -11,6 +12,7 @@ import {
   isTemplateScanIgnored,
   planTemplateUpdate,
   replaceMarkerBlock,
+  TEMPLATE_ASSETS,
   TemplateAsset,
 } from "../src/lib/template-ownership";
 
@@ -236,5 +238,31 @@ describe("scaffold assets (ADR-035)", () => {
     assert.equal(changes[0].nextContent, null);
     assert.equal(changes[0].currentComparable, null);
     assert.equal(changes[0].templateComparable, SCAFFOLD_TEMPLATE);
+  });
+});
+
+describe("hash-commented mixed assets (ADR-035)", () => {
+  const asciiMarkers = { start: "# fewbie:framework:start", end: "# fewbie:framework:end" };
+
+  it("classifies .prettierignore and .env.example as mixed with # markers", () => {
+    for (const filePath of [".prettierignore", ".env.example"]) {
+      const asset = TEMPLATE_ASSETS.find((candidate) => candidate.path === filePath);
+      assert.equal(asset?.ownership, "mixed", `${filePath} must be mixed`);
+      assert.deepEqual(assetMarkers(asset as TemplateAsset), asciiMarkers);
+    }
+  });
+
+  it("replaces only the # block and keeps host lines", () => {
+    const asset = TEMPLATE_ASSETS.find((candidate) => candidate.path === ".prettierignore") as TemplateAsset;
+    const project = `${asciiMarkers.start}\nnode_modules\n${asciiMarkers.end}\n\n.trae\n`;
+    const template = `${asciiMarkers.start}\nnode_modules\n.next\n${asciiMarkers.end}\n`;
+
+    const changes = planTemplateUpdate(new Map([[asset.path, project]]), new Map([[asset.path, template]]), [asset]);
+
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "update");
+    const next = changes[0].nextContent ?? "";
+    assert.match(next, /\.next/);
+    assert.match(next, /\.trae/);
   });
 });

@@ -148,7 +148,7 @@ nightwatch-frontend 已验证的规则中，通用的三条下沉进 `@devbie/st
 
 - 模板携带，随 `template update` 覆盖与创建。
 - 不引入新的 npm 包：包装函数放在模板内即可复用既有传播通道；将来若需要独立发版，再迁入包，届时 `next.config.ts` 的 import 路径变更需单独 ADR。
-- 该文件不 import 非基线包（仅 `next` 的类型），`FRAMEWORK_DEPENDENCIES` 无需新增条目。
+- 该文件只 import `next` 的类型，但 `FRAMEWORK_DEFAULTS.reactCompiler` 需要构建期依赖 `babel-plugin-react-compiler`（Next 官方要求）。因此 `FRAMEWORK_DEPENDENCIES` 新增这一条（宿主缺包时 `template update` 给出 `npm install -D` 提示），模板把它放在 devDependencies。
 
 ## 上收候选清单（nightwatch-frontend）
 
@@ -164,6 +164,7 @@ nightwatch-frontend 已验证的规则中，通用的三条下沉进 `@devbie/st
 | `eslint.config.mjs` | kebab-case 文件名 | 通用 / 可进 style-guide / 可静默 | `./eslint/next` |
 | `eslint.config.mjs` | `src/api/_gen/**` ignore | 通用（apits 生成物路径约定，无宿主词汇） | `./eslint/next` |
 | `.prettierignore` | `.trae` | 宿主文档约定 | 宿主块 |
+| `src/app/globals.css` | `@source not "../../.trae"` | 通用（任何宿主的 `.trae` 都不该被 Tailwind 扫描；skills 软链可能指向项目外，Turbopack 直接拒绝） | 框架块 |
 | `.env.example` | 心跳变量 | 框架 / 模板块 / 可静默 | 框架块 |
 | `.env.example` | base url / backend origin / Slack / Lark / AWS CFN | 宿主业务词汇 | 宿主块 |
 | `.env.example` | `NEXT_PUBLIC_FRONTEND_MONITOR_*` | registry 模块声明 | 不进模板（`modules apply` 所有） |

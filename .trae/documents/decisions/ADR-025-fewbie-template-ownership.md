@@ -38,8 +38,8 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | framework-owned | `postcss.config.mjs` | Tailwind v4 管线 |
 | framework-owned | `eslint.config.mjs` | lint 规则集 |
 | framework-owned | `components.json` | shadcn 生成器配置 |
-| framework-owned | `.prettierignore` | 格式化范围 |
-| framework-owned | `.env.example` | 环境契约（心跳、web-monitor 等框架变量） |
+| mixed（`#` marker） | `.prettierignore` | 构建产物与依赖目录在框架块内；宿主忽略项（如 `.trae`）写在块外，`template update` 只替换块内 |
+| mixed（`#` marker） | `.env.example` | 框架块只列框架文件读的变量（`HEARTBEAT_*`）；宿主与 registry 模块变量写在块外 |
 | framework-owned | `src/instrumentation.ts` | 心跳 SDK 启动接线，属于框架生命周期 |
 | framework-owned | `src/lib/utils.ts` | shadcn `cn` 契约（`export { cn } from "cn"`） |
 | mixed | `src/app/globals.css` | 设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`）归框架；宿主可追加自有 token |

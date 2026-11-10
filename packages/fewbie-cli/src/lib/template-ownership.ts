@@ -74,8 +74,6 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: "postcss.config.mjs", ownership: "framework" },
   { path: "eslint.config.mjs", ownership: "framework" },
   { path: "components.json", ownership: "framework" },
-  { path: ".prettierignore", ownership: "framework" },
-  { path: ".env.example", ownership: "framework" },
   { path: "src/instrumentation.ts", ownership: "framework" },
   { path: "src/lib/utils.ts", ownership: "framework" },
 
@@ -90,6 +88,18 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
     ownership: "mixed",
     note: "the framework block carries the agent usage contract; project instructions stay outside it",
     markers: { start: "<!-- fewbie:framework:start -->", end: "<!-- fewbie:framework:end -->" },
+  },
+  {
+    path: ".prettierignore",
+    ownership: "mixed",
+    note: "build outputs and dependency directories live inside the marker block; host ignores (e.g. .trae) stay outside it",
+    markers: { start: "# fewbie:framework:start", end: "# fewbie:framework:end" },
+  },
+  {
+    path: ".env.example",
+    ownership: "mixed",
+    note: "the framework block lists variables framework-owned files read; host and registry-module variables stay outside it",
+    markers: { start: "# fewbie:framework:start", end: "# fewbie:framework:end" },
   },
 
   // Host-owned: distributed once by create, then never touched by template update.
@@ -140,6 +150,7 @@ export const FRAMEWORK_DEPENDENCIES: readonly FrameworkDependency[] = [
   { name: "next-intl", importedBy: "next.config.ts, src/i18n/config.ts, src/app/layout.tsx" },
   { name: "@devbie/heartbeat-sdk", importedBy: "src/instrumentation.ts" },
   { name: "cn", importedBy: "src/lib/utils.ts" },
+  { name: "babel-plugin-react-compiler", importedBy: "next.config.framework.ts (reactCompiler)" },
   { name: "@tailwindcss/postcss", importedBy: "postcss.config.mjs" },
   { name: "tailwindcss", importedBy: "src/app/globals.css" },
   { name: "tw-animate-css", importedBy: "src/app/globals.css" },
