@@ -125,6 +125,18 @@ function printChange(change: TemplateChange): void {
     return;
   }
 
+  if (change.kind === "scaffold-outdated") {
+    console.warn(
+      yellow(
+        `! ${change.asset.path}: the host copy does not reference the framework entry point ` +
+          `(${change.asset.requiredSnippet}). Template update never rewrites a scaffold file; adopt this ` +
+          "shape by hand:",
+      ),
+    );
+    if (change.templateComparable !== null) process.stdout.write(change.templateComparable);
+    return;
+  }
+
   const label = change.asset.path;
   const kindLabel = change.kind === "create" ? "missing in project" : "differs from template";
   console.info(bold(`\n# ${label} (${kindLabel})`));
@@ -216,7 +228,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       return;
     }
 
-    const actionable = changes.filter((change) => change.kind !== "missing-markers");
+    const actionable = changes.filter((change) => change.kind === "create" || change.kind === "update");
     for (const change of changes) printChange(change);
 
     console.info(
@@ -244,7 +256,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       await fs.writeFile(target, change.nextContent);
     }
     const skipped = changes.length - actionable.length;
-    if (skipped > 0) console.warn(yellow(`\n${skipped} file(s) left untouched (missing markers).`));
+    if (skipped > 0) console.warn(yellow(`\n${skipped} file(s) left untouched (missing markers or host adoption).`));
     console.info(green(bold("\n✓ Template files updated.")));
     console.info("Review with `git diff`, then commit on a branch and open a PR.");
   } finally {

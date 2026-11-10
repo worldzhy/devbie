@@ -22,6 +22,14 @@ function agentsMd(block: string, host: string): string {
   );
 }
 
+// next.config.ts is a scaffold asset (ADR-035): both copies call the framework
+// entry point, but only the host file carries host configuration.
+const NEXT_CONFIG_TEMPLATE =
+  'import { withFewbie } from "./next.config.framework";\n\nexport default withFewbie({});\n';
+const NEXT_CONFIG_HOST =
+  'import { withFewbie } from "./next.config.framework";\n\n' +
+  "export default withFewbie({ devIndicators: false });\n";
+
 async function writeFile(root: string, relativePath: string, content: string): Promise<void> {
   await fs.mkdir(path.dirname(path.join(root, relativePath)), { recursive: true });
   await fs.writeFile(path.join(root, relativePath), content);
@@ -30,7 +38,8 @@ async function writeFile(root: string, relativePath: string, content: string): P
 async function makeTemplate(): Promise<string> {
   const root = await makeTempDir("fewbie-update-template-");
   await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fewbie-basic-template" }, null, 2));
-  await writeFile(root, "next.config.ts", "// template next config\n");
+  await writeFile(root, "next.config.ts", NEXT_CONFIG_TEMPLATE);
+  await writeFile(root, "next.config.framework.ts", "export const withFewbie = (config: object = {}) => config;\n");
   await writeFile(root, "src/lib/utils.ts", "export const cn = () => '';\n");
   await writeFile(root, "src/app/globals.css", globalsCss("--primary: template;", ""));
   await writeFile(root, "AGENTS.md", agentsMd("Template contract.", ""));
@@ -45,7 +54,8 @@ async function makeProject(): Promise<string> {
   // so template update only warns/errors when they are absent.
   const dependencies = Object.fromEntries(FRAMEWORK_DEPENDENCIES.map((dependency) => [dependency.name, "*"]));
   await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fixture", dependencies }, null, 2));
-  await writeFile(root, "next.config.ts", "// host next config\n");
+  // Scaffold: adopted, so the host copy must be left alone (ADR-035).
+  await writeFile(root, "next.config.ts", NEXT_CONFIG_HOST);
   await writeFile(root, "src/app/globals.css", globalsCss("--primary: host;", ":root { --host: 42; }"));
   await writeFile(root, "AGENTS.md", agentsMd("Stale contract.", "## Project rules\n\nKeep me."));
   await writeFile(root, "src/app/page.tsx", "// host page\n");
@@ -75,7 +85,7 @@ describe("fewbie template update", () => {
       runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
       /drift from the template/,
     );
-    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// host next config\n");
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
   });
 
   it("writes framework files, updates only the marked block and creates missing files", async () => {
@@ -88,11 +98,13 @@ describe("fewbie template update", () => {
 
     await runTemplateUpdate({ cwd: project, templatePath: template });
 
-    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// template next config\n");
+    // Scaffold: the host copy is adopted and therefore never rewritten.
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
     const globals = await fs.readFile(path.join(project, "src/app/globals.css"), "utf8");
     assert.match(globals, /--primary: template;/);
     assert.match(globals, /--host: 42;/);
     assert.ok(await fs.stat(path.join(project, "src/lib/utils.ts")));
+    assert.ok(await fs.stat(path.join(project, "next.config.framework.ts")));
     // Mixed AGENTS.md: the framework block is updated, the host area is kept.
     const agents = await fs.readFile(path.join(project, "AGENTS.md"), "utf8");
     assert.match(agents, /Template contract\./);
@@ -145,7 +157,7 @@ describe("fewbie template update", () => {
     await runTemplateUpdate({ cwd: project, templatePath: template, paths: ["src/lib"] });
 
     assert.ok(await fs.stat(path.join(project, "src/lib/utils.ts")));
-    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// host next config\n");
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
   });
 
   it("fails template-repository CI when a template file is unclassified", async () => {
@@ -183,7 +195,7 @@ describe("fewbie template update", () => {
       return true;
     });
     // The gate runs before any file is written.
-    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// host next config\n");
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
   });
 
   it("warns about missing framework dependencies but still syncs", async () => {
@@ -206,9 +218,56 @@ describe("fewbie template update", () => {
       console.warn = originalWarn;
     }
 
-    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), "// template next config\n");
+    assert.ok(await fs.stat(path.join(project, "src/lib/utils.ts")));
+    // The framework file still syncs; only the scaffold copy stays untouched.
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
     const joined = warnings.join("\n");
     assert.match(joined, /Framework dependencies missing/);
     assert.match(joined, /npm install next-intl/);
+  });
+
+  it("creates a scaffold file the project does not have yet", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await fs.rm(path.join(project, "next.config.ts"));
+
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_TEMPLATE);
+  });
+
+  it("reports a scaffold copy that lost the framework entry point without rewriting it", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    const legacyHostConfig = "export default { output: 'standalone' };\n";
+    await writeFile(project, "next.config.ts", legacyHostConfig);
+
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map(String).join(" "));
+    };
+    try {
+      // --check fails, then the apply run still leaves the host file alone.
+      await assert.rejects(
+        runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
+        /drift from the template/,
+      );
+      await runTemplateUpdate({ cwd: project, templatePath: template });
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), legacyHostConfig);
+    const joined = warnings.join("\n");
+    assert.match(joined, /next\.config\.ts: the host copy does not reference the framework entry point/);
   });
 });

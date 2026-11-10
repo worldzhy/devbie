@@ -10,6 +10,10 @@
  *   is a defect in the host copy, not something to guess around.
  * - host: shipped once by `fewbie create`, then owned by the host; template
  *   update never touches it.
+ * - scaffold: created when missing, then owned by the host; template update
+ *   never rewrites its content and only reports a copy that lost the required
+ *   snippet (the framework entry point). Adoption is by hand, like Rails'
+ *   `app:update` writing `.new` files (ADR-035).
  *
  * Registry items are not listed here: `modules add` / `modules update` own
  * those paths, and template update refuses to run if the two sets ever overlap
@@ -31,7 +35,7 @@ export interface TemplateMarkers {
 
 const DEFAULT_MARKERS: TemplateMarkers = { start: FRAMEWORK_MARKER_START, end: FRAMEWORK_MARKER_END };
 
-export type TemplateOwnership = "framework" | "mixed" | "host";
+export type TemplateOwnership = "framework" | "mixed" | "host" | "scaffold";
 
 export interface TemplateAsset {
   /** POSIX-style path relative to the project / template root. */
@@ -40,6 +44,11 @@ export interface TemplateAsset {
   note?: string;
   /** Marker pair of a mixed file; defaults to the CSS comment markers. */
   markers?: TemplateMarkers;
+  /**
+   * Required for `scaffold` assets: a snippet every adopted copy must contain.
+   * One substring check decides adoption, so no TypeScript is parsed.
+   */
+  requiredSnippet?: string;
 }
 
 /** Marker pair of an asset: the explicit override or the default CSS markers. */
@@ -48,8 +57,19 @@ export function assetMarkers(asset: TemplateAsset): TemplateMarkers {
 }
 
 export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
+  // Scaffold: created once, then owned by the host. Its content is never
+  // rewritten; template update only reports a copy that lost the framework
+  // entry point, so the framework's defaults and invariants can keep reaching
+  // existing hosts through next.config.framework.ts (ADR-035).
+  {
+    path: "next.config.ts",
+    ownership: "scaffold",
+    requiredSnippet: 'from "./next.config.framework"',
+    note: "host config calls withFewbie(); defaults and invariants live in next.config.framework.ts",
+  },
+
   // Framework-owned: the template version wins.
-  { path: "next.config.ts", ownership: "framework" },
+  { path: "next.config.framework.ts", ownership: "framework" },
   { path: "tsconfig.json", ownership: "framework" },
   { path: "postcss.config.mjs", ownership: "framework" },
   { path: "eslint.config.mjs", ownership: "framework" },
@@ -94,9 +114,9 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: ".dockerignore", ownership: "host" },
 ];
 
-/** Template files whose content template update manages. */
+/** Template files template update manages (creates, or keeps in sync). */
 export function isSyncableAsset(asset: TemplateAsset): boolean {
-  return asset.ownership === "framework" || asset.ownership === "mixed";
+  return asset.ownership === "framework" || asset.ownership === "mixed" || asset.ownership === "scaffold";
 }
 
 export const SYNCABLE_ASSETS: readonly TemplateAsset[] = TEMPLATE_ASSETS.filter(isSyncableAsset);
@@ -211,7 +231,7 @@ function comparable(asset: TemplateAsset, content: string): string {
   return block;
 }
 
-export type TemplateChangeKind = "create" | "update" | "missing-markers";
+export type TemplateChangeKind = "create" | "update" | "missing-markers" | "scaffold-outdated";
 
 export interface TemplateChange {
   asset: TemplateAsset;
@@ -252,6 +272,22 @@ export function planTemplateUpdate(
         currentComparable: null,
         templateComparable: comparable(asset, templateContent),
       });
+      continue;
+    }
+
+    // Scaffold content belongs to the host; only a copy that lost the required
+    // snippet is reported, and it is never rewritten for the host.
+    if (asset.ownership === "scaffold") {
+      const snippet = asset.requiredSnippet;
+      if (snippet && !projectContent.includes(snippet)) {
+        changes.push({
+          asset,
+          kind: "scaffold-outdated",
+          nextContent: null,
+          currentComparable: null,
+          templateComparable: templateContent,
+        });
+      }
       continue;
     }
 

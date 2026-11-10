@@ -1,6 +1,6 @@
 # ADR-025 fewbie 模板所有权与 `template sync`
 
-状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`）
+状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`；2026-11-10 修订（ADR-035）——新增第四类 `scaffold`，`next.config.ts` 由 framework 改为 `scaffold`，新增 framework-owned 的 `next.config.framework.ts`）
 日期：2026-10-24
 前置：ADR-024（CLI 契约）、ADR-003（模板仓是模板真源）、ADR-012（fewbie 合入 devbie monorepo）
 Superseded by: ADR-029 —— 决策第 3 条的命令名由 `template sync` 改为 `template update`；所有权分类本体不变。
@@ -15,23 +15,25 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 ## 决策
 
 1. **所有权清单作为单一真源**：在 fewbie-cli 内建立模板所有权清单（源码常量），`template sync`、`doctor`、文档共用同一份分类，不允许三处各写一份。
-2. **三类所有权**：
+2. **四类所有权**：
    - `framework-owned`：整文件归框架，模板版本直接覆盖宿主副本。
    - `host-owned`：整文件归宿主，`template sync` 永不触碰。
    - `mixed`：文件内用标记块划分，标记块内归框架，块外归宿主；**缺失标记视为错误**，不猜测、不整文件覆盖。
+   - `scaffold`（ADR-035）：缺失时由框架创建，存在后归宿主、**永不覆盖内容**；宿主副本缺 `requiredSnippet`（框架入口）时报 `scaffold-outdated`，由宿主手工采纳。
 3. **传播命令**：`fewbie template sync [<paths...>] [--check]`（ADR-024 条款 1/3）。
    - 默认执行写入；`--dry-run` 只打印计划；`--check` 为门禁（有差异即非零退出，不写文件）。
    - 模板源：`--template-path <dir>` 用本地目录，`--template-ref <ref>` 从 fewbie-starter 的指定 ref 取，默认取模板仓默认分支。
    - `[paths...]` 为路径前缀过滤（如 `src/app/`）。
    - `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`：模板仓库 CI 专用环境变量，断言模板树每个文件均在所有权清单；`fewbie create` 复制时从 `check:template` 脚本移除该变量——宿主业务文件不是模板资产（2026-11-03 评审 R5-09/R5-11）。
 4. **registry 项不纳入**：registry 安装的文件（`src/components/**`、`src/lib/query-client.ts` 等）由 `modules install` / `modules update` 管理，`template sync` 必须跳过，避免两套机制同时写同一文件。
-5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。
+5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。marker 按文件类型声明：`.md` 用 HTML 注释（`<!-- fewbie:framework:start -->`），非 CSS 的 `#` 注释文件（`.env.example` / `.prettierignore`）用 `# fewbie:framework:start`；`assetMarkers` 已支持 per-asset 覆盖，不新增机制。
 
 ## 所有权清单
 
 | 类别 | 路径 | 理由 |
 |---|---|---|
-| framework-owned | `next.config.ts` | 构建配置，宿主改动会破坏框架约定；2026-11-03 起含 `output: "standalone"`，与模板 Dockerfile 的 `.next/standalone` 契约对齐 |
+| scaffold | `next.config.ts` | 宿主配置调用 `withFewbie()`（ADR-035）；内容归宿主，`template update` 只校验框架入口是否还在，不覆盖 |
+| framework-owned | `next.config.framework.ts` | fewbie 包装函数：默认值（宿主可覆盖）+ 不变量（不可关闭），随 `template update` 创建/覆盖 |
 | framework-owned | `tsconfig.json` | TS 配置与 Next 版本锁步 |
 | framework-owned | `postcss.config.mjs` | Tailwind v4 管线 |
 | framework-owned | `eslint.config.mjs` | lint 规则集 |

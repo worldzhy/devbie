@@ -192,3 +192,49 @@ describe("planTemplateUpdate", () => {
     assert.deepEqual(changes, []);
   });
 });
+
+describe("scaffold assets (ADR-035)", () => {
+  const SCAFFOLD_PROJECT =
+    'import { withFewbie } from "./next.config.framework";\n\nexport default withFewbie({ devIndicators: false });\n';
+  const SCAFFOLD_TEMPLATE = 'import { withFewbie } from "./next.config.framework";\n\nexport default withFewbie({});\n';
+  const scaffoldAsset: TemplateAsset = {
+    path: "next.config.ts",
+    ownership: "scaffold",
+    requiredSnippet: 'from "./next.config.framework"',
+  };
+
+  it("creates a scaffold file missing from the project", () => {
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", null]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "create");
+    assert.equal(changes[0].nextContent, SCAFFOLD_TEMPLATE);
+  });
+
+  it("never rewrites an adopted host copy, even when it differs from the template", () => {
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", SCAFFOLD_PROJECT]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.deepEqual(changes, []);
+  });
+
+  it("reports scaffold-outdated without an auto-fix when the entry point is missing", () => {
+    const host = "export default { output: 'standalone' };\n";
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", host]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "scaffold-outdated");
+    // Host adoption is manual: no content is ever proposed for writing.
+    assert.equal(changes[0].nextContent, null);
+    assert.equal(changes[0].currentComparable, null);
+    assert.equal(changes[0].templateComparable, SCAFFOLD_TEMPLATE);
+  });
+});
