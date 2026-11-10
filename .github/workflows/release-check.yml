@@ -3,8 +3,9 @@
 # Verification runs once, on dev (see ci.yml): every commit merged into main is
 # a dev commit that already carries a green run, so main re-runs no checks.
 # What is left here are invariants that only hold on the release branch — the
-# template-drift gate compares registry items against fewbie-starter's default
-# branch, which is the source `fewbie create` clones.
+# template-drift gate checks that every template file is classified (ADR-025)
+# and that overlapping registry items match fewbie-starter's default branch,
+# which is the source `fewbie create` clones.
 name: Release check
 
 on:

@@ -78,7 +78,7 @@ async function isSelfComparison(templateRoot: string, projectRoot: string): Prom
 }
 
 /** POSIX-style paths of every file the template ships, excluding runtime output. */
-async function listTemplateFiles(root: string): Promise<string[]> {
+export async function listTemplateFiles(root: string): Promise<string[]> {
   const found: string[] = [];
 
   async function walk(relativeDir: string): Promise<void> {

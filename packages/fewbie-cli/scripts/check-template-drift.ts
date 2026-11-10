@@ -16,12 +16,20 @@
  * Locked dependency versions are a separate gate (npm version drift is
  * invisible to a file comparison): see scripts/check-template-deps.ts.
  *
+ * The same template checkout also feeds the ADR-025 completeness guard: every
+ * file the template ships must be classified in the ownership registry. The
+ * template repository's own CI runs that guard too, but against the published
+ * CLI; running it here checks this build, so a new template file cannot reach a
+ * release unclassified (R34-10).
+ *
  * Run via: node --import tsx scripts/check-template-drift.ts
  */
 import fs from "node:fs/promises";
 import path from "node:path";
 
 import { resolveTemplate } from "../src/commands/create";
+import { listTemplateFiles } from "../src/commands/template/update";
+import { findUnclassifiedTemplateFiles } from "../src/lib/template-ownership";
 
 const packageRoot = path.resolve(__dirname, "..");
 const registryRoot = path.join(packageRoot, "registry");
@@ -53,6 +61,9 @@ async function readRegistryItems(): Promise<RegistryItemEntry[]> {
 async function main(): Promise<void> {
   const template = await resolveTemplate({});
   try {
+    // ADR-025: every file the template ships must carry an ownership class.
+    const templateFiles = await listTemplateFiles(template.root);
+    const unclassified = findUnclassifiedTemplateFiles(templateFiles);
     const items = await readRegistryItems();
     const compared: string[] = [];
     const mismatches: string[] = [];
@@ -80,6 +91,7 @@ async function main(): Promise<void> {
     }
 
     console.info(`Template source: ${template.source}`);
+    console.info(`Scanned ${templateFiles.length} template file(s) against the ownership registry (ADR-025).`);
     console.info(`Compared ${compared.length} overlapping file(s):`);
     for (const pair of compared) console.info(`  ${pair}`);
 
@@ -91,8 +103,16 @@ async function main(): Promise<void> {
       );
       console.error("Edit both, or the two delivery channels fork.");
       process.exitCode = 1;
-      return;
     }
+
+    if (unclassified.length > 0) {
+      console.error(`\nTemplate file(s) missing from the ownership registry (ADR-025):`);
+      for (const file of unclassified) console.error(`  ${file}`);
+      console.error("Classify each one in TEMPLATE_ASSETS (src/lib/template-ownership.ts).");
+      process.exitCode = 1;
+    }
+
+    if (mismatches.length > 0 || unclassified.length > 0) return;
 
     console.info("\nNo drift: every overlapping registry item file matches its template copy.");
   } finally {
