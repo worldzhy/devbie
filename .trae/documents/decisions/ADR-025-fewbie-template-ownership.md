@@ -26,7 +26,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
    - `[paths...]` 为路径前缀过滤（如 `src/app/`）。
    - `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`：模板仓库 CI 专用环境变量，断言模板树每个文件均在所有权清单；`fewbie create` 复制时从 `check:template` 脚本移除该变量——宿主业务文件不是模板资产（2026-11-03 评审 R5-09/R5-11）。
 4. **registry 项不纳入**：registry 安装的文件（`src/components/**`、`src/lib/query-client.ts` 等）由 `modules install` / `modules update` 管理，`template sync` 必须跳过，避免两套机制同时写同一文件。
-5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。marker 按文件类型声明：`.md` 用 HTML 注释（`<!-- fewbie:framework:start -->`），非 CSS 的 `#` 注释文件（`.env.example` / `.prettierignore`）用 `# fewbie:framework:start`；`assetMarkers` 已支持 per-asset 覆盖，不新增机制。
+5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。marker 按文件类型声明：`.md` 用 HTML 注释（`<!-- fewbie:framework:start -->`），非 CSS 的 `#` 注释文件（`.env.example` / `.prettierignore`）用 `# fewbie:framework:start`；`assetMarkers` 已支持 per-asset 覆盖，不新增机制。块的范围按「跨宿主是否唯一」判定，不按文件主题：`globals.css` 只把 Tailwind 扫描排除（`@source not "../../.trae"`）放进块内，设计 token 是品牌决策、写在块外（2026-11-10 修订，否则宿主采纳标记时会整块替换掉自有主题）。
 
 ## 所有权清单
 
@@ -42,7 +42,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | mixed（`#` marker） | `.env.example` | 框架块只列框架文件读的变量（`HEARTBEAT_*`）；宿主与 registry 模块变量写在块外 |
 | framework-owned | `src/instrumentation.ts` | 心跳 SDK 启动接线，属于框架生命周期 |
 | framework-owned | `src/lib/utils.ts` | shadcn `cn` 契约（`export { cn } from "cn"`） |
-| mixed | `src/app/globals.css` | 设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`）归框架；宿主可追加自有 token |
+| mixed | `src/app/globals.css` | 框架块只含跨宿主唯一的约束（Tailwind 不扫描 `.trae`：`@source not "../../.trae"`）；设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`）是品牌决策，归宿主，写在块外 |
 | host-owned | `src/app/layout.tsx` | 承载宿主 Provider 组合（Theme/Query/WebMonitor）与 metadata |
 | host-owned | `src/app/page.tsx` | 宿主页面 |
 | host-owned | `src/app/favicon.ico` | 宿主品牌资源 |
@@ -85,7 +85,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 ## 影响
 
 - fewbie-cli：新增所有权清单与 `template sync` 命令；按 ADR-024 的 1.x 规则发 minor。
-- fewbie-starter：`globals.css` 加框架标记块；补 `@devbie/fewbie-cli` devDependency 与 `check:template` 薄别名（ADR-024 F14）。
+- fewbie-starter：`globals.css` 的框架块只包 `@source not "../../.trae"`（主题与 token 留在块外）；补 `@devbie/fewbie-cli` devDependency 与 `check:template` 薄别名（ADR-024 F14）。
 - 消费项目：获得模板更新通道，且不会覆盖宿主页面、组件与 Provider 接线。
 - 不做：三方合并、按文件差异逐段合并、迁移脚本。系统未上线，宿主项目可直接按新契约重建（见「未上线系统禁止过度考虑迁移问题」）。
 - 后续：模板中若新增需要传播的资产，必须在同一改动里登记所有权并补 `template sync` 用例，否则视为未完成。

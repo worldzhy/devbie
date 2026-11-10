@@ -165,6 +165,7 @@ nightwatch-frontend 已验证的规则中，通用的三条下沉进 `@devbie/st
 | `eslint.config.mjs` | `src/api/_gen/**` ignore | 通用（apits 生成物路径约定，无宿主词汇） | `./eslint/next` |
 | `.prettierignore` | `.trae` | 宿主文档约定 | 宿主块 |
 | `src/app/globals.css` | `@source not "../../.trae"` | 通用（任何宿主的 `.trae` 都不该被 Tailwind 扫描；skills 软链可能指向项目外，Turbopack 直接拒绝） | 框架块 |
+| `src/app/globals.css` | 设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`） | 品牌决策 / 宿主各异（nightwatch 有 night/chrome/sandbox 自有配色），不可跨宿主统一 | 宿主块（2026-11-10：原先圈在框架块内，宿主采纳标记会整块替换掉自有主题） |
 | `.env.example` | 心跳变量 | 框架 / 模板块 / 可静默 | 框架块 |
 | `.env.example` | base url / backend origin / Slack / Lark / AWS CFN | 宿主业务词汇 | 宿主块 |
 | `.env.example` | `NEXT_PUBLIC_FRONTEND_MONITOR_*` | registry 模块声明 | 不进模板（`modules apply` 所有） |
@@ -178,7 +179,7 @@ nightwatch-frontend 已验证的规则中，通用的三条下沉进 `@devbie/st
 1. **`@devbie/style-guide`**：`./eslint/next` 补齐上述规则 + 补测试；发 minor。验收：fewbie-starter 升到新版本后 `lint` 通过、无新增错误。nightwatch-frontend 的 lint 验收并入第 4 批——它当前在自有 config 里注册 `unicorn` 插件，与新层叠加会触发平坦配置的插件重定义错误，必须先改 config 再升级。
 2. **`fewbie-cli`**：`scaffold` 类、`requiredSnippet`、`scaffold-outdated` change kind、`next.config.framework.ts` 登记；补行为测试（缺失创建 / 存在不覆盖 / 缺 snippet 报漂移且不写 / `--check` 非零）；发 minor。验收：`npm test` 全绿。
 3. **`fewbie-starter`**：四文件按决策 1–4 改造；bump `@devbie/fewbie-cli` 与 `@devbie/style-guide` 并更新 lock；重写模板 `AGENTS.md` 的 framework 块（不再写「Never edit `.env.example`」，改为 mixed 规则 + `withFewbie` 扩展点）；跑一次 `next build` 取证模板 `next.config.ts` 静态 import 相对 `.ts` 可加载（否则改用 `.mjs` 扩展点文件）；`check:template`、`format:check`、`lint`、`build` 全绿。
-4. **`nightwatch-frontend`**：`next.config.ts` 改用 `withFewbie`、`eslint.config.mjs` 回退为四行、`.prettierignore` 与 `.env.example` 加 marker 并搬移内容；移除直接依赖的 `eslint-plugin-unicorn`；补 `@devbie/fewbie-cli` devDependency 与 `fewbie.json`；`fewbie template update --check` 归零。
+4. **`nightwatch-frontend`**：`next.config.ts` 改用 `withFewbie`、`eslint.config.mjs` 回退为四行、`.prettierignore` / `.env.example` / `AGENTS.md` 加 marker 并搬移内容、`globals.css` 只把 `@source not` 包进框架块（主题 token 归宿主，见上表 2026-11-10 行）；移除直接依赖的 `eslint-plugin-unicorn`；补 `@devbie/fewbie-cli` devDependency；`fewbie template update --check` 归零。`fewbie.json` 不适用：模板自身不带，它只服务 `fewbie modules`（ADR-029），本批未安装 registry 模块。
 
 采纳第 4 步是**一次性手工迁移**（Rails `app:update` 模型）：`scaffold` 资产不会被自动改写，`scaffold-outdated` 会一直报到宿主完成采纳。
 
