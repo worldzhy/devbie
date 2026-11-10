@@ -35,7 +35,7 @@ jobs:
       - run: npm run build -w @devbie/heartbeat-sdk
       - run: npm run build -w @devbie/health-sdk
       - run: npm run build -w @devbie/backend-monitor-sdk
-      - run: npm run build -w @devbie/web-monitor-sdk
+      - run: npm run build -w @devbie/frontend-monitor-sdk
 
       - run: npm run build -w @devbie/newbie
 
@@ -65,5 +65,5 @@ jobs:
       - run: npm test -w @devbie/aws-secrets-cli
       - run: npm test -w @devbie/modules-state
       - run: npm test -w @devbie/module-hub-cli
-      - run: npm test -w @devbie/web-monitor-sdk
+      - run: npm test -w @devbie/frontend-monitor-sdk
       - run: npm test -w @devbie/style-guide
