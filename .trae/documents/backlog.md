@@ -41,7 +41,7 @@
 
 > `@devbie/newbie` 发布项已关闭：1.11.3 于 2026-10-31 发布（`ecb4431b`），消费仓 nightwatch-backend（`f1d574f`）与 newbie-starter（`58dbbdc`）已升级，并在 `node_modules/@devbie/newbie/dist` 核验两处修复已生效（UnknownRequestError 回固定文案、访问日志只记 `request.path`）。其他仓 P2 状态见各自 backlog。
 
-> 其他仓的条目已按仓登记到各自 backlog；截至 2026-11-09，round3/round4 拆 ID 入账的 P2 大多数已修复或按现状标定（详见各仓 `backlog.md` 的 round31 核对段），但未全部关闭：G1 的关闭记录在 `.trae/documents/backlog-plan-2026-11-03.md`（G1-1/G1-2），nightwatch-frontend 的 round3 段仍留有 2026-11-09 新入账 follow-up。本文件只保留 devbie 自身条目。
+> 其他仓的条目已按仓登记到各自 backlog；截至 2026-11-09，round3/round4 拆 ID 入账的 P2 大多数已修复或按现状标定（详见各仓 `backlog.md` 的 round31 核对段），但未全部关闭：G1 的关闭记录在 `.trae/documents/plans/backlog-plan-2026-11-03.md`（G1-1/G1-2），nightwatch-frontend 的 round3 段仍留有 2026-11-09 新入账 follow-up。本文件只保留 devbie 自身条目。
 
 ## 暂不做（条件触发后再启动）
 
