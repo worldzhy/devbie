@@ -94,4 +94,18 @@ describe("runCreate", () => {
     await assert.doesNotReject(() => fs.access(path.join(target, ".env.example")));
     await assert.rejects(() => fs.access(path.join(target, "node_modules")));
   });
+
+  it("does not ship symlinked workspace mounts (R34-08)", async () => {
+    const parent = await makeTempDir("fewbie-test-create-");
+    const templateDir = await makeTempDir("fewbie-test-template-");
+    after(async () => fs.rm(parent, { recursive: true, force: true }));
+    after(async () => fs.rm(templateDir, { recursive: true, force: true }));
+    await writeTemplateFixture(templateDir);
+    await fs.mkdir(path.join(templateDir, ".trae"), { recursive: true });
+    await fs.symlink("../../knowledge/skills", path.join(templateDir, ".trae", "skills"));
+
+    await runCreate({ name: "my-app", cwd: parent, gitInit: false, templatePath: templateDir });
+
+    await assert.rejects(() => fs.lstat(path.join(parent, "my-app", ".trae", "skills")), /ENOENT/);
+  });
 });

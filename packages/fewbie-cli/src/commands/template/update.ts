@@ -85,6 +85,9 @@ async function listTemplateFiles(root: string): Promise<string[]> {
     const entries = await fs.readdir(path.join(root, relativeDir), { withFileTypes: true });
     for (const entry of entries) {
       const relativePath = relativeDir === "" ? entry.name : `${relativeDir}/${entry.name}`;
+      // A symlink is a workspace mount (e.g. `.trae/skills` → a sibling repo),
+      // never a template asset; create does not copy it either (R34-08).
+      if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {
         if (isTemplateScanIgnored(relativePath)) continue;
         await walk(relativePath);

@@ -45,11 +45,15 @@ describe("ownership registry completeness (ADR-025)", () => {
     assert.deepEqual(findUnclassifiedTemplateFiles(["docs/new.md", "src/orphan.ts"]), ["docs/new.md", "src/orphan.ts"]);
   });
 
+  it("classifies workspace metadata under .trae as host-owned", () => {
+    assert.deepEqual(findUnclassifiedTemplateFiles([".trae/documents/backlog.md", ".trae/skills"]), []);
+  });
+
   it("keeps runtime output and per-project files out of the guard", () => {
-    for (const ignored of [".next/server/app.js", "node_modules/pkg/index.js", "backlog.md", "package-lock.json"]) {
+    for (const ignored of [".next/server/app.js", "node_modules/pkg/index.js", "package-lock.json"]) {
       assert.ok(isTemplateScanIgnored(ignored), `${ignored} must stay out of the guard`);
     }
-    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts"]) {
+    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts", "backlog.md"]) {
       assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
     }
   });

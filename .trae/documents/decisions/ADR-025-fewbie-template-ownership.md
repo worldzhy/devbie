@@ -1,6 +1,6 @@
 # ADR-025 fewbie 模板所有权与 `template sync`
 
-状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`；2026-11-10 修订（ADR-035）——新增第四类 `scaffold`，`next.config.ts` 由 framework 改为 `scaffold`，新增 framework-owned 的 `next.config.framework.ts`）
+状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`；2026-11-10 修订（ADR-035）——新增第四类 `scaffold`，`next.config.ts` 由 framework 改为 `scaffold`，新增 framework-owned 的 `next.config.framework.ts`；2026-11-11 修订（R34-08）——软链不属模板资产，`create` 不复制、完整性扫描显式跳过，`.trae/**` 登记 host-owned）
 日期：2026-10-24
 前置：ADR-024（CLI 契约）、ADR-003（模板仓是模板真源）、ADR-012（fewbie 合入 devbie monorepo）
 Superseded by: ADR-029 —— 决策第 3 条的命令名由 `template sync` 改为 `template update`；所有权分类本体不变。
@@ -27,6 +27,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
    - `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`：模板仓库 CI 专用环境变量，断言模板树每个文件均在所有权清单；`fewbie create` 复制时从 `check:template` 脚本移除该变量——宿主业务文件不是模板资产（2026-11-03 评审 R5-09/R5-11）。
 4. **registry 项不纳入**：registry 安装的文件（`src/components/**`、`src/lib/query-client.ts` 等）由 `modules install` / `modules update` 管理，`template sync` 必须跳过，避免两套机制同时写同一文件。
 5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。marker 按文件类型声明：`.md` 用 HTML 注释（`<!-- fewbie:framework:start -->`），非 CSS 的 `#` 注释文件（`.env.example` / `.prettierignore`）用 `# fewbie:framework:start`；`assetMarkers` 已支持 per-asset 覆盖，不新增机制。块的范围按「跨宿主是否唯一」判定，不按文件主题：`globals.css` 只把 Tailwind 扫描排除（`@source not "../../.trae"`）放进块内，设计 token 是品牌决策、写在块外（2026-11-10 修订，否则宿主采纳标记时会整块替换掉自有主题）。
+6. **软链不属模板资产**：模板树中的软链是工作区挂载（如 `.trae/skills` → 同级 `worldzhy-knowledge`），既不是框架内容也不是宿主业务文件。`fewbie create` 的复制过滤器跳过软链（否则 `fs.cp` 原样复制，给每个新项目留下悬空链接），`FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1` 的完整性扫描同样显式跳过；`.trae/**`（工作区台账与技能挂载）登记为 host-owned（2026-11-11 修订，R34-08）。
 
 ## 所有权清单
 
@@ -53,6 +54,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | host-owned | `README.md` | 宿主项目说明 |
 | host-owned | `next-env.d.ts` | Next 生成物 |
 | host-owned | `AGENTS.md` / `CLAUDE.md` | agent 指令文件，由 `next dev` 或宿主维护 |
+| host-owned | `.trae/**` | 工作区元数据：agent 会话台账（`create` 一次性复制）与技能软链（永不复制，决策 6） |
 | host-owned | `.gitignore` | 宿主自行忽略项（模板一次性分发） |
 | host-owned | `.githooks/**` | 宿主提交钩子（模板一次性分发） |
 | host-owned | `.github/**` | 宿主 CI / dependabot 配置（模板一次性分发） |

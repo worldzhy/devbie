@@ -19,6 +19,11 @@
  * those paths, and template update refuses to run if the two sets ever overlap
  * (see `assertNoRegistryOverlap`).
  *
+ * Symlinks are never template assets: a symlink in the template tree is a
+ * workspace mount (e.g. `.trae/skills` pointing at a sibling knowledge repo),
+ * so `fewbie create` does not copy it and the completeness scan skips it
+ * instead of shipping a dangling link (R34-08).
+ *
  * Framework runtime dependencies are declared in the same file so the file
  * classification, `template update` and `doctor` read one source instead of
  * each keeping its own copy.
@@ -103,6 +108,10 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   },
 
   // Host-owned: distributed once by create, then never touched by template update.
+  // Workspace metadata rather than framework content: the agent-session ledger
+  // is copied once, and `.trae/skills` is a symlink the scan and create both
+  // skip (see the file header).
+  { path: ".trae/**", ownership: "host", note: "workspace ledger and skill mount; symlinks are never copied" },
   { path: "src/app/layout.tsx", ownership: "host" },
   { path: "src/app/page.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
@@ -171,9 +180,10 @@ export function assetCoversPath(asset: TemplateAsset, filePath: string): boolean
 
 /**
  * Directories and file names excluded from the ownership-completeness guard:
- * runtime outputs, VCS metadata, the per-project lockfile and the agent-session
- * backlog (a workspace process ledger that exists in the template repo but is
- * not a shipped template asset).
+ * runtime outputs, VCS metadata and the per-project lockfile. Ignore entries
+ * are matched against the basename, so a real template file must be classified
+ * rather than ignored here (`.trae/documents/backlog.md` is covered by the
+ * `.trae/**` host-owned entry).
  */
 const SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   ".git",
@@ -186,13 +196,7 @@ const SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   "out",
   "storybook-static",
 ]);
-const SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([
-  ".DS_Store",
-  ".env",
-  ".env.local",
-  "backlog.md",
-  "package-lock.json",
-]);
+const SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([".DS_Store", ".env", ".env.local", "package-lock.json"]);
 const SCAN_IGNORED_SUFFIXES: readonly string[] = [".tsbuildinfo"];
 
 /** True for runtime outputs and per-project files excluded from the guard. */

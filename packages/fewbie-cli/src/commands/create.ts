@@ -65,7 +65,13 @@ export async function resolveTemplate(
 async function copyTemplate(from: string, to: string): Promise<void> {
   await fs.cp(from, to, {
     recursive: true,
-    filter: (src) => !COPY_IGNORE.has(path.basename(src)) || src === from,
+    filter: async (src) => {
+      if (src === from) return true;
+      // A symlink is a workspace mount (e.g. `.trae/skills` → a sibling repo);
+      // copying it would ship a dangling link into the new project (R34-08).
+      if ((await fs.lstat(src)).isSymbolicLink()) return false;
+      return !COPY_IGNORE.has(path.basename(src));
+    },
   });
 }
 
