@@ -59,12 +59,23 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
   if (registry && !options.json) {
     console.info(`Registry: ${formatRegistryLocation(registry)}\n`);
   } else if (!registry) {
-    notice("Registry unavailable offline; drift checks skipped (set NEWBIE_MODULES_PATH or run an online command).");
+    notice("Registry unavailable offline; registry checks skipped (set NEWBIE_MODULES_PATH or run an online command).");
   }
 
-  const known = new Set(registry ? await listRegistryKeys(registry.root) : []);
-  for (const key of keys) {
-    if (!known.has(key)) error(`Module '${key}' is not present in the registry.`);
+  if (registry) {
+    const known = new Set(await listRegistryKeys(registry.root));
+    // Name the tree the answer came from and how to refresh it: an unfetched cache
+    // otherwise reads as proof that the registry never carried the module.
+    const source = `${registry.local ? "local checkout" : "cached snapshot"} @ ${
+      registry.sourceCommit?.slice(0, 7) ?? "unknown"
+    }`;
+    for (const key of keys) {
+      if (known.has(key)) continue;
+      const remedy = registry.local
+        ? "check out the declared registry ref, or add the module to the registry"
+        : `refresh the cache with 'newbie modules update ${key}'`;
+      error(`Module '${key}' is not present in the ${source}; ${remedy}.`);
+    }
   }
 
   // [check 3] generated wiring

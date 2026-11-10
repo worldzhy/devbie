@@ -216,9 +216,20 @@ describe("R7-01: registry resolution honors declared ref/url", () => {
     assert.equal(location?.local, false);
     assert.equal(location?.sourceCommit, devHead);
     assert.equal(location?.ref, "dev");
+    assert.equal(location?.refreshed, true);
     // The cache clone carries the modules tree from the dev snapshot.
     assert.ok(location);
     await fs.stat(path.join(location.root, "packages", "modules"));
+    assert.equal(formatRegistryLocation(location), `cache ${location.root} @ ${devHead.slice(0, 7)} (refreshed)`);
+
+    // Offline reads of the same cache are snapshots, and must say so.
+    const offline = await resolveRegistry({ fetch: false, cwd });
+    assert.ok(offline);
+    assert.equal(offline.refreshed, false);
+    assert.equal(
+      formatRegistryLocation(offline),
+      `cache ${offline.root} @ ${devHead.slice(0, 7)} (offline snapshot, not refreshed)`,
+    );
   });
 
   it("fetch mode fails closed when the declared ref does not resolve", async () => {

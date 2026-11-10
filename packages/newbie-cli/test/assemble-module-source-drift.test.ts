@@ -39,7 +39,7 @@ function commitAll(root: string, message = "seed"): string {
 }
 
 function registryAt(root: string, sourceCommit: string | null): RegistryLocation {
-  return { root, url: "https://example.invalid/registry.git", sourceCommit, local: true };
+  return { root, url: "https://example.invalid/registry.git", sourceCommit, local: true, refreshed: false };
 }
 
 function stateWith(key: string, sourceCommit: string | null): ModulesState {
