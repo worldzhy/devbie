@@ -56,7 +56,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | host-owned | `.gitignore` | 宿主自行忽略项（模板一次性分发） |
 | host-owned | `.githooks/**` | 宿主提交钩子（模板一次性分发） |
 | host-owned | `.github/**` | 宿主 CI / dependabot 配置（模板一次性分发） |
-| host-owned | `Dockerfile` / `.dockerignore` | 镜像配方由宿主按环境分层演进（模板一次性分发；standalone 契约在 `next.config.ts`） |
+| host-owned | `Dockerfile` / `.dockerignore` | 镜像配方由宿主按环境分层演进（模板一次性分发；standalone 契约在 `next.config.framework.ts`，ADR-035 决策 6） |
 
 明确取舍：`layout.tsx` 不纳入覆盖，因此模板对根布局的改进需要宿主人工移植；换来的是宿主 Provider 接线不会被同步覆盖。
 

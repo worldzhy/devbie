@@ -71,6 +71,18 @@ When releasing, bump only the package being published. Never infer a package
 version from the latest tag, and never bump the root version to match a tag;
 move the tag separately when the milestone ships.
 
+## Host deployment gates (nightwatch-backend)
+
+Package releases do not deploy the host. When the change set ships a data
+backfill that the new runtime code depends on, the backfill runs against the
+**new image before** the backend container is recreated (R34-04):
+
+1. `npm run seal:totp-secrets` inside a container of the new image — seals TOTP
+   shared secrets written by the old code, because the new code refuses to read
+   an unsealed column as a secret. Idempotent: already-sealed rows are skipped.
+2. Only after the backfill reports success, recreate the backend service
+   (`deploy/scripts/deploy.sh backend`).
+
 ## Waived audit findings (re-verify on every release)
 
 - `@devbie/style-guide` — 5 high findings in the `eslint-config-next` tree
