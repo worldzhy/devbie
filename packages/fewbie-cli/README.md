@@ -190,21 +190,21 @@ Print machine-readable project state as JSON (always JSON, no flag). Reports
 The built-in registry follows the shadcn item conventions
 (`registry:lib`, `registry:component`, `registry:block`):
 
-| Item                      | Type        | Description                                                                                                                        |
-| ------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `api-client`              | `lib`       | Axios instance with bearer-token auth, httpOnly refresh-cookie rotation, single-flight 401 retry and proactive token refresh.      |
-| `app-shell`               | `block`     | Collapsible sidebar primitives plus a minimal nav-array-driven AppShell skeleton.                                                  |
-| `auth`                    | `lib`       | Login/logout helpers, session-expired redirect binding and proactive-refresh bootstrap built on the api-client.                    |
-| `chart`                   | `component` | Tree-shaken echarts registry, React adapter, structured-data chart and the shared color palette.                                   |
-| `data-table`              | `component` | Generic data table with client-side sorting and pagination.                                                                        |
-| `login-form`              | `block`     | Account/password login card; submits through the auth util and honors `?redirect=`.                                                |
-| `page-header`             | `component` | Standard page header with title, description and a right-aligned actions slot.                                                     |
-| `password-checklist`      | `block`     | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                            |
-| `query-client`            | `lib`       | TanStack Query singleton plus the provider component, wired for the App Router.                                                    |
-| `settings-required-state` | `block`     | Empty state shown when required configuration is missing, with a setup call-to-action.                                             |
-| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                |
-| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                |
-| `web-monitor-sdk`         | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/web-monitor-sdk`; scaffolds a client component for the root layout. |
+| Item                      | Type        | Description                                                                                                                             |
+| ------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `api-client`              | `lib`       | Axios instance with bearer-token auth, httpOnly refresh-cookie rotation, single-flight 401 retry and proactive token refresh.           |
+| `app-shell`               | `block`     | Collapsible sidebar primitives plus a minimal nav-array-driven AppShell skeleton.                                                       |
+| `auth`                    | `lib`       | Login/logout helpers, session-expired redirect binding and proactive-refresh bootstrap built on the api-client.                         |
+| `chart`                   | `component` | Tree-shaken echarts registry, React adapter, structured-data chart and the shared color palette.                                        |
+| `data-table`              | `component` | Generic data table with client-side sorting and pagination.                                                                             |
+| `login-form`              | `block`     | Account/password login card; submits through the auth util and honors `?redirect=`.                                                     |
+| `page-header`             | `component` | Standard page header with title, description and a right-aligned actions slot.                                                          |
+| `password-checklist`      | `block`     | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                 |
+| `query-client`            | `lib`       | TanStack Query singleton plus the provider component, wired for the App Router.                                                         |
+| `settings-required-state` | `block`     | Empty state shown when required configuration is missing, with a setup call-to-action.                                                  |
+| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                     |
+| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                     |
+| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout. |
 
 An item whose target path also ships in the starter template must stay
 byte-identical to that template copy — `fewbie create` copies the whole template
@@ -230,8 +230,8 @@ Running `fewbie` with no arguments prints help and exits successfully.
 - [`@devbie/heartbeat-sdk`](https://www.npmjs.com/package/@devbie/heartbeat-sdk)
   — the basic template reports application liveness through `instrumentation.ts`
   when `HEARTBEAT_ENDPOINT` and `HEARTBEAT_TOKEN` are configured.
-- [`@devbie/web-monitor-sdk`](https://www.npmjs.com/package/@devbie/web-monitor-sdk)
-  — browser-side monitoring SDK available as the `web-monitor-sdk` registry item.
+- [`@devbie/frontend-monitor-sdk`](https://www.npmjs.com/package/@devbie/frontend-monitor-sdk)
+  — browser-side monitoring SDK available as the `frontend-monitor-sdk` registry item.
 
 ## License
 

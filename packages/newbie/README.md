@@ -167,7 +167,7 @@ seconds. Reporting is fire-and-forget and never blocks application startup.
   scaffold projects and install modules from the newbie-modules registry.
 - [`@devbie/heartbeat-sdk`](https://www.npmjs.com/package/@devbie/heartbeat-sdk)
   — framework-agnostic installation liveness reporting.
-- [`@devbie/web-monitor-sdk`](https://www.npmjs.com/package/@devbie/web-monitor-sdk)
+- [`@devbie/frontend-monitor-sdk`](https://www.npmjs.com/package/@devbie/frontend-monitor-sdk)
   — browser-side PV, AJAX, resource and JS error reporting.
 
 ## License
