@@ -109,6 +109,19 @@ describe("eslint layers", () => {
     assert.ok(ruleIds(next).some((id) => id.startsWith("@next/next/")));
   });
 
+  it("next carries the conventions every devbie app shares", () => {
+    // ADR-035: these used to be copy-pasted into each consumer's config, which
+    // the framework-owned config file then overwrote on every template update.
+    const conventions = flatten(next).find((entry) => entry.plugins?.unicorn);
+    assert.ok(conventions, "next must register eslint-plugin-unicorn");
+    assert.deepEqual(conventions.rules["unicorn/filename-case"], ["error", { case: "kebabCase" }]);
+    assert.equal(conventions.rules["@typescript-eslint/no-explicit-any"], "warn");
+    assert.ok(
+      flatten(next).some((entry) => entry.ignores?.includes("src/api/_gen/**")),
+      "api generator output must be ignored by the shared layer",
+    );
+  });
+
   it("lets consumers use the idiomatic array-literal default export", () => {
     // eslint-config-next bundles eslint-plugin-import, whose
     // no-anonymous-default-export warns on `export default [...]` — the

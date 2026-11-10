@@ -109,7 +109,9 @@ import next from "@devbie/style-guide/eslint/next";
 export default [...base, ...next];
 ```
 
-nightwatch-frontend 已验证的规则下沉进 `@devbie/style-guide` 的 `./eslint/next` 层（`eslint-plugin-unicorn`、双引号、kebab-case 文件名、`src/api/_gen/**` ignore）。`eslint-plugin-unicorn` 随之成为 style-guide 的依赖，不再是 fewbie-starter 的框架运行时依赖。
+nightwatch-frontend 已验证的规则中，通用的三条下沉进 `@devbie/style-guide` 的 `./eslint/next` 层：`eslint-plugin-unicorn` 的 kebab-case 文件名、`@typescript-eslint/no-explicit-any: "warn"`、`src/api/_gen/**` ignore。`eslint-plugin-unicorn` 随之成为 style-guide 的依赖，不再是 fewbie-starter 的框架运行时依赖。
+
+双引号与 `jsx-quotes` **不上收**：它们是格式化规则，`prettier.js` 已固定 `singleQuote: false` / `jsxSingleQuote: false`，由 `format:check` 门禁保证；`eslint-config-prettier` 在层末本就会把这两条关掉，写进 ESLint 层只会与层末的格式化关闭相冲突。nightwatch-frontend 采纳时删掉这两条不改变任何实际行为。
 
 选择扩充既有 `./eslint/next` 而非新增第二层：该层只有 fewbie Next 宿主一个消费族，两个近乎相同的层必然漂移，而漂移正是本 ADR 要消除的失败模式。若个别宿主需要宽松集，钉旧版本即可。
 
@@ -157,7 +159,8 @@ nightwatch-frontend 已验证的规则下沉进 `@devbie/style-guide` 的 `./esl
 | `next.config.ts` | `watchOptions.pollIntervalMs` | 绑定 Docker/macOS 环境 | 留宿主 |
 | `next.config.ts` | `/api/*` → `http://nightwatch-backend:3000` | 含宿主服务名 | 留宿主 |
 | `eslint.config.mjs` | `eslint-plugin-unicorn` | 通用 / 可进 style-guide / 可静默 | `./eslint/next` |
-| `eslint.config.mjs` | 双引号 | 通用 / 可进 style-guide / 可静默 | `./eslint/next` |
+| `eslint.config.mjs` | 双引号 / `jsx-quotes` | 通用，但属格式化规则 | 不上收：prettier 固定双引号，`eslint-config-prettier` 本就关闭 |
+| `eslint.config.mjs` | `@typescript-eslint/no-explicit-any: "warn"` | 通用 / 可进 style-guide / 可静默（warn 不阻断） | `./eslint/next` |
 | `eslint.config.mjs` | kebab-case 文件名 | 通用 / 可进 style-guide / 可静默 | `./eslint/next` |
 | `eslint.config.mjs` | `src/api/_gen/**` ignore | 通用（apits 生成物路径约定，无宿主词汇） | `./eslint/next` |
 | `.prettierignore` | `.trae` | 宿主文档约定 | 宿主块 |
@@ -171,7 +174,7 @@ nightwatch-frontend 已验证的规则下沉进 `@devbie/style-guide` 的 `./esl
 
 发布顺序是硬约束：fewbie-starter 的 `check:template` 用**已发布**的 `@devbie/fewbie-cli` 做 registry 完整性校验，新资产在 CLI 发版前无法分类。
 
-1. **`@devbie/style-guide`**：`./eslint/next` 补齐上述规则 + 补测试；发 minor。验收：fewbie-starter 与 nightwatch-frontend 用新版本 lint 均通过，无新增告警。
+1. **`@devbie/style-guide`**：`./eslint/next` 补齐上述规则 + 补测试；发 minor。验收：fewbie-starter 升到新版本后 `lint` 通过、无新增错误。nightwatch-frontend 的 lint 验收并入第 4 批——它当前在自有 config 里注册 `unicorn` 插件，与新层叠加会触发平坦配置的插件重定义错误，必须先改 config 再升级。
 2. **`fewbie-cli`**：`scaffold` 类、`requiredSnippet`、`scaffold-outdated` change kind、`next.config.framework.ts` 登记；补行为测试（缺失创建 / 存在不覆盖 / 缺 snippet 报漂移且不写 / `--check` 非零）；发 minor。验收：`npm test` 全绿。
 3. **`fewbie-starter`**：四文件按决策 1–4 改造；bump `@devbie/fewbie-cli` 与 `@devbie/style-guide` 并更新 lock；重写模板 `AGENTS.md` 的 framework 块（不再写「Never edit `.env.example`」，改为 mixed 规则 + `withFewbie` 扩展点）；跑一次 `next build` 取证模板 `next.config.ts` 静态 import 相对 `.ts` 可加载（否则改用 `.mjs` 扩展点文件）；`check:template`、`format:check`、`lint`、`build` 全绿。
 4. **`nightwatch-frontend`**：`next.config.ts` 改用 `withFewbie`、`eslint.config.mjs` 回退为四行、`.prettierignore` 与 `.env.example` 加 marker 并搬移内容；移除直接依赖的 `eslint-plugin-unicorn`；补 `@devbie/fewbie-cli` devDependency 与 `fewbie.json`；`fewbie template update --check` 归零。
