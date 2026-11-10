@@ -68,8 +68,8 @@ git diff --cached --name-status
 # → 核对输出只含本轮任务涉及的路径；看到 src/modules/、newbie-modules.json 等
 #   本轮不碰的路径，立即 git restore --staged <path> 剔除后再 commit
 
-# Step 3: commit + push（模板见"Git 推送"节）
-git -c "credential.helper=$CRED" commit -m "..."
+# Step 3: commit + push（模板见"Git 推送"节；commit 是本地操作，不需要 credential helper）
+git commit -m "..."
 ```
 
 ## 仓库 pre-commit 钩子机制（newbie/fewbie 生态 .githooks）
