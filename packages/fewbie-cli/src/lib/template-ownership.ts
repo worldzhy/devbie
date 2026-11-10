@@ -205,6 +205,15 @@ export function isTemplateScanIgnored(filePath: string): boolean {
 }
 
 /**
+ * Strip block and whole-line comments before matching a required snippet.
+ * A commented-out `import … from "./next.config.framework"` still contains the
+ * snippet text, so plain `includes` counted it as adopted (R34-07).
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+}
+
+/**
  * Template files absent from the ownership registry (ADR-025: every shipped
  * file is classified). Runs against the template tree, so a newly added
  * framework file cannot ship unclassified.
@@ -290,7 +299,7 @@ export function planTemplateUpdate(
     // snippet is reported, and it is never rewritten for the host.
     if (asset.ownership === "scaffold") {
       const snippet = asset.requiredSnippet;
-      if (snippet && !projectContent.includes(snippet)) {
+      if (snippet && !withoutComments(projectContent).includes(snippet)) {
         changes.push({
           asset,
           kind: "scaffold-outdated",

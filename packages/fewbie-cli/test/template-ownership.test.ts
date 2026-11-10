@@ -239,6 +239,27 @@ describe("scaffold assets (ADR-035)", () => {
     assert.equal(changes[0].currentComparable, null);
     assert.equal(changes[0].templateComparable, SCAFFOLD_TEMPLATE);
   });
+
+  it("does not count a commented-out import as adopting the framework entry point", () => {
+    const host = '// import { withFewbie } from "./next.config.framework";\nexport default {};\n';
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", host]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "scaffold-outdated");
+  });
+
+  it("counts an import that carries a trailing comment", () => {
+    const host = 'import { withFewbie } from "./next.config.framework"; // framework defaults\nexport default {};\n';
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", host]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.deepEqual(changes, []);
+  });
 });
 
 describe("hash-commented mixed assets (ADR-035)", () => {
