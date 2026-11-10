@@ -1,6 +1,6 @@
 # ADR-035 fewbie 宿主扩展点与能力上收通道
 
-状态：提议中（2026-11-10 重写：判据由「文件归谁」改为「能力能否持续上收」；同日首稿的 `next.config.host.ts` 伴生文件方案作废）
+状态：已接受（2026-11-10 重写：判据由「文件归谁」改为「能力能否持续上收」；同日首稿的 `next.config.host.ts` 伴生文件方案作废；同日四批落地完成——style-guide 1.6.0、fewbie-cli 1.6.1、fewbie-starter、nightwatch-frontend 采纳）
 日期：2026-11-10
 前置：ADR-025（模板所有权）、ADR-031（`AGENTS.md` 转 mixed）、ADR-024（CLI 契约）
 
