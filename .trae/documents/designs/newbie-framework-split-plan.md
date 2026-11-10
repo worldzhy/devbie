@@ -6,7 +6,7 @@
 >
 > 关联文档：
 >
-> - 前端 fewbie 设计（以此为准，本文第六章仅存摘要）：`/Users/worldzhy/src/devbie/.trae/documents/design/fewbie-framework-design.md`
+> - 前端 fewbie 设计（以此为准，本文第六章仅存摘要）：`/Users/worldzhy/src/devbie/.trae/documents/designs/fewbie-framework-design.md`
 > - 前端 UI 层次重构（Application/Agent 模型、Hub 前端路由以此为准）：`/Users/worldzhy/src/nightwatch-frontend/.trae/documents/ui-hierarchy-refactor.md`
 
 ## 背景与目标
@@ -55,7 +55,7 @@
 | newbie 模板仓库      | git 模板                            | 后端项目骨架                                                      | `newbie update-template` → diff PR                   |
 | fewbie 模板仓库      | git 模板                            | 前端项目骨架（Next.js + Tailwind + shadcn）                       | `fewbie update` → diff PR                            |
 
-> ~~`@devbie/fewbie-core` 前端运行时包~~：已取消（2026-09-24）。前端体系统一 shadcn 哲学，运行时 util 与 UI 组件一律由 CLI 复制源码进项目，详见 `/Users/worldzhy/src/devbie/.trae/documents/design/fewbie-framework-design.md`。
+> ~~`@devbie/fewbie-core` 前端运行时包~~：已取消（2026-09-24）。前端体系统一 shadcn 哲学，运行时 util 与 UI 组件一律由 CLI 复制源码进项目，详见 `/Users/worldzhy/src/devbie/.trae/documents/designs/fewbie-framework-design.md`。
 
 ---
 
@@ -290,7 +290,7 @@ newbie-template/
 
 **本章原方案（类比 @devbie/newbie 的重 npm 运行时包：Next.js 工厂、内置 SDK、组件库、API 封装、认证集成）已废弃。**
 
-修订后的 fewbie 体系统一在 **shadcn 哲学**下，完整设计见 `/Users/worldzhy/src/devbie/.trae/documents/design/fewbie-framework-design.md`，要点：
+修订后的 fewbie 体系统一在 **shadcn 哲学**下，完整设计见 `/Users/worldzhy/src/devbie/.trae/documents/designs/fewbie-framework-design.md`，要点：
 
 1. **不发 `@devbie/fewbie-core` 运行时 npm 包**——原因：AI 编码工具（v0.dev 等）的「母语」是 Next.js + Tailwind + shadcn/ui，自定义 Factory/Provider 链增加 AI 理解成本；源码归项目所有可获得最佳 AI 可读性/可生成性。
 2. **UI 库从 MUI 转向 shadcn/ui**（Tailwind + Radix + CSS 变量），与 v0 默认输出对齐；nightwatch-frontend 现有 MUI 页面需渐进迁移。
@@ -430,7 +430,7 @@ CLI 提供一次性迁移能力：`newbie doctor` 扫描旧命名/旧 submodule 
 ### Phase 5：fewbie CLI + 模板（无 @devbie/fewbie-core）
 
 > 前置：新项目启动在即，本 Phase 优先级可提前，与 Phase 1-4 并行。
-> 详见 `/Users/worldzhy/src/devbie/.trae/documents/design/fewbie-framework-design.md`。
+> 详见 `/Users/worldzhy/src/devbie/.trae/documents/designs/fewbie-framework-design.md`。
 
 1. 建设 fewbie monorepo（`@devbie/fewbie-cli` + 组件/util registry + 模板）；本地 `~/src/fewbie` 已于 2026-09-24 占位初始化（当前仅含 README），本 Phase 填充实际内容
 2. 实现 `@devbie/fewbie-cli`：`init` / `add`（shadcn 式源码复制）/ `gen api`（包装 `apits-gen`）/ `doctor` / `update`
