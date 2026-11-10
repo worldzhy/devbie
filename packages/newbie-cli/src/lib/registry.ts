@@ -276,8 +276,11 @@ export function formatRegistryLocation(registry: RegistryLocation): string {
   const commit = registry.sourceCommit?.slice(0, 7) ?? "unknown";
   if (registry.local) return `local ${registry.root} @ ${registry.ref ?? "remote-default"} (${commit})`;
   // An unfetched cache holds whatever an earlier fetch left behind: report that
-  // commit, never the requested ref, so a stale snapshot cannot read as current.
-  const freshness = registry.refreshed ? "refreshed" : "offline snapshot, not refreshed";
+  // commit, and only name the ref when this run actually resolved it, so a stale
+  // snapshot cannot read as the current line.
+  const freshness = registry.refreshed
+    ? `refreshed${registry.ref ? ` from ${registry.ref}` : ""}`
+    : "offline snapshot, not refreshed";
   return `cache ${registry.root} @ ${commit} (${freshness})`;
 }
 

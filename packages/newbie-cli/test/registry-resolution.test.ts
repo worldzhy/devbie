@@ -220,7 +220,10 @@ describe("R7-01: registry resolution honors declared ref/url", () => {
     // The cache clone carries the modules tree from the dev snapshot.
     assert.ok(location);
     await fs.stat(path.join(location.root, "packages", "modules"));
-    assert.equal(formatRegistryLocation(location), `cache ${location.root} @ ${devHead.slice(0, 7)} (refreshed)`);
+    assert.equal(
+      formatRegistryLocation(location),
+      `cache ${location.root} @ ${devHead.slice(0, 7)} (refreshed from dev)`,
+    );
 
     // Offline reads of the same cache are snapshots, and must say so.
     const offline = await resolveRegistry({ fetch: false, cwd });

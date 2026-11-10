@@ -210,6 +210,7 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
             ? {
                 available: true,
                 local: registry.local,
+                refreshed: registry.refreshed,
                 path: registry.root,
                 sourceCommit: registry.sourceCommit,
               }
