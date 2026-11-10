@@ -22,9 +22,9 @@ const sdk_version = require("../package.json").version;
 // listeners) exactly once. A second Performance() call (e.g. HMR re-eval or
 // duplicate import) must not re-wrap them, otherwise every event is reported
 // twice and the patched fetch nests on itself.
-const INITIALIZED_KEY = Symbol.for("@devbie/web-monitor-sdk:initialized");
-const FETCH_PATCHED_KEY = Symbol.for("@devbie/web-monitor-sdk:fetch-patched");
-const ERROR_PATCHED_KEY = Symbol.for("@devbie/web-monitor-sdk:error-patched");
+const INITIALIZED_KEY = Symbol.for("@devbie/frontend-monitor-sdk:initialized");
+const FETCH_PATCHED_KEY = Symbol.for("@devbie/frontend-monitor-sdk:fetch-patched");
+const ERROR_PATCHED_KEY = Symbol.for("@devbie/frontend-monitor-sdk:error-patched");
 
 let reportData: (type?: ReportType) => void;
 let reportCustomsNow: () => void;

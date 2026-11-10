@@ -1,12 +1,12 @@
 {
-  "name": "@devbie/web-monitor-sdk",
-  "version": "1.6.0",
-  "description": "Browser-side web monitoring SDK: PV, AJAX, resource, JS error and custom event reporting. No heartbeat, no credential logic.",
+  "name": "@devbie/frontend-monitor-sdk",
+  "version": "1.7.0",
+  "description": "Browser-side frontend monitoring SDK: PV, AJAX, resource, JS error and custom event reporting. No heartbeat, no credential logic.",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/worldzhy/devbie.git",
-    "directory": "packages/web-monitor-sdk"
+    "directory": "packages/frontend-monitor-sdk"
   },
   "author": "worldzhy",
   "main": "dist/index.js",

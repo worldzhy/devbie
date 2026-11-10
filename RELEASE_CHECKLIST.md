@@ -1,6 +1,6 @@
 # Release Checklist
 
-Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/cli-kit, packages/modules-state, packages/heartbeat-sdk, packages/health-sdk, packages/web-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/module-hub-cli, packages/fewbie-cli, packages/apits, packages/worklog, packages/style-guide). Do not skip steps for "trivial" patches.
+Run through every step below before publishing any package in this repo (packages/newbie, packages/newbie-cli, packages/cli-kit, packages/modules-state, packages/heartbeat-sdk, packages/health-sdk, packages/frontend-monitor-sdk, packages/backend-monitor-sdk, packages/aws-secrets-cli, packages/module-hub-cli, packages/fewbie-cli, packages/apits, packages/worklog, packages/style-guide). Do not skip steps for "trivial" patches.
 
 1. `git status` — working tree is clean, all intended changes are committed.
 2. Clean build: remove `dist/` and `*.tsbuildinfo` for the package(s) being released, then rebuild. Never publish from a stale `dist/`.
@@ -56,7 +56,7 @@ move the tag separately when the milestone ships.
   (2026-10-24, re-verified 2026-10-25); revisit when NestJS ships a release
   with a patched multer pin.
 
-- `@devbie/web-monitor-sdk` — 3 findings, all **indirect**:
+- `@devbie/frontend-monitor-sdk` — 3 findings, all **indirect**:
   - `braces` high (GHSA-vfj7-8cjw-p6xm, range `*`) and `micromatch` high
     (range `>=0.2.0`) — two chains from Jest 26 devTools:
     `jest-config`/`jest-haste-map`/`jest-util` → micromatch 4.0.8 → braces
@@ -82,4 +82,4 @@ move the tag separately when the milestone ships.
   remediation is a semver-major bump/downgrade of `eslint-config-next` or
   `typescript-eslint`, which the dependency-major policy defers to a dedicated
   upgrade milestone. Recorded 2026-11-06 while releasing
-  `@devbie/web-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.
+  `@devbie/frontend-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.
