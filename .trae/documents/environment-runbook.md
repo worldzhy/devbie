@@ -61,7 +61,7 @@ CRED='!f() { echo "username=worldzhy"; echo "password=$(tail -1 /Users/worldzhy/
 **每次 commit 前硬性三步（机械检查，不可跳过）**：
 ```bash
 # Step 1: git add 只用显式路径（禁止裸 git add -A，除非全仓唯一改动且已确认）
-git add AGENTS.md .trae/documents/env-setup.md
+git add AGENTS.md .trae/documents/environment-runbook.md
 
 # Step 2: staged 清单核对——发现无关路径立即剔除
 git diff --cached --name-status
