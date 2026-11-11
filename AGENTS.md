@@ -12,7 +12,7 @@
 
 ## Env facts
 
-Executable operation manuals (git push template, PAT paths, Docker constraints, pre-commit hooks, OIDC sub format) live in devbie `.trae/documents/env-setup.md`. Read that file before any Shell call.
+Executable operation manuals (git push template, PAT paths, Docker constraints, pre-commit hooks, OIDC sub format) live in devbie `.trae/documents/environment-runbook.md`. Read that file before any Shell call.
 
 ## Backlog convention
 
