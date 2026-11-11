@@ -2,10 +2,10 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, green, red, yellow } from "colorette";
 
-import { CliError } from "@devbie/cli-kit";
+import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { readModulesFile } from "../lib/modules-file";
 import { packageNameOf } from "../lib/npm-spec";
-import { FRAMEWORK_DEPENDENCIES } from "../lib/template-ownership";
+import { FRAMEWORK_DEPENDENCIES, TEMPLATE_ASSETS } from "../lib/template-ownership";
 import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
 
 export interface DoctorOptions {
@@ -194,6 +194,30 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       category: "dependencies",
       message: `All ${FRAMEWORK_DEPENDENCIES.length} framework dependencies are installed.`,
     });
+  }
+
+  // --- 3c. Scaffold assets (ADR-035) ---
+  // A scaffold file is created once and then owned by the host, so doctor only
+  // verifies that it exists and still references the framework entry point.
+  for (const asset of TEMPLATE_ASSETS.filter((candidate) => candidate.ownership === "scaffold")) {
+    const content = await readTextIfExists(path.join(projectRoot, asset.path));
+    if (content === null) {
+      findings.push({
+        severity: "error",
+        category: "structure",
+        message: `No ${asset.path} found — run 'fewbie template update' to create it.`,
+      });
+      continue;
+    }
+    if (asset.requiredSnippet && !content.includes(asset.requiredSnippet)) {
+      findings.push({
+        severity: "warn",
+        category: "structure",
+        message:
+          `${asset.path} does not use the framework entry point (${asset.requiredSnippet}). ` +
+          "Template update never rewrites it; adopt the shape printed by 'fewbie template update --check'.",
+      });
+    }
   }
 
   // --- 4. CSS variables ---

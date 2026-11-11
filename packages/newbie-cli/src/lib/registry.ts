@@ -118,6 +118,8 @@ export interface RegistryLocation {
   sourceCommit: string | null;
   /** Local checkouts are never mutated; the cache is cloned/updated by us. */
   local: boolean;
+  /** Whether this resolution fetched the cache; an unfetched cache is only a snapshot. */
+  refreshed: boolean;
   /** Effective ref that governed resolution (env > newbie-modules.json), when declared. */
   ref?: string;
 }
@@ -236,13 +238,14 @@ export async function resolveRegistry(options?: RegistryResolutionOptions): Prom
       url,
       sourceCommit: await gitHead(localRoot),
       local: true,
+      refreshed: false,
       ref,
     };
   }
 
   if (options?.fetch) {
     const sourceCommit = await updateCachedClone(url, ref);
-    return { root: cacheDir(), url, sourceCommit, local: false, ref };
+    return { root: cacheDir(), url, sourceCommit, local: false, refreshed: true, ref };
   }
 
   const cacheUsable = await pathIsUsable(cacheDir());
@@ -252,6 +255,7 @@ export async function resolveRegistry(options?: RegistryResolutionOptions): Prom
     url,
     sourceCommit: await gitHead(cacheDir()),
     local: false,
+    refreshed: false,
     ref,
   };
 }
@@ -269,9 +273,15 @@ export async function requireRegistry(options?: RegistryResolutionOptions): Prom
 
 /** One-line human-readable summary of a resolved registry, for command output. */
 export function formatRegistryLocation(registry: RegistryLocation): string {
-  const ref = registry.ref ?? "remote-default";
   const commit = registry.sourceCommit?.slice(0, 7) ?? "unknown";
-  return `${registry.local ? "local" : "cache"} ${registry.root} @ ${ref} (${commit})`;
+  if (registry.local) return `local ${registry.root} @ ${registry.ref ?? "remote-default"} (${commit})`;
+  // An unfetched cache holds whatever an earlier fetch left behind: report that
+  // commit, and only name the ref when this run actually resolved it, so a stale
+  // snapshot cannot read as the current line.
+  const freshness = registry.refreshed
+    ? `refreshed${registry.ref ? ` from ${registry.ref}` : ""}`
+    : "offline snapshot, not refreshed";
+  return `cache ${registry.root} @ ${commit} (${freshness})`;
 }
 
 export function moduleRootInRegistry(registryRoot: string, key: string): string {

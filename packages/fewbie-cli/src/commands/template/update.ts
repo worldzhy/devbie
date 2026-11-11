@@ -78,13 +78,16 @@ async function isSelfComparison(templateRoot: string, projectRoot: string): Prom
 }
 
 /** POSIX-style paths of every file the template ships, excluding runtime output. */
-async function listTemplateFiles(root: string): Promise<string[]> {
+export async function listTemplateFiles(root: string): Promise<string[]> {
   const found: string[] = [];
 
   async function walk(relativeDir: string): Promise<void> {
     const entries = await fs.readdir(path.join(root, relativeDir), { withFileTypes: true });
     for (const entry of entries) {
       const relativePath = relativeDir === "" ? entry.name : `${relativeDir}/${entry.name}`;
+      // A symlink is a workspace mount (e.g. `.trae/skills` → a sibling repo),
+      // never a template asset; create does not copy it either (R34-08).
+      if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {
         if (isTemplateScanIgnored(relativePath)) continue;
         await walk(relativePath);
@@ -122,6 +125,18 @@ function printChange(change: TemplateChange): void {
           "not found; cannot update this file. Add them back to re-enable template update.",
       ),
     );
+    return;
+  }
+
+  if (change.kind === "scaffold-outdated") {
+    console.warn(
+      yellow(
+        `! ${change.asset.path}: the host copy does not reference the framework entry point ` +
+          `(${change.asset.requiredSnippet}). Template update never rewrites a scaffold file; adopt this ` +
+          "shape by hand:",
+      ),
+    );
+    if (change.templateComparable !== null) process.stdout.write(change.templateComparable);
     return;
   }
 
@@ -216,7 +231,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       return;
     }
 
-    const actionable = changes.filter((change) => change.kind !== "missing-markers");
+    const actionable = changes.filter((change) => change.kind === "create" || change.kind === "update");
     for (const change of changes) printChange(change);
 
     console.info(
@@ -244,7 +259,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       await fs.writeFile(target, change.nextContent);
     }
     const skipped = changes.length - actionable.length;
-    if (skipped > 0) console.warn(yellow(`\n${skipped} file(s) left untouched (missing markers).`));
+    if (skipped > 0) console.warn(yellow(`\n${skipped} file(s) left untouched (missing markers or host adoption).`));
     console.info(green(bold("\n✓ Template files updated.")));
     console.info("Review with `git diff`, then commit on a branch and open a PR.");
   } finally {

@@ -68,8 +68,9 @@ The Fewbie framework ships a ready-made registry wrapper:
 npx @devbie/fewbie-cli add frontend-monitor-sdk
 ```
 
-Then add the scaffolded `<WebMonitor />` component to your root layout and
-configure `NEXT_PUBLIC_WEB_MONITOR_ENDPOINT` and `NEXT_PUBLIC_WEB_MONITOR_TOKEN`.
+Then add the scaffolded `<FrontendMonitor />` component to your root layout and
+configure `NEXT_PUBLIC_FRONTEND_MONITOR_ENDPOINT` and
+`NEXT_PUBLIC_FRONTEND_MONITOR_TOKEN`.
 The component is a no-op until both environment variables are present.
 
 ## Init options

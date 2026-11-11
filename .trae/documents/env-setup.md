@@ -80,6 +80,13 @@ git commit -m "..."
 
 较新仓库的 token `sub` claim 带 `@owner_id`/`@repo_id` 后缀（如 `repo:owner@11963092/repo@1394475744:ref:refs/heads/main`），老仓库仍是 `repo:owner/repo:ref:...`；IAM 信任策略需同时匹配两种格式。OIDC 报 AccessDenied 时 STS 不区分成因（secret 错/角色不存在/信任不匹配同一报错），定位法 = dispatch 一个 debug workflow 解码 JWT claims 看 sub（curl $ACTIONS_ID_TOKEN_REQUEST_URL，base64 解 payload），不要靠换 secret 盲试。
 
+## npm 发布与容器内安装（2026-11-10 取证）
+
+- 发布在**运行中的 node 容器**（`docker ps` 查 `devbie-work`，ID 会随容器重建变化）内执行，不在宿主机：`docker exec -w /home/worldzhy/src/devbie/packages/<pkg> <容器ID> npm publish --tag latest --access public`。只用 `latest`，不引入 stage dist-tag；1.x 线不发 major。
+- 发布后 npm 侧有 "being processed" 延迟（分钟级），`npm view` 可能仍报旧版本；以 `curl -s https://registry.npmjs.org/-/package/@devbie%2F<name>/dist-tags` 为准再判断成功与否。
+- 刚发布后立刻在容器内 `npm install` 可能报 `No matching version found`——容器 npm 命中了过期的 packument 缓存。加 `--prefer-online --no-audit --no-fund` 重试，不要误判为发布失败。
+- 改 workspace 包版本后同步 `package-lock.json` 时，禁止用 `npm install --package-lock-only`（会引入大量 peer 标记噪音）；手改 lock 里该包的 `version` 字段。
+
 ## 其他路径与常量
 
 - 全生态所有仓库通过 `@devbie/style-guide` 统一 peerDependencies 锁定 prettier `^3.9.9`，使用单一 canonical 配置，避免跨仓格式化漂移。

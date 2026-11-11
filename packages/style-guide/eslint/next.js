@@ -2,6 +2,7 @@ import { globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettierConfig from "eslint-config-prettier";
+import unicorn from "eslint-plugin-unicorn";
 
 /**
  * Next.js layer for the devbie ecosystem.
@@ -20,10 +21,27 @@ import prettierConfig from "eslint-config-prettier";
  *
  * `prettierConfig` is repeated here so that composing `[...base, ...next]`
  * still ends on the formatting-rule shutdown.
+ *
+ * Repo-wide conventions that every devbie Next.js application shares live here
+ * rather than in each consumer's config (ADR-035): kebab-case file names and a
+ * non-blocking `any` warning. Formatting rules stay out — prettier owns them,
+ * with `singleQuote: false` / `jsxSingleQuote: false` in `prettier.js` already
+ * pinning double quotes.
  */
 export default [
   ...nextVitals,
   ...nextTs,
+  {
+    files: ["**/*.{js,jsx,ts,tsx}"],
+    plugins: { unicorn },
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+      // Convention: every source file name is kebab-case
+      // (.trae/documents/naming-conventions-research.md). Identifiers stay
+      // PascalCase.
+      "unicorn/filename-case": ["error", { case: "kebabCase" }],
+    },
+  },
   {
     files: ["**/eslint.config.*"],
     rules: {
@@ -36,5 +54,5 @@ export default [
   },
   prettierConfig,
   // Framework-generated artifacts; consumers append their own ignores.
-  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "out/**", "build/**", "next-env.d.ts", "src/api/_gen/**"]),
 ];

@@ -175,7 +175,7 @@ export function buildProgram(): Command {
   template
     .command("update [paths...]")
     .description(
-      "update framework-owned template files (ADR-025 ownership registry: framework configs, instrumentation, utils and the globals.css marker block) from the template; pass path prefixes to restrict the scope",
+      "update framework-owned template files (ADR-025/ADR-035 ownership registry: framework configs, instrumentation, utils, the globals.css marker block) from the template; a host-owned scaffold config such as next.config.ts is never rewritten, only checked for the framework entry point; pass path prefixes to restrict the scope",
     )
     .option("--template-path <dir>", "use a local template directory instead of cloning fewbie-starter")
     .option("--template-ref <ref>", "git ref of fewbie-starter to update the template from")

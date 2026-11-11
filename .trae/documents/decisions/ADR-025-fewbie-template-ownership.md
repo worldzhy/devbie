@@ -1,6 +1,6 @@
 # ADR-025 fewbie 模板所有权与 `template sync`
 
-状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`）
+状态：已采纳（传播命令名由 ADR-029 改为 `template update`；`AGENTS.md` 分类由 ADR-031 改为 mixed；2026-11-03 修订——`next.config.ts` 增加 `output: "standalone"`，所有权清单补齐 `.github/**`、`Dockerfile`、`.dockerignore`、`.gitignore`、`.githooks/**`、`src/i18n/**` 等，守卫改为模板仓 CI 显式 `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`；2026-11-10 修订（ADR-035）——新增第四类 `scaffold`，`next.config.ts` 由 framework 改为 `scaffold`，新增 framework-owned 的 `next.config.framework.ts`；2026-11-11 修订（R34-08）——软链不属模板资产，`create` 不复制、完整性扫描显式跳过，`.trae/**` 登记 host-owned）
 日期：2026-10-24
 前置：ADR-024（CLI 契约）、ADR-003（模板仓是模板真源）、ADR-012（fewbie 合入 devbie monorepo）
 Superseded by: ADR-029 —— 决策第 3 条的命令名由 `template sync` 改为 `template update`；所有权分类本体不变。
@@ -15,32 +15,35 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 ## 决策
 
 1. **所有权清单作为单一真源**：在 fewbie-cli 内建立模板所有权清单（源码常量），`template sync`、`doctor`、文档共用同一份分类，不允许三处各写一份。
-2. **三类所有权**：
+2. **四类所有权**：
    - `framework-owned`：整文件归框架，模板版本直接覆盖宿主副本。
    - `host-owned`：整文件归宿主，`template sync` 永不触碰。
    - `mixed`：文件内用标记块划分，标记块内归框架，块外归宿主；**缺失标记视为错误**，不猜测、不整文件覆盖。
+   - `scaffold`（ADR-035）：缺失时由框架创建，存在后归宿主、**永不覆盖内容**；宿主副本缺 `requiredSnippet`（框架入口）时报 `scaffold-outdated`，由宿主手工采纳。
 3. **传播命令**：`fewbie template sync [<paths...>] [--check]`（ADR-024 条款 1/3）。
    - 默认执行写入；`--dry-run` 只打印计划；`--check` 为门禁（有差异即非零退出，不写文件）。
    - 模板源：`--template-path <dir>` 用本地目录，`--template-ref <ref>` 从 fewbie-starter 的指定 ref 取，默认取模板仓默认分支。
    - `[paths...]` 为路径前缀过滤（如 `src/app/`）。
    - `FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1`：模板仓库 CI 专用环境变量，断言模板树每个文件均在所有权清单；`fewbie create` 复制时从 `check:template` 脚本移除该变量——宿主业务文件不是模板资产（2026-11-03 评审 R5-09/R5-11）。
 4. **registry 项不纳入**：registry 安装的文件（`src/components/**`、`src/lib/query-client.ts` 等）由 `modules install` / `modules update` 管理，`template sync` 必须跳过，避免两套机制同时写同一文件。
-5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。
+5. **mixed 标记语法**：`/* fewbie:framework:start */` … `/* fewbie:framework:end */`，与 newbie 侧 `.env.example` / `.gitignore` / prisma 的框架块语义一致（块内框架、块外宿主）。marker 按文件类型声明：`.md` 用 HTML 注释（`<!-- fewbie:framework:start -->`），非 CSS 的 `#` 注释文件（`.env.example` / `.prettierignore`）用 `# fewbie:framework:start`；`assetMarkers` 已支持 per-asset 覆盖，不新增机制。块的范围按「跨宿主是否唯一」判定，不按文件主题：`globals.css` 只把 Tailwind 扫描排除（`@source not "../../.trae"`）放进块内，设计 token 是品牌决策、写在块外（2026-11-10 修订，否则宿主采纳标记时会整块替换掉自有主题）。
+6. **软链不属模板资产**：模板树中的软链是工作区挂载（如 `.trae/skills` → 同级 `worldzhy-knowledge`），既不是框架内容也不是宿主业务文件。`fewbie create` 的复制过滤器跳过软链（否则 `fs.cp` 原样复制，给每个新项目留下悬空链接），`FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1` 的完整性扫描同样显式跳过；`.trae/**`（工作区台账与技能挂载）登记为 host-owned（2026-11-11 修订，R34-08）。
 
 ## 所有权清单
 
 | 类别 | 路径 | 理由 |
 |---|---|---|
-| framework-owned | `next.config.ts` | 构建配置，宿主改动会破坏框架约定；2026-11-03 起含 `output: "standalone"`，与模板 Dockerfile 的 `.next/standalone` 契约对齐 |
+| scaffold | `next.config.ts` | 宿主配置调用 `withFewbie()`（ADR-035）；内容归宿主，`template update` 只校验框架入口是否还在，不覆盖 |
+| framework-owned | `next.config.framework.ts` | fewbie 包装函数：默认值（宿主可覆盖）+ 不变量（不可关闭），随 `template update` 创建/覆盖 |
 | framework-owned | `tsconfig.json` | TS 配置与 Next 版本锁步 |
 | framework-owned | `postcss.config.mjs` | Tailwind v4 管线 |
 | framework-owned | `eslint.config.mjs` | lint 规则集 |
 | framework-owned | `components.json` | shadcn 生成器配置 |
-| framework-owned | `.prettierignore` | 格式化范围 |
-| framework-owned | `.env.example` | 环境契约（心跳、web-monitor 等框架变量） |
+| mixed（`#` marker） | `.prettierignore` | 构建产物与依赖目录在框架块内；宿主忽略项（如 `.trae`）写在块外，`template update` 只替换块内 |
+| mixed（`#` marker） | `.env.example` | 框架块只列框架文件读的变量（`HEARTBEAT_*`）；宿主与 registry 模块变量写在块外 |
 | framework-owned | `src/instrumentation.ts` | 心跳 SDK 启动接线，属于框架生命周期 |
 | framework-owned | `src/lib/utils.ts` | shadcn `cn` 契约（`export { cn } from "cn"`） |
-| mixed | `src/app/globals.css` | 设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`）归框架；宿主可追加自有 token |
+| mixed | `src/app/globals.css` | 框架块只含跨宿主唯一的约束（Tailwind 不扫描 `.trae`：`@source not "../../.trae"`）；设计 token（`@theme inline` / `:root` / `.dark` / `@layer base`）是品牌决策，归宿主，写在块外 |
 | host-owned | `src/app/layout.tsx` | 承载宿主 Provider 组合（Theme/Query/WebMonitor）与 metadata |
 | host-owned | `src/app/page.tsx` | 宿主页面 |
 | host-owned | `src/app/favicon.ico` | 宿主品牌资源 |
@@ -51,10 +54,11 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 | host-owned | `README.md` | 宿主项目说明 |
 | host-owned | `next-env.d.ts` | Next 生成物 |
 | host-owned | `AGENTS.md` / `CLAUDE.md` | agent 指令文件，由 `next dev` 或宿主维护 |
+| host-owned | `.trae/**` | 工作区元数据：agent 会话台账（`create` 一次性复制）与技能软链（永不复制，决策 6） |
 | host-owned | `.gitignore` | 宿主自行忽略项（模板一次性分发） |
 | host-owned | `.githooks/**` | 宿主提交钩子（模板一次性分发） |
 | host-owned | `.github/**` | 宿主 CI / dependabot 配置（模板一次性分发） |
-| host-owned | `Dockerfile` / `.dockerignore` | 镜像配方由宿主按环境分层演进（模板一次性分发；standalone 契约在 `next.config.ts`） |
+| host-owned | `Dockerfile` / `.dockerignore` | 镜像配方由宿主按环境分层演进（模板一次性分发；standalone 契约在 `next.config.framework.ts`，ADR-035 决策 6） |
 
 明确取舍：`layout.tsx` 不纳入覆盖，因此模板对根布局的改进需要宿主人工移植；换来的是宿主 Provider 接线不会被同步覆盖。
 
@@ -83,7 +87,7 @@ newbie 侧的对应能力是 ADR-009 所有权清单 + `newbie template sync`。
 ## 影响
 
 - fewbie-cli：新增所有权清单与 `template sync` 命令；按 ADR-024 的 1.x 规则发 minor。
-- fewbie-starter：`globals.css` 加框架标记块；补 `@devbie/fewbie-cli` devDependency 与 `check:template` 薄别名（ADR-024 F14）。
+- fewbie-starter：`globals.css` 的框架块只包 `@source not "../../.trae"`（主题与 token 留在块外）；补 `@devbie/fewbie-cli` devDependency 与 `check:template` 薄别名（ADR-024 F14）。
 - 消费项目：获得模板更新通道，且不会覆盖宿主页面、组件与 Provider 接线。
 - 不做：三方合并、按文件差异逐段合并、迁移脚本。系统未上线，宿主项目可直接按新契约重建（见「未上线系统禁止过度考虑迁移问题」）。
 - 后续：模板中若新增需要传播的资产，必须在同一改动里登记所有权并补 `template sync` 用例，否则视为未完成。

@@ -6,5 +6,5 @@
   "dependencies": ["@devbie/frontend-monitor-sdk"],
   "registryDependencies": [],
   "files": ["src/components/frontend-monitor.tsx"],
-  "postInstall": "Add <FrontendMonitor /> inside your root layout <body> (src/app/layout.tsx), then set NEXT_PUBLIC_WEB_MONITOR_ENDPOINT (report endpoint URL) and NEXT_PUBLIC_WEB_MONITOR_TOKEN. The component is a no-op until both env vars are present."
+  "postInstall": "Add <FrontendMonitor /> inside your root layout <body> (src/app/layout.tsx), then set NEXT_PUBLIC_FRONTEND_MONITOR_ENDPOINT (report endpoint URL) and NEXT_PUBLIC_FRONTEND_MONITOR_TOKEN. The component is a no-op until both env vars are present."
 }

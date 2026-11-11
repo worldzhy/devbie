@@ -10,10 +10,19 @@
  *   is a defect in the host copy, not something to guess around.
  * - host: shipped once by `fewbie create`, then owned by the host; template
  *   update never touches it.
+ * - scaffold: created when missing, then owned by the host; template update
+ *   never rewrites its content and only reports a copy that lost the required
+ *   snippet (the framework entry point). Adoption is by hand, like Rails'
+ *   `app:update` writing `.new` files (ADR-035).
  *
  * Registry items are not listed here: `modules add` / `modules update` own
  * those paths, and template update refuses to run if the two sets ever overlap
  * (see `assertNoRegistryOverlap`).
+ *
+ * Symlinks are never template assets: a symlink in the template tree is a
+ * workspace mount (e.g. `.trae/skills` pointing at a sibling knowledge repo),
+ * so `fewbie create` does not copy it and the completeness scan skips it
+ * instead of shipping a dangling link (R34-08).
  *
  * Framework runtime dependencies are declared in the same file so the file
  * classification, `template update` and `doctor` read one source instead of
@@ -31,7 +40,7 @@ export interface TemplateMarkers {
 
 const DEFAULT_MARKERS: TemplateMarkers = { start: FRAMEWORK_MARKER_START, end: FRAMEWORK_MARKER_END };
 
-export type TemplateOwnership = "framework" | "mixed" | "host";
+export type TemplateOwnership = "framework" | "mixed" | "host" | "scaffold";
 
 export interface TemplateAsset {
   /** POSIX-style path relative to the project / template root. */
@@ -40,6 +49,11 @@ export interface TemplateAsset {
   note?: string;
   /** Marker pair of a mixed file; defaults to the CSS comment markers. */
   markers?: TemplateMarkers;
+  /**
+   * Required for `scaffold` assets: a snippet every adopted copy must contain.
+   * One substring check decides adoption, so no TypeScript is parsed.
+   */
+  requiredSnippet?: string;
 }
 
 /** Marker pair of an asset: the explicit override or the default CSS markers. */
@@ -48,14 +62,23 @@ export function assetMarkers(asset: TemplateAsset): TemplateMarkers {
 }
 
 export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
+  // Scaffold: created once, then owned by the host. Its content is never
+  // rewritten; template update only reports a copy that lost the framework
+  // entry point, so the framework's defaults and invariants can keep reaching
+  // existing hosts through next.config.framework.ts (ADR-035).
+  {
+    path: "next.config.ts",
+    ownership: "scaffold",
+    requiredSnippet: 'from "./next.config.framework"',
+    note: "host config calls withFewbie(); defaults and invariants live in next.config.framework.ts",
+  },
+
   // Framework-owned: the template version wins.
-  { path: "next.config.ts", ownership: "framework" },
+  { path: "next.config.framework.ts", ownership: "framework" },
   { path: "tsconfig.json", ownership: "framework" },
   { path: "postcss.config.mjs", ownership: "framework" },
   { path: "eslint.config.mjs", ownership: "framework" },
   { path: "components.json", ownership: "framework" },
-  { path: ".prettierignore", ownership: "framework" },
-  { path: ".env.example", ownership: "framework" },
   { path: "src/instrumentation.ts", ownership: "framework" },
   { path: "src/lib/utils.ts", ownership: "framework" },
 
@@ -71,8 +94,24 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
     note: "the framework block carries the agent usage contract; project instructions stay outside it",
     markers: { start: "<!-- fewbie:framework:start -->", end: "<!-- fewbie:framework:end -->" },
   },
+  {
+    path: ".prettierignore",
+    ownership: "mixed",
+    note: "build outputs and dependency directories live inside the marker block; host ignores (e.g. .trae) stay outside it",
+    markers: { start: "# fewbie:framework:start", end: "# fewbie:framework:end" },
+  },
+  {
+    path: ".env.example",
+    ownership: "mixed",
+    note: "the framework block lists variables framework-owned files read; host and registry-module variables stay outside it",
+    markers: { start: "# fewbie:framework:start", end: "# fewbie:framework:end" },
+  },
 
   // Host-owned: distributed once by create, then never touched by template update.
+  // Workspace metadata rather than framework content: the agent-session ledger
+  // is copied once, and `.trae/skills` is a symlink the scan and create both
+  // skip (see the file header).
+  { path: ".trae/**", ownership: "host", note: "workspace ledger and skill mount; symlinks are never copied" },
   { path: "src/app/layout.tsx", ownership: "host" },
   { path: "src/app/page.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
@@ -94,9 +133,9 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: ".dockerignore", ownership: "host" },
 ];
 
-/** Template files whose content template update manages. */
+/** Template files template update manages (creates, or keeps in sync). */
 export function isSyncableAsset(asset: TemplateAsset): boolean {
-  return asset.ownership === "framework" || asset.ownership === "mixed";
+  return asset.ownership === "framework" || asset.ownership === "mixed" || asset.ownership === "scaffold";
 }
 
 export const SYNCABLE_ASSETS: readonly TemplateAsset[] = TEMPLATE_ASSETS.filter(isSyncableAsset);
@@ -120,6 +159,7 @@ export const FRAMEWORK_DEPENDENCIES: readonly FrameworkDependency[] = [
   { name: "next-intl", importedBy: "next.config.ts, src/i18n/config.ts, src/app/layout.tsx" },
   { name: "@devbie/heartbeat-sdk", importedBy: "src/instrumentation.ts" },
   { name: "cn", importedBy: "src/lib/utils.ts" },
+  { name: "babel-plugin-react-compiler", importedBy: "next.config.framework.ts (reactCompiler)" },
   { name: "@tailwindcss/postcss", importedBy: "postcss.config.mjs" },
   { name: "tailwindcss", importedBy: "src/app/globals.css" },
   { name: "tw-animate-css", importedBy: "src/app/globals.css" },
@@ -140,9 +180,10 @@ export function assetCoversPath(asset: TemplateAsset, filePath: string): boolean
 
 /**
  * Directories and file names excluded from the ownership-completeness guard:
- * runtime outputs, VCS metadata, the per-project lockfile and the agent-session
- * backlog (a workspace process ledger that exists in the template repo but is
- * not a shipped template asset).
+ * runtime outputs, VCS metadata and the per-project lockfile. Ignore entries
+ * are matched against the basename, so a real template file must be classified
+ * rather than ignored here (`.trae/documents/backlog.md` is covered by the
+ * `.trae/**` host-owned entry).
  */
 const SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   ".git",
@@ -155,13 +196,7 @@ const SCAN_IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
   "out",
   "storybook-static",
 ]);
-const SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([
-  ".DS_Store",
-  ".env",
-  ".env.local",
-  "backlog.md",
-  "package-lock.json",
-]);
+const SCAN_IGNORED_FILES: ReadonlySet<string> = new Set([".DS_Store", ".env", ".env.local", "package-lock.json"]);
 const SCAN_IGNORED_SUFFIXES: readonly string[] = [".tsbuildinfo"];
 
 /** True for runtime outputs and per-project files excluded from the guard. */
@@ -171,6 +206,15 @@ export function isTemplateScanIgnored(filePath: string): boolean {
   const base = segments[segments.length - 1];
   if (SCAN_IGNORED_FILES.has(base)) return true;
   return SCAN_IGNORED_SUFFIXES.some((suffix) => base.endsWith(suffix));
+}
+
+/**
+ * Strip block and whole-line comments before matching a required snippet.
+ * A commented-out `import … from "./next.config.framework"` still contains the
+ * snippet text, so plain `includes` counted it as adopted (R34-07).
+ */
+function withoutComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 }
 
 /**
@@ -211,7 +255,7 @@ function comparable(asset: TemplateAsset, content: string): string {
   return block;
 }
 
-export type TemplateChangeKind = "create" | "update" | "missing-markers";
+export type TemplateChangeKind = "create" | "update" | "missing-markers" | "scaffold-outdated";
 
 export interface TemplateChange {
   asset: TemplateAsset;
@@ -252,6 +296,22 @@ export function planTemplateUpdate(
         currentComparable: null,
         templateComparable: comparable(asset, templateContent),
       });
+      continue;
+    }
+
+    // Scaffold content belongs to the host; only a copy that lost the required
+    // snippet is reported, and it is never rewritten for the host.
+    if (asset.ownership === "scaffold") {
+      const snippet = asset.requiredSnippet;
+      if (snippet && !withoutComments(projectContent).includes(snippet)) {
+        changes.push({
+          asset,
+          kind: "scaffold-outdated",
+          nextContent: null,
+          currentComparable: null,
+          templateComparable: templateContent,
+        });
+      }
       continue;
     }
 

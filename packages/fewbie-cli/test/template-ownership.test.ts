@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   assetCoversPath,
+  assetMarkers,
   extractMarkerBlock,
   findUnclassifiedTemplateFiles,
   FRAMEWORK_DEPENDENCIES,
@@ -11,6 +12,7 @@ import {
   isTemplateScanIgnored,
   planTemplateUpdate,
   replaceMarkerBlock,
+  TEMPLATE_ASSETS,
   TemplateAsset,
 } from "../src/lib/template-ownership";
 
@@ -43,11 +45,15 @@ describe("ownership registry completeness (ADR-025)", () => {
     assert.deepEqual(findUnclassifiedTemplateFiles(["docs/new.md", "src/orphan.ts"]), ["docs/new.md", "src/orphan.ts"]);
   });
 
+  it("classifies workspace metadata under .trae as host-owned", () => {
+    assert.deepEqual(findUnclassifiedTemplateFiles([".trae/documents/backlog.md", ".trae/skills"]), []);
+  });
+
   it("keeps runtime output and per-project files out of the guard", () => {
-    for (const ignored of [".next/server/app.js", "node_modules/pkg/index.js", "backlog.md", "package-lock.json"]) {
+    for (const ignored of [".next/server/app.js", "node_modules/pkg/index.js", "package-lock.json"]) {
       assert.ok(isTemplateScanIgnored(ignored), `${ignored} must stay out of the guard`);
     }
-    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts"]) {
+    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts", "backlog.md"]) {
       assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
     }
   });
@@ -190,5 +196,98 @@ describe("planTemplateUpdate", () => {
       frameworkAsset,
     ]);
     assert.deepEqual(changes, []);
+  });
+});
+
+describe("scaffold assets (ADR-035)", () => {
+  const SCAFFOLD_PROJECT =
+    'import { withFewbie } from "./next.config.framework";\n\nexport default withFewbie({ devIndicators: false });\n';
+  const SCAFFOLD_TEMPLATE = 'import { withFewbie } from "./next.config.framework";\n\nexport default withFewbie({});\n';
+  const scaffoldAsset: TemplateAsset = {
+    path: "next.config.ts",
+    ownership: "scaffold",
+    requiredSnippet: 'from "./next.config.framework"',
+  };
+
+  it("creates a scaffold file missing from the project", () => {
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", null]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "create");
+    assert.equal(changes[0].nextContent, SCAFFOLD_TEMPLATE);
+  });
+
+  it("never rewrites an adopted host copy, even when it differs from the template", () => {
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", SCAFFOLD_PROJECT]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.deepEqual(changes, []);
+  });
+
+  it("reports scaffold-outdated without an auto-fix when the entry point is missing", () => {
+    const host = "export default { output: 'standalone' };\n";
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", host]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "scaffold-outdated");
+    // Host adoption is manual: no content is ever proposed for writing.
+    assert.equal(changes[0].nextContent, null);
+    assert.equal(changes[0].currentComparable, null);
+    assert.equal(changes[0].templateComparable, SCAFFOLD_TEMPLATE);
+  });
+
+  it("does not count a commented-out import as adopting the framework entry point", () => {
+    const host = '// import { withFewbie } from "./next.config.framework";\nexport default {};\n';
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", host]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "scaffold-outdated");
+  });
+
+  it("counts an import that carries a trailing comment", () => {
+    const host = 'import { withFewbie } from "./next.config.framework"; // framework defaults\nexport default {};\n';
+    const changes = planTemplateUpdate(
+      new Map([["next.config.ts", host]]),
+      new Map([["next.config.ts", SCAFFOLD_TEMPLATE]]),
+      [scaffoldAsset],
+    );
+    assert.deepEqual(changes, []);
+  });
+});
+
+describe("hash-commented mixed assets (ADR-035)", () => {
+  const asciiMarkers = { start: "# fewbie:framework:start", end: "# fewbie:framework:end" };
+
+  it("classifies .prettierignore and .env.example as mixed with # markers", () => {
+    for (const filePath of [".prettierignore", ".env.example"]) {
+      const asset = TEMPLATE_ASSETS.find((candidate) => candidate.path === filePath);
+      assert.equal(asset?.ownership, "mixed", `${filePath} must be mixed`);
+      assert.deepEqual(assetMarkers(asset as TemplateAsset), asciiMarkers);
+    }
+  });
+
+  it("replaces only the # block and keeps host lines", () => {
+    const asset = TEMPLATE_ASSETS.find((candidate) => candidate.path === ".prettierignore") as TemplateAsset;
+    const project = `${asciiMarkers.start}\nnode_modules\n${asciiMarkers.end}\n\n.trae\n`;
+    const template = `${asciiMarkers.start}\nnode_modules\n.next\n${asciiMarkers.end}\n`;
+
+    const changes = planTemplateUpdate(new Map([[asset.path, project]]), new Map([[asset.path, template]]), [asset]);
+
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "update");
+    const next = changes[0].nextContent ?? "";
+    assert.match(next, /\.next/);
+    assert.match(next, /\.trae/);
   });
 });
