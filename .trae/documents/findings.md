@@ -511,3 +511,15 @@ carry-over 重验（round34）：R20-03 维持 P1 open，残余仍为 `jdy-accou
 round34 修复轮（2026-11-11）：上段提到的 R20-03 与 R33-06 已随本仓 `9205790` 关闭（见上表 fixed 行）；R20-26（两侧）、R34-05、R34-07、R33-09、R34-08、R34-10、R33-08、R33-07、R34-11 已关闭；仍未处理的是 R34-13 与暂缓项 R34-01/02/03。
 
 round34 复核（2026-11-10 23:58–00:05，`reviews/expert-review-2026-11-10-round34-verify.md`）：逐条主张按最新树重新取证，全部 open 条目维持 open，无新增/撤销/升降级。复核重算：装配面 34/34（registry 共 56 目录）、14/14 包源版本 = registry latest、装配 `diff -rq` 仅 `aws-secrets-manager` 的 registry 独有 `prisma/`+`sst/`；R33-08 仍部分关闭（newbie-starter style-guide 1.5.0、nightwatch-backend style-guide 1.5.0 + module-hub-cli 1.1.0；fewbie-starter/frontend 已 1.6.0）。表述级偏差 4 处（模块计数口径、R34-15 路径应写全为 `src/modules/security/cookie/redirect-path.ts:16-22`、R34-03 解封点分属 `openStoredSecret`/`openTotpSecret`、R34-05 另含 `:127` 负向断言），不影响结论。
+
+## round35（2026-11-11，scope=`plan/claim`：提交/推送规范统一性）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-11-round35.md`（时点快照，不改写）。锚点（开工）：devbie `77477b6d` / newbie-modules `f3a897b` / newbie-starter `706eb2f` / fewbie-starter `19ad2ad` / nightwatch-backend `4660c23`（3 dirty 装配在途，不触及本域）/ nightwatch-frontend `11026c1` / worldzhy-knowledge `96e1973`（main，正式例外）。主声明「所有代码提交、推送都走同一个规范，即 repo-commit-push」总判定：**字面不成立、实质大部分成立**——统一规范与机械护栏存在（钩子 fail-closed、7 仓 ls-remote 全 SYNCED、Han 门禁双路扫描 0 命中），但提交推送经由多个具名流程入口、内嵌门禁副本不等价、提交边界有 2 例硬违规实证。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R35-01 | devbie（skill 真源） | 7 份专用 skill 内嵌提交门禁为分散副本且不等价：newbie-module-deliver/newbie-module-refactor/cross-workspace-alignment 缺英文 message 条款；nightwatch-backend-deliver/naming-and-rename/repo-ci-failure-triage 缺 `git diff --cached` staged 核对；newbie-module-refactor/naming-and-rename/repo-ci-failure-triage 缺落地核对；7 份仅 memory-tidy 五项全对齐。staged 边界核对无任何机械强制——恰是 R35-03 两例硬违规的失败模式 | P2 | docs / source | 流程 | open |
+| R35-02 | devbie（repo-commit-push §3 vs user_profile 提交边界纪律） | 「一次提交只表达一件事」存在任务域（只允许本次任务涉及路径）与类型域（修复/文档/评审报告分开提交）两种口径；实践（250 窗口抽样 4 例跨 3 仓）采用任务域——backlog/findings/AGENTS 指针随修复同行。口径不统一导致违规边界无法机械判定 | P2 | docs | 流程 | open |
+| R35-03 | nightwatch-backend / newbie-modules | 提交边界硬违规 2 例（2026-11-10）：newbie-modules `51183dd`（feat 提交混入 17 个 .trae 文档改名，公开仓 dev 在史，ruleset 禁 force 不重写）；nightwatch-backend `3fe71ee5`（fix(docs) 提交混入 103 行 feature 代码 + manifest，已 amend 为 `9ba90421` 纯文档版自纠，旧对象悬空）。private 仓 dev 无防重写机械护栏 | P2 | source | 流程 / 治理 | fixed（规则层 2026-11-10 三步法已加固；3fe71ee5 已自纠；51183dd 为在史记录；机械护栏残余归并 R35-01） |
+| R35-04 | 7 仓 | `core.hooksPath` 为 local config，新 clone 不自动生效，pre-commit/commit-msg 全部静默旁路，需手动 `git config core.hooksPath .githooks` | P3 | source | 新 clone 场景 | open |
+| R35-05 | devbie（repo-commit-push SKILL.md §2/§4） | 工具链文本漂移：skill 仍写「宿主机无可用系统 git，用 GitHub Desktop 自带发行版 + PATH/GIT_EXEC_PATH 前导」，runbook 已订正为 `/usr/bin/git` 直接可用（本轮全程裸 git 实跑佐证） | P3 | docs | 流程 | open |
