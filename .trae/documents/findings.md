@@ -585,8 +585,8 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID    | 仓 | 标题 | severity | 暴露面 | 可达性 | 状态 |
 | ----- | -- | ---- | -------- | ------ | ------ | ---- |
-| R4-01 | nightwatch-backend | 宿主实体集顺序不确定（`project-security-profile.service.ts:49` 无 orderBy）+ 80 静默截断（`:62`）；缓存签名对顺序敏感（`intel-request.ts:71-78`、`intel.test.ts:345`）→ 负缓存漂移/召回截断 | P2 | live | 当前 2 应用 0 关联，未触达；≥2 关联升成本问题、≥80 升召回问题（P1） | open |
-| R4-02 | nightwatch-backend | 仓库解析为无优先级 `OR` 并列 `findFirst`（`:42-51`）；`fullName` 仅 `@@unique([provider,fullName])`、`url` 无唯一约束 → 跨 provider 同名可能取错行 | P2 | live | 正常写入均为 repository id，URL 形态仅 E2E 存量 → 不可达 | open |
+| R4-01 | nightwatch-backend | 宿主实体集顺序不确定（`project-security-profile.service.ts:49` 无 orderBy）+ 80 静默截断（`:62`）；缓存签名对顺序敏感（`intel-request.ts:71-78`、`intel.test.ts:345`）→ 负缓存漂移/召回截断 | P2 | live | 当前 2 应用 0 关联，未触达；≥2 关联升成本问题、≥80 升召回问题（P1） | fixed（`dc43ed0`，2026-11-13）：`applications` 补 `orderBy [{name,id}]`、回退查询补 `orderBy [{fullName,id}]`、共享 `REPOSITORY_SELECT` 防两条查询漂移、80 截断改 `Logger.warn`；回归 `project-security-profile.service.test.ts` 2 例 |
+| R4-02 | nightwatch-backend | 仓库解析为无优先级 `OR` 并列 `findFirst`（`:42-51`）；`fullName` 仅 `@@unique([provider,fullName])`、`url` 无唯一约束 → 跨 provider 同名可能取错行 | P2 | live | 正常写入均为 repository id，URL 形态仅 E2E 存量 → 不可达 | fixed（`dc43ed0`）：id 走 `findUnique` 优先，回退 `findFirst` 带确定性 orderBy；回归「exact row id wins over colliding url」 |
 | R4-03 | newbie-modules / nightwatch-backend | `scopeKey` 列注释仍写 `"scopeType:scopeId"`（registry `security-evaluation/prisma/schema.prisma:184`、宿主 `prisma/models/security-evaluation.prisma:187`） | P2 | docs | — | open |
 | R4-04 | newbie-modules | ADR-058 事实错误：D4 表名写 `SecurityEvaluationThreatNegativeCache`（实为 `…VerdictCache`）；D3 实体清单漏 `url` 派生 slug（实现 `:69`） | P2 | docs | — | open |
 | R4-05 | newbie-modules | `SecurityEvaluationScopeEntity.context` 死字段且注释称"shown in the LLM prompt"不成立（evidence 只投影 value，`request.ts:77` 恒 null） | P2 | docs/契约 | — | open |
