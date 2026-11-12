@@ -19,7 +19,9 @@ logic.
 - **Resource monitoring** — slow and failed resource loads via
   `PerformanceObserver` and resource `error` events.
 - **Error monitoring** — `window.onerror`, `unhandledrejection`, resource load
-  failures and `console.error`, with parsed stack traces.
+  failures and `console.error`, with parsed stack traces. A rejection whose reason
+  carries no stack is reported as a bounded summary (`name`, `message`, `code`,
+  `status` and similar scalars) — payload subtrees are never serialized.
 - **Custom events** — report business events with throttled batching.
 - **Business error codes** — plug in an `errcodeReport` resolver to flag
   business-level failures inside HTTP 200 responses.

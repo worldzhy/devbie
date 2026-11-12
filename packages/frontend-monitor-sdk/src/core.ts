@@ -1,5 +1,5 @@
 import { StackTrace, computeStackTrace } from "./common/tracekit";
-import { ERROR_APIS, ERRORTYPES, getConsoleErrorMsg, isObject } from "./common/utils";
+import { ERROR_APIS, ERRORTYPES, getConsoleErrorMsg, getRejectionMsg, isObject } from "./common/utils";
 import { filterResourceError, getHeaderMap, randomString, reportUrl, sanitizeText } from "./utils";
 import { markDevice, markUser, markUv } from "./identity";
 import {
@@ -514,12 +514,8 @@ function Performance(options: InitOptions): void {
       const stack = computeStackTrace(error);
       if (stack.failed) {
         const defaults = Object.assign({}, errorEntryTemplate);
-        if (isObject(error)) {
-          defaults.msg = JSON.stringify(error);
-        } else {
-          defaults.msg = "" + error;
-        }
-        defaults.type = ERRORTYPES.log;
+        defaults.msg = getRejectionMsg(error);
+        defaults.type = ERRORTYPES.promiseRejection;
         defaults.api = ERROR_APIS.unhandledRejection;
         defaults.createTime = new Date().getTime();
         defaults.data = { resourceUrl: reportUrl(location.href, opt.captureBody, opt.redact) };
