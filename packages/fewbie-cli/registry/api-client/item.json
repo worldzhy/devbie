@@ -2,9 +2,9 @@
   "name": "api-client",
   "type": "registry:lib",
   "title": "API client",
-  "description": "Envelope-aware axios instance with bearer-token auth, httpOnly refresh-cookie rotation, cross-tab Web Lock single-flight 401 retry, proactive token refresh, and UI-agnostic onError/onSessionExpired hooks.",
+  "description": "Envelope-aware axios instance with bearer-token auth in memory (no localStorage), httpOnly refresh-cookie rotation, cold-start session bootstrap that tells a signed-out user apart from an unreachable backend, cross-tab Web Lock single-flight 401 retry, proactive token refresh, and UI-agnostic onError/onSessionExpired hooks.",
   "dependencies": ["axios@^1.20.0"],
   "registryDependencies": [],
   "files": ["src/lib/api-client.ts"],
-  "postInstall": "Adjust BASE_URL / storage keys / REFRESH_PATH in src/lib/api-client.ts to match your backend contract."
+  "postInstall": "Call bootstrapSession() from your entry route and branch on its status: authenticated -> render the app, anonymous -> send to login, unavailable -> stay on the page with a retry (an unreachable backend is not a logout; fewbie ADR-001 / devbie ADR-040). Adjust BASE_URL / legacy storage keys / REFRESH_PATH / REFRESH_LOCK_NAME in src/lib/api-client.ts to match your backend contract."
 }
