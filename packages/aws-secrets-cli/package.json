@@ -27,7 +27,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "clean": "rimraf dist",
-    "release:rotation": "node scripts/build-rotation-artifact.mjs",
+    "release:rotation": "node scripts/publish-rotation-artifact.mjs",
     "test": "node --import tsx --test test/*.test.ts",
     "prepublishOnly": "npm run build"
   },

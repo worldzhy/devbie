@@ -44,21 +44,23 @@ reuse its `node_modules`.
 
 ## One-click artifact publishing
 
-The web UI deploys the same rotation Lambda through CloudFormation, so each
-release must publish a prebuilt artifact (ADR-046). The artifact is built once
-and reused by every customer account:
+The web UI deploys the same rotation Lambda through CloudFormation, so the
+artifact must be published before the one-click path becomes available
+(ADR-046). The artifact is built once and reused by every customer account:
 
 ```bash
 ROTATION_ARTIFACT_BUCKET=<public-read-bucket> npm run release:rotation -w @devbie/aws-secrets-cli
 ```
 
 The script bundles `sst/function/index.ts` with esbuild, uploads
-`<prefix>/<version>/rotation-lambda-<version>.zip`, generates a CloudFormation
-template with the versioned bucket/key (and object version when the bucket is
-versioned) baked in, uploads it next to the artifact, and HEAD-verifies both
-objects. It prints the template URL for the consumer's
-`NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`; when that variable is
-unset the web UI hides the button and users fall back to
+`<prefix>/aws-secrets-rotation-lambda.zip`, generates a CloudFormation template
+with the bucket/key (and object version when the bucket is versioned) baked in,
+uploads it next to the artifact, and HEAD-verifies both objects. Both objects
+keep fixed keys: re-run the script, without a version bump, whenever the Lambda
+handler, its strategies or its dependencies change. It prints the template URL
+for the consumer's
+`NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`; when that
+variable is unset the web UI hides the button and users fall back to
 `newbie secrets deploy-rotation`. The generated template mirrors
 `sst/sst.config.ts` — change both together or the contract drifts.
 
