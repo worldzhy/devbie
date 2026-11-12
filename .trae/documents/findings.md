@@ -555,3 +555,14 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R1-04 | registry | 前端侧 ClickHouse 三表与 Mongo 四表无保留期，与后端监控 90 天不一致 | P2 | live | 任意查询 | fixed（ADR-044，registry `2f3461e`：CH 建表 `TTL createTime + INTERVAL 90 DAY`、Mongo 新增升序 `{createTime:1}` TTL 索引；生产存量表 `MODIFY TTL` 进 nightwatch-backend backlog，本地存量按"无价值"不回填） |
 | R1-05 | registry / nightwatch-backend | 服务端不做二次清洗，`url` 回落 raw `Referer` 原样入库，页面身份保留 `u.hash` | P2 | live | 任意上报 | fixed（ADR-045，2026-11-12 registry `3b533ed` + nightwatch-backend `db6f447`：新增 `sanitizeUrlForStorage`/`sanitizePathForStorage`/`sanitizeSearchForStorage`，controller 在入队前清洗 url 与 referer 回落，各 `fullUrl`/`callUrl`/`preUrl`/`query` 写入点统一走清洗，页面身份去掉 fragment；模块测试 285 例、tsc、prettier 通过，后端已 build 并重启验证 200） |
 | R1-06 | nightwatch-backend（copilot） | 后端监控模板 `recent_requests` 显式 SELECT `ip`，截断后送 LLM | P2 | live | Copilot 使用者 | fixed（2026-11-12 nightwatch-backend `dd24c0c`：投影改为 `if(position(ip, ':') > 0 OR ip = '', '', replaceRegexpOne(ip, '\.[0-9]+$', '.*'))`，IPv4 只留 /24、IPv6 与空值置空，显示头改 `IP (masked)`；表达式已对本地 ClickHouse 实测 `127.0.0.1 → 127.0.0.*`、IPv6 → 空，模板测试 18 例通过） |
+
+## round2（2026-11-13，scope=`plan`：本会话 R1-02～R1-06 修复主张复核）
+
+报告：`.trae/documents/expert-review-2026-11-13-round2.md`（时点快照，不改写）。锚点：devbie `d24cda5f` / newbie-modules `3b533ed` / nightwatch-backend `dd24c0c`，三仓 clean；评审与修复同会话，全部关键结论按 executed 取证。主张判定：C1（改名）成立、C2（手机号写链路删除）成立、C3（90 天留存）部分成立（存量 CH 表需部署窗口 `MODIFY TTL`，已登记）、C4（服务端 URL 清洗）部分成立、C5（Copilot IP 掩码）部分成立。P0/P1 = 0。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R2-01 | registry / nightwatch-backend | `stripUrlForStorage` 的 userinfo 剥离只匹配带 scheme 的 URL，协议相对 `//user:pass@host` 保留明文凭据 | P2 | live | 任意上报方 | open（`shared/utils.ts:93`；ADR-045 承诺面本身只写 `scheme://user:pass@`） |
+| R2-02 | registry / nightwatch-backend | `maskQueryForStorage` 只按 `&` 切分，`;` 分隔的敏感参数未被掩码 | P2 | live | 任意上报方 | open（`shared/utils.ts:66`） |
+| R2-03 | nightwatch-backend（copilot） | IP 掩码只替换整串最后一个 `.octet`；多值链或尾随空白时首个完整 IP 进入模型 | P2 | live | Copilot 使用者 | open（`backend-monitoring-templates.datasource.ts:323`；`ip` 源为客户端可控 `event.ip`，`backend-monitor.service.ts:165`） |
+| R2-04 | devbie | `d24cda5f`（findings 标记 R1-06 fixed）未推送，远端仍为 `eb874b52` | P2 | docs | 维护者 | open（`ls-remote` 核对） |
