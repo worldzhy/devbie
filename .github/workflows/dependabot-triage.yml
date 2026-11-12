@@ -1,22 +1,18 @@
-# Dependabot PR triage: auto-merge green minor/patch updates, close stray
-# major bumps defensively.
+# Dependabot PR triage: auto-merge minor/patch updates, close stray major
+# bumps defensively.
 #
 # Runs daily at 06:30 Asia/Shanghai (22:30 UTC), one hour after Dependabot
-# opens its updates at 05:30 Asia/Shanghai, so freshly opened PRs have had
-# time to finish CI. Lives on the default branch (main) because GitHub only
-# schedules workflows from there; the same file is kept on dev so the two
-# branches do not drift.
+# opens its updates at 05:30 Asia/Shanghai. Lives on the default branch (main)
+# because GitHub only schedules workflows from there; the same file is kept on
+# dev so the two branches do not drift.
 #
 # Policy (mirrors .github/dependabot.yml): major upgrades are
 # milestone-driven and never merged automatically — Dependabot is already
 # configured to ignore them, so one appearing means config drift, and it is
 # closed with an explanatory comment. Everything else (patch/minor,
-# including grouped lockstep updates) is squash-merged only when every
-# check on the head SHA has passed. Red, pending, or check-less PRs stay
-# open and are re-judged by the next daily run; Dependabot rebases and
-# re-runs CI automatically as dev moves. Branch protection is intentionally
-# absent on dev (direct-push workflow), so the "wait for checks then merge"
-# gate is implemented here instead of via native auto-merge.
+# including grouped lockstep updates) is squash-merged without waiting for
+# checks: CI runs once on the dev -> main PR, so a bad update is caught at
+# that boundary and blocks the promotion; dev is never deployed or published.
 name: Dependabot triage
 
 on:
@@ -60,15 +56,10 @@ jobs:
             if [ -n "$old_version" ] && [ -n "$new_version" ] && [ "${old_version%%.*}" != "${new_version%%.*}" ]; then
               gh pr close "$number" --repo "$REPO" --comment "Closing automatically: major upgrades are milestone-driven per repo policy (see .github/dependabot.yml). A green CI run is not accepted as evidence for a major upgrade. Reopen and handle manually if this was intentional."
               action="closed"
-            elif gh pr checks "$number" --repo "$REPO" > /dev/null 2>&1; then
-              # gh pr checks exits non-zero when any check is pending or
-              # failed, and when no checks exist at all — none of those
-              # cases may merge.
-              if gh pr merge "$number" --repo "$REPO" --squash; then
-                action="merged"
-              else
-                reason="merge failed (conflicts or squash merge disabled)"
-              fi
+            elif gh pr merge "$number" --repo "$REPO" --squash; then
+              action="merged"
+            else
+              reason="merge failed (conflicts or squash merge disabled)"
             fi
 
             case "$action" in
