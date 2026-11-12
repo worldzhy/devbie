@@ -579,6 +579,21 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R3-04 | nightwatch-backend             | subjectKey 形态漂移：本地 2 条 repository subject，1 条为仓库 URL（E2E 产物）、1 条为 repository id；schema 明示 id 才是稳定 key           | P2       | live   | E2E / 后续宿主解析               | closed（宿主按 `id` 优先，兼容 `url`/`fullName` 解析；E2E 写入口径统一另记 backlog）                                                          |
 | R3-05 | nightwatch-backend             | `ProjectSecurityProfileService` 无单测（`src/application/project/security/` 仅有 read-model 测试），scope 输出无断言                        | P2       | source | 后续改动                         | closed（新增 `project-security-profile.service.test.ts`：id/url 命中、未知→null、去重上限、非 repository kind）                              |
 
+## round4（2026-11-13，scope=changeset：ADR-058 落地复核；报告 `devbie/.trae/documents/reviews/expert-review-2026-11-13-round4.md`）
+
+> 结论：方向正确、核心不变量成立，无 P0/P1。R4-01～R4-08 全部 P2。R3-01/R3-04 的 closed 表述按 R4-08 收窄。
+
+| ID    | 仓 | 标题 | severity | 暴露面 | 可达性 | 状态 |
+| ----- | -- | ---- | -------- | ------ | ------ | ---- |
+| R4-01 | nightwatch-backend | 宿主实体集顺序不确定（`project-security-profile.service.ts:49` 无 orderBy）+ 80 静默截断（`:62`）；缓存签名对顺序敏感（`intel-request.ts:71-78`、`intel.test.ts:345`）→ 负缓存漂移/召回截断 | P2 | live | 当前 2 应用 0 关联，未触达；≥2 关联升成本问题、≥80 升召回问题（P1） | open |
+| R4-02 | nightwatch-backend | 仓库解析为无优先级 `OR` 并列 `findFirst`（`:42-51`）；`fullName` 仅 `@@unique([provider,fullName])`、`url` 无唯一约束 → 跨 provider 同名可能取错行 | P2 | live | 正常写入均为 repository id，URL 形态仅 E2E 存量 → 不可达 | open |
+| R4-03 | newbie-modules / nightwatch-backend | `scopeKey` 列注释仍写 `"scopeType:scopeId"`（registry `security-evaluation/prisma/schema.prisma:184`、宿主 `prisma/models/security-evaluation.prisma:187`） | P2 | docs | — | open |
+| R4-04 | newbie-modules | ADR-058 事实错误：D4 表名写 `SecurityEvaluationThreatNegativeCache`（实为 `…VerdictCache`）；D3 实体清单漏 `url` 派生 slug（实现 `:69`） | P2 | docs | — | open |
+| R4-05 | newbie-modules | `SecurityEvaluationScopeEntity.context` 死字段且注释称"shown in the LLM prompt"不成立（evidence 只投影 value，`request.ts:77` 恒 null） | P2 | docs/契约 | — | open |
+| R4-06 | newbie-modules | `[]` 走 `emptyCollection`（`evidence.provider.ts:159`），不加载候选、skipped=0，与同文件未知 subject（:154-158）/code-scan（:282-286）的 fail-closed 对照不一致；ADR-058 D1 已采纳该语义 | P2 | live | 宿主 fullName 非空使 `[]` 实际不可达 | open |
+| R4-07 | newbie-modules | README「host must bind three more ports」（`README.md:87-93`）未列 `SECURITY_EVALUATION_SCOPE_ENTITIES_PROVIDER` 及 null/[] 语义 | P2 | docs | 新宿主装配者 | open |
+| R4-08 | devbie / nightwatch-backend | R3 台账 closed 超取证：§7.4 跨资产构造性核对与生产旧键核对未执行/未留证；`8d87876` 正文 "no … rows remain" 暗示已清理（实为从未写入）；无 prune 作业；R3-04「按 id 优先」与实现不符 | P2 | docs/治理 | 下一轮复审入口 | open |
+
 ## 归档（2026-11-13，评审报告放置规则纠偏）
 
 起因：用户质疑评审报告为何不在 `reviews/`。根因是 `expert-review` 技能条文与 devbie `README.md` 均仍写「落 `.trae/documents/` 根目录」，六性质桶约定（② 时点快照进 `reviews/`）从未回写技能；2026-11-10 quadrant-round1 已记录该错位但未修条文，故 11-11 之后的报告继续落根目录。
