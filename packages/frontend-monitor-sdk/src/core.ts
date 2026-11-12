@@ -90,6 +90,10 @@ function Performance(options: InitOptions): void {
     isAjax: true,
     isResource: true,
     isError: true,
+    // Console output is arbitrary developer diagnostics, not a crash signal:
+    // capturing it is opt-in so credentials logged by the host or a library
+    // never reach the collector by default.
+    captureConsoleError: false,
     user: { uid: undefined, p: undefined },
     traceIdHeaderName: "x-trace-id",
     isTraceId: false,
@@ -525,6 +529,7 @@ function Performance(options: InitOptions): void {
         ErrorInstanceReport(stack, ERROR_APIS.unhandledRejection, ERRORTYPES.script);
       }
     });
+    if (!opt.captureConsoleError) return;
     const oldError = console.error;
     console.error = (...args: any[]) => {
       if (args.length === 1) {

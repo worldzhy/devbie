@@ -11,6 +11,7 @@ export interface PerformanceOptions {
   isAjax: boolean;
   isResource: boolean;
   isError: boolean;
+  captureConsoleError: boolean;
   user?: { uid?: string; p?: string };
   traceIdHeaderName: string;
   isTraceId: boolean;
@@ -34,6 +35,13 @@ export interface InitOptions {
   isAjax?: boolean;
   isResource?: boolean;
   isError?: boolean;
+  /**
+   * Capture `console.error` output as `log` entries. Off by default: console
+   * arguments are arbitrary objects with no field contract, so they routinely
+   * carry credentials and personal data that cannot be redacted reliably.
+   * Enable it together with {@link redact} when the host really needs it.
+   */
+  captureConsoleError?: boolean;
   user?: { uid?: string; p?: string };
   traceIdHeaderName?: string;
   isTraceId?: boolean;
