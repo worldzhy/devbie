@@ -11,7 +11,7 @@ Run through every step below before publishing any package in this repo (package
 
    **Rotation Lambda artifact (`@devbie/aws-secrets-cli` only):** release is incomplete until the matching artifact is published, because the web UI deploys it through CloudFormation (ADR-046). After the version bump, run
    `ROTATION_ARTIFACT_BUCKET=<bucket> npm run release:rotation -w @devbie/aws-secrets-cli`
-   and confirm the script's HEAD verification of both objects passes. Record the printed template URL; it is the value for the consumer's `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL`. Re-run without a version bump when only the artifact needs replacing — never point the URL at a mutable key.
+   and confirm the script's HEAD verification of both objects passes. Record the printed template URL; it is the value for the consumer's `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`. Re-run without a version bump when only the artifact needs replacing — never point the URL at a mutable key.
 
    **Failure handling (never blind-bump the version):**
    - If exit code is 0 → proceed to step 7.

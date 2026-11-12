@@ -36,7 +36,7 @@ rotation Lambda 目前只有一条部署路径：`newbie secrets deploy-rotation
 - 发布流水线新增一步：构建 rotator 制品 → 上传到公共读 S3 bucket 的版本化路径 → 校验 `HEAD` 可达。发布 checklist 未包含此步视为发布未完成。
 - CloudFormation 模板参数化：制品 URL 作为模板内 `Code.S3Bucket`/`S3Key`（或 `TemplateURL` 内的固定版本路径）；输出 `RotationLambdaArn`。
 - 模板与 CLI 的 SST 定义必须同源：两者产出同一份 handler 代码与同一套 tag 契约（`devbie:managed`、`devbie:secret-type`）。任何一方单独改动视为契约漂移。
-- 前端 env：新增 `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL`，未设置时隐藏一键按钮并回落到 CLI 指引，与 role 模板的降级行为一致。
+- 前端 env：新增 `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`，未设置时隐藏一键按钮并回落到 CLI 指引，与 role 模板的降级行为一致。
 - 保留 `newbie secrets deploy-rotation`：无控制台权限或纯离线场景仍需要它，两条路径共用同一制品。
 
 ## 跨宿主 / 演进检验

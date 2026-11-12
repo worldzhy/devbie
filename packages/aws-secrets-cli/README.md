@@ -57,7 +57,7 @@ The script bundles `sst/function/index.ts` with esbuild, uploads
 template with the versioned bucket/key (and object version when the bucket is
 versioned) baked in, uploads it next to the artifact, and HEAD-verifies both
 objects. It prints the template URL for the consumer's
-`NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL`; when that variable is
+`NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`; when that variable is
 unset the web UI hides the button and users fall back to
 `newbie secrets deploy-rotation`. The generated template mirrors
 `sst/sst.config.ts` — change both together or the contract drifts.

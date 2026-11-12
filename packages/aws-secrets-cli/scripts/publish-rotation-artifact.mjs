@@ -14,7 +14,7 @@
  * Steps: bundle the handler with esbuild -> zip -> upload the zip -> generate a
  * template with the versioned bucket/key baked in -> upload the template ->
  * HEAD-verify both objects. The printed template URL is the value for the
- * consumer's NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL.
+ * consumer's NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL.
  *
  * The template mirrors the SST definition in `sst/sst.config.ts` (handler,
  * runtime, timeout, memory, environment and IAM grants). Changing one side
@@ -225,7 +225,9 @@ async function main() {
   const templateUrl = `https://${bucket}.s3.${region}.amazonaws.com/${templateKey}`;
   console.info(`\nRotation Lambda artifact published (version ${version}).`);
   console.info(`Template URL: ${templateUrl}`);
-  console.info("Set this URL as NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL in the consumer's build env.");
+  console.info(
+    "Set this URL as NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL in the consumer's build env.",
+  );
 }
 
 main().catch((error) => {
