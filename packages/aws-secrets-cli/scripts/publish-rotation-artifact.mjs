@@ -2,7 +2,9 @@
 /**
  * Publishes the rotation Lambda artifact and its CloudFormation template to the
  * public artifact bucket (ADR-046). One build serves every customer: the web UI
- * links to the versioned template, so the artifact URL is stable and traceable.
+ * links to a fixed template URL, so the consumer's env never has to track
+ * releases. The bundle comes from the standalone `sst/` subpackage, which shares
+ * no code with this CLI, so it changes only when the Lambda itself does.
  *
  * Usage:
  *   ROTATION_ARTIFACT_BUCKET=<bucket> npm run release:rotation -w @devbie/aws-secrets-cli
@@ -12,9 +14,9 @@
  *   AWS_REGION                upload region (default: us-east-1)
  *
  * Steps: bundle the handler with esbuild -> zip -> upload the zip -> generate a
- * template with the versioned bucket/key baked in -> upload the template ->
- * HEAD-verify both objects. The printed template URL is the value for the
- * consumer's NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL.
+ * template with the bucket/key baked in -> upload the template -> HEAD-verify
+ * both objects. Both objects keep fixed keys and are overwritten only when the
+ * bundle changes; re-run this script (no version bump) to replace them.
  *
  * The template mirrors the SST definition in `sst/sst.config.ts` (handler,
  * runtime, timeout, memory, environment and IAM grants). Changing one side
@@ -30,8 +32,12 @@ import { build } from "esbuild";
 const packageDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const sstDir = path.join(packageDir, "sst");
 const workDir = path.join(packageDir, "dist-rotation");
-const packageJson = JSON.parse(fs.readFileSync(path.join(packageDir, "package.json"), "utf8"));
-const version = packageJson.version;
+// The Lambda is an independent subpackage under `sst/` with its own version and
+// dependencies, and shares no code with this CLI. Deriving anything from the CLI
+// version minted a "new" artifact for every CLI-only release whose bundle was
+// byte-identical, so only the Lambda's own version is stamped into the template.
+const lambdaPackageJson = JSON.parse(fs.readFileSync(path.join(sstDir, "package.json"), "utf8"));
+const version = lambdaPackageJson.version;
 
 const bucket = process.env.ROTATION_ARTIFACT_BUCKET;
 if (!bucket) {
@@ -40,8 +46,9 @@ if (!bucket) {
 }
 const prefix = (process.env.ROTATION_ARTIFACT_PREFIX || "aws-secrets-cli/rotation").replace(/^\/+|\/+$/g, "");
 const region = process.env.AWS_REGION || "us-east-1";
-const artifactKey = `${prefix}/${version}/rotation-lambda-${version}.zip`;
-const templateKey = `${prefix}/${version}/rotation-lambda-${version}.yaml`;
+const artifactBase = "aws-secrets-rotation-lambda";
+const artifactKey = `${prefix}/${artifactBase}.zip`;
+const templateKey = `${prefix}/${artifactBase}.yaml`;
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"], ...options });
@@ -72,7 +79,7 @@ async function bundle() {
     logLevel: "warning",
   });
 
-  const zipPath = path.join(workDir, `rotation-lambda-${version}.zip`);
+  const zipPath = path.join(workDir, `${artifactBase}.zip`);
   run("zip", ["-q", "-r", zipPath, "index.js"], { cwd: workDir });
   return zipPath;
 }
@@ -214,7 +221,7 @@ async function main() {
   console.info(`Uploading s3://${bucket}/${artifactKey}...`);
   const objectVersion = upload(zipPath, artifactKey, "application/zip");
 
-  const templatePath = path.join(workDir, `rotation-lambda-${version}.yaml`);
+  const templatePath = path.join(workDir, `${artifactBase}.yaml`);
   fs.writeFileSync(templatePath, cloudFormationTemplate(objectVersion), "utf8");
   console.info(`Uploading s3://${bucket}/${templateKey}...`);
   upload(templatePath, templateKey, "application/yaml");
