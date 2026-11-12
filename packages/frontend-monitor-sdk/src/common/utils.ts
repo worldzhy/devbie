@@ -2,31 +2,6 @@ export function isObject(value: unknown): value is Record<string, unknown> {
   return Object.prototype.toString.apply(value) === "[object Object]";
 }
 
-const middle: Record<number, string> = {
-  0: "QR",
-  1: "xa",
-  2: "cL",
-  3: "pF",
-  4: "Oe",
-  5: "bn",
-  6: "sM",
-  7: "yt",
-  8: "Uv",
-  9: "ik",
-};
-
-export function encryptP(value: string | number): string {
-  const str = typeof value === "number" ? String(value) : value;
-  if (typeof str !== "string") throw new Error("Invalid p field format: only a number or a numeric string is allowed");
-  return str
-    .split("")
-    .map((item) => {
-      const n = Number(item);
-      return Number.isInteger(n) && middle[n] ? middle[n] : "";
-    })
-    .join("");
-}
-
 export function isIgnore(url: string, filterUrls: string[]): boolean {
   let ignore = false;
   if (url && filterUrls && filterUrls.length) {

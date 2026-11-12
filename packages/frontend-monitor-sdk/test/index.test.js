@@ -1,6 +1,5 @@
 /** Simple test cases live directly in this file; larger ones can be split into separate files */
 import "./mock/web.env";
-import { encryptP } from "../src/common/utils";
 import { overrideFetch } from "./mock/utils";
 import init from "../src/index";
 const monitor = init({
@@ -19,16 +18,15 @@ overrideFetch(function () {
   }
 });
 
-const test_uid = "10007",
-  test_p = 15198765432;
+const test_uid = "10007";
 monitor.setConfig({
   uid: test_uid,
-  p: test_p,
 });
 test("web setConfig", (done) => {
   setTimeout(() => {
     expect(reportTypePage.uid).toEqual(test_uid);
-    expect(reportTypePage.p).toEqual(encryptP(test_p));
+    // ADR-044: phone numbers are never collected, so the payload has no `p`.
+    expect(reportTypePage).not.toHaveProperty("p");
     // The collector derives the storage partition from the token, so appId must
     // never be part of the report contract again.
     expect(reportTypePage.token).toEqual("token_test");

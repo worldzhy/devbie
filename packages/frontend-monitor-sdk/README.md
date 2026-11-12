@@ -87,7 +87,7 @@ The component is a no-op until both environment variables are present.
 | `isError`             | `boolean`  | `true`       | No       | Collect uncaught JS errors, unhandled rejections and resource load errors.                                                                                                   |
 | `captureConsoleError` | `boolean`  | `false`      | No       | Also collect `console.error` output as `log` entries. Off by default: console arguments are arbitrary objects and often carry credentials. Pair with `redact` when enabling. |
 | `filterUrls`          | `string[]` | `[]`         | No       | URLs excluded from AJAX/resource collection. The collector endpoint (`/api/web-monitor/report`) is always filtered automatically.                                            |
-| `user`                | `object`   | `{}`         | No       | Initial user identity: `{ uid?, p? }` (`p` should be pre-encrypted).                                                                                                         |
+| `user`                | `object`   | `{}`         | No       | Initial user identity: `{ uid? }`. Phone numbers are never collected (ADR-044).                                                                                              |
 | `isTraceId`           | `boolean`  | `false`      | No       | Capture the trace ID response header from AJAX calls.                                                                                                                        |
 | `traceIdHeaderName`   | `string`   | `x-trace-id` | No       | Response header name to read when `isTraceId` is enabled.                                                                                                                    |
 | `customsThrottleMs`   | `number`   | `1000`       | No       | Throttle window for batching custom events, in milliseconds.                                                                                                                 |
@@ -125,12 +125,15 @@ monitor.addCustom({
 
 ### `setConfig(config)`
 
-Update the user identity after initialization. When `p` is supplied it is
-encrypted before storage:
+Update the user identity after initialization:
 
 ```ts
-monitor.setConfig({ uid: "10086", p: "plain-text-secret" });
+monitor.setConfig({ uid: "10086" });
 ```
+
+Phone numbers are deliberately not collected: the previous `p` option only
+obfuscated digits with a fixed substitution table and was stored in plaintext
+server-side, so it was removed (ADR-044).
 
 ## Business error reporting
 

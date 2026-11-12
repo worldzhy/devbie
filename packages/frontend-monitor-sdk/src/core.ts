@@ -94,7 +94,7 @@ function Performance(options: InitOptions): void {
     // capturing it is opt-in so credentials logged by the host or a library
     // never reach the collector by default.
     captureConsoleError: false,
-    user: { uid: undefined, p: undefined },
+    user: { uid: undefined },
     traceIdHeaderName: "x-trace-id",
     isTraceId: false,
     customsThrottleMs: 1000,
@@ -678,10 +678,8 @@ function Performance(options: InitOptions): void {
       // hold tokens and reset links, so they go through the same policy.
       url: reportUrl(location.href, opt.captureBody, opt.redact),
       uid: undefined,
-      p: undefined,
     };
     if (conf.opt.user.uid) result.uid = conf.opt.user.uid;
-    if (conf.opt.user.p) result.p = conf.opt.user.p;
     return result;
   }
   function deferReporting() {

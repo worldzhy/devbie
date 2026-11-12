@@ -12,7 +12,7 @@ export interface PerformanceOptions {
   isResource: boolean;
   isError: boolean;
   captureConsoleError: boolean;
-  user?: { uid?: string; p?: string };
+  user?: { uid?: string };
   traceIdHeaderName: string;
   isTraceId: boolean;
   customsThrottleMs: number;
@@ -42,7 +42,7 @@ export interface InitOptions {
    * Enable it together with {@link redact} when the host really needs it.
    */
   captureConsoleError?: boolean;
-  user?: { uid?: string; p?: string };
+  user?: { uid?: string };
   traceIdHeaderName?: string;
   isTraceId?: boolean;
   customsThrottleMs?: number;
