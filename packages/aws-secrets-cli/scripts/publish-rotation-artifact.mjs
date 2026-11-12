@@ -120,6 +120,10 @@ function verify(key) {
   });
 }
 
+// The template only uses properties that CloudFormation's resource schema
+// accepts. In particular AWS::Lambda::Permission has no StatementId property —
+// the service generates the statement id — so adding one back breaks stack
+// creation with "Unsupported property [StatementId]".
 function cloudFormationTemplate(objectVersion) {
   const codeLines = [
     `          S3Bucket: ${bucket}`,
@@ -199,7 +203,6 @@ ${codeLines}
       Action: lambda:InvokeFunction
       FunctionName: !Ref RotationFunction
       Principal: secretsmanager.amazonaws.com
-      StatementId: SecretsManagerAccess
 
 Outputs:
   RotationLambdaArn:
