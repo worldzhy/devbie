@@ -1,7 +1,8 @@
 # ADR-040: 访问令牌不落 localStorage（内存持有 + refresh cookie 冷启动换取）
 
-状态：提议中
+状态：已采纳
 日期：2026-11-12
+更新：2026-11-12 — 落地于 nightwatch-frontend `e9eb5b8`（方案 A）；`localStorage` 键退役、冷启动 bootstrap、单测改写均已完成；CSP `script-src` 收敛按决策 6 另立议题。
 
 ## 背景
 
