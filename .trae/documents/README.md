@@ -34,6 +34,7 @@ nightwatch 项目通过各工作区内的 `devbie-docs-index.md` 关联引用本
 2. [fewbie-framework-design.md](file:///Users/worldzhy/src/devbie/.trae/documents/designs/fewbie-framework-design.md) — fewbie 前端框架设计决议（已随 packages/fewbie-cli 并入本仓）
 3. [devbie-framework-roadmap.md](file:///Users/worldzhy/src/devbie/.trae/documents/designs/devbie-framework-roadmap.md) — v1 之后开发计划
 4. [module-hub-design.md](file:///Users/worldzhy/src/devbie/.trae/documents/designs/module-hub-design.md) — module-hub 控制面设计（Phase C1，框架侧真源）
+5. [harness-skill-layer-design.md](file:///Users/worldzhy/src/devbie/.trae/documents/designs/harness-skill-layer-design.md) — LLM 调用装配层（技能层）设计讨论（讨论中，D1/D3 未拍板）
 
 ## 架构决策记录（decisions/）
 
