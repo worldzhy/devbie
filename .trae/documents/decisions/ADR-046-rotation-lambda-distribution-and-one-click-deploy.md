@@ -1,6 +1,6 @@
 # ADR-046: rotation Lambda 的产物由发布流水线托管，网页一键部署
 
-状态：提议中
+状态：已采纳
 日期：2026-11-13
 关联：newbie-modules ADR-056（rotation Lambda ARN 归属账户级绑定）；nightwatch-backend ADR-036（生产部署状态）
 

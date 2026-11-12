@@ -9,6 +9,10 @@ Run through every step below before publishing any package in this repo (package
 5. Confirm the version bump in `package.json` follows semver relative to the actual change set (feat -> minor, fix -> patch). Breaking changes ship as **minor** while the packages are pre-launch and stay on the 1.x line; the 2.0 line is opened only by an explicit decision to declare the API stable. A breaking change never ships as a patch.
 6. Publish with `npm publish --tag latest --access public` (the `--access public` flag is mandatory for all `@devbie/*` scoped packages — npm defaults scoped packages to restricted access, which triggers a staging approval flow that blocks subsequent publishes). Never use a `stage` dist-tag or the `npm stage` workflow. (OTP is not required; decided 2026-09-29.) Keep the full publish output — never pipe it through `tail`, the server response decides the next step.
 
+   **Rotation Lambda artifact (`@devbie/aws-secrets-cli` only):** release is incomplete until the matching artifact is published, because the web UI deploys it through CloudFormation (ADR-046). After the version bump, run
+   `ROTATION_ARTIFACT_BUCKET=<bucket> npm run release:rotation -w @devbie/aws-secrets-cli`
+   and confirm the script's HEAD verification of both objects passes. Record the printed template URL; it is the value for the consumer's `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL`. Re-run without a version bump when only the artifact needs replacing — never point the URL at a mutable key.
+
    **Failure handling (never blind-bump the version):**
    - If exit code is 0 → proceed to step 7.
    - If `E409 Cannot publish over previously staged version <X>` → the prior publish reached the registry. Skip bumping; run step 7 to verify the staged version is actually available.

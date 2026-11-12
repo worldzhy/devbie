@@ -54,8 +54,8 @@ export async function runDeployRotation(options: DeployRotationOptions): Promise
   console.info(green(`\n✓ Rotation Lambda deployed: ${bold(lambdaArn)}`));
   console.info(
     cyan(
-      `\nPaste this ARN into the project settings (awsSecretsManagerRotationLambdaArn) to enable ` +
-        `automatic rotation for that project's secrets.\n` +
+      `\nPaste this ARN into the project's cross-account role card (Rotation Lambda ARN) to enable ` +
+        `automatic rotation for every project using that AWS account.\n` +
         `To remove the Lambda later: cd ${workdir} && npx sst remove --stage ${identity.accountId}\n`,
     ),
   );
