@@ -117,7 +117,10 @@ function Performance(options: InitOptions): void {
     ajaxMsg: {},
     haveAjax: false,
     haveFetch: false,
-    preUrl: document.referrer && document.referrer !== location.href ? document.referrer : "",
+    preUrl:
+      document.referrer && document.referrer !== location.href
+        ? reportUrl(document.referrer, opt.captureBody, opt.redact)
+        : "",
     page: "",
     markPage: "",
     markPageUrl: "",
@@ -515,7 +518,7 @@ function Performance(options: InitOptions): void {
         defaults.type = ERRORTYPES.log;
         defaults.api = ERROR_APIS.unhandledRejection;
         defaults.createTime = new Date().getTime();
-        defaults.data = { resourceUrl: location.href };
+        defaults.data = { resourceUrl: reportUrl(location.href, opt.captureBody, opt.redact) };
         conf.errorList.push(defaults);
         if (reportDebounce()) reportData(ReportType.Error);
       } else {
@@ -543,7 +546,7 @@ function Performance(options: InitOptions): void {
           defaults.type = ERRORTYPES.log;
           defaults.api = ERROR_APIS.consoleError;
           defaults.createTime = new Date().getTime();
-          defaults.data = { resourceUrl: location.href };
+          defaults.data = { resourceUrl: reportUrl(location.href, opt.captureBody, opt.redact) };
           conf.errorList.push(defaults);
           if (reportDebounce()) reportData(ReportType.Error);
         }, 0);
@@ -670,7 +673,9 @@ function Performance(options: InitOptions): void {
       markUv: markUv(),
       markDevice: markDevice(),
       type: type,
-      url: location.href,
+      // Page URLs carry the same risk as API URLs: query strings and fragments
+      // hold tokens and reset links, so they go through the same policy.
+      url: reportUrl(location.href, opt.captureBody, opt.redact),
       uid: undefined,
       p: undefined,
     };
