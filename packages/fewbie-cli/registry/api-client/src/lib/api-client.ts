@@ -22,11 +22,12 @@ declare module "axios" {
 /** Base URL of the API; same-origin by default. */
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-/** localStorage key of the short-lived access token. */
-const ACCESS_TOKEN_KEY = "access-token";
-
-/** localStorage key of the access-token expiry epoch in milliseconds. */
-const ACCESS_TOKEN_EXPIRES_AT_KEY = "access-token-expires-at";
+/**
+ * Legacy localStorage keys retired by ADR-040 (access token moved to memory).
+ * Still referenced so startup can scrub values left behind by older sessions.
+ */
+const LEGACY_ACCESS_TOKEN_KEY = "access-token";
+const LEGACY_ACCESS_TOKEN_EXPIRES_AT_KEY = "access-token-expires-at";
 
 /** Endpoint that exchanges the httpOnly refresh cookie for a new access token. */
 const REFRESH_PATH = "/auth/refresh-access-token";
@@ -41,7 +42,7 @@ const AUTH_PATH_PATTERN = /^\/auth\//;
  */
 const API_TIMEOUT_MS = 15_000;
 
-/** Cross-tab Web Lock that serializes refresh calls (see ADR-001). */
+/** Cross-tab Web Lock that serializes refresh calls (see fewbie ADR-001). */
 const REFRESH_LOCK_NAME = "refresh-token";
 
 /** Refresh this early so business requests never carry an expired token. */
@@ -85,27 +86,53 @@ function isEnvelope(body: unknown): body is ApiEnvelope {
 // Token storage
 // ---------------------------------------------------------------------------
 
+/**
+ * ADR-040: the access token lives only in this module's memory, never in
+ * localStorage. A same-origin script can still read it for the current page
+ * lifetime, but nothing survives a reload or leaves the tab, so one injection
+ * no longer equals a durable, off-site reusable session. A cold start (or a
+ * new tab) re-establishes the session by exchanging the httpOnly refresh
+ * cookie via `bootstrapSession`.
+ */
+let accessToken = "";
+/** Expiry epoch of the in-memory token in milliseconds (0 when unknown). */
+let accessTokenExpiresAt = 0;
+let legacyKeysCleared = false;
+
+/** Scrub the retired localStorage keys left behind by older sessions. */
+function clearLegacyStorage(): void {
+  if (typeof window === "undefined" || legacyKeysCleared) return;
+  legacyKeysCleared = true;
+  window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY);
+  window.localStorage.removeItem(LEGACY_ACCESS_TOKEN_EXPIRES_AT_KEY);
+}
+
+// Scrub on module init so a stale token does not linger in a browser that
+// never reaches login or bootstrap in this page lifetime.
+if (typeof window !== "undefined") clearLegacyStorage();
+
 export function getAccessToken(): string {
   if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(ACCESS_TOKEN_KEY) ?? "";
+  return accessToken;
 }
 
-/** Persist token + expiry after login or refresh. */
+/** Persist token + expiry after login or refresh (memory only). */
 export function setSession(token: string, expiresInSeconds?: number): void {
   if (typeof window === "undefined") return;
-  window.localStorage.setItem(ACCESS_TOKEN_KEY, token);
+  clearLegacyStorage();
+  accessToken = token;
   // A fresh session re-arms the session-expired notification (R22-06).
   sessionExpiredNotified = false;
-  if (typeof expiresInSeconds === "number" && expiresInSeconds > 0) {
-    window.localStorage.setItem(ACCESS_TOKEN_EXPIRES_AT_KEY, String(Date.now() + expiresInSeconds * 1000));
-  }
+  accessTokenExpiresAt =
+    typeof expiresInSeconds === "number" && expiresInSeconds > 0 ? Date.now() + expiresInSeconds * 1000 : 0;
 }
 
-/** Remove all locally stored session data. */
+/** Remove all locally held session data. */
 export function clearSession(): void {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(ACCESS_TOKEN_KEY);
-  window.localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
+  accessToken = "";
+  accessTokenExpiresAt = 0;
+  clearLegacyStorage();
 }
 
 // Fires at most once per session: after the first notification the user is on
@@ -151,13 +178,46 @@ export function onSessionExpired(handler: () => void): void {
 }
 
 /**
- * Hook invoked exactly once per failed request, after any 401 refresh/replay
- * attempt has been exhausted. Wire it to your toast layer; the client itself
+ * Hooks invoked exactly once per failed request, after any 401 refresh/replay
+ * attempt has been exhausted. Wire them to your toast layer; the client itself
  * never imports a UI library.
+ *
+ * Subscribers are a Set rather than a single slot: a second mount (Strict Mode,
+ * or a nested host) must not silently replace the first listener (R27-01).
  */
-let errorHandler: ((error: ApiError) => void) | null = null;
-export function onError(handler: (error: ApiError) => void): void {
-  errorHandler = handler;
+const errorHandlers = new Set<(error: ApiError) => void>();
+
+/**
+ * Failures raised before any subscriber is registered (a request fired during
+ * module init, ahead of the toast component's effect). They are replayed to the
+ * first subscriber so such failures are not lost; bounded so a permanently
+ * subscriber-less client cannot grow without limit.
+ */
+const pendingErrors: ApiError[] = [];
+const MAX_PENDING_ERRORS = 5;
+
+/**
+ * Register an error listener and return the unsubscribe function. Registering
+ * flushes any failure buffered before the first listener existed.
+ */
+export function onError(handler: (error: ApiError) => void): () => void {
+  errorHandlers.add(handler);
+  if (pendingErrors.length > 0) {
+    for (const error of pendingErrors.splice(0)) handler(error);
+  }
+  return () => {
+    errorHandlers.delete(handler);
+  };
+}
+
+/** Fan a failed request out to every subscriber, or buffer it until one exists. */
+function notifyError(error: ApiError): void {
+  if (errorHandlers.size === 0) {
+    if (pendingErrors.length >= MAX_PENDING_ERRORS) pendingErrors.shift();
+    pendingErrors.push(error);
+    return;
+  }
+  for (const handler of errorHandlers) handler(error);
 }
 
 // ---------------------------------------------------------------------------
@@ -174,9 +234,8 @@ function isUnauthorized(error: unknown): boolean {
  * this check lets us skip the network call and reuse the new token.
  */
 function isRefreshStillDue(): boolean {
-  const expiresAt = Number(window.localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY) ?? 0);
-  if (!expiresAt) return true;
-  return Date.now() >= expiresAt - PROACTIVE_REFRESH_LEAD_MS;
+  if (!accessTokenExpiresAt) return true;
+  return Date.now() >= accessTokenExpiresAt - PROACTIVE_REFRESH_LEAD_MS;
 }
 
 /** One refresh round-trip; persists the renewed token and its expiry. */
@@ -295,6 +354,24 @@ export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
 }
 
 /**
+ * Establish the in-memory session on a cold start or a new tab (ADR-040).
+ *
+ * The access token is no longer persisted, so "am I signed in?" can only be
+ * answered by exchanging the httpOnly refresh cookie. A forced refresh is
+ * used so the lock-time not-due shortcut cannot return an empty token, and it
+ * shares the single-flight promise with any 401 refresh already in flight, so
+ * a cold start rotates the refresh cookie exactly once. Resolves to the
+ * access token, or "" when the refresh credential is absent or dead.
+ */
+export async function bootstrapSession(): Promise<string> {
+  if (typeof window === "undefined") return "";
+  const existing = getAccessToken();
+  if (existing) return existing;
+  const outcome = await refreshAccessToken(true);
+  return outcome.token ?? "";
+}
+
+/**
  * Shared 401 handling for non-axios transports (raw fetch for SSE streams):
  * force a silent refresh and replay once with the renewed token. The session
  * ends only when the refresh credential is dead; a transient refresh failure
@@ -333,11 +410,10 @@ export function initProactiveTokenRefresh(): void {
   const refreshIfDue = (): void => {
     const token = getAccessToken();
     if (!token) return;
-    const expiresAt = Number(window.localStorage.getItem(ACCESS_TOKEN_EXPIRES_AT_KEY) ?? 0);
-    // A session without a stored expiry (legacy login or a provider that
-    // omitted expiresIn) still needs renewal: refresh now and persist the
-    // expiry the backend returns, instead of never scheduling a refresh.
-    if (!expiresAt || Date.now() >= expiresAt - PROACTIVE_REFRESH_LEAD_MS) {
+    // A session without a known expiry (a provider that omitted expiresIn)
+    // still needs renewal: refresh now and persist the expiry the backend
+    // returns, instead of never scheduling a refresh.
+    if (!accessTokenExpiresAt || Date.now() >= accessTokenExpiresAt - PROACTIVE_REFRESH_LEAD_MS) {
       void refreshAccessToken().then((outcome) => {
         // A dead refresh cookie found proactively bounces to login now
         // instead of waiting for the next business request to 401 (R22-05).
@@ -385,17 +461,42 @@ export const api = axios.create({
 });
 
 /**
- * Whether the request resolves to our own origin (the configured baseURL, or
- * the page origin when baseURL is empty). The bearer token must never be
- * attached to an absolute URL pointing at a third party (R23-02).
+ * Absolute URL: either scheme-qualified (`https://host/...`) or protocol-relative
+ * (`//host/...`), both of which resolve away from the page origin.
  */
-function isOwnOriginRequest(config: InternalAxiosRequestConfig): boolean {
-  const base = config.baseURL ?? BASE_URL;
-  const fallbackOrigin = typeof window !== "undefined" ? window.location.origin : "http://localhost";
+const ABSOLUTE_URL_PATTERN = /^(?:[a-z][a-z\d+\-.]*:|\/\/)/i;
+
+function pageOrigin(): string {
+  return typeof window !== "undefined" ? window.location.origin : "http://localhost";
+}
+
+/**
+ * Whether a request target resolves to the one origin we may send the bearer
+ * token to: the origin of `NEXT_PUBLIC_API_BASE_URL` when it is absolute, or the
+ * page origin when it is relative/empty (the reverse-proxied deployment).
+ *
+ * Two leaks this closes:
+ *   - an absolute per-request URL pointing at a third party (R23-02);
+ *   - a caller-supplied base URL pointing off-site, which the previous check
+ *     accepted because it compared the target against that same base — so the
+ *     raw-fetch SSE transports bypassing axios had no working guard at all
+ *     (R24-04).
+ *
+ * A relative base such as `/api` must count as our own origin: `new URL(url,
+ * "/api")` throws, and the old guard swallowed the throw and silently dropped
+ * the token on every request.
+ *
+ * Exported so non-axios transports apply the same judgement instead of a
+ * second copy.
+ */
+export function isTrustedApiTarget(url: string | undefined, baseUrl: string | undefined = BASE_URL): boolean {
+  const origin = pageOrigin();
+  const configured = BASE_URL;
+  const base = baseUrl ?? configured;
+  const target = ABSOLUTE_URL_PATTERN.test(url ?? "") ? (url ?? "") : `${base}${url ?? ""}`;
   try {
-    const resolved = new URL(config.url ?? "", base || fallbackOrigin);
-    const baseOrigin = new URL(base || fallbackOrigin, fallbackOrigin).origin;
-    return resolved.origin === baseOrigin;
+    const trustedOrigin = ABSOLUTE_URL_PATTERN.test(configured) ? new URL(configured).origin : origin;
+    return new URL(target, origin).origin === trustedOrigin;
   } catch {
     return false;
   }
@@ -404,7 +505,7 @@ function isOwnOriginRequest(config: InternalAxiosRequestConfig): boolean {
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   // Within the interceptor chain headers is always an AxiosHeaders instance.
-  if (token && isOwnOriginRequest(config)) {
+  if (token && isTrustedApiTarget(config.url, config.baseURL ?? BASE_URL)) {
     config.headers.set("Authorization", `Bearer ${token}`);
   }
   return config;
@@ -463,7 +564,7 @@ api.interceptors.response.use(
     // false to suppress the default toast and avoid double notification.
     const normalized = toApiError(error);
     if (error?.config?.enabledDefaultErrorToast !== false) {
-      errorHandler?.(normalized);
+      notifyError(normalized);
     }
     throw normalized;
   },
