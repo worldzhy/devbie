@@ -1,13 +1,13 @@
 name: CI
 
-# Verification runs once, on the integration branch. main only receives dev
-# commits that already carry a green run here, so it re-runs nothing; its own
-# release-only gates live in release-check.yml.
+# Verification runs once, on the PR that promotes dev to main: that merge is
+# the only path into main, and the tree the PR verifies is what the merge
+# promotes, so main re-runs nothing; its own release-only gates live in
+# release-check.yml. Dependabot PRs target dev and merge without a run; their
+# updates are verified at the following dev -> main PR.
 on:
-  push:
-    branches: [dev]
   pull_request:
-    branches: [dev]
+    branches: [main]
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
