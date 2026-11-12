@@ -73,3 +73,4 @@
 
 - [ ] **发布 rotation Lambda 制品到公共 S3**：`release:rotation` 脚本已就绪（`packages/aws-secrets-cli/scripts/publish-rotation-artifact.mjs`），但尚未对真实 `ROTATION_ARTIFACT_BUCKET` 执行。需要：确认公共读 bucket 与 `ROTATION_ARTIFACT_PREFIX`、执行发布、把打印出的模板 URL 写入 nightwatch-frontend 构建环境与部署 env 的 `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`，并核对 S3 对象 HEAD 与深链可打开。
 - [ ] **接入页浏览器端到端验证**：nightwatch-frontend 两段式接入页（接入账户 → 保存角色 → rotation ARN / 解绑）已完成 lint/build 与接口面核对（OpenAPI 已暴露 `/accounts`、`/consumers`，本地迁移后 1 binding / 1 usage 数据完好），但尚未做浏览器点击级验证。
+- [ ] **生产环境种入 AWS Accounts 权限组**：`/aws-accounts` 顶部入口由数据驱动——本地已种入 `PermissionGroup`（`routePath=/aws-accounts`、HEADER_NAVIGATION、navOrder 紧随 Projects、navIcon=Cloud）、10 条 `PermissionGroupPermission`（AwsCrossAccountBinding / AwsCrossAccountBindingUsage × List/Get/Create/Update/Delete）与 ADMIN 的 `RolePermissionGroup`，但这是数据不是代码，生产库需按同样内容种入，否则入口不出现。
