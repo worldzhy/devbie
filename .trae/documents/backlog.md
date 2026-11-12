@@ -67,4 +67,9 @@
 
 - [x] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。**fixed（2026-11-09）**：已改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」并删除「目前有」。
 
-- [ ] `[2026-11-09 环境变量管理面已上线，Lambda 另立]` **`aws-secrets-cli` 轮换 Lambda 支持组 secret `__rotation`（ADR-005 §5）**：现策略按 `devbie:secret-type` tag 选型，组 secret 的配方在组 JSON 的 `__rotation`（engine/passwordKey/secretArnOfMaster/automaticallyAfterDays）。改造为读整组、只改 `passwordKey` 指向的变量并回写；部署仍复用项目级单 ARN `awsSecretsManagerRotationLambdaArn`。前提：`newbie secrets deploy-rotation` 重新部署并以一个组 secret 做端到端轮换取证。
+- [ ] `[2026-11-09 环境变量管理面已上线，Lambda 另立]` **`aws-secrets-cli` 轮换 Lambda 支持组 secret `__rotation`（ADR-005 §5）**：现策略按 `devbie:secret-type` tag 选型，组 secret 的配方在组 JSON 的 `__rotation`（engine/passwordKey/secretArnOfMaster/automaticallyAfterDays）。改造为读整组、只改 `passwordKey` 指向的变量并回写；部署仍复用账户级 binding 的 `rotationLambdaArn`（ADR-056）。前提：`newbie secrets deploy-rotation` 重新部署并以一个组 secret 做端到端轮换取证。
+
+## ADR-046/ADR-056 实现收尾（2026-11-13）
+
+- [ ] **发布 rotation Lambda 制品到公共 S3**：`release:rotation` 脚本已就绪（`packages/aws-secrets-cli/scripts/publish-rotation-artifact.mjs`），但尚未对真实 `ROTATION_ARTIFACT_BUCKET` 执行。需要：确认公共读 bucket 与 `ROTATION_ARTIFACT_PREFIX`、执行发布、把打印出的模板 URL 写入 nightwatch-frontend 构建环境与部署 env 的 `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_TEMPLATE_URL`，并核对 S3 对象 HEAD 与深链可打开。
+- [ ] **接入页浏览器端到端验证**：nightwatch-frontend 两段式接入页（接入账户 → 保存角色 → rotation ARN / 解绑）已完成 lint/build 与接口面核对（OpenAPI 已暴露 `/accounts`、`/consumers`，本地迁移后 1 binding / 1 usage 数据完好），但尚未做浏览器点击级验证。
