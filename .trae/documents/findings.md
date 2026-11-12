@@ -562,7 +562,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| R2-01 | registry / nightwatch-backend | `stripUrlForStorage` 的 userinfo 剥离只匹配带 scheme 的 URL，协议相对 `//user:pass@host` 保留明文凭据 | P2 | live | 任意上报方 | open（`shared/utils.ts:93`；ADR-045 承诺面本身只写 `scheme://user:pass@`） |
-| R2-02 | registry / nightwatch-backend | `maskQueryForStorage` 只按 `&` 切分，`;` 分隔的敏感参数未被掩码 | P2 | live | 任意上报方 | open（`shared/utils.ts:66`） |
-| R2-03 | nightwatch-backend（copilot） | IP 掩码只替换整串最后一个 `.octet`；多值链或尾随空白时首个完整 IP 进入模型 | P2 | live | Copilot 使用者 | open（`backend-monitoring-templates.datasource.ts:323`；`ip` 源为客户端可控 `event.ip`，`backend-monitor.service.ts:165`） |
-| R2-04 | devbie | `d24cda5f`（findings 标记 R1-06 fixed）未推送，远端仍为 `eb874b52` | P2 | docs | 维护者 | open（`ls-remote` 核对） |
+| R2-01 | registry / nightwatch-backend | `stripUrlForStorage` 的 userinfo 剥离只匹配带 scheme 的 URL，协议相对 `//user:pass@host` 保留明文凭据 | P2 | live | 任意上报方 | fixed（2026-11-13 registry `c6d0bb9` + backend `bf1c900`：补 `^\/\/[^/?#@]*@` 分支并加用例；consumer 模块测试 287 例通过） |
+| R2-02 | registry / nightwatch-backend | `maskQueryForStorage` 只按 `&` 切分，`;` 分隔的敏感参数未被掩码 | P2 | live | 任意上报方 | fixed（2026-11-13 registry `c6d0bb9` + backend `bf1c900`：`split(/([&;])/)` 保留原分隔符并逐对掩码；加 `?page=2;token=abc` 用例） |
+| R2-03 | nightwatch-backend（copilot） | IP 掩码只替换整串最后一个 `.octet`；多值链或尾随空白时首个完整 IP 进入模型 | P2 | live | Copilot 使用者 | fixed（2026-11-13 backend `bf1c900`：`splitByChar(',', ip)` + `trimBoth` 逐段掩码；ClickHouse 实测 `1.2.3.4, 5.6.7.8 → 1.2.3.*, 5.6.7.*`、`1.2.3.4␠ → 1.2.3.*`；模板测试 18 例通过） |
+| R2-04 | devbie | `d24cda5f`（findings 标记 R1-06 fixed）未推送，远端仍为 `eb874b52` | P2 | docs | 维护者 | fixed（2026-11-13 devbie `dffcb93e` 已推送，`ls-remote` 核对一致） |
