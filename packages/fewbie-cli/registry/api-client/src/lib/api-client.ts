@@ -58,6 +58,13 @@ const PROACTIVE_REFRESH_CHECK_INTERVAL_MS = 30_000;
  */
 const REFRESH_RETRY_DELAY_MS = 1_500;
 
+/**
+ * Pause before the single cold-start retry. A tab that just regained network
+ * (wifi rejoin, VPN up, laptop wake) normally succeeds on the second try, and
+ * a longer wait would only delay the connection-error screen.
+ */
+const BOOTSTRAP_RETRY_DELAY_MS = 400;
+
 // ---------------------------------------------------------------------------
 // Response envelope (newbie backend contract)
 // ---------------------------------------------------------------------------
@@ -354,21 +361,42 @@ export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
 }
 
 /**
+ * Result of establishing the in-memory session on a cold start (ADR-040).
+ *
+ * The three states matter because "the backend said no" and "the backend could
+ * not be reached" lead to opposite UI decisions: the first is a real logout,
+ * the second must keep the user on the page (R22-05).
+ */
+export type SessionBootstrapOutcome =
+  { status: "authenticated"; token: string } | { status: "anonymous" } | { status: "unavailable" };
+
+/**
  * Establish the in-memory session on a cold start or a new tab (ADR-040).
  *
  * The access token is no longer persisted, so "am I signed in?" can only be
  * answered by exchanging the httpOnly refresh cookie. A forced refresh is
  * used so the lock-time not-due shortcut cannot return an empty token, and it
  * shares the single-flight promise with any 401 refresh already in flight, so
- * a cold start rotates the refresh cookie exactly once. Resolves to the
- * access token, or "" when the refresh credential is absent or dead.
+ * a cold start rotates the refresh cookie exactly once.
+ *
+ * A rejected exchange (401/400 or a 2xx without a token) means anonymous. A
+ * transient failure is retried once — that absorbs the "network just came
+ * back" window — and only then reported as unavailable, so a flaky connection
+ * never masquerades as a signed-out user.
  */
-export async function bootstrapSession(): Promise<string> {
-  if (typeof window === "undefined") return "";
+export async function bootstrapSession(): Promise<SessionBootstrapOutcome> {
+  if (typeof window === "undefined") return { status: "unavailable" };
   const existing = getAccessToken();
-  if (existing) return existing;
+  if (existing) return { status: "authenticated", token: existing };
+
   const outcome = await refreshAccessToken(true);
-  return outcome.token ?? "";
+  if (outcome.token) return { status: "authenticated", token: outcome.token };
+  if (outcome.sessionOver) return { status: "anonymous" };
+
+  await new Promise((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS));
+  const retried = await refreshAccessToken(true);
+  if (retried.token) return { status: "authenticated", token: retried.token };
+  return retried.sessionOver ? { status: "anonymous" } : { status: "unavailable" };
 }
 
 /**
@@ -472,7 +500,7 @@ function pageOrigin(): string {
 
 /**
  * Whether a request target resolves to the one origin we may send the bearer
- * token to: the origin of `NEXT_PUBLIC_API_BASE_URL` when it is absolute, or the
+ * token to: the origin of `NEXT_PUBLIC_BASE_URL` when it is absolute, or the
  * page origin when it is relative/empty (the reverse-proxied deployment).
  *
  * Two leaks this closes:

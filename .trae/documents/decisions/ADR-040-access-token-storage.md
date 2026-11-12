@@ -3,6 +3,7 @@
 状态：已采纳
 日期：2026-11-12
 更新：2026-11-12 — 落地于 nightwatch-frontend `e9eb5b8`（方案 A）；`localStorage` 键退役、冷启动 bootstrap、单测改写均已完成；CSP `script-src` 收敛按决策 6 另立议题。
+更新：2026-11-12 — `bootstrapSession()` 返回值收紧为三态（`authenticated` / `anonymous` / `unavailable`）：辨识不了网络故障与登出就会把「连不上后端」误判成登出（R22-05）。transient 重试一次后仍失败才报 `unavailable`，调用方留在原页给重试入口；dashboard 的 `isError` 判登出同步收窄为仅 `ApiError.status === 401`。
 
 ## 背景
 
