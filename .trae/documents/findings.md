@@ -545,7 +545,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 ## round1（2026-11-12，scope=`plan`：frontend-monitor 采集责任归属）
 
-报告：`.trae/documents/expert-review-2026-11-12-round1.md`（时点快照，不改写）。锚点（开工）：devbie `014eb9cc` / nightwatch-backend `f5a7d3e`；被审域 clean。主声明「console 采集责任在客户程序侧、不属 nightwatch 关注范围」判定不成立：采集默认开启、`redact` 不覆盖 log 类内容、服务端不做二次清洗。P0/P1 中 P1 一条（R1-01）。
+报告：`.trae/documents/reviews/expert-review-2026-11-12-round1.md`（时点快照，不改写）。锚点（开工）：devbie `014eb9cc` / nightwatch-backend `f5a7d3e`；被审域 clean。主声明「console 采集责任在客户程序侧、不属 nightwatch 关注范围」判定不成立：采集默认开启、`redact` 不覆盖 log 类内容、服务端不做二次清洗。P0/P1 中 P1 一条（R1-01）。
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -558,7 +558,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 ## round2（2026-11-13，scope=`plan`：本会话 R1-02～R1-06 修复主张复核）
 
-报告：`.trae/documents/expert-review-2026-11-13-round2.md`（时点快照，不改写）。锚点：devbie `d24cda5f` / newbie-modules `3b533ed` / nightwatch-backend `dd24c0c`，三仓 clean；评审与修复同会话，全部关键结论按 executed 取证。主张判定：C1（改名）成立、C2（手机号写链路删除）成立、C3（90 天留存）部分成立（存量 CH 表需部署窗口 `MODIFY TTL`，已登记）、C4（服务端 URL 清洗）部分成立、C5（Copilot IP 掩码）部分成立。P0/P1 = 0。
+报告：`.trae/documents/reviews/expert-review-2026-11-13-round2.md`（时点快照，不改写）。锚点：devbie `d24cda5f` / newbie-modules `3b533ed` / nightwatch-backend `dd24c0c`，三仓 clean；评审与修复同会话，全部关键结论按 executed 取证。主张判定：C1（改名）成立、C2（手机号写链路删除）成立、C3（90 天留存）部分成立（存量 CH 表需部署窗口 `MODIFY TTL`，已登记）、C4（服务端 URL 清洗）部分成立、C5（Copilot IP 掩码）部分成立。P0/P1 = 0。
 
 | ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -566,3 +566,23 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R2-02 | registry / nightwatch-backend | `maskQueryForStorage` 只按 `&` 切分，`;` 分隔的敏感参数未被掩码 | P2 | live | 任意上报方 | fixed（2026-11-13 registry `c6d0bb9` + backend `bf1c900`：`split(/([&;])/)` 保留原分隔符并逐对掩码；加 `?page=2;token=abc` 用例） |
 | R2-03 | nightwatch-backend（copilot） | IP 掩码只替换整串最后一个 `.octet`；多值链或尾随空白时首个完整 IP 进入模型 | P2 | live | Copilot 使用者 | fixed（2026-11-13 backend `bf1c900`：`splitByChar(',', ip)` + `trimBoth` 逐段掩码；ClickHouse 实测 `1.2.3.4, 5.6.7.8 → 1.2.3.*, 5.6.7.*`、`1.2.3.4␠ → 1.2.3.*`；模板测试 18 例通过） |
 | R2-04 | devbie | `d24cda5f`（findings 标记 R1-06 fixed）未推送，远端仍为 `eb874b52` | P2 | docs | 维护者 | fixed（2026-11-13 devbie `dffcb93e` 已推送，`ls-remote` 核对一致） |
+
+## round3（2026-11-13，scope=plan：threat-intel scope 契约错位；报告 `devbie/.trae/documents/reviews/expert-review-2026-11-13-round3.md`）
+
+> 编号说明：本轮使用 `R3-01`~`R3-05`；台账中的 `R3-25` 属 2026-11-11 nightwatch-backend round3 报告，与本轮无关。
+
+| ID    | 仓                             | 标题                                                                                                                                     | severity | 暴露面 | 可达性                           | 状态                                                                                                                                         |
+| ----- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| R3-01 | newbie-modules / nightwatch-backend | threat-intel 评估 100% 失败（本地 109/109 FAILED）：subject 坐标固定 `platform:deployment`，宿主 SPI 只登记 `project:<id>`，精确匹配未命中即 fail-closed | P1       | live   | 调度器每小时；手动触发需写权限   | open（标准修复方案 B：SPI 改为按 subject 取实体 + 缓存键改 subject 维度 + ADR-058；见报告 §7）                                               |
+| R3-02 | newbie-modules                 | 模块测试替身用 `project` scope（`security-evaluation-intel.test.ts:39-40,108-112`），掩盖真实坐标错位，109 条真实失败无法被测试发现        | P2       | live   | 后续评审 / 回归                  | open（随 R3-01 同一变更：替身按 subject 返回 + 新增未知 subject 失败用例）                                                                    |
+| R3-03 | newbie-modules                 | 端口文档仍写「Host-defined scope, e.g. project」（`security-evaluation-scope-entities.port.ts:25-29`；ADR-018:67），与 ADR-039 固定坐标冲突 | P2       | docs   | 下一位宿主实现者                 | open（随 ADR-058 修订，并标注 supersede ADR-018:67 / ADR-045:60）                                                                            |
+| R3-04 | nightwatch-backend             | subjectKey 形态漂移：本地 2 条 repository subject，1 条为仓库 URL（E2E 产物）、1 条为 repository id；schema 明示 id 才是稳定 key           | P2       | live   | E2E / 后续宿主解析               | open（方案 B 的宿主解析兼容 id/url/fullName；E2E 写入口径统一另记 backlog）                                                                  |
+| R3-05 | nightwatch-backend             | `ProjectSecurityProfileService` 无单测（`src/application/project/security/` 仅有 read-model 测试），scope 输出无断言                        | P2       | source | 后续改动                         | open（随 R3-01 补 provider 测试：id/url 命中、未知→null、去重上限、非 repository kind）                                                      |
+
+## 归档（2026-11-13，评审报告放置规则纠偏）
+
+起因：用户质疑评审报告为何不在 `reviews/`。根因是 `expert-review` 技能条文与 devbie `README.md` 均仍写「落 `.trae/documents/` 根目录」，六性质桶约定（② 时点快照进 `reviews/`）从未回写技能；2026-11-10 quadrant-round1 已记录该错位但未修条文，故 11-11 之后的报告继续落根目录。
+
+处置：`worldzhy-knowledge/skills/expert-review/SKILL.md:138` 改为 `.trae/documents/reviews/expert-review-<date>-round<N>.md` 并显式否定根目录；devbie `README.md` 同步。存量迁移：devbie 3 份（round1-2026-11-12、round2/round3-2026-11-13）、nightwatch-backend 2 份（2026-11-11 round1/round3）、worldzhy-knowledge 1 份（2026-11-11 round1）均移入各自 `reviews/`；本台账与 backlog 中可改路径已同步。
+
+已知残留：`ADR-042` 正文按「ADR 正文永不改写」原则保留 `.trae/documents/expert-review-2026-11-12-round1.md` 旧路径，该指针指向已迁移文件，属已接受的失效引用；`ADR-044`/`ADR-045` 仅写文件名不含目录，不受影响。
