@@ -597,7 +597,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 ### round4 验收取证（2026-11-13，本地库实测）
 
 - **① 跨资产构造性核对 — PASS。** 用模块自带 `POST /security-evaluation/subjects/sync` 登记第二个 repository subject，`subjectKey` 取 `inceptionpad/solidcore-backend`（fullName 形态，走宿主 `findFirst(fullName)` 回退），与既有 id 形态 subject `cmwbsw4tw000050lrnxe57qls` 指向**同一个** Repository 行。两者各跑一次 `threat-intel` 后 `SecurityEvaluationThreatVerdictCache` 呈现两个独立 scopeKey：`repository:cmwbsw4tw000050lrnxe57qls` 100 行、`repository:inceptionpad/solidcore-backend` 100 行。关键证据：两组 `inputSignature` 抽样相同（`00f9a45f…`）、`knowledgeItemId` 交集 100 条——判定输入完全一致；若 scopeKey 仍按旧口径塌成一个键，第二次 run 会命中前一次的 100 条 not-relevant 而 0 新增，实际却各写 100 行且时间戳分离（21:01:15–21:04:36 vs 21:31:40–21:33:12），资产间未发生读写串扰。
-- **② 生产旧键核对 — 阻塞。** 生产入口为 SSM（实例 `i-0f9c4f53112adaee5`），本机 `AWS_PROFILE=nightwatch-dev` 的 SSO token 已过期且刷新需交互登录，本轮未执行；待办保留在 nightwatch-backend backlog。
+- **② 生产旧键核对 — PASS，但结论是"空集"而非"已修复"。** 生产入口 `AWS_PROFILE=nightwatch-dev` 的 SSO refresh token 已过期，改走静态密钥（`credentials/aws.csv`，账号 067174804713）经 SSM 到 `i-0b1a6351210aae9ba`（注：runbook §1 记载的 `i-0f9c4f53112adaee5` 已换机、SSM 报 `InvalidInstanceId`）执行只读查询：`platform:deployment` 0 行，**且整张 `SecurityEvaluationThreatVerdictCache` 全表 0 行**。深查原因：生产 `EvaluationRun` 总共只有 2 行、均为 `scheduler:security-evaluation.scan`（SUCCEEDED），`requestedByRef` 含 `intel` 的 run **一条都没有**，而 `SecurityEvaluationThreatKnowledgeItem` 有 1274 条。即生产从未执行过 threat-intel 判定，缓存表因此为空——"无旧键"是真空成立，不能作为 ADR-058 在生产生效的证据；ADR-058 当前在生产没有 blast radius。另立待办追查生产 intel 调度器为何不触发。
 - **③ 调度器驱动 run — 待观测。** 本地 `security-evaluation.intel` 的 :00 触发在重启前为旧码（`21:00:09` 两行仍是旧报文 `No scope "platform:deployment"`），重启后尚无一次调度器路径的 run；已起后台任务等 22:00Z 抓取。
 
 ## 归档（2026-11-13，评审报告放置规则纠偏）
