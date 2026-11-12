@@ -295,10 +295,10 @@ newbie-template/
 1. **不发 `@devbie/fewbie-core` 运行时 npm 包**——原因：AI 编码工具（v0.dev 等）的「母语」是 Next.js + Tailwind + shadcn/ui，自定义 Factory/Provider 链增加 AI 理解成本；源码归项目所有可获得最佳 AI 可读性/可生成性。
 2. **UI 库从 MUI 转向 shadcn/ui**（Tailwind + Radix + CSS 变量），与 v0 默认输出对齐；nightwatch-frontend 现有 MUI 页面需渐进迁移。
 3. **唯一 npm 包是 `@devbie/fewbie-cli`（工具层）**：
-   - `fewbie create` 从模板创建项目；`fewbie add <name>` 把组件/util 源码复制进项目（api-client、auth、theme、login-form、web-monitor-sdk 等，opt-in）
+   - `fewbie create` 从模板创建项目；`fewbie add <name>` 把组件/util 源码复制进项目（api-client、auth、theme、login-form、frontend-monitor-sdk 等，opt-in）
    - `fewbie gen api` 是 `open-api-typescript-request-generator`（npm 实包名，unscoped 独立包；bin 命令 `apits`、配置文件 `apits.config.ts`；2026-09-26 定稿 v1 消费 `^0.0.7-alpha.0`，该版本即全部既有成果，旧 `apits-gener`/`apits-gen` 名称均非 npm 包名）的 thin wrapper（不重写）
    - `fewbie doctor` / `fewbie update`（diff PR）
-4. **web-monitor SDK** 采用混合分发（2026-09-24 决议）：npm 包 `@devbie/web-monitor-sdk`（独立版本，**仅浏览器端数据上报，不含心跳**；心跳归独立包 `@devbie/heartbeat-sdk`，1.0.0 GA 定名，2026-09-26 定稿两包分离）+ `fewbie add web-monitor-sdk` thin wrapper（脚手架初始化样板 + 在 package.json 加入 `@devbie/web-monitor-sdk` 依赖）。旧名 `@inceptionpad/frontend-monitor-web-sdk`、`@doctorwork/web-report-sdk` 已弃用/被取代；心跳包旧名 `@devbie/nightwatch-heartbeat-sdk`（stage 期）1.0.0 GA 时改名 `@devbie/heartbeat-sdk`。SDK 的 endpoint/凭证/数据格式依赖 Application/Agent 统一模型（见前端 UI 层次重构 Phase 1）。
+4. **frontend-monitor SDK** 采用混合分发（2026-09-24 决议）：npm 包 `@devbie/frontend-monitor-sdk`（独立版本，**仅浏览器端数据上报，不含心跳**；心跳归独立包 `@devbie/heartbeat-sdk`，1.0.0 GA 定名，2026-09-26 定稿两包分离）+ `fewbie add frontend-monitor-sdk` thin wrapper（脚手架初始化样板 + 在 package.json 加入 `@devbie/frontend-monitor-sdk` 依赖）。旧名 `@inceptionpad/frontend-monitor-web-sdk`、`@doctorwork/web-report-sdk` 已弃用/被取代；心跳包旧名 `@devbie/nightwatch-heartbeat-sdk`（stage 期）1.0.0 GA 时改名 `@devbie/heartbeat-sdk`。SDK 的 endpoint/凭证/数据格式依赖 Application/Agent 统一模型（见前端 UI 层次重构 Phase 1）。
 
 ---
 
@@ -323,7 +323,7 @@ nightwatch 对**所有**被监控应用做进程级在线检测（**2026-09-30 m
 
 1. **后端服务（newbie 内置 backend-monitor SDK/拦截器 + heartbeat SDK）**：服务进程启动后立即发 1 次心跳，之后每 30s 1 次（`setInterval(...).unref()`，随进程退出自动停止），调 `POST {endpoint 前缀}/heartbeat/ping`（**token-only**：凭证为 HeartbeatInstallation 的 token——应用创建时由 nightwatch 自动签发、明文一次性返回，服务端仅凭 `X-Heartbeat-Token: $HEARTBEAT_TOKEN` 头 hash 反查 installation，路径不带 applicationId）。心跳与数据上报（backend-monitor ingest，头 `X-Backend-Monitor-Token`，Phase 3 起同样脱离 Agent）相互独立。
    - 实现形态：`@devbie/heartbeat-sdk`（框架无关心跳内核，`globalThis[Symbol]` 幂等防 HMR 重复启动），独立于 newbie 框架本体。**newbie 模板内置接线**（main.ts 在 `listen` 成功后检查 2 个 env——`HEARTBEAT_ENDPOINT` 与 `HEARTBEAT_TOKEN`，齐全才启动；未接入 nightwatch 的项目留空 env 即为 no-op，无需任何模块安装）；老项目可手动 `npm install @devbie/heartbeat-sdk` 后在启动流程调用 `startHeartbeat({endpoint, token})`。fewbie 模板在 `instrumentation.ts` 内置同构接线。**心跳接收端在 newbie-modules registry 的 heartbeat 模块**（`HeartbeatInstallation` 表 + `POST /heartbeat/ping`），由 nightwatch 装配启用；旧端点 `POST /applications/heartbeat`（复用 Agent 模型）已废止。
-2. **web-monitor 服务**：浏览器监控与心跳是**两个独立的包**（2026-09-26 定稿，勿再表述为"一个 SDK 两个组件"）——**浏览器监控包 = 现有的 `@inceptionpad/frontend-monitor-web-sdk@1.0.0`**（已核实产物：纯浏览器采集上报，PV/AJAX/资源/JS 错误/业务错误码/自定义事件，零心跳、零凭证逻辑，保持现状即可；未来改名/演进为 `@devbie/web-monitor-sdk`，演进约束：不得加心跳与密钥）；**心跳包 = `@devbie/heartbeat-sdk`**（独立 npm 包，1.0.0 GA 定名；Next.js 侧经 `instrumentation.ts` `register()` 在 `NEXT_RUNTIME === 'nodejs'` 时调用 `startHeartbeat()`，fewbie 模板内置接线）。
+2. **web-monitor 服务**：浏览器监控与心跳是**两个独立的包**（2026-09-26 定稿，勿再表述为"一个 SDK 两个组件"）——**浏览器监控包 = 现有的 `@inceptionpad/frontend-monitor-web-sdk@1.0.0`**（已核实产物：纯浏览器采集上报，PV/AJAX/资源/JS 错误/业务错误码/自定义事件，零心跳、零凭证逻辑，保持现状即可；未来改名/演进为 `@devbie/frontend-monitor-sdk`，演进约束：不得加心跳与密钥）；**心跳包 = `@devbie/heartbeat-sdk`**（独立 npm 包，1.0.0 GA 定名；Next.js 侧经 `instrumentation.ts` `register()` 在 `NEXT_RUNTIME === 'nodejs'` 时调用 `startHeartbeat()`，fewbie 模板内置接线）。
 3. **module-hub 边界**：NEWBIE_MANAGEMENT 的协商轮询是模块装配通道，不代表应用存活，不复用本契约。
 
 ---

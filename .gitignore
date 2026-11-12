@@ -37,3 +37,7 @@ packages/*/node_modules
 packages/*/package-lock.json
 # aws-secrets-cli/sst is a standalone Lambda + SST deployment unit — needs its own lock file
 # (packages/*/sst/package-lock.json intentionally NOT ignored)
+
+# aws-secrets-cli rotation Lambda artifact workspace
+packages/aws-secrets-cli/sst/node_modules
+packages/aws-secrets-cli/dist-rotation

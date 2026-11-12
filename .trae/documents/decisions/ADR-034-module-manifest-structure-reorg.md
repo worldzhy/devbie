@@ -177,3 +177,7 @@
 
 文档真源分工：schema 结构写在 **newbie-modules**（文件的生产方），CLI README 只描述"如何消费 + 严格白名单"并指向它——避免两处表格再次漂移。
 
+## 命名注记（2026-11-12）
+
+本文示例中的 `@devbie/web-monitor-sdk` 为旧包名，现行名称为 `@devbie/frontend-monitor-sdk`，thin wrapper 组件为 `frontend-monitor-sdk`（见 newbie-modules ADR-055）。正文作为决策记录保持原样。
+

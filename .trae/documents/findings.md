@@ -542,3 +542,68 @@ round34 复核（2026-11-10 23:58–00:05，`reviews/expert-review-2026-11-10-ro
 carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复算仍 open，与本轮 R36-04/05 同类未重复立案。已核验通过的不变量（安全头、safe-path、Bearer 同源守卫、OAuth proof、12 门 vs seed、无 postMessage/eval、target=_blank rel、iframe sandbox）见报告 §8。
 
 核验（2026-11-12，plan/claim-scope）：报告 `nightwatch-frontend/.trae/documents/reviews/expert-review-2026-11-12-round36-verify.md`。结论：P0/P1=0 维持；R36-01～R36-08 全部成立、无撤销；C1–C27 主张逐条判定。订正 4 处（原报告不改写）：① localStorage 计数 39 → 实测 24 行 / 8 文件；② R36-04 引证由 `roles.ts:10` 改为 `permission-groups.ts:403-405`；③ R36-02「正常路径不可达」、R36-03「签名 URL 为 https」应标 inferred（静态推断，无运行时取证）；④ `preview-modal:65` 是 `setPreviewUrl`，`downloadFile` 仅在 `:45`。
+
+## round1（2026-11-12，scope=`plan`：frontend-monitor 采集责任归属）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-12-round1.md`（时点快照，不改写）。锚点（开工）：devbie `014eb9cc` / nightwatch-backend `f5a7d3e`；被审域 clean。主声明「console 采集责任在客户程序侧、不属 nightwatch 关注范围」判定不成立：采集默认开启、`redact` 不覆盖 log 类内容、服务端不做二次清洗。P0/P1 中 P1 一条（R1-01）。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R1-01 | devbie（SDK）/ registry | console/异常对象序列化无脱敏且默认开启，`redact` 的 kind 不含 log | P1 | live | 任意宿主默认采集 | fixed（2026-11-12 devbie `12a5b763`：`console.error` 采集改为 opt-in，默认不再序列化 console 参数） |
+| R1-02 | registry / nightwatch-backend | `filterKeyWord` 名实不符，实为 `JSON.stringify` 透传 | P2 | source | 维护者 | fixed（registry `3539554` + nightwatch-backend `94e9807`：改名 `toStorageText`，注释写明"存储序列化不等于脱敏"；模块测试 55 例通过） |
+| R1-03 | devbie（SDK）/ registry | 手机号"加密"为固定替换表，服务端解码后明文落库；全工作区零调用方 | P2 | live（潜在） | 宿主传 `p` 才写入 | fixed（ADR-044，2026-11-12 devbie `a483d616` + registry `2f3461e`：删除 `encryptP`/`decryptPhone`/`p` 选项与写入路径，SDK 以 1.11.0 minor 发布；保留只读列定义，读路径清尾进 backlog） |
+| R1-04 | registry | 前端侧 ClickHouse 三表与 Mongo 四表无保留期，与后端监控 90 天不一致 | P2 | live | 任意查询 | fixed（ADR-044，registry `2f3461e`：CH 建表 `TTL createTime + INTERVAL 90 DAY`、Mongo 新增升序 `{createTime:1}` TTL 索引；生产存量表 `MODIFY TTL` 进 nightwatch-backend backlog，本地存量按"无价值"不回填） |
+| R1-05 | registry / nightwatch-backend | 服务端不做二次清洗，`url` 回落 raw `Referer` 原样入库，页面身份保留 `u.hash` | P2 | live | 任意上报 | fixed（ADR-045，2026-11-12 registry `3b533ed` + nightwatch-backend `db6f447`：新增 `sanitizeUrlForStorage`/`sanitizePathForStorage`/`sanitizeSearchForStorage`，controller 在入队前清洗 url 与 referer 回落，各 `fullUrl`/`callUrl`/`preUrl`/`query` 写入点统一走清洗，页面身份去掉 fragment；模块测试 285 例、tsc、prettier 通过，后端已 build 并重启验证 200） |
+| R1-06 | nightwatch-backend（copilot） | 后端监控模板 `recent_requests` 显式 SELECT `ip`，截断后送 LLM | P2 | live | Copilot 使用者 | fixed（2026-11-12 nightwatch-backend `dd24c0c`：投影改为 `if(position(ip, ':') > 0 OR ip = '', '', replaceRegexpOne(ip, '\.[0-9]+$', '.*'))`，IPv4 只留 /24、IPv6 与空值置空，显示头改 `IP (masked)`；表达式已对本地 ClickHouse 实测 `127.0.0.1 → 127.0.0.*`、IPv6 → 空，模板测试 18 例通过） |
+
+## round2（2026-11-13，scope=`plan`：本会话 R1-02～R1-06 修复主张复核）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-13-round2.md`（时点快照，不改写）。锚点：devbie `d24cda5f` / newbie-modules `3b533ed` / nightwatch-backend `dd24c0c`，三仓 clean；评审与修复同会话，全部关键结论按 executed 取证。主张判定：C1（改名）成立、C2（手机号写链路删除）成立、C3（90 天留存）部分成立（存量 CH 表需部署窗口 `MODIFY TTL`，已登记）、C4（服务端 URL 清洗）部分成立、C5（Copilot IP 掩码）部分成立。P0/P1 = 0。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R2-01 | registry / nightwatch-backend | `stripUrlForStorage` 的 userinfo 剥离只匹配带 scheme 的 URL，协议相对 `//user:pass@host` 保留明文凭据 | P2 | live | 任意上报方 | fixed（2026-11-13 registry `c6d0bb9` + backend `bf1c900`：补 `^\/\/[^/?#@]*@` 分支并加用例；consumer 模块测试 287 例通过） |
+| R2-02 | registry / nightwatch-backend | `maskQueryForStorage` 只按 `&` 切分，`;` 分隔的敏感参数未被掩码 | P2 | live | 任意上报方 | fixed（2026-11-13 registry `c6d0bb9` + backend `bf1c900`：`split(/([&;])/)` 保留原分隔符并逐对掩码；加 `?page=2;token=abc` 用例） |
+| R2-03 | nightwatch-backend（copilot） | IP 掩码只替换整串最后一个 `.octet`；多值链或尾随空白时首个完整 IP 进入模型 | P2 | live | Copilot 使用者 | fixed（2026-11-13 backend `bf1c900`：`splitByChar(',', ip)` + `trimBoth` 逐段掩码；ClickHouse 实测 `1.2.3.4, 5.6.7.8 → 1.2.3.*, 5.6.7.*`、`1.2.3.4␠ → 1.2.3.*`；模板测试 18 例通过） |
+| R2-04 | devbie | `d24cda5f`（findings 标记 R1-06 fixed）未推送，远端仍为 `eb874b52` | P2 | docs | 维护者 | fixed（2026-11-13 devbie `dffcb93e` 已推送，`ls-remote` 核对一致） |
+
+## round3（2026-11-13，scope=plan：threat-intel scope 契约错位；报告 `devbie/.trae/documents/reviews/expert-review-2026-11-13-round3.md`）
+
+> 编号说明：本轮使用 `R3-01`~`R3-05`；台账中的 `R3-25` 属 2026-11-11 nightwatch-backend round3 报告，与本轮无关。
+
+| ID    | 仓                             | 标题                                                                                                                                     | severity | 暴露面 | 可达性                           | 状态                                                                                                                                         |
+| ----- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------ | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| R3-01 | newbie-modules / nightwatch-backend | threat-intel 评估 100% 失败（本地 109/109 FAILED）：subject 坐标固定 `platform:deployment`，宿主 SPI 只登记 `project:<id>`，精确匹配未命中即 fail-closed | P1       | live   | 调度器每小时；手动触发需写权限   | closed（2026-11-13 ADR-058 落地：SPI 改为 `listScopeEntities(subject)`；手动 run SUCCEEDED，重启后 `No scope` 0 条；取证边界见 R4-08） |
+| R3-02 | newbie-modules                 | 模块测试替身用 `project` scope（`security-evaluation-intel.test.ts:39-40,108-112`），掩盖真实坐标错位，109 条真实失败无法被测试发现        | P2       | live   | 后续评审 / 回归                  | closed（替身按 subject 返回；新增未知 subject→null 与 `[]` 空集合用例；断言读写两侧 scopeKey 均为 subject 维度）                              |
+| R3-03 | newbie-modules                 | 端口文档仍写「Host-defined scope, e.g. project」（`security-evaluation-scope-entities.port.ts:25-29`；ADR-018:67），与 ADR-039 固定坐标冲突 | P2       | docs   | 下一位宿主实现者                 | closed（端口注释重写；ADR-039 D4、ADR-045 与 ADR-018 的对应条款已标注由 ADR-058 取代）                                                      |
+| R3-04 | nightwatch-backend             | subjectKey 形态漂移：本地 2 条 repository subject，1 条为仓库 URL（E2E 产物）、1 条为 repository id；schema 明示 id 才是稳定 key           | P2       | live   | E2E / 后续宿主解析               | closed（`dc43ed0` 起宿主 `id` 优先 `findUnique`，回退 `url`/`fullName` 确定性排序；E2E 写入口径统一另记 backlog；原 closed 表述曾与实现不符，见 R4-08） |
+| R3-05 | nightwatch-backend             | `ProjectSecurityProfileService` 无单测（`src/application/project/security/` 仅有 read-model 测试），scope 输出无断言                        | P2       | source | 后续改动                         | closed（新增 `project-security-profile.service.test.ts`：id/url 命中、未知→null、去重上限、非 repository kind）                              |
+
+## round4（2026-11-13，scope=changeset：ADR-058 落地复核；报告 `devbie/.trae/documents/reviews/expert-review-2026-11-13-round4.md`）
+
+> 结论：方向正确、核心不变量成立，无 P0/P1。R4-01～R4-08 全部 P2。R3-01/R3-04 的 closed 表述按 R4-08 收窄。
+
+| ID    | 仓 | 标题 | severity | 暴露面 | 可达性 | 状态 |
+| ----- | -- | ---- | -------- | ------ | ------ | ---- |
+| R4-01 | nightwatch-backend | 宿主实体集顺序不确定（`project-security-profile.service.ts:49` 无 orderBy）+ 80 静默截断（`:62`）；缓存签名对顺序敏感（`intel-request.ts:71-78`、`intel.test.ts:345`）→ 负缓存漂移/召回截断 | P2 | live | 当前 2 应用 0 关联，未触达；≥2 关联升成本问题、≥80 升召回问题（P1） | fixed（`dc43ed0`，2026-11-13）：`applications` 补 `orderBy [{name,id}]`、回退查询补 `orderBy [{fullName,id}]`、共享 `REPOSITORY_SELECT` 防两条查询漂移、80 截断改 `Logger.warn`；回归 `project-security-profile.service.test.ts` 2 例 |
+| R4-02 | nightwatch-backend | 仓库解析为无优先级 `OR` 并列 `findFirst`（`:42-51`）；`fullName` 仅 `@@unique([provider,fullName])`、`url` 无唯一约束 → 跨 provider 同名可能取错行 | P2 | live | 正常写入均为 repository id，URL 形态仅 E2E 存量 → 不可达 | fixed（`dc43ed0`）：id 走 `findUnique` 优先，回退 `findFirst` 带确定性 orderBy；回归「exact row id wins over colliding url」 |
+| R4-03 | newbie-modules / nightwatch-backend | `scopeKey` 列注释仍写 `"scopeType:scopeId"`（registry `security-evaluation/prisma/schema.prisma:184`、宿主 `prisma/models/security-evaluation.prisma:187`） | P2 | docs | — | fixed（2026-11-13：两处注释同步为 `"<subject.kind>:<subject.subjectKey>"`（ADR-058）） |
+| R4-04 | newbie-modules | ADR-058 事实错误：D4 表名写 `SecurityEvaluationThreatNegativeCache`（实为 `…VerdictCache`）；D3 实体清单漏 `url` 派生 slug（实现 `:69`） | P2 | docs | — | fixed（2026-11-13：D4 表名更正；D3 补 `url` 派生 slug 与截断 warn，去掉易漂移的旧常量名） |
+| R4-05 | newbie-modules | `SecurityEvaluationScopeEntity.context` 死字段且注释称"shown in the LLM prompt"不成立（evidence 只投影 value，`request.ts:77` 恒 null） | P2 | docs/契约 | — | fixed（2026-11-13：决定**保留字段、注释如实化**。字段经 `request.ts:75-78` 进入 `inputSignature` 哈希输入，删除会把 `{"value":…,"context":null}` 变成 `{"value":…}`，令全部负缓存签名失配、下次 run 重判所有 not-relevant；为一个恒 null 字段付全量重判代价不划算。新注释写明"无宿主填充 + 一旦填充必使缓存失效，接线需先出 ADR"） |
+| R4-06 | newbie-modules | `[]` 走 `emptyCollection`（`evidence.provider.ts:159`），不加载候选、skipped=0，与同文件未知 subject（:154-158）/code-scan（:282-286）的 fail-closed 对照不一致；ADR-058 D1 已采纳该语义 | P2 | live | 宿主 fullName 非空使 `[]` 实际不可达 | accepted（2026-11-13：按 ADR-058 D1 接受，非缺陷。`Repository.fullName` NOT NULL 且参与 `@@unique([provider,fullName])`，宿主供给的实体集不可能为空，`[]` 分支仅作为契约兜底存在；升级为 fail-closed 需改 ADR-058 D1，无行为收益） |
+| R4-07 | newbie-modules | README「host must bind three more ports」（`README.md:87-93`）未列 `SECURITY_EVALUATION_SCOPE_ENTITIES_PROVIDER` 及 null/[] 语义 | P2 | docs | 新宿主装配者 | fixed（2026-11-13：改「four more ports」，补 token 与 null/[] 语义、未绑定即报错） |
+| R4-08 | devbie / nightwatch-backend | R3 台账 closed 超取证：§7.4 跨资产构造性核对与生产旧键核对未执行/未留证；`8d87876` 正文 "no … rows remain" 暗示已清理（实为从未写入）；无 prune 作业；R3-04「按 id 优先」与实现不符 | P2 | docs/治理 | 下一轮复审入口 | fixed（2026-11-13：R3-01/R3-04 状态收窄到实际取证边界；§7.4 两项取证 + 调度器观察登记 nightwatch-backend backlog） |
+
+### round4 验收取证（2026-11-13，本地库实测）
+
+- **① 跨资产构造性核对 — PASS。** 用模块自带 `POST /security-evaluation/subjects/sync` 登记第二个 repository subject，`subjectKey` 取 `inceptionpad/solidcore-backend`（fullName 形态，走宿主 `findFirst(fullName)` 回退），与既有 id 形态 subject `cmwbsw4tw000050lrnxe57qls` 指向**同一个** Repository 行。两者各跑一次 `threat-intel` 后 `SecurityEvaluationThreatVerdictCache` 呈现两个独立 scopeKey：`repository:cmwbsw4tw000050lrnxe57qls` 100 行、`repository:inceptionpad/solidcore-backend` 100 行。关键证据：两组 `inputSignature` 抽样相同（`00f9a45f…`）、`knowledgeItemId` 交集 100 条——判定输入完全一致；若 scopeKey 仍按旧口径塌成一个键，第二次 run 会命中前一次的 100 条 not-relevant 而 0 新增，实际却各写 100 行且时间戳分离（21:01:15–21:04:36 vs 21:31:40–21:33:12），资产间未发生读写串扰。
+- **② 生产旧键核对 — PASS，但结论是"空集"而非"已修复"。** 生产入口 `AWS_PROFILE=nightwatch-dev` 的 SSO refresh token 已过期，改走静态密钥（`credentials/aws.csv`，账号 067174804713）经 SSM 到 `i-0b1a6351210aae9ba`（注：runbook §1 记载的 `i-0f9c4f53112adaee5` 已换机、SSM 报 `InvalidInstanceId`）执行只读查询：`platform:deployment` 0 行，**且整张 `SecurityEvaluationThreatVerdictCache` 全表 0 行**。深查原因：生产 `EvaluationRun` 总共只有 2 行、均为 `scheduler:security-evaluation.scan`（SUCCEEDED），`requestedByRef` 含 `intel` 的 run **一条都没有**，而 `SecurityEvaluationThreatKnowledgeItem` 有 1274 条。即生产从未执行过 threat-intel 判定，缓存表因此为空——"无旧键"是真空成立，不能作为 ADR-058 在生产生效的证据；ADR-058 当前在生产没有 blast radius。另立待办追查生产 intel 调度器为何不触发。
+- **③ 调度器驱动 run — 待观测。** 本地 `security-evaluation.intel` 的 :00 触发在重启前为旧码（`21:00:09` 两行仍是旧报文 `No scope "platform:deployment"`），重启后尚无一次调度器路径的 run；已起后台任务等 22:00Z 抓取。
+
+## 归档（2026-11-13，评审报告放置规则纠偏）
+
+起因：用户质疑评审报告为何不在 `reviews/`。根因是 `expert-review` 技能条文与 devbie `README.md` 均仍写「落 `.trae/documents/` 根目录」，六性质桶约定（② 时点快照进 `reviews/`）从未回写技能；2026-11-10 quadrant-round1 已记录该错位但未修条文，故 11-11 之后的报告继续落根目录。
+
+处置：`worldzhy-knowledge/skills/expert-review/SKILL.md:138` 改为 `.trae/documents/reviews/expert-review-<date>-round<N>.md` 并显式否定根目录；devbie `README.md` 同步。存量迁移：devbie 3 份（round1-2026-11-12、round2/round3-2026-11-13）、nightwatch-backend 2 份（2026-11-11 round1/round3）、worldzhy-knowledge 1 份（2026-11-11 round1）均移入各自 `reviews/`；本台账与 backlog 中可改路径已同步。
+
+已知残留：`ADR-042` 正文按「ADR 正文永不改写」原则保留 `.trae/documents/expert-review-2026-11-12-round1.md` 旧路径，该指针指向已迁移文件，属已接受的失效引用；`ADR-044`/`ADR-045` 仅写文件名不含目录，不受影响。

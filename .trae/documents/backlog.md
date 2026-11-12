@@ -49,6 +49,8 @@
 
 ## 其他
 
+- [ ] `[2026-11-12 ADR-044 遗留]` **frontend-monitor 手机号读路径清尾（P3）**：写入链路已删除，`phone` 列恒为空但读侧仍在——DTO 的 `phone` 查询参数、`ilike(phone, …)`（`error.service.ts`）、analysis `$match.phone`、前端错误页「按手机号搜索」输入框与详情页手机号展示。下一步：确认无人依赖后一次性移除，或改为展示层明确标注「已停止采集」。
+
 - [ ] **严格 CSP（nonce 化）**（R23-01 后续，2026-11-08）：`deploy/Caddyfile.tmpl` 已落地基线安全头，但 `script-src/style-src` 仍为 `'unsafe-inline'`（Next.js bootstrap 与 theme 内联脚本所需）。后续方向：proxy.ts（Next 16 proxy 约定）生成 per-request nonce 注入 CSP 头与内联脚本，或 theme 脚本外部化 + Next nonce 支持就绪后收紧为 `script-src 'self' 'nonce-…'`。涉及 newbie-starter（Caddyfile）与 fewbie-starter（layout/proxy 模板）。
 
 > 最近一轮（2026-10-25，installation 凭证收敛评审）登记的 5 项已全部关闭：ADR-019 勘误、审计资源常量命名统一、静态扫描覆盖加固、并发窗口结论（接受，installation 只做软吊销）、people-evaluation 契约测试修复。关闭证据见 newbie-modules `33b7b37`、nightwatch-backend `2ca7e68`。
@@ -65,4 +67,11 @@
 
 - [x] `[R31-08]` **本文件 `:46`「newbie-modules 目前有 R4-04/R4-09 + 13 条 P2 + 2 条 G1 P2」为过期陈述（P3）**：该仓现状为 R4-04/R4-09 已修复、13 条 P2 段写「Wave 5 最后一条已修复」、9 条误报已剔除。**fixed（2026-11-09）**：已改写为「这些条目已在各仓 backlog 结清（截至 2026-11-09）」并删除「目前有」。
 
-- [ ] `[2026-11-09 环境变量管理面已上线，Lambda 另立]` **`aws-secrets-cli` 轮换 Lambda 支持组 secret `__rotation`（ADR-005 §5）**：现策略按 `devbie:secret-type` tag 选型，组 secret 的配方在组 JSON 的 `__rotation`（engine/passwordKey/secretArnOfMaster/automaticallyAfterDays）。改造为读整组、只改 `passwordKey` 指向的变量并回写；部署仍复用项目级单 ARN `awsSecretsManagerRotationLambdaArn`。前提：`newbie secrets deploy-rotation` 重新部署并以一个组 secret 做端到端轮换取证。
+- [ ] `[2026-11-09 环境变量管理面已上线，Lambda 另立]` **`aws-secrets-cli` 轮换 Lambda 支持组 secret `__rotation`（ADR-005 §5）**：现策略按 `devbie:secret-type` tag 选型，组 secret 的配方在组 JSON 的 `__rotation`（engine/passwordKey/secretArnOfMaster/automaticallyAfterDays）。改造为读整组、只改 `passwordKey` 指向的变量并回写；部署仍复用账户级 binding 的 `rotationLambdaArn`（ADR-056）。前提：`newbie secrets deploy-rotation` 重新部署并以一个组 secret 做端到端轮换取证。
+
+## ADR-046/ADR-056 实现收尾（2026-11-13）
+
+- [ ] **发布 rotation Lambda 制品到公共 S3**：`release:rotation` 脚本已就绪（`packages/aws-secrets-cli/scripts/publish-rotation-artifact.mjs`），但尚未对真实 `ROTATION_ARTIFACT_BUCKET` 执行。需要：确认公共读 bucket 与 `ROTATION_ARTIFACT_PREFIX`、执行发布、把打印出的模板 URL 写入 nightwatch-frontend 构建环境与部署 env 的 `NEXT_PUBLIC_AWS_SECRETS_ROTATION_LAMBDA_CLOUDFORMATION_TEMPLATE_URL`，并核对 S3 对象 HEAD 与深链可打开。
+- [ ] **接入页浏览器端到端验证**：nightwatch-frontend 两段式接入页（接入账户 → 保存角色 → rotation ARN / 解绑）已完成 lint/build 与接口面核对（OpenAPI 已暴露 `/accounts`、`/consumers`，本地迁移后 1 binding / 1 usage 数据完好），但尚未做浏览器点击级验证。
+- [ ] **生产环境确认 AWS Accounts 权限组**：该组已从手工数据改为 seed 代码声明（nightwatch-backend `f339f54`：`routePath=/aws-accounts`、HEADER_NAVIGATION、navOrder=2 紧随 Projects、navIcon=Cloud，`module/aws-identity` 命名空间派生 AwsCrossAccountBinding / AwsCrossAccountBindingUsage × List/Get/Create/Update/Delete 共 10 条原子），生产下次部署执行 seed 即自动种入并按 seed 的 MEMBER 绑定规则生效，无需手工 SQL。收口判据：生产库出现该组，且 `/aws-accounts` 顶部入口可见、直接访问不再落到无权限面板。
+- [ ] **前端 build 未在本轮取证**：`npm run build` 在 devbie-work 容器内稳定失败于 `Module not found: @vercel/turbopack-next/internal/font/google/font`（容器出口访问 `fonts.googleapis.com` 不可达，`src/app/layout.tsx` 的 next/font 属 framework-synced，与本轮改动无关）。本轮以 `tsc --noEmit` + `eslint` + `prettier --check` 作为替代证据；网络恢复后或 CI 上需补一次真实 build。

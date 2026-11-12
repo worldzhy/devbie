@@ -1,6 +1,6 @@
 /** Page-level reports must not leak query strings or fragments (R36-02). */
 import "./mock/web.env";
-import webMonitorSdk from "../src/index";
+import init from "../src/index";
 import { overrideFetch, waitFor } from "./mock/utils";
 
 let pageBody;
@@ -11,7 +11,7 @@ overrideFetch(function () {
 
 test("page report strips the query string and fragment from location.href", async () => {
   window.history.replaceState({}, "", "/projects/1?token=secret#frag");
-  webMonitorSdk({ api: "http://localhost/report", token: "token_test" });
+  init({ api: "http://localhost/report", token: "token_test" });
   await waitFor(() => pageBody);
   expect(pageBody.url).toEqual("http://localhost/projects/1");
 });

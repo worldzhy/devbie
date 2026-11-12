@@ -37,7 +37,7 @@
 | #   | 功能                                                                                                                              | 归属            | 优先级 |
 | --- | --------------------------------------------------------------------------------------------------------------------------------- | --------------- | ------ |
 | A1  | backend-monitor 探针 Nit 优化 ✅（2026-09-28，Nit-1 reporter 队列改 per-kind 计数器消除 O(n) 扫描；Nit-2 记为已知限制）           | newbie core     | 高     |
-| A2  | `@devbie/web-monitor-sdk` 包发布 + fewbie thin wrapper ✅（2026-09-27，`0.1.0-stage.0` 已发布，latest 直指；fewbie 件 `9cfa860`） | newbie + fewbie | 高     |
+| A2  | `@devbie/frontend-monitor-sdk` 包发布 + fewbie thin wrapper ✅（2026-09-27，`0.1.0-stage.0` 已发布，latest 直指；fewbie 件 `9cfa860`） | newbie + fewbie | 高     |
 | A3  | `fewbie doctor` 命令 ✅（2026-09-27）                                                                                             | fewbie CLI      | 中     |
 | A4  | `fewbie modules update` 命令（原 `fewbie update`；组件/token 升级，默认写入，`--check` 为门禁）✅（2026-09-27，含零依赖 LCS unified diff） | fewbie CLI      | 中     |
 | A5  | fewbie 其余 registry 件（data-table / page-header / settings-required-state）✅（2026-09-27，`next build` 验证）                       | fewbie registry | 中     |
@@ -76,17 +76,17 @@
 - **验证**：容器内 `npm test`（reporter 单测）+ nightwatch 侧全链路冒烟
 - **交付**：core 升 stage 版本发布
 
-#### A2. `@devbie/web-monitor-sdk` 包发布 + thin wrapper
+#### A2. `@devbie/frontend-monitor-sdk` 包发布 + thin wrapper
 
-- **目标**：把浏览器监控包从旧名 `@inceptionpad/frontend-monitor-web-sdk@1.0.0` 演进为 `@devbie/web-monitor-sdk`
+- **目标**：把浏览器监控包从旧名 `@inceptionpad/frontend-monitor-web-sdk@1.0.0` 演进为 `@devbie/frontend-monitor-sdk`
 - **约束**：只做浏览器端数据上报（PV / AJAX / 资源 / JS 错误 / 业务错误码 / 自定义事件），**不得加心跳与密钥逻辑**
 - **newbie 侧**：
-  - 新建 `packages/web-monitor-sdk/`（或独立仓），从现有 SDK 抽取核心
-  - 发布 `@devbie/web-monitor-sdk@0.1.0-stage.0`
+  - 新建 `packages/frontend-monitor-sdk/`（或独立仓），从现有 SDK 抽取核心
+  - 发布 `@devbie/frontend-monitor-sdk@0.1.0-stage.0`
 - **fewbie 侧**：
-  - registry 新增 `web-monitor-sdk` 件：`fewbie modules add web-monitor-sdk` 脚手架 layout 注入采集组件 + 加 npm 依赖
+  - registry 新增 `frontend-monitor-sdk` 件：`fewbie modules add frontend-monitor-sdk` 脚手架 layout 注入采集组件 + 加 npm 依赖
   - 心跳接线仍由模板 `instrumentation.ts` 负责（`@devbie/heartbeat-sdk`），与本件解耦
-- **验证**：fewbie 模板 `modules add web-monitor-sdk` 后 `next build` 通过 + 浏览器控制台确认上报
+- **验证**：fewbie 模板 `modules add frontend-monitor-sdk` 后 `next build` 通过 + 浏览器控制台确认上报
 
 #### A3. `fewbie doctor` 命令
 

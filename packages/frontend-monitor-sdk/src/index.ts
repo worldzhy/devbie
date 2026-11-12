@@ -1,4 +1,4 @@
-import { encryptP, isObject } from "./common/utils";
+import { isObject } from "./common/utils";
 // _conf is a reference type; use with care
 import report, { _conf, reportCustomsSoon, reportData } from "./core";
 import { InitOptions, ReportType } from "./types";
@@ -32,10 +32,9 @@ export function addCustom({
   reportCustomsSoon();
 }
 
-export function setConfig(config: { uid?: string | number; p?: string | number }): void {
+export function setConfig(config: { uid?: string | number }): void {
   if (!isObject(config)) throw new Error("setConfig parameter must be an object");
   if (config.uid !== undefined) (_conf as any).opt.user.uid = config.uid;
-  if (config.p !== undefined) (_conf as any).opt.user.p = encryptP(config.p);
 }
 
 export interface InitReturn {

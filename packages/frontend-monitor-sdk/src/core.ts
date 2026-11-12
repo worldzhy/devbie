@@ -1,5 +1,5 @@
 import { StackTrace, computeStackTrace } from "./common/tracekit";
-import { ERROR_APIS, ERRORTYPES, getConsoleErrorMsg, isObject } from "./common/utils";
+import { ERROR_APIS, ERRORTYPES, getConsoleErrorMsg, getRejectionMsg, isObject } from "./common/utils";
 import { filterResourceError, getHeaderMap, randomString, reportUrl, sanitizeText } from "./utils";
 import { markDevice, markUser, markUv } from "./identity";
 import {
@@ -90,7 +90,11 @@ function Performance(options: InitOptions): void {
     isAjax: true,
     isResource: true,
     isError: true,
-    user: { uid: undefined, p: undefined },
+    // Console output is arbitrary developer diagnostics, not a crash signal:
+    // capturing it is opt-in so credentials logged by the host or a library
+    // never reach the collector by default.
+    captureConsoleError: false,
+    user: { uid: undefined },
     traceIdHeaderName: "x-trace-id",
     isTraceId: false,
     customsThrottleMs: 1000,
@@ -510,12 +514,8 @@ function Performance(options: InitOptions): void {
       const stack = computeStackTrace(error);
       if (stack.failed) {
         const defaults = Object.assign({}, errorEntryTemplate);
-        if (isObject(error)) {
-          defaults.msg = JSON.stringify(error);
-        } else {
-          defaults.msg = "" + error;
-        }
-        defaults.type = ERRORTYPES.log;
+        defaults.msg = getRejectionMsg(error);
+        defaults.type = ERRORTYPES.promiseRejection;
         defaults.api = ERROR_APIS.unhandledRejection;
         defaults.createTime = new Date().getTime();
         defaults.data = { resourceUrl: reportUrl(location.href, opt.captureBody, opt.redact) };
@@ -525,6 +525,7 @@ function Performance(options: InitOptions): void {
         ErrorInstanceReport(stack, ERROR_APIS.unhandledRejection, ERRORTYPES.script);
       }
     });
+    if (!opt.captureConsoleError) return;
     const oldError = console.error;
     console.error = (...args: any[]) => {
       if (args.length === 1) {
@@ -677,10 +678,8 @@ function Performance(options: InitOptions): void {
       // hold tokens and reset links, so they go through the same policy.
       url: reportUrl(location.href, opt.captureBody, opt.redact),
       uid: undefined,
-      p: undefined,
     };
     if (conf.opt.user.uid) result.uid = conf.opt.user.uid;
-    if (conf.opt.user.p) result.p = conf.opt.user.p;
     return result;
   }
   function deferReporting() {
