@@ -43,6 +43,9 @@ jobs:
       - run: npm run build -w @devbie/aws-secrets-cli
 
       - run: npm run build -w @devbie/fewbie-cli
+      # The registry artifact is inlined into dist/registry; assert it is
+      # exactly what the authored registry/ source builds to (R36, api-client sync).
+      - run: npm run check:registry-dist -w @devbie/fewbie-cli
 
       - run: npm run build -w @devbie/apits
 

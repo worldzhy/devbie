@@ -24,6 +24,7 @@
     "test": "node --import tsx --test test/*.test.ts",
     "check:template-drift": "node --import tsx scripts/check-template-drift.ts",
     "check:template-deps": "node --import tsx scripts/check-template-deps.ts",
+    "check:registry-dist": "node --import tsx scripts/check-registry-dist.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
