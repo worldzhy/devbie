@@ -6,7 +6,7 @@
  */
 import "./mock/web.env";
 import { overrideFetch, httpServer, waitFor } from "./mock/utils";
-import webMonitorSdk from "../src/index";
+import init from "../src/index";
 
 const createdApi = {
   api: "http://localhost:8993/created",
@@ -23,7 +23,7 @@ const plainTextApi = {
   body: JSON.stringify({ errcode: 8, errmsg: "must-not-be-inspected" }),
 };
 
-const _monitor = webMonitorSdk({
+const _monitor = init({
   api: "http://localhost/report",
   token: "token_test",
   errcodeReport(res) {

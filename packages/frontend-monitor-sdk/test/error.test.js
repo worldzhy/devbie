@@ -3,10 +3,11 @@ import "./mock/web.env";
 import { mockOnerrorInfo } from "./mock/mock";
 import { overrideFetch, waitFor } from "./mock/utils";
 import { ERRORTYPES, ERROR_APIS } from "../src/common/utils";
-import webMonitorSdk from "../src/index";
-const _monitor = webMonitorSdk({
+import init from "../src/index";
+const _monitor = init({
   api: "http://localhost/report",
   token: "token_test",
+  captureConsoleError: true,
 });
 // Intercept and store reported payloads for assertions in test()
 const reportTypeError = [];

@@ -2,8 +2,8 @@
 import "./mock/web.env";
 import { encryptP } from "../src/common/utils";
 import { overrideFetch } from "./mock/utils";
-import webMonitorSdk from "../src/index";
-const monitor = webMonitorSdk({
+import init from "../src/index";
+const monitor = init({
   api: "http://localhost/report",
   token: "token_test",
 });

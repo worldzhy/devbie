@@ -232,7 +232,7 @@ name:
   — framework-agnostic installation liveness reporting.
 - [`@devbie/aws-secrets-cli`](https://www.npmjs.com/package/@devbie/aws-secrets-cli)
   — companion CLI of the `aws-secrets-manager` module (`newbie secrets`).
-- [`@devbie/web-monitor-sdk`](https://www.npmjs.com/package/@devbie/web-monitor-sdk)
+- [`@devbie/frontend-monitor-sdk`](https://www.npmjs.com/package/@devbie/frontend-monitor-sdk)
   — browser-side web monitoring, companion of the `web-monitor` module.
 
 ## License
