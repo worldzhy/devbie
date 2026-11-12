@@ -542,3 +542,16 @@ round34 复核（2026-11-10 23:58–00:05，`reviews/expert-review-2026-11-10-ro
 carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复算仍 open，与本轮 R36-04/05 同类未重复立案。已核验通过的不变量（安全头、safe-path、Bearer 同源守卫、OAuth proof、12 门 vs seed、无 postMessage/eval、target=_blank rel、iframe sandbox）见报告 §8。
 
 核验（2026-11-12，plan/claim-scope）：报告 `nightwatch-frontend/.trae/documents/reviews/expert-review-2026-11-12-round36-verify.md`。结论：P0/P1=0 维持；R36-01～R36-08 全部成立、无撤销；C1–C27 主张逐条判定。订正 4 处（原报告不改写）：① localStorage 计数 39 → 实测 24 行 / 8 文件；② R36-04 引证由 `roles.ts:10` 改为 `permission-groups.ts:403-405`；③ R36-02「正常路径不可达」、R36-03「签名 URL 为 https」应标 inferred（静态推断，无运行时取证）；④ `preview-modal:65` 是 `setPreviewUrl`，`downloadFile` 仅在 `:45`。
+
+## round1（2026-11-12，scope=`plan`：frontend-monitor 采集责任归属）
+
+报告：`.trae/documents/expert-review-2026-11-12-round1.md`（时点快照，不改写）。锚点（开工）：devbie `014eb9cc` / nightwatch-backend `f5a7d3e`；被审域 clean。主声明「console 采集责任在客户程序侧、不属 nightwatch 关注范围」判定不成立：采集默认开启、`redact` 不覆盖 log 类内容、服务端不做二次清洗。P0/P1 中 P1 一条（R1-01）。
+
+| ID | 仓 | 标题 | 严重度 | 暴露面 | 可达性 | 状态 |
+| --- | --- | --- | --- | --- | --- | --- |
+| R1-01 | devbie（SDK）/ registry | console/异常对象序列化无脱敏且默认开启，`redact` 的 kind 不含 log | P1 | live | 任意宿主默认采集 | fixed（2026-11-12 devbie `12a5b763`：`console.error` 采集改为 opt-in，默认不再序列化 console 参数） |
+| R1-02 | registry / nightwatch-backend | `filterKeyWord` 名实不符，实为 `JSON.stringify` 透传 | P2 | source | 维护者 | fixed（registry `3539554` + nightwatch-backend `94e9807`：改名 `toStorageText`，注释写明"存储序列化不等于脱敏"；模块测试 55 例通过） |
+| R1-03 | devbie（SDK）/ registry | 手机号"加密"为固定替换表，服务端解码后明文落库；全工作区零调用方 | P2 | live（潜在） | 宿主传 `p` 才写入 | fixed（ADR-044，2026-11-12 devbie `a483d616` + registry `2f3461e`：删除 `encryptP`/`decryptPhone`/`p` 选项与写入路径，SDK 以 1.11.0 minor 发布；保留只读列定义，读路径清尾进 backlog） |
+| R1-04 | registry | 前端侧 ClickHouse 三表与 Mongo 四表无保留期，与后端监控 90 天不一致 | P2 | live | 任意查询 | fixed（ADR-044，registry `2f3461e`：CH 建表 `TTL createTime + INTERVAL 90 DAY`、Mongo 新增升序 `{createTime:1}` TTL 索引；生产存量表 `MODIFY TTL` 进 nightwatch-backend backlog，本地存量按"无价值"不回填） |
+| R1-05 | registry / nightwatch-backend | 服务端不做二次清洗，`url` 回落 raw `Referer` 原样入库，页面身份保留 `u.hash` | P2 | live | 任意上报 | fixed（ADR-045，2026-11-12 registry `3b533ed` + nightwatch-backend `db6f447`：新增 `sanitizeUrlForStorage`/`sanitizePathForStorage`/`sanitizeSearchForStorage`，controller 在入队前清洗 url 与 referer 回落，各 `fullUrl`/`callUrl`/`preUrl`/`query` 写入点统一走清洗，页面身份去掉 fragment；模块测试 285 例、tsc、prettier 通过，后端已 build 并重启验证 200） |
+| R1-06 | nightwatch-backend（copilot） | 后端监控模板 `recent_requests` 显式 SELECT `ip`，截断后送 LLM | P2 | live | Copilot 使用者 | open |
