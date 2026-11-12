@@ -589,10 +589,16 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R4-02 | nightwatch-backend | 仓库解析为无优先级 `OR` 并列 `findFirst`（`:42-51`）；`fullName` 仅 `@@unique([provider,fullName])`、`url` 无唯一约束 → 跨 provider 同名可能取错行 | P2 | live | 正常写入均为 repository id，URL 形态仅 E2E 存量 → 不可达 | fixed（`dc43ed0`）：id 走 `findUnique` 优先，回退 `findFirst` 带确定性 orderBy；回归「exact row id wins over colliding url」 |
 | R4-03 | newbie-modules / nightwatch-backend | `scopeKey` 列注释仍写 `"scopeType:scopeId"`（registry `security-evaluation/prisma/schema.prisma:184`、宿主 `prisma/models/security-evaluation.prisma:187`） | P2 | docs | — | fixed（2026-11-13：两处注释同步为 `"<subject.kind>:<subject.subjectKey>"`（ADR-058）） |
 | R4-04 | newbie-modules | ADR-058 事实错误：D4 表名写 `SecurityEvaluationThreatNegativeCache`（实为 `…VerdictCache`）；D3 实体清单漏 `url` 派生 slug（实现 `:69`） | P2 | docs | — | fixed（2026-11-13：D4 表名更正；D3 补 `url` 派生 slug 与截断 warn，去掉易漂移的旧常量名） |
-| R4-05 | newbie-modules | `SecurityEvaluationScopeEntity.context` 死字段且注释称"shown in the LLM prompt"不成立（evidence 只投影 value，`request.ts:77` 恒 null） | P2 | docs/契约 | — | open |
-| R4-06 | newbie-modules | `[]` 走 `emptyCollection`（`evidence.provider.ts:159`），不加载候选、skipped=0，与同文件未知 subject（:154-158）/code-scan（:282-286）的 fail-closed 对照不一致；ADR-058 D1 已采纳该语义 | P2 | live | 宿主 fullName 非空使 `[]` 实际不可达 | open |
+| R4-05 | newbie-modules | `SecurityEvaluationScopeEntity.context` 死字段且注释称"shown in the LLM prompt"不成立（evidence 只投影 value，`request.ts:77` 恒 null） | P2 | docs/契约 | — | fixed（2026-11-13：决定**保留字段、注释如实化**。字段经 `request.ts:75-78` 进入 `inputSignature` 哈希输入，删除会把 `{"value":…,"context":null}` 变成 `{"value":…}`，令全部负缓存签名失配、下次 run 重判所有 not-relevant；为一个恒 null 字段付全量重判代价不划算。新注释写明"无宿主填充 + 一旦填充必使缓存失效，接线需先出 ADR"） |
+| R4-06 | newbie-modules | `[]` 走 `emptyCollection`（`evidence.provider.ts:159`），不加载候选、skipped=0，与同文件未知 subject（:154-158）/code-scan（:282-286）的 fail-closed 对照不一致；ADR-058 D1 已采纳该语义 | P2 | live | 宿主 fullName 非空使 `[]` 实际不可达 | accepted（2026-11-13：按 ADR-058 D1 接受，非缺陷。`Repository.fullName` NOT NULL 且参与 `@@unique([provider,fullName])`，宿主供给的实体集不可能为空，`[]` 分支仅作为契约兜底存在；升级为 fail-closed 需改 ADR-058 D1，无行为收益） |
 | R4-07 | newbie-modules | README「host must bind three more ports」（`README.md:87-93`）未列 `SECURITY_EVALUATION_SCOPE_ENTITIES_PROVIDER` 及 null/[] 语义 | P2 | docs | 新宿主装配者 | fixed（2026-11-13：改「four more ports」，补 token 与 null/[] 语义、未绑定即报错） |
 | R4-08 | devbie / nightwatch-backend | R3 台账 closed 超取证：§7.4 跨资产构造性核对与生产旧键核对未执行/未留证；`8d87876` 正文 "no … rows remain" 暗示已清理（实为从未写入）；无 prune 作业；R3-04「按 id 优先」与实现不符 | P2 | docs/治理 | 下一轮复审入口 | fixed（2026-11-13：R3-01/R3-04 状态收窄到实际取证边界；§7.4 两项取证 + 调度器观察登记 nightwatch-backend backlog） |
+
+### round4 验收取证（2026-11-13，本地库实测）
+
+- **① 跨资产构造性核对 — PASS。** 用模块自带 `POST /security-evaluation/subjects/sync` 登记第二个 repository subject，`subjectKey` 取 `inceptionpad/solidcore-backend`（fullName 形态，走宿主 `findFirst(fullName)` 回退），与既有 id 形态 subject `cmwbsw4tw000050lrnxe57qls` 指向**同一个** Repository 行。两者各跑一次 `threat-intel` 后 `SecurityEvaluationThreatVerdictCache` 呈现两个独立 scopeKey：`repository:cmwbsw4tw000050lrnxe57qls` 100 行、`repository:inceptionpad/solidcore-backend` 100 行。关键证据：两组 `inputSignature` 抽样相同（`00f9a45f…`）、`knowledgeItemId` 交集 100 条——判定输入完全一致；若 scopeKey 仍按旧口径塌成一个键，第二次 run 会命中前一次的 100 条 not-relevant 而 0 新增，实际却各写 100 行且时间戳分离（21:01:15–21:04:36 vs 21:31:40–21:33:12），资产间未发生读写串扰。
+- **② 生产旧键核对 — 阻塞。** 生产入口为 SSM（实例 `i-0f9c4f53112adaee5`），本机 `AWS_PROFILE=nightwatch-dev` 的 SSO token 已过期且刷新需交互登录，本轮未执行；待办保留在 nightwatch-backend backlog。
+- **③ 调度器驱动 run — 待观测。** 本地 `security-evaluation.intel` 的 :00 触发在重启前为旧码（`21:00:09` 两行仍是旧报文 `No scope "platform:deployment"`），重启后尚无一次调度器路径的 run；已起后台任务等 22:00Z 抓取。
 
 ## 归档（2026-11-13，评审报告放置规则纠偏）
 
