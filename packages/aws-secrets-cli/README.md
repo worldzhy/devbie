@@ -49,8 +49,15 @@ artifact must be published before the one-click path becomes available
 (ADR-046). The artifact is built once and reused by every customer account:
 
 ```bash
-ROTATION_ARTIFACT_BUCKET=<public-read-bucket> npm run release:rotation -w @devbie/aws-secrets-cli
+ROTATION_ARTIFACT_BUCKET=<public-read-bucket> \
+ROTATION_ARTIFACT_PREFIX=cloudformation \
+npm run release:rotation -w @devbie/aws-secrets-cli
 ```
+
+The prefix must match the one the bucket policy exposes publicly and the one
+baked into the consumer's template URL (`cloudformation/` for the Nightwatch
+artifact bucket). Publishing under any other prefix uploads objects the stack
+cannot read, and the Lambda creation then fails with `S3 Error Code: NoSuchKey`.
 
 The script bundles `sst/function/index.ts` with esbuild, uploads
 `<prefix>/aws-secrets-rotation-lambda.zip`, generates a CloudFormation template
