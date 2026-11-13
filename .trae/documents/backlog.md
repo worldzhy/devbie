@@ -75,11 +75,10 @@
 - [ ] **生产环境确认 AWS Accounts 权限组**：该组已从手工数据改为 seed 代码声明（nightwatch-backend `f339f54`：`routePath=/aws-accounts`、HEADER_NAVIGATION、navOrder=2 紧随 Projects、navIcon=Cloud，`module/aws-identity` 命名空间派生 AwsCrossAccountBinding / AwsCrossAccountBindingUsage × List/Get/Create/Update/Delete 共 10 条原子），生产下次部署执行 seed 即自动种入并按 seed 的 MEMBER 绑定规则生效，无需手工 SQL。收口判据：生产库出现该组，且 `/aws-accounts` 顶部入口可见、直接访问不再落到无权限面板。
 - [ ] **前端 build 未在本轮取证**：`npm run build` 在 devbie-work 容器内稳定失败于 `Module not found: @vercel/turbopack-next/internal/font/google/font`（容器出口访问 `fonts.googleapis.com` 不可达，`src/app/layout.tsx` 的 next/font 属 framework-synced，与本轮改动无关）。本轮以 `tsc --noEmit` + `eslint` + `prettier --check` 作为替代证据；网络恢复后或 CI 上需补一次真实 build。
 
-## ADR-062 通知投递规则（P0 已落地，2026-11-13）
+## ADR-062 通知投递规则（P0、P1 已落地，2026-11-13）
 
-> 真源：newbie-modules `.trae/documents/decisions/ADR-062-notification-delivery-rules-decouple-severity-from-push.md`。P0 已完成：三张表 + alert 固化 verdict + 记录挂 alertId，registry `66177de` → backend `22c5086`（含 migration `20261113140042_notification_delivery_rules`）。以下为剩余阶段。
+> 真源：newbie-modules `.trae/documents/decisions/ADR-062-notification-delivery-rules-decouple-severity-from-push.md`。已完成：P0 三张表 + alert 固化 verdict + 记录挂 alertId（registry `66177de` → backend `22c5086`，migration `20261113140042_notification_delivery_rules`）；P1 `NotifyResult` 增加 `decision` / `reason`、alert 存 `verdictReason`、每次投递写 `NotificationDeliveryAttempt`、宿主 push 腿改读 `decision`（registry `d34712b` → backend `14e6a4b`，migration `20261113142406_notification_alert_verdict_reason`）。reason 取值：`rule` / `no-rule-matched` / `below-minimum`。以下为剩余阶段。
 
-- [ ] **P1 宿主改读 verdict + 投递审计落库**：`notification-center.service.ts` 在判定后写 `NotificationDeliveryAttempt`（decision/reason/ruleId，reason 复用 `verdict.reason`）；nightwatch-backend `src/application/notifications/project-notification-push.service.ts` 停止读 `pushSuppressed`，改读判定结果。
 - [ ] **P2 旧门禁退场 + 前端规则编辑**：删除 `recoveryOf`、`minimumSeverity`、`pushPolicy`、`pushSuppressed`；前端 `notification-settings-card.tsx` 换规则表（拖拽排序不露 priority、条件渐进披露、suppress 归「例外」）+ 模拟器；seed 一条默认规则让多数用户零操作；通知列表加投递原因展开。
 - [ ] **P3 silence / inhibition**：静默窗口与抑制关系（ADR-062 标记为独立阶段）。
 - [ ] **github 模块漂移（非本轮引入）**：nightwatch-backend `9cc2ff9` 的 `GitHubPermissionError` / `probeProvisioningTarget` 等宿主改动未 back-port registry，`newbie modules apply --check` 报 `github differs from packages/modules/github @ 82526f7`。处置：把宿主编译通过的 github 改动机械复制回 registry、提交、再 re-pin。
