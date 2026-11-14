@@ -1,6 +1,6 @@
 # ADR-048：认证失败契约——机器可读错误码 + 会话终止态落点矩阵
 
-- 状态：提议中
+- 状态：已采纳（2026-11-14，§8 与 §12 全部条目落地）
 - 日期：2026-11-14
 - 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–5 步与 §12 全部条目已落地：newbie 1.18.1（新增 1105）、newbie-modules、nightwatch-backend、fewbie api-client 1.6.3 与 nightwatch-frontend、`@devbie/style-guide` 1.8.0（策略门禁扩到全部模块 + INV-8 wire 枚举扫描）、`InstallationStatus` 前后端同批改为 kebab-case
 - 关系：扩展 [ADR-001](ADR-001-http-status-semantics-for-auth-failures.md)（不取代；ADR-001 的 HTTP 语义分类继续有效，本 ADR 补上它的判别层与客户端落点层）
