@@ -46,15 +46,46 @@ export default [
     },
   },
   {
+    // ADR-048 §2.2 INV-8: a wire DTO enum is a project-owned JSON value, so its
+    // spelling is kebab-case. A lowercase snake_case member (the old
+    // `InstallationStatus.NOT_ENABLED = "not_enabled"`) makes one DTO spell
+    // siblings two different ways and leaks the persistence casing onto the
+    // wire. SCREAMING_SNAKE values are left alone: they are a legacy constant
+    // style, not the snake/kebab mix this gate is about.
+    //
+    // Scoped to `src/application`: that is where host wire DTOs live. The
+    // registry modules carry external identifiers (CloudWatch metric names,
+    // ClickHouse tables) and persistence keys, which ADR-048 §2.2 explicitly
+    // keeps in snake_case, so they must not be matched here.
+    //
+    // The audit selector is repeated because `no-restricted-syntax` merges by
+    // replacement: this block is the last one matching an application file.
+    files: ["**/src/application/**/*.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Property[key.name='detail'] > ObjectExpression > Property[key.name='reason'] > Literal[value=/-/]",
+          message:
+            "Audit detail.reason is a persisted snake_case value; a dash here forks the audit vocabulary (ADR-048 §2.2).",
+        },
+        {
+          selector: "TSEnumMember > Literal[value=/_/]:not([value=/^[A-Z_0-9]+$/])",
+          message:
+            "Wire enum values are kebab-case; a lowercase snake_case value forks the wire vocabulary (ADR-048 §2.2).",
+        },
+      ],
+    },
+  },
+  {
     // ADR-048 §6.4: a passport strategy that throws a bare Nest exception
     // produces an uncoded 401/403, which a client cannot tell apart from any
     // other failure. Authentication strategies must go through the coded
     // NewbieException contract instead.
-    // Scoped to the account strategies, the surface ADR-048 migrated. The
-    // security strategies still throw a bare UnauthorizedException for a
-    // missing credential, which has no code in the 13-code table yet; they
-    // join this gate once §7 adds that code (tracked in the backend backlog).
-    files: ["**/src/modules/account/**/*.strategy.ts"],
+    // Scoped to every module strategy (not just account): the security
+    // strategies join the gate once §7 supplies a code for a missing
+    // credential (Session_Missing / 1105, newbie 1.18.1).
+    files: ["**/src/modules/**/*.strategy.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",

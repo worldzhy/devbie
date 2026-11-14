@@ -2,7 +2,7 @@
 
 - 状态：提议中
 - 日期：2026-11-14
-- 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–5 步已落地（newbie 1.18.0 / newbie-modules / nightwatch-backend / fewbie api-client 与 nightwatch-frontend / `@devbie/style-guide` 1.7.1 静态门禁 / `@devbie/fewbie-cli` 1.6.2 registry 发布），剩余 INV-8 的 wire 枚举 casing 扫描（依赖 `InstallationStatus` 前后端同批改名）
+- 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–5 步与 §12 全部条目已落地：newbie 1.18.1（新增 1105）、newbie-modules、nightwatch-backend、fewbie api-client 1.6.3 与 nightwatch-frontend、`@devbie/style-guide` 1.8.0（策略门禁扩到全部模块 + INV-8 wire 枚举扫描）、`InstallationStatus` 前后端同批改为 kebab-case
 - 关系：扩展 [ADR-001](ADR-001-http-status-semantics-for-auth-failures.md)（不取代；ADR-001 的 HTTP 语义分类继续有效，本 ADR 补上它的判别层与客户端落点层）
 - 触发：R47 评审（`.trae/documents/reviews/` @ nightwatch-backend，2026-11-14）+ round5 命名复审（devbie，2026-11-14）
 
@@ -62,7 +62,7 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 
 ## 3. 决策二：错误码命名空间与会话终止码
 
-沿用既有分配：`1xxx` 认证与会话域，`2xxx` 通用请求频控。全部 13 个成员如下（枚举成员名按 code 升序声明，新增成员插入对应位置而不是追加尾部）：
+沿用既有分配：`1xxx` 认证与会话域，`2xxx` 通用请求频控。全部 14 个成员如下（枚举成员名按 code 升序声明，新增成员插入对应位置而不是追加尾部）：
 
 | enum | code | HTTP | 含义 | 会话终结 | 审计 `detail.reason` |
 |---|---|---|---|---|---|
@@ -78,6 +78,7 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 | `Session_RefreshRejected` | 1102 | 401 | refresh 缺失/过期/签名错误/轮换复用 | 是 | `refresh_rejected` |
 | `Session_AccessExpired` | 1103 | 401 | access 已过期，**可刷新** | 否 | 无 |
 | `Session_Revoked` | 1104 | 401 | 服务端主动吊销（登出、被踢下线） | 是 | `session_revoked` |
+| `Session_Missing` | 1105 | 401 | 受保护端点未收到任何凭据（无 `Authorization` / api key 头） | 是 | 无（非安全事件） |
 | `Request_RateLimited` | 2001 | 429 | 请求频控 | 否 | `access_rate_limited`（历史值，保留） |
 
 要点：
@@ -88,6 +89,7 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 4. **`Session_AccessExpired` 是唯一允许触发刷新的 401。** 其余 401 一律终止会话，从根上消除「401 → 刷新 → 再 401」的循环。
 5. **`Request_RateLimited`（原 `Access_HighFrequency`）改名是免费的**，但审计值 `access_rate_limited` 不动；改名后 `access` 一词在本表里只剩「access token」一个外延。
 6. **限流命名编码桶轴**：1003 = 用户桶，1004 = IP 桶，2001 = 请求桶。原 `Login_HighFrequency` / `Login_ExceededAttempts` 的区别只存在于 [rate-limiter.guard.ts L39-L78](file:///Users/worldzhy/src/nightwatch-backend/src/modules/security/rate-limiter/rate-limiter.guard.ts#L39-L78) 的注释里。
+7. **`Session_Missing`（1105）补齐「请求未携带凭据」这一类。** 无凭据的受保护请求原本抛裸 `UnauthorizedException`，前端只能按无 `code` 的 401 处理（§4 第 6 行），虽落点一致却无法与「凭据无效」区分，也无法在指标里统计。它与 `Account_Missing` 的区别在于：1101 是「凭据有效但主体已删」，1105 是「根本没有凭据」。审计不写（无凭据不构成安全事件），客户端 kind 为 `session-terminated`。
 
 ## 4. 决策三：客户端落点矩阵（有序判定，封闭）
 
@@ -102,12 +104,12 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 | 5 | 其他无 `code` 的 4xx，或 `code` 不在 §3 表内（且 status ≠ 401） | `unknown` | 请求级错误提示，页面保持可用，不重定向、不清会话 | 否 |
 | 6 | 401 且 `code` 不在 §3 表内 | `session-terminated` | 跳 `/account/login?redirectUrl=…` | 是 |
 
-第 2 行的展开（13 个 code → 8 个 kind 的**显式**多对一映射）：
+第 2 行的展开（14 个 code → 8 个 kind 的**显式**多对一映射）：
 
 | code | `kind` | 动作 | 是否清本地会话 |
 |---|---|---|---|
 | 1007 `Account_Closed`、1008 `Account_Disabled` | `account-blocked` | 跳 `/account/login?inactive=1`（复用现有停用横幅） | 是 |
-| 1101 `Account_Missing`、1102 `Session_RefreshRejected`、1104 `Session_Revoked` | `session-terminated` | 跳 `/account/login?redirectUrl=…` | 是 |
+| 1101 `Account_Missing`、1102 `Session_RefreshRejected`、1104 `Session_Revoked`、1105 `Session_Missing` | `session-terminated` | 跳 `/account/login?redirectUrl=…` | 是 |
 | 1103 `Session_AccessExpired` | `access-expired` | 走既有单飞刷新 + 重放 | 否 |
 | 1001、1002、1003、1004、1005、1006、2001 | `request-error` | 请求级错误提示（登录表单 / 频控文案由入口页处理），页面保持可用 | 否 |
 
@@ -136,10 +138,10 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 这是「以后不需要修改」能成立的部分——不是靠自觉，而是靠失败即红：
 
 1. **单一真源**：错误码表只在 `packages/newbie/src/exceptions/newbie.exception.ts` 定义。
-2. **映射不是派生**：客户端 kind 是 code 的**显式多对一映射**（`CODE_TO_KIND`），由 `Record<ErrorCode, SessionFailureKind>` 保证穷尽。它无法由 code 清单单射「派生」——1101/1102/1104 三个 code 共享一个 kind，这是设计，不是遗漏。
+2. **映射不是派生**：客户端 kind 是 code 的**显式多对一映射**（`CODE_TO_KIND`），由 `Record<ErrorCode, SessionFailureKind>` 保证穷尽。它无法由 code 清单单射「派生」——1101/1102/1104/1105 四个 code 共享一个 kind，这是设计，不是遗漏。
 3. **行为契约测试替代结构契约测试**：
    - 后端：表驱动，`(code, httpStatus, auditReason)` 逐行断言；禁止再出现「grep 某行是否含某字符串」的测试（现有 [inactive-account-contract.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/account/auth/inactive-account-contract.test.ts) 与 [login-audit-coverage.test.ts](file:///Users/worldzhy/src/nightwatch-backend/src/modules/account/auth/login-audit-coverage.test.ts) 的形态要在迁移时升级，否则会拦住正确修复）。
-   - 前端：`api-client.test.ts` 必须覆盖 §4 有序判定的全部 6 行 + 映射表全部 13 个 code（当前 6 条用例只覆盖 200 / 无 token / networkError 系列，**403、401、5xx、无 code 的 4xx、未知 code 全零覆盖**）。
+   - 前端：`api-client.test.ts` 必须覆盖 §4 有序判定的全部 6 行 + 映射表全部 14 个 code（当前 6 条用例只覆盖 200 / 无 token / networkError 系列，**403、401、5xx、无 code 的 4xx、未知 code 全零覆盖**）。
 4. **静态门禁**：auth 策略中禁止裸抛 `ForbiddenException` / `UnauthorizedException`（只允许 `NewbieException`），CI 扫描。
 5. **阴性对照**：新测试必须在未修复代码上变红，否则视为测试无效。
 
@@ -160,7 +162,7 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 
 顺序按依赖倒置：
 
-1. `packages/newbie`：按 §3 表重命名既有 8 个枚举成员（wire 不变）+ 新增 1008 / 1101–1104，按 code 升序重排声明；补单测；发布 minor。
+1. `packages/newbie`：按 §3 表重命名既有 8 个枚举成员（wire 不变）+ 新增 1008 / 1101–1104，按 code 升序重排声明；补单测；发布 minor。后续 §7 扩展补了 `Session_Missing`（1105，1.18.1 patch），使 security 策略也能带码。
 2. `newbie-modules` account：refresh 策略改用 `NewbieException`；`!user` → `Account_Missing`（不审计）；`status === CLOSED` → `Account_Closed`（审计 `inactive_user`）；其余非 ACTIVE → `Account_Disabled`（审计 `account_disabled`）；access-token 解析处过期 → `Session_AccessExpired`、会话缺失 → `Session_Revoked`。
 3. `nightwatch-backend`：升级依赖并装配；更新两个契约测试为表驱动。
 4. `fewbie` / `nightwatch-frontend`：`api-client` 引入 `SessionFailureKind` + `CODE_TO_KIND` + §4 有序判定；`layout.tsx` / `api/request.ts` / `api-error-toast.tsx` 各自消费 `kind`（不再看 status）；补全测试。
@@ -211,13 +213,14 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 ## 12. Checklist（落地时勾选）
 
 - [x] `packages/newbie` 按 §3 重命名既有成员 + 新增 1008 / 1101–1104，声明按 code 升序，附单测（`npm run test` 65 项通过、`npm run build` 通过；已发布 `@devbie/newbie` 1.18.0，tag latest）
+- [x] §7 扩展：新增 `Session_Missing`（1105 / 401 / `session-terminated`，无审计），按协议补码表、映射行、§3 说明与表驱动测试（`@devbie/newbie` 1.18.1）
 - [x] account refresh 策略改用 `NewbieException`，1007 / 1008 / 1101 三分支，审计值分层（nightwatch-backend 1393 项测试通过）
 - [x] access token 解析区分 `Session_AccessExpired` / `Session_Revoked`（`JwtAuthGuard` 1103、`access-token-session.resolver` 1104）
 - [x] 两个结构契约测试改为表驱动行为测试
 - [x] 前端 `SessionFailureKind` + `CODE_TO_KIND`（`Record` 穷尽）+ §4 有序判定
 - [x] `layout.tsx` / `api/request.ts` / `api-error-toast.tsx` 改为消费 `kind`，不再看 status
-- [x] api-client 测试覆盖 §4 六行判定 + 13 个 code 映射（旧实现无 `kind` 概念，用例在旧代码上类型与行为双重变红）
-- [x] CI 静态扫描：auth 策略禁用裸 `ForbiddenException` / `UnauthorizedException`（`@devbie/style-guide` 1.7.x `nest` 层，当前范围 `src/modules/account/**/*.strategy.ts`；探针文件验证会报错。security 的 `jwt` / `api-key` 策略仍缺「凭据未携带」的 code，待 §7 扩展后并入）
+- [x] api-client 测试覆盖 §4 六行判定 + 14 个 code 映射（旧实现无 `kind` 概念，用例在旧代码上类型与行为双重变红）
+- [x] CI 静态扫描：auth 策略禁用裸 `ForbiddenException` / `UnauthorizedException`（`@devbie/style-guide` 1.8.0 `nest` 层，范围已从 account 扩回全部 `src/modules/**/*.strategy.ts`；security 的 `jwt` / `api-key` 改用 `NewbieException(Session_Missing)` 后并入，探针文件验证会报错）
 - [x] CI 静态扫描：`src/lib`、`src/api` 下无 message 字符串判断（`@devbie/style-guide` 1.7.1 `next` 层，比较与 `includes/startsWith/endsWith/match/indexOf/search` 两类选择器；探针文件验证会报错）
-- [ ] CI 静态扫描：审计值与 kind 不跨 casing（INV-8），且同层拼法一致（§2.2 规则 4）—— 审计 `detail.reason` 的 kebab 扫描已进 `nest` 层；wire 枚举与 `kind` 的 casing 扫描待 `InstallationStatus`（`not_enabled`）等既有违规按前后端同批改名后启用，否则门禁一开即红
+- [x] CI 静态扫描：审计值与 wire 枚举不跨 casing（INV-8）—— 审计 `detail.reason` 的 kebab 扫描在 `nest` 层；`src/application/**` 的 wire DTO 枚举禁止小写 snake_case 值（`InstallationStatus` 已按前后端同批改为 `not-enabled`，`@devbie/style-guide` 1.8.0；探针文件验证 `not_enabled` 报错、`NOT_LINKED` 不报）。持久化 / 外部标识符仍为 snake_case，按 §2.2 不受此门禁约束
 - [x] registry 回写：newbie-modules 16 文件 `diff -rq` 为空；fewbie `api-client` 以 devbie registry 为正本，宿主副本仅保留 3 处宿主常量差异（`BASE_URL` 变量名、两个 legacy storage key、lock 名）

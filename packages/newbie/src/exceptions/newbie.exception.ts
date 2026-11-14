@@ -32,6 +32,7 @@ export enum NewbieExceptionType {
   Session_RefreshRejected,
   Session_AccessExpired,
   Session_Revoked,
+  Session_Missing,
   // 2xxx: generic request throttling
   Request_RateLimited,
 }
@@ -160,6 +161,16 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
       httpStatus: HttpStatus.UNAUTHORIZED,
       error: {
         message: "Your session has been signed out",
+      },
+    },
+  ],
+  [
+    NewbieExceptionType.Session_Missing,
+    {
+      code: 1105,
+      httpStatus: HttpStatus.UNAUTHORIZED,
+      error: {
+        message: "Authentication is required",
       },
     },
   ],

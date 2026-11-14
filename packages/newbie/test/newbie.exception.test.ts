@@ -19,6 +19,7 @@ const CASES: Array<{ type: NewbieExceptionType; code: number; httpStatus: number
   { type: NewbieExceptionType.Session_RefreshRejected, code: 1102, httpStatus: 401 },
   { type: NewbieExceptionType.Session_AccessExpired, code: 1103, httpStatus: 401 },
   { type: NewbieExceptionType.Session_Revoked, code: 1104, httpStatus: 401 },
+  { type: NewbieExceptionType.Session_Missing, code: 1105, httpStatus: 401 },
   { type: NewbieExceptionType.Request_RateLimited, code: 2001, httpStatus: 429 },
 ];
 

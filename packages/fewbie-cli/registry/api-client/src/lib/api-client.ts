@@ -112,6 +112,7 @@ export const AUTH_FAILURE_CODES = {
   Session_RefreshRejected: 1102,
   Session_AccessExpired: 1103,
   Session_Revoked: 1104,
+  Session_Missing: 1105,
   Request_RateLimited: 2001,
 } as const;
 
@@ -134,7 +135,7 @@ export type SessionFailureKind =
 
 /**
  * Explicit many-to-one code → kind map (ADR-048 §4). It cannot be derived
- * from the code list: three codes share `session-terminated` and seven share
+ * from the code list: four codes share `session-terminated` and seven share
  * `request-error` by design. `Record<AuthFailureCode, …>` makes the map
  * exhaustive — adding a code without a kind fails the build.
  */
@@ -151,6 +152,7 @@ export const CODE_TO_KIND: Record<AuthFailureCode, SessionFailureKind> = {
   [AUTH_FAILURE_CODES.Session_RefreshRejected]: "session-terminated",
   [AUTH_FAILURE_CODES.Session_AccessExpired]: "access-expired",
   [AUTH_FAILURE_CODES.Session_Revoked]: "session-terminated",
+  [AUTH_FAILURE_CODES.Session_Missing]: "session-terminated",
   [AUTH_FAILURE_CODES.Request_RateLimited]: "request-error",
 };
 

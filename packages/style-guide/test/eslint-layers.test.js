@@ -151,10 +151,10 @@ describe("eslint layers", () => {
     assert.ok(messageSelectors[1].includes("includes|startsWith|endsWith"));
 
     const strategyGate = flatten(nest).find(
-      (entry) =>
-        entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/modules/account/**/*.strategy.ts"),
+      (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/modules/**/*.strategy.ts"),
     );
     assert.ok(strategyGate, "nest must restrict auth strategies to coded exceptions");
+    assert.deepEqual(strategyGate.files, ["**/src/modules/**/*.strategy.ts"]);
     // The strategy block repeats the audit selector: flat-config rule options
     // merge by replacement, so the last matching block must be self-contained.
     assert.deepEqual(
@@ -172,6 +172,15 @@ describe("eslint layers", () => {
     assert.ok(auditGate, "nest must scan audit detail.reason values for kebab-case");
     assert.deepEqual(auditGate.files, ["**/src/**/*.ts", "!**/*.strategy.ts"]);
     assert.match(auditGate.rules["no-restricted-syntax"][1].selector, /detail.*reason.*Literal\[value=/);
+
+    const wireEnumGate = flatten(nest).find(
+      (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/application/**/*.ts"),
+    );
+    assert.ok(wireEnumGate, "nest must scan wire DTO enums for lowercase snake_case values (INV-8)");
+    assert.deepEqual(wireEnumGate.files, ["**/src/application/**/*.ts"]);
+    const wireEnumSelectors = wireEnumGate.rules["no-restricted-syntax"].slice(1).map((entry) => entry.selector);
+    assert.equal(wireEnumSelectors.length, 2);
+    assert.match(wireEnumSelectors[1], /^TSEnumMember > Literal\[value=\/_\/\]/);
   });
 
   it("every layer is a composable array of plain config objects", () => {
