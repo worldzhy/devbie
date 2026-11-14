@@ -134,6 +134,39 @@ describe("eslint layers", () => {
     assert.equal(configEntries[0].rules["import/no-anonymous-default-export"], "off");
   });
 
+  it("guards the ADR-048 auth-failure contract", () => {
+    // ADR-048 §6.4 makes three things a build error instead of a review note:
+    // display copy must not drive behaviour (INV-6), auth strategies must not
+    // throw uncoded exceptions, and audit reasons must not take the wire/kind
+    // spelling (INV-8).
+    const messageGate = flatten(next).find(
+      (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/lib/**/*.{ts,tsx}"),
+    );
+    assert.ok(messageGate, "next must scan src/lib and src/api for message-based decisions");
+    assert.deepEqual(messageGate.files, ["**/src/lib/**/*.{ts,tsx}", "**/src/api/**/*.{ts,tsx}"]);
+    const messageSelectors = messageGate.rules["no-restricted-syntax"].slice(1).map((entry) => entry.selector);
+    assert.equal(messageSelectors.length, 2);
+    assert.ok(messageSelectors[0].includes("BinaryExpression"));
+    assert.ok(messageSelectors[0].includes("message|description"));
+    assert.ok(messageSelectors[1].includes("includes|startsWith|endsWith"));
+
+    const strategyGate = flatten(nest).find(
+      (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/modules/**/*.strategy.ts"),
+    );
+    assert.ok(strategyGate, "nest must restrict auth strategies to coded exceptions");
+    assert.deepEqual(
+      strategyGate.rules["no-restricted-syntax"].slice(1).map((entry) => entry.selector),
+      ["NewExpression[callee.name='ForbiddenException']", "NewExpression[callee.name='UnauthorizedException']"],
+    );
+
+    const auditGate = flatten(nest).find(
+      (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/**/*.ts"),
+    );
+    assert.ok(auditGate, "nest must scan audit detail.reason values for kebab-case");
+    assert.deepEqual(auditGate.files, ["**/src/**/*.ts", "!**/*.strategy.ts"]);
+    assert.match(auditGate.rules["no-restricted-syntax"][1].selector, /detail.*reason.*Literal\[value=/);
+  });
+
   it("every layer is a composable array of plain config objects", () => {
     for (const layer of [base, nest, next]) {
       assert.ok(Array.isArray(layer) && layer.length > 0);

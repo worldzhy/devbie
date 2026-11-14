@@ -43,6 +43,32 @@ export default [
     },
   },
   {
+    // ADR-048 §2.1 / §6.4: `message` and `description` are display copy and may
+    // be reworded at any time; behaviour must branch on the numeric error
+    // `code` (or the derived SessionFailureKind). Comparing or matching those
+    // strings is the exact mechanism that made a coded 403 look like a network
+    // failure, so it is a build error in the two directories that decide
+    // transport and session behaviour.
+    files: ["**/src/lib/**/*.{ts,tsx}", "**/src/api/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector:
+            "BinaryExpression[operator=/^(===|!==|==|!=)$/] > MemberExpression[property.name=/^(message|description)$/]",
+          message:
+            "Do not compare display copy (message/description). Branch on the numeric error code or SessionFailureKind instead (ADR-048 §2.1).",
+        },
+        {
+          selector:
+            "CallExpression[callee.property.name=/^(includes|startsWith|endsWith|match|indexOf|search)$/][callee.object.property.name=/^(message|description)$/]",
+          message:
+            "Do not match display copy (message/description). Branch on the numeric error code or SessionFailureKind instead (ADR-048 §2.1).",
+        },
+      ],
+    },
+  },
+  {
     files: ["**/eslint.config.*"],
     rules: {
       // eslint-config-next bundles eslint-plugin-import, whose
