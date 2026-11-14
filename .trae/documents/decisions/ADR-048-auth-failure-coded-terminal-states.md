@@ -2,7 +2,7 @@
 
 - 状态：提议中
 - 日期：2026-11-14
-- 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–4 步已落地（newbie 1.18.0 / newbie-modules / nightwatch-backend / fewbie api-client 与 nightwatch-frontend），剩余 CI 静态门禁未实现
+- 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–5 步已落地（newbie 1.18.0 / newbie-modules / nightwatch-backend / fewbie api-client 与 nightwatch-frontend / `@devbie/style-guide` 1.7.1 静态门禁 / `@devbie/fewbie-cli` 1.6.2 registry 发布），剩余 INV-8 的 wire 枚举 casing 扫描（依赖 `InstallationStatus` 前后端同批改名）
 - 关系：扩展 [ADR-001](ADR-001-http-status-semantics-for-auth-failures.md)（不取代；ADR-001 的 HTTP 语义分类继续有效，本 ADR 补上它的判别层与客户端落点层）
 - 触发：R47 评审（`.trae/documents/reviews/` @ nightwatch-backend，2026-11-14）+ round5 命名复审（devbie，2026-11-14）
 
