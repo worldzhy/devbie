@@ -151,7 +151,8 @@ describe("eslint layers", () => {
     assert.ok(messageSelectors[1].includes("includes|startsWith|endsWith"));
 
     const strategyGate = flatten(nest).find(
-      (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/modules/**/*.strategy.ts"),
+      (entry) =>
+        entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/modules/account/**/*.strategy.ts"),
     );
     assert.ok(strategyGate, "nest must restrict auth strategies to coded exceptions");
     // The strategy block repeats the audit selector: flat-config rule options

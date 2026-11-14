@@ -217,7 +217,7 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 - [x] 前端 `SessionFailureKind` + `CODE_TO_KIND`（`Record` 穷尽）+ §4 有序判定
 - [x] `layout.tsx` / `api/request.ts` / `api-error-toast.tsx` 改为消费 `kind`，不再看 status
 - [x] api-client 测试覆盖 §4 六行判定 + 13 个 code 映射（旧实现无 `kind` 概念，用例在旧代码上类型与行为双重变红）
-- [x] CI 静态扫描：auth 策略禁用裸 `ForbiddenException` / `UnauthorizedException`（`@devbie/style-guide` 1.7.0 `nest` 层，范围 `**/*.strategy.ts`）
-- [x] CI 静态扫描：`src/lib`、`src/api` 下无 message 字符串判断（`@devbie/style-guide` 1.7.0 `next` 层，比较与 `includes/startsWith/endsWith/match/indexOf/search` 两类选择器）
+- [x] CI 静态扫描：auth 策略禁用裸 `ForbiddenException` / `UnauthorizedException`（`@devbie/style-guide` 1.7.x `nest` 层，当前范围 `src/modules/account/**/*.strategy.ts`；探针文件验证会报错。security 的 `jwt` / `api-key` 策略仍缺「凭据未携带」的 code，待 §7 扩展后并入）
+- [x] CI 静态扫描：`src/lib`、`src/api` 下无 message 字符串判断（`@devbie/style-guide` 1.7.1 `next` 层，比较与 `includes/startsWith/endsWith/match/indexOf/search` 两类选择器；探针文件验证会报错）
 - [ ] CI 静态扫描：审计值与 kind 不跨 casing（INV-8），且同层拼法一致（§2.2 规则 4）—— 审计 `detail.reason` 的 kebab 扫描已进 `nest` 层；wire 枚举与 `kind` 的 casing 扫描待 `InstallationStatus`（`not_enabled`）等既有违规按前后端同批改名后启用，否则门禁一开即红
 - [x] registry 回写：newbie-modules 16 文件 `diff -rq` 为空；fewbie `api-client` 以 devbie registry 为正本，宿主副本仅保留 3 处宿主常量差异（`BASE_URL` 变量名、两个 legacy storage key、lock 名）

@@ -50,7 +50,11 @@ export default [
     // produces an uncoded 401/403, which a client cannot tell apart from any
     // other failure. Authentication strategies must go through the coded
     // NewbieException contract instead.
-    files: ["**/src/modules/**/*.strategy.ts"],
+    // Scoped to the account strategies, the surface ADR-048 migrated. The
+    // security strategies still throw a bare UnauthorizedException for a
+    // missing credential, which has no code in the 13-code table yet; they
+    // join this gate once §7 adds that code (tracked in the backend backlog).
+    files: ["**/src/modules/account/**/*.strategy.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
