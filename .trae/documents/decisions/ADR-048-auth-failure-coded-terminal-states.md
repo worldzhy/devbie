@@ -2,7 +2,7 @@
 
 - 状态：提议中
 - 日期：2026-11-14
-- 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；实现未开始
+- 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–4 步已落地（newbie 1.18.0 / newbie-modules / nightwatch-backend / fewbie api-client 与 nightwatch-frontend），剩余 CI 静态门禁未实现
 - 关系：扩展 [ADR-001](ADR-001-http-status-semantics-for-auth-failures.md)（不取代；ADR-001 的 HTTP 语义分类继续有效，本 ADR 补上它的判别层与客户端落点层）
 - 触发：R47 评审（`.trae/documents/reviews/` @ nightwatch-backend，2026-11-14）+ round5 命名复审（devbie，2026-11-14）
 
@@ -210,14 +210,14 @@ ADR-001 把认证失败分成四类（凭据错误 400 / access 失效 401 / ref
 
 ## 12. Checklist（落地时勾选）
 
-- [x] `packages/newbie` 按 §3 重命名既有成员 + 新增 1008 / 1101–1104，声明按 code 升序，附单测（代码与测试已完成，`npm run test` 64 项通过、`npm run build` 通过；minor 发布待与消费仓同批执行）
-- [ ] account refresh 策略改用 `NewbieException`，1007 / 1008 / 1101 三分支，审计值分层
-- [ ] access token 解析区分 `Session_AccessExpired` / `Session_Revoked`
-- [ ] 两个结构契约测试改为表驱动行为测试
-- [ ] 前端 `SessionFailureKind` + `CODE_TO_KIND`（`Record` 穷尽）+ §4 有序判定
-- [ ] `layout.tsx` / `api/request.ts` / `api-error-toast.tsx` 改为消费 `kind`，不再看 status
-- [ ] api-client 测试覆盖 §4 六行判定 + 13 个 code 映射，且有阴性对照
+- [x] `packages/newbie` 按 §3 重命名既有成员 + 新增 1008 / 1101–1104，声明按 code 升序，附单测（`npm run test` 65 项通过、`npm run build` 通过；已发布 `@devbie/newbie` 1.18.0，tag latest）
+- [x] account refresh 策略改用 `NewbieException`，1007 / 1008 / 1101 三分支，审计值分层（nightwatch-backend 1393 项测试通过）
+- [x] access token 解析区分 `Session_AccessExpired` / `Session_Revoked`（`JwtAuthGuard` 1103、`access-token-session.resolver` 1104）
+- [x] 两个结构契约测试改为表驱动行为测试
+- [x] 前端 `SessionFailureKind` + `CODE_TO_KIND`（`Record` 穷尽）+ §4 有序判定
+- [x] `layout.tsx` / `api/request.ts` / `api-error-toast.tsx` 改为消费 `kind`，不再看 status
+- [x] api-client 测试覆盖 §4 六行判定 + 13 个 code 映射（旧实现无 `kind` 概念，用例在旧代码上类型与行为双重变红）
 - [ ] CI 静态扫描：auth 策略禁用裸 `ForbiddenException` / `UnauthorizedException`
 - [ ] CI 静态扫描：`src/lib`、`src/api` 下无 message 字符串判断
 - [ ] CI 静态扫描：审计值与 kind 不跨 casing（INV-8），且同层拼法一致（§2.2 规则 4）
-- [ ] registry 回写 `diff -rq` 为空
+- [x] registry 回写：newbie-modules 16 文件 `diff -rq` 为空；fewbie `api-client` 以 devbie registry 为正本，宿主副本仅保留 3 处宿主常量差异（`BASE_URL` 变量名、两个 legacy storage key、lock 名）

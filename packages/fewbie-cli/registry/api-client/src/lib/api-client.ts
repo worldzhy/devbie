@@ -90,6 +90,104 @@ function isEnvelope(body: unknown): body is ApiEnvelope {
 }
 
 // ---------------------------------------------------------------------------
+// Auth failure classification (devbie ADR-048 §3–§4)
+// ---------------------------------------------------------------------------
+
+/**
+ * Wire codes of the auth failure contract (devbie ADR-048 §3). They are
+ * duplicated as numeric literals because this module runs in the browser and
+ * cannot import the NestJS-side enum. The numbers are the wire contract and
+ * never change; the member names here are local and may be renamed freely.
+ */
+export const AUTH_FAILURE_CODES = {
+  Credential_Invalid: 1001,
+  Credential_NotSet: 1002,
+  Login_UserRateLimited: 1003,
+  Login_IpRateLimited: 1004,
+  ResetPassword_InvalidInput: 1005,
+  ResetPassword_InvalidCode: 1006,
+  Account_Closed: 1007,
+  Account_Disabled: 1008,
+  Account_Missing: 1101,
+  Session_RefreshRejected: 1102,
+  Session_AccessExpired: 1103,
+  Session_Revoked: 1104,
+  Request_RateLimited: 2001,
+} as const;
+
+export type AuthFailureCode = (typeof AUTH_FAILURE_CODES)[keyof typeof AUTH_FAILURE_CODES];
+
+/**
+ * What a failed request means for the page and the session (ADR-048 §4).
+ * Only `network` may block the whole page; every other kind is a
+ * request-level error or an explicit redirect.
+ */
+export type SessionFailureKind =
+  | "network"
+  | "account-blocked"
+  | "session-terminated"
+  | "access-expired"
+  | "request-error"
+  | "server-error"
+  | "permission-denied"
+  | "unknown";
+
+/**
+ * Explicit many-to-one code → kind map (ADR-048 §4). It cannot be derived
+ * from the code list: three codes share `session-terminated` and seven share
+ * `request-error` by design. `Record<AuthFailureCode, …>` makes the map
+ * exhaustive — adding a code without a kind fails the build.
+ */
+export const CODE_TO_KIND: Record<AuthFailureCode, SessionFailureKind> = {
+  [AUTH_FAILURE_CODES.Credential_Invalid]: "request-error",
+  [AUTH_FAILURE_CODES.Credential_NotSet]: "request-error",
+  [AUTH_FAILURE_CODES.Login_UserRateLimited]: "request-error",
+  [AUTH_FAILURE_CODES.Login_IpRateLimited]: "request-error",
+  [AUTH_FAILURE_CODES.ResetPassword_InvalidInput]: "request-error",
+  [AUTH_FAILURE_CODES.ResetPassword_InvalidCode]: "request-error",
+  [AUTH_FAILURE_CODES.Account_Closed]: "account-blocked",
+  [AUTH_FAILURE_CODES.Account_Disabled]: "account-blocked",
+  [AUTH_FAILURE_CODES.Account_Missing]: "session-terminated",
+  [AUTH_FAILURE_CODES.Session_RefreshRejected]: "session-terminated",
+  [AUTH_FAILURE_CODES.Session_AccessExpired]: "access-expired",
+  [AUTH_FAILURE_CODES.Session_Revoked]: "session-terminated",
+  [AUTH_FAILURE_CODES.Request_RateLimited]: "request-error",
+};
+
+const AUTH_FAILURE_CODE_SET = new Set<number>(Object.values(AUTH_FAILURE_CODES));
+
+function isAuthFailureCode(code: number | undefined): code is AuthFailureCode {
+  return typeof code === "number" && AUTH_FAILURE_CODE_SET.has(code);
+}
+
+/**
+ * Classify a failed request in the order fixed by ADR-048 §4 — the order is
+ * part of the contract and the first match wins:
+ *
+ * 1. no HTTP response      → `network`
+ * 2. a contract code       → its mapped kind
+ * 3. 5xx                   → `server-error`
+ * 4. uncoded 403           → `permission-denied`
+ * 5. uncoded 401           → `session-terminated` (fail closed: it cannot be
+ *                            refreshed, and calling it `unknown` would revive
+ *                            the refresh → 401 loop this contract removes)
+ * 6. any other uncoded 4xx → `unknown`
+ */
+export function classifyFailure(status: number, code?: number): SessionFailureKind {
+  if (status === 0) return "network";
+  if (isAuthFailureCode(code)) return CODE_TO_KIND[code];
+  if (status >= 500) return "server-error";
+  if (status === 403) return "permission-denied";
+  if (status === 401) return "session-terminated";
+  return "unknown";
+}
+
+/** Whether a silent refresh may be attempted for this 401 (ADR-048 §3). */
+function isRefreshable(kind: SessionFailureKind): boolean {
+  return kind === "access-expired";
+}
+
+// ---------------------------------------------------------------------------
 // Token storage
 // ---------------------------------------------------------------------------
 
@@ -149,20 +247,29 @@ export function clearSession(): void {
 let sessionExpiredNotified = false;
 
 /**
+ * Why the session ended: a dead session goes to the plain login page, while a
+ * disabled/closed account must land on the login page's notice banner
+ * (ADR-048 §4).
+ */
+export type SessionEndReason = "session-terminated" | "account-blocked";
+
+/**
  * Fire the session-expired handler directly. Used by non-axios transports
  * (raw fetch for SSE streams) that can't go through the response interceptor
  * but still need the same "refresh cookie gone → bounce to login" path.
  */
-export function triggerSessionExpired(): void {
+export function triggerSessionExpired(reason: SessionEndReason = "session-terminated"): void {
   if (sessionExpiredNotified) return;
   sessionExpiredNotified = true;
-  sessionExpiredHandler?.();
+  sessionExpiredHandler?.(reason);
 }
 
 /** Normalized error so callers never depend on the axios error shape. */
 export class ApiError extends Error {
   readonly status: number;
   readonly code?: number;
+  /** Page/session consequence of this failure (ADR-048 §4). */
+  readonly kind: SessionFailureKind;
   readonly data: unknown;
 
   constructor(message: string, status: number, data?: unknown, code?: number) {
@@ -170,17 +277,18 @@ export class ApiError extends Error {
     this.name = "ApiError";
     this.status = status;
     this.code = code;
+    this.kind = classifyFailure(status, code);
     this.data = data;
   }
 }
 
 /**
- * Hook invoked when the refresh cookie is missing/expired. Wire it to your
- * router (e.g. redirect to the login page); the client itself stays
- * router-agnostic.
+ * Hook invoked when the refresh cookie is missing/expired or the account
+ * cannot continue. Wire it to your router (e.g. redirect to the login page);
+ * the client itself stays router-agnostic.
  */
-let sessionExpiredHandler: (() => void) | null = null;
-export function onSessionExpired(handler: () => void): void {
+let sessionExpiredHandler: ((reason: SessionEndReason) => void) | null = null;
+export function onSessionExpired(handler: (reason: SessionEndReason) => void): void {
   sessionExpiredHandler = handler;
 }
 
@@ -268,22 +376,33 @@ async function requestRefreshOnce(): Promise<string | null> {
 export interface RefreshOutcome {
   token: string | null;
   /**
-   * True only when the server rejected the refresh exchange (401/400) or a 2xx
-   * response carried no token — i.e. the refresh credential is dead. Network
-   * errors and 5xx are transient: the session must be kept and the caller
-   * surfaces the original failure instead of forcing a logout (R22-05).
+   * True only when the server rejected the refresh exchange (401/400), the
+   * account is blocked (coded 403), or a 2xx response carried no token — i.e.
+   * the refresh credential can never succeed. Network errors and 5xx are
+   * transient: the session must be kept and the caller surfaces the original
+   * failure instead of forcing a logout (R22-05).
    */
   sessionOver: boolean;
+  /** Why the session ended; undefined while it is still alive (ADR-048). */
+  kind?: SessionEndReason;
 }
 
 /** Send the refresh request with one retry on 401 (cross-tab cookie race). */
 async function requestRefreshWithRetry(): Promise<RefreshOutcome> {
-  const classify = (error: unknown): RefreshOutcome =>
-    // Only an auth rejection proves the cookie is dead; anything else
-    // (offline, timeout, 5xx) is transient and must not end the session.
-    axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 400)
-      ? { token: null, sessionOver: true }
-      : { token: null, sessionOver: false };
+  const classify = (error: unknown): RefreshOutcome => {
+    if (!axios.isAxiosError(error)) return { token: null, sessionOver: false };
+    const status = error.response?.status ?? 0;
+    const body = error.response?.data as ApiEnvelope | undefined;
+    const kind = classifyFailure(status, body?.code);
+    // A disabled or closed account is a definitive end, but a distinct one:
+    // the login page shows the account notice instead of a plain form.
+    if (kind === "account-blocked") return { token: null, sessionOver: true, kind };
+    // Any 401 from the refresh exchange, and a 400 on its input, means the
+    // refresh credential can never succeed — a retry cannot fix it.
+    if (status === 401 || status === 400) return { token: null, sessionOver: true, kind: "session-terminated" };
+    // Offline, timeout, 5xx: transient, the session survives (R22-05).
+    return { token: null, sessionOver: false };
+  };
   try {
     const token = await requestRefreshOnce();
     return { token, sessionOver: token === null };
@@ -342,10 +461,23 @@ export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
   refreshPromise = (async (): Promise<RefreshOutcome> => {
     try {
       if (typeof navigator !== "undefined" && navigator.locks) {
-        return await navigator.locks.request(REFRESH_LOCK_NAME, async () => {
-          if (!force && !isRefreshStillDue()) return { token: getAccessToken(), sessionOver: false };
-          return requestRefreshWithRetry();
-        });
+        let acquired = false;
+        try {
+          return await navigator.locks.request(REFRESH_LOCK_NAME, async () => {
+            acquired = true;
+            if (!force && !isRefreshStillDue()) return { token: getAccessToken(), sessionOver: false };
+            return requestRefreshWithRetry();
+          });
+        } catch (error) {
+          // Acquisition can fail for reasons other than contention: a document
+          // that is not fully active (prerender, bfcache, unloading) rejects
+          // the lock request outright. Every acquisition failure must fall
+          // back to the unlocked exchange — otherwise the rejection escapes
+          // bootstrapSession, whose callers only handle the outcome states,
+          // and the cold start hangs instead of reaching login.
+          if (!acquired) return requestRefreshWithRetry();
+          throw error;
+        }
       }
       // The await matters: without it the finally below runs at construction
       // time and refreshPromise would keep the settled outcome forever, so
@@ -363,12 +495,22 @@ export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
 /**
  * Result of establishing the in-memory session on a cold start (ADR-040).
  *
- * The three states matter because "the backend said no" and "the backend could
- * not be reached" lead to opposite UI decisions: the first is a real logout,
- * the second must keep the user on the page (R22-05).
+ * The states matter because "the backend said no" and "the backend could not
+ * be reached" lead to opposite UI decisions: the first is a real logout, the
+ * second must keep the user on the page (R22-05). `blocked` is the third
+ * outcome of a real logout: the account itself is disabled or closed, so the
+ * login page must show that notice instead of a plain form (ADR-048 §4).
  */
 export type SessionBootstrapOutcome =
-  { status: "authenticated"; token: string } | { status: "anonymous" } | { status: "unavailable" };
+  | { status: "authenticated"; token: string }
+  | { status: "anonymous" }
+  | { status: "blocked" }
+  | { status: "unavailable" };
+
+/** Signed out vs. account blocked: both end the session, differently (§4). */
+function sessionEndedOutcome(outcome: RefreshOutcome): SessionBootstrapOutcome {
+  return outcome.kind === "account-blocked" ? { status: "blocked" } : { status: "anonymous" };
+}
 
 /**
  * Establish the in-memory session on a cold start or a new tab (ADR-040).
@@ -391,32 +533,51 @@ export async function bootstrapSession(): Promise<SessionBootstrapOutcome> {
 
   const outcome = await refreshAccessToken(true);
   if (outcome.token) return { status: "authenticated", token: outcome.token };
-  if (outcome.sessionOver) return { status: "anonymous" };
+  if (outcome.sessionOver) return sessionEndedOutcome(outcome);
 
   await new Promise((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS));
   const retried = await refreshAccessToken(true);
   if (retried.token) return { status: "authenticated", token: retried.token };
-  return retried.sessionOver ? { status: "anonymous" } : { status: "unavailable" };
+  return retried.sessionOver ? sessionEndedOutcome(retried) : { status: "unavailable" };
+}
+
+/** Read the failure kind from a raw fetch response without consuming it. */
+async function failureKindOfResponse(response: Response): Promise<SessionFailureKind> {
+  try {
+    const body = (await response.clone().json()) as ApiEnvelope;
+    return classifyFailure(response.status, body?.code);
+  } catch {
+    // Non-JSON body (empty 401, gateway page): classify on the status alone,
+    // which keeps an unrecognized 401 failing closed.
+    return classifyFailure(response.status);
+  }
 }
 
 /**
  * Shared 401 handling for non-axios transports (raw fetch for SSE streams):
- * force a silent refresh and replay once with the renewed token. The session
- * ends only when the refresh credential is dead; a transient refresh failure
- * keeps the session and hands the original 401 back to the caller (R22-05,
- * R23-06).
+ * refresh only an expired access token, then replay once with the renewed
+ * token. The session ends when the refresh credential is dead or the 401 is
+ * not refreshable; a transient refresh failure keeps the session and hands the
+ * original 401 back to the caller (R22-05, R23-06, ADR-048 §4).
  */
 export async function replayOnUnauthorized(
   response: Response,
   replay: (token: string) => Promise<Response>,
 ): Promise<Response> {
   if (response.status !== 401) return response;
+  // Only an expired access token may be refreshed (ADR-048 §3); every other
+  // 401 — including a code this build does not know — ends the session.
+  if (!isRefreshable(await failureKindOfResponse(response))) {
+    clearSession();
+    triggerSessionExpired("session-terminated");
+    return response;
+  }
   const outcome = await refreshAccessToken(true);
   if (outcome.token) return replay(outcome.token);
   if (outcome.sessionOver) {
     // Dead refresh credential: same session-end path as the axios interceptor.
     clearSession();
-    triggerSessionExpired();
+    triggerSessionExpired(outcome.kind ?? "session-terminated");
   }
   return response;
 }
@@ -447,7 +608,7 @@ export function initProactiveTokenRefresh(): void {
         // instead of waiting for the next business request to 401 (R22-05).
         if (outcome.sessionOver) {
           clearSession();
-          triggerSessionExpired();
+          triggerSessionExpired(outcome.kind ?? "session-terminated");
         }
       });
     }
@@ -564,33 +725,55 @@ api.interceptors.response.use(
     const canSilentlyRefresh =
       typeof window !== "undefined" && !original?._retriedAfterRefresh && !AUTH_PATH_PATTERN.test(url);
 
+    // Single normalization for every final failure: the kind decides both the
+    // refresh policy and what the UI shows (ADR-048 §4).
+    const normalized = toApiError(error);
+
     if (isUnauthorized(error) && original && canSilentlyRefresh) {
-      original._retriedAfterRefresh = true;
-      const outcome = await refreshAccessToken(true);
-      if (outcome.token) {
-        original.headers.set("Authorization", `Bearer ${outcome.token}`);
-        // Replay goes through the same interceptor chain; its outcome is
-        // returned directly so this failure never reaches the handler.
-        return api(original);
-      }
-      if (outcome.sessionOver) {
-        // The server rejected the refresh credential: the session is over.
+      if (isRefreshable(normalized.kind)) {
+        original._retriedAfterRefresh = true;
+        const outcome = await refreshAccessToken(true);
+        if (outcome.token) {
+          original.headers.set("Authorization", `Bearer ${outcome.token}`);
+          // Replay goes through the same interceptor chain; its outcome is
+          // returned directly so this failure never reaches the handler.
+          return api(original);
+        }
+        if (outcome.sessionOver) {
+          // The server rejected the refresh credential: the session is over.
+          clearSession();
+          triggerSessionExpired(outcome.kind ?? "session-terminated");
+          // This request failed because the session was already gone; the user
+          // is being bounced to the login page, so its message is noise
+          // (R21-01). Suppress it through the public per-request opt-out rather
+          // than a private marker — one suppression concept, not two (R22-01).
+          original.enabledDefaultErrorToast = false;
+        }
+        // Transient refresh failure (offline/5xx): keep the session and let the
+        // original 401 surface normally (R22-05).
+      } else {
+        // A terminal 401, or a code this build does not recognize: fail closed
+        // instead of refreshing into another 401 (ADR-048 INV-4).
         clearSession();
-        triggerSessionExpired();
-        // This request failed because the session was already gone; the user is
-        // being bounced to the login page, so its message is noise (R21-01).
-        // Suppress it through the public per-request opt-out rather than a
-        // private marker — one suppression concept, not two (R22-01).
+        triggerSessionExpired("session-terminated");
         original.enabledDefaultErrorToast = false;
       }
-      // Transient refresh failure (offline/5xx): keep the session and let the
-      // original 401 surface normally (R22-05).
+    } else if (normalized.kind === "account-blocked") {
+      // A disabled/closed account on any request (including the refresh
+      // exchange): same end state, but the login page must show the notice.
+      clearSession();
+      triggerSessionExpired("account-blocked");
+      if (original) original.enabledDefaultErrorToast = false;
+    } else if (normalized.kind === "session-terminated" && !AUTH_PATH_PATTERN.test(url)) {
+      // A terminal 401 from a non-axios-flagged path (e.g. the request already
+      // replayed once): the session cannot be revived.
+      clearSession();
+      triggerSessionExpired("session-terminated");
+      if (original) original.enabledDefaultErrorToast = false;
     }
 
-    // Single exit for every final failure: normalize once, notify once.
     // Callers that render their own error UX pass enabledDefaultErrorToast:
     // false to suppress the default toast and avoid double notification.
-    const normalized = toApiError(error);
     if (error?.config?.enabledDefaultErrorToast !== false) {
       notifyError(normalized);
     }
