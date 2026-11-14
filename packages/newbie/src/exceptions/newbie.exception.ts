@@ -13,33 +13,48 @@ export class NewbieException extends HttpException {
   }
 }
 
+// Auth failure error codes (see ADR-048 §3). The numeric `code` is the only
+// wire contract; the member names follow `PascalCase_Snake` with the prefix
+// naming the subject (Credential / Login / ResetPassword / Account / Session /
+// Request). Declared in ascending code order — new members are inserted at
+// their code position instead of appended.
 export enum NewbieExceptionType {
-  Login_WrongInput,
-  Login_InactiveUser,
-  Login_NoPassword,
-  Login_ExceededAttempts,
-  Login_HighFrequency,
-  ResetPassword_WrongInput,
+  // 1xxx: authentication and session domain
+  Credential_Invalid,
+  Credential_NotSet,
+  Login_UserRateLimited,
+  Login_IpRateLimited,
+  ResetPassword_InvalidInput,
   ResetPassword_InvalidCode,
-  Access_HighFrequency,
+  Account_Closed,
+  Account_Disabled,
+  Account_Missing,
+  Session_RefreshRejected,
+  Session_AccessExpired,
+  Session_Revoked,
+  // 2xxx: generic request throttling
+  Request_RateLimited,
 }
 
 // Each entry carries an explicit HTTP status (see ADR-001): recoverable
 // credential-submission failures are 400 (RFC 6749 invalid_grant), account
-// state failures are 403, and rate/attempt limits are 429. The business code
-// keeps the product-level semantics inside the response envelope.
+// state failures and ended sessions differ — account states are 403 while
+// session states are 401 — and rate/attempt limits are 429. Only
+// `Session_AccessExpired` may be refreshed by the client; every other 401
+// terminates the session. The business code keeps the product-level semantics
+// inside the response envelope; the `message` is display copy only and must
+// never be parsed.
 const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStatus: number; error: object }>([
   [
-    NewbieExceptionType.Login_WrongInput,
+    NewbieExceptionType.Credential_Invalid,
     {
       code: 1001,
       httpStatus: HttpStatus.BAD_REQUEST,
       error: { message: "Invalid combination of account and password" },
     },
   ],
-
   [
-    NewbieExceptionType.Login_NoPassword,
+    NewbieExceptionType.Credential_NotSet,
     {
       code: 1002,
       httpStatus: HttpStatus.BAD_REQUEST,
@@ -49,7 +64,7 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
     },
   ],
   [
-    NewbieExceptionType.Login_ExceededAttempts,
+    NewbieExceptionType.Login_UserRateLimited,
     {
       code: 1003,
       httpStatus: HttpStatus.TOO_MANY_REQUESTS,
@@ -61,7 +76,7 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
     },
   ],
   [
-    NewbieExceptionType.Login_HighFrequency,
+    NewbieExceptionType.Login_IpRateLimited,
     {
       code: 1004,
       httpStatus: HttpStatus.TOO_MANY_REQUESTS,
@@ -73,7 +88,7 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
     },
   ],
   [
-    NewbieExceptionType.ResetPassword_WrongInput,
+    NewbieExceptionType.ResetPassword_InvalidInput,
     {
       code: 1005,
       httpStatus: HttpStatus.BAD_REQUEST,
@@ -89,7 +104,7 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
     },
   ],
   [
-    NewbieExceptionType.Login_InactiveUser,
+    NewbieExceptionType.Account_Closed,
     {
       code: 1007,
       httpStatus: HttpStatus.FORBIDDEN,
@@ -99,7 +114,57 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
     },
   ],
   [
-    NewbieExceptionType.Access_HighFrequency,
+    NewbieExceptionType.Account_Disabled,
+    {
+      code: 1008,
+      httpStatus: HttpStatus.FORBIDDEN,
+      error: {
+        message: "Your account has been disabled by an administrator",
+      },
+    },
+  ],
+  [
+    NewbieExceptionType.Account_Missing,
+    {
+      code: 1101,
+      httpStatus: HttpStatus.UNAUTHORIZED,
+      error: {
+        message: "The account associated with this session no longer exists",
+      },
+    },
+  ],
+  [
+    NewbieExceptionType.Session_RefreshRejected,
+    {
+      code: 1102,
+      httpStatus: HttpStatus.UNAUTHORIZED,
+      error: {
+        message: "Your session is no longer valid. Please sign in again",
+      },
+    },
+  ],
+  [
+    NewbieExceptionType.Session_AccessExpired,
+    {
+      code: 1103,
+      httpStatus: HttpStatus.UNAUTHORIZED,
+      error: {
+        message: "Access token expired",
+      },
+    },
+  ],
+  [
+    NewbieExceptionType.Session_Revoked,
+    {
+      code: 1104,
+      httpStatus: HttpStatus.UNAUTHORIZED,
+      error: {
+        message: "Your session has been signed out",
+      },
+    },
+  ],
+  [
+    NewbieExceptionType.Request_RateLimited,
     {
       code: 2001,
       httpStatus: HttpStatus.TOO_MANY_REQUESTS,
@@ -111,3 +176,17 @@ const NewbieExceptionMap = new Map<NewbieExceptionType, { code: number; httpStat
     },
   ],
 ]);
+
+/**
+ * The wire code carried by the given exception type. This is the only value
+ * that crosses the wire (see ADR-048 §2.1); callers must compare against it
+ * rather than the enum ordinal, which is merely an artifact of declaration
+ * order.
+ */
+export function newbieExceptionCode(type: NewbieExceptionType): number {
+  const exception = NewbieExceptionMap.get(type);
+  if (!exception) {
+    throw new Error(`Unknown newbie exception type: ${type}`);
+  }
+  return exception.code;
+}
