@@ -12,9 +12,17 @@ A module ships a Prisma fragment (e.g. `account` defines `User`, `Session`,
 (`packages/newbie-cli/src/assemble/schema.ts`), and the file is rewritten on
 every `newbie install` / `newbie update`. The header says `DO NOT EDIT`.
 
-A host routinely needs to extend a module model with **reverse relation
-fields** so that a host-owned model can reference it. The motivating example
-in nightwatch-backend:
+A module fragment is host-agnostic: it must never name a host-owned model. The
+host, however, routinely needs the two sides **linked**, in both directions — a
+host table pointing at a module table (`ProjectMember.user`), a module table
+pointing at a host table (`TaskSpace.project`). Prisma requires **both** sides of
+a relation to be declared, and the module side cannot declare the half that
+names a host model. `prisma-additions/<key>.prisma` therefore carries the
+**module-side half** of those links (forward relation field plus its scalar,
+reverse relation arrays, and the additive extras below); the **host-side half**
+is declared in the host's `prisma/schema.prisma`. Prisma reads the generated
+fragment and `schema.prisma` as one schema, so the relation is complete while
+each file stays owned by one party. The motivating example in nightwatch-backend:
 
 ```prisma
 // prisma/schema.prisma (host-owned, application schema)
@@ -26,12 +34,11 @@ model ProjectMember {
 }
 ```
 
-Prisma requires **both** sides of a relation to be declared in the schema.
-The `User` model lives in the `account` module and does not know about
-`ProjectMember`, so the host must add `projectMemberships ProjectMember[]`
-to `User`. Today the host edits the generated
-`prisma/models/account.prisma` by hand; the next assembly wipes the field
-and `prisma generate` fails with "The relation field ... is missing an
+In the example above the missing half is the reverse array: `User` lives in the
+`account` module and does not know about `ProjectMember`, so the host must add
+`projectMemberships ProjectMember[]` to `User`. Today the host edits the
+generated `prisma/models/account.prisma` by hand; the next assembly wipes the
+field and `prisma generate` fails with "The relation field ... is missing an
 opposite relation field".
 
 The runtime `$extends` mechanism in `@devbie/newbie/prisma`
@@ -82,8 +89,12 @@ at the schema-assembly layer.
   A sibling directory is immune structurally rather than by a suffix
   blacklist: Prisma never scans it, and the sweep never walks it.
 - **Directory name: `prisma-additions/`.** The name describes the content,
-  not the owner: the directory holds schema-level additions to module models
-  (reverse relations, host indexes, host-only scalar fields). "Addition" also
+  not the owner: the directory holds the **module-side half** of the links
+  between module tables and host-owned tables (and between module tables of
+  different modules) — forward relation fields and their scalars, reverse
+  relation arrays — plus, in the same additive spirit, host indexes and
+  host-only scalar fields on module models. The host-side half stays in
+  `prisma/schema.prisma`. "Addition" also
   encodes the constraint this ADR already decided — additive only, a colliding
   field is an error, never an override. `extension` was rejected because the
   framework already spends that word on the runtime client layer
@@ -121,8 +132,12 @@ at the schema-assembly layer.
 
 ## Cross-host check
 
-The mechanism is host-agnostic: any Nest + Prisma host that assembles a
-module can drop a `prisma-additions/<key>.prisma` to extend its models. No
+The mechanism is host-agnostic: any Nest + Prisma host that assembles a module
+can drop a `prisma-additions/<key>.prisma` to link the module's models to
+host-owned models the module cannot name. It only writes the module-side half
+of a link, and only into models that exist in that module's fragment: it cannot
+declare a new model, and it cannot add a field to a host-owned model (those
+live in `prisma/schema.prisma`). No
 nightwatch-specific concept (ProjectMember, application schema) leaks into
 the framework or the module. The module's own `schema.prisma` stays
 unchanged and host-agnostic. The merge is purely additive on the host side.
