@@ -154,9 +154,15 @@ describe("eslint layers", () => {
       (entry) => entry.rules?.["no-restricted-syntax"] && entry.files?.includes("**/src/modules/**/*.strategy.ts"),
     );
     assert.ok(strategyGate, "nest must restrict auth strategies to coded exceptions");
+    // The strategy block repeats the audit selector: flat-config rule options
+    // merge by replacement, so the last matching block must be self-contained.
     assert.deepEqual(
       strategyGate.rules["no-restricted-syntax"].slice(1).map((entry) => entry.selector),
-      ["NewExpression[callee.name='ForbiddenException']", "NewExpression[callee.name='UnauthorizedException']"],
+      [
+        "NewExpression[callee.name='ForbiddenException']",
+        "NewExpression[callee.name='UnauthorizedException']",
+        "Property[key.name='detail'] > ObjectExpression > Property[key.name='reason'] > Literal[value=/-/]",
+      ],
     );
 
     const auditGate = flatten(nest).find(

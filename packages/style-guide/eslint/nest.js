@@ -27,6 +27,25 @@ export default [
     },
   },
   {
+    // ADR-048 §2.2: persisted audit reasons are snake_case history. A dash in
+    // `detail.reason` means the wire/kind spelling leaked into an audit column,
+    // which silently forks the value space. Strategy files are excluded here
+    // because the block below carries the same selector together with the
+    // exception ban: `no-restricted-syntax` merges by replacement, so a file
+    // matched by two blocks only keeps the last one's selectors.
+    files: ["**/src/**/*.ts", "!**/*.strategy.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Property[key.name='detail'] > ObjectExpression > Property[key.name='reason'] > Literal[value=/-/]",
+          message:
+            "Audit detail.reason is a persisted snake_case value; a dash here forks the audit vocabulary (ADR-048 §2.2).",
+        },
+      ],
+    },
+  },
+  {
     // ADR-048 §6.4: a passport strategy that throws a bare Nest exception
     // produces an uncoded 401/403, which a client cannot tell apart from any
     // other failure. Authentication strategies must go through the coded
@@ -44,17 +63,6 @@ export default [
           message:
             "Auth strategies must throw a coded NewbieException, not a bare UnauthorizedException (ADR-048 §6.4).",
         },
-      ],
-    },
-  },
-  {
-    // ADR-048 §2.2: persisted audit reasons are snake_case history. A dash in
-    // `detail.reason` means the wire/kind spelling leaked into an audit column,
-    // which silently forks the value space.
-    files: ["**/src/**/*.ts", "!**/*.strategy.ts"],
-    rules: {
-      "no-restricted-syntax": [
-        "error",
         {
           selector: "Property[key.name='detail'] > ObjectExpression > Property[key.name='reason'] > Literal[value=/-/]",
           message:
