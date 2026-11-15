@@ -2,6 +2,7 @@
 
 状态：已采纳
 日期：2026-11-16
+更新：2026-11-16 — 等价性表第 6 条「跨标签并发由服务端 CAS + 30s 幂等窗口吸收」的口径由 [ADR-051](ADR-051-access-token-sid-decoupling.md) 补全：该结论只覆盖 refresh 轮换，此前后端还会因轮换覆盖 `accessToken` 列而作废同会话的 access token；ADR-051 去掉该副作用后，第 6 条按字面成立
 
 关系：落实 [ADR-040](ADR-040-access-token-storage.md)（access token 仅内存）与 [ADR-048](ADR-048-auth-failure-coded-terminal-states.md)（错误码 → 终态）的契约，并继续 [ADR-049](ADR-049-drop-cross-tab-refresh-lock.md) 的实现收缩。本 ADR **不取代** ADR-040 / ADR-048 / ADR-049：Bearer 传输、refresh cookie 生命周期、`Session_AccessExpired` 是唯一可刷新 401 这三条不变，本文只删掉一套冗余机制并重整模块边界。
 
