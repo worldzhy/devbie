@@ -2,7 +2,7 @@
   "name": "api-client",
   "type": "registry:lib",
   "title": "API client",
-  "description": "Envelope-aware axios instance with bearer-token auth in memory (no localStorage), httpOnly refresh-cookie rotation, cold-start session bootstrap that tells a signed-out user apart from an unreachable backend, cross-tab Web Lock single-flight 401 retry, proactive token refresh, and UI-agnostic onError/onSessionExpired hooks.",
+  "description": "Envelope-aware axios instance with bearer-token auth in memory (no localStorage), httpOnly refresh-cookie rotation, cold-start session bootstrap that tells a signed-out user, a blocked account and an unreachable backend apart, cross-tab Web Lock single-flight 401 retry, proactive token refresh, ADR-048 coded auth-failure classification (SessionFailureKind / CODE_TO_KIND), and UI-agnostic onError/onSessionExpired hooks.",
   "dependencies": ["axios@^1.20.0"],
   "registryDependencies": [],
   "files": ["src/lib/api-client.ts"],
