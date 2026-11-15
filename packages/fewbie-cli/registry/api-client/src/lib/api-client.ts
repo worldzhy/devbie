@@ -42,9 +42,6 @@ const AUTH_PATH_PATTERN = /^\/auth\//;
  */
 const API_TIMEOUT_MS = 15_000;
 
-/** Cross-tab Web Lock that serializes refresh calls (see fewbie ADR-001). */
-const REFRESH_LOCK_NAME = "refresh-token";
-
 /** Refresh this early so business requests never carry an expired token. */
 const PROACTIVE_REFRESH_LEAD_MS = 60_000;
 
@@ -345,16 +342,6 @@ function isUnauthorized(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 401;
 }
 
-/**
- * Whether the access token is still due for a refresh. After acquiring the
- * cross-tab lock, another tab may have already refreshed while we waited;
- * this check lets us skip the network call and reuse the new token.
- */
-function isRefreshStillDue(): boolean {
-  if (!accessTokenExpiresAt) return true;
-  return Date.now() >= accessTokenExpiresAt - PROACTIVE_REFRESH_LEAD_MS;
-}
-
 /** One refresh round-trip; persists the renewed token and its expiry. */
 async function requestRefreshOnce(): Promise<string | null> {
   const response = await axios.get(`${BASE_URL}${REFRESH_PATH}`, {
@@ -389,8 +376,16 @@ export interface RefreshOutcome {
   kind?: SessionEndReason;
 }
 
-/** Send the refresh request with one retry on 401 (cross-tab cookie race). */
-async function requestRefreshWithRetry(): Promise<RefreshOutcome> {
+/**
+ * Send the refresh request, optionally retrying once on 401.
+ *
+ * The retry exists for the cross-tab rotation race: another tab may have just
+ * rotated the refresh cookie, and its Set-Cookie lands here a moment later. A
+ * cold-start probe passes `retryUnauthorized: false` — no other tab could have
+ * rotated on behalf of a first load, so a 401 there means "not signed in" and
+ * must resolve in one round trip instead of sleeping through the retry delay.
+ */
+async function requestRefreshWithRetry(retryUnauthorized = true): Promise<RefreshOutcome> {
   const classify = (error: unknown): RefreshOutcome => {
     if (!axios.isAxiosError(error)) return { token: null, sessionOver: false };
     const status = error.response?.status ?? 0;
@@ -409,7 +404,7 @@ async function requestRefreshWithRetry(): Promise<RefreshOutcome> {
     const token = await requestRefreshOnce();
     return { token, sessionOver: token === null };
   } catch (firstError) {
-    if (isUnauthorized(firstError)) {
+    if (retryUnauthorized && isUnauthorized(firstError)) {
       // Possible cross-tab rotation race: retry once with the renewed cookie.
       await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
       try {
@@ -426,68 +421,38 @@ async function requestRefreshWithRetry(): Promise<RefreshOutcome> {
 
 // Shared in-flight refresh. The backend rotates the refresh cookie on every
 // call, so concurrent 401s must await the same request instead of issuing
-// parallel refreshes that invalidate each other's cookie.
+// parallel refreshes that invalidate each other's cookie. Cross-tab
+// concurrency is absorbed by the server (CAS rotation + idempotency window)
+// and by the single 401 retry, not by a browser-side lock (ADR-049).
 let refreshPromise: Promise<RefreshOutcome> | null = null;
-/** Whether the in-flight refresh was started with force=true (R20-12). */
-let refreshPromiseForced = false;
 
 /**
  * Exchange the httpOnly refresh cookie for a new access token.
  *
- * Two layers of dedup prevent concurrent refresh calls that would trigger
- * the backend's refresh-token-reuse detection and revoke the session:
- * 1. Single-tab: module-level refreshPromise — concurrent 401s in this tab
- *    reuse the same promise.
- * 2. Cross-tab: Web Locks (navigator.locks) serialize refreshes across tabs.
- * After acquiring the lock, re-check whether refresh is still needed.
- * Pass force=true from the 401 reactive path: a 401 proves the token is
- * invalid regardless of the stored expiry, so the lock-time re-check must
- * not short-circuit. A forced caller must not ride a non-forced in-flight
- * refresh either — that promise may resolve through the not-due shortcut
- * with a token the server already rejects — so it chains a forced refresh
- * after the in-flight one instead (R20-12). Environments without Web Locks
- * fall back to the single-flight + retry mitigation.
+ * Concurrent callers in this tab share one round-trip: the backend rotates the
+ * refresh cookie on every call, so parallel refreshes would invalidate each
+ * other. A simultaneous refresh from another tab is harmless — the server's
+ * CAS rotation returns the same renewed token inside its idempotency window
+ * (ADR-049, ADR-040 validation record), so no cross-tab lock is needed.
+ * Pass retryUnauthorized=false for a cold-start probe: a first load has no
+ * competing rotation, so a 401 there is terminal and retrying only delays the
+ * redirect.
  *
  * Exported so non-axios transports (raw fetch for SSE streams) can also
  * participate in the 401 silent-refresh chain. The outcome distinguishes a
  * dead refresh credential (`sessionOver`) from a transient failure, so
  * callers only end the session on the former (R22-05).
  */
-export function refreshAccessToken(force = false): Promise<RefreshOutcome> {
-  if (refreshPromise) {
-    if (!force || refreshPromiseForced) return refreshPromise;
-    return refreshPromise.then((outcome) => (outcome.sessionOver ? outcome : refreshAccessToken(true)));
-  }
+export function refreshAccessToken(retryUnauthorized = true): Promise<RefreshOutcome> {
+  if (refreshPromise) return refreshPromise;
 
-  refreshPromiseForced = force;
   refreshPromise = (async (): Promise<RefreshOutcome> => {
     try {
-      if (typeof navigator !== "undefined" && navigator.locks) {
-        let acquired = false;
-        try {
-          return await navigator.locks.request(REFRESH_LOCK_NAME, async () => {
-            acquired = true;
-            if (!force && !isRefreshStillDue()) return { token: getAccessToken(), sessionOver: false };
-            return requestRefreshWithRetry();
-          });
-        } catch (error) {
-          // Acquisition can fail for reasons other than contention: a document
-          // that is not fully active (prerender, bfcache, unloading) rejects
-          // the lock request outright. Every acquisition failure must fall
-          // back to the unlocked exchange — otherwise the rejection escapes
-          // bootstrapSession, whose callers only handle the outcome states,
-          // and the cold start hangs instead of reaching login.
-          if (!acquired) return requestRefreshWithRetry();
-          throw error;
-        }
-      }
       // The await matters: without it the finally below runs at construction
-      // time and refreshPromise would keep the settled outcome forever, so
-      // no-locks environments could never refresh again (R20-12).
-      return await requestRefreshWithRetry();
+      // time and refreshPromise would keep the settled outcome forever.
+      return await requestRefreshWithRetry(retryUnauthorized);
     } finally {
       refreshPromise = null;
-      refreshPromiseForced = false;
     }
   })();
 
@@ -518,10 +483,9 @@ function sessionEndedOutcome(outcome: RefreshOutcome): SessionBootstrapOutcome {
  * Establish the in-memory session on a cold start or a new tab (ADR-040).
  *
  * The access token is no longer persisted, so "am I signed in?" can only be
- * answered by exchanging the httpOnly refresh cookie. A forced refresh is
- * used so the lock-time not-due shortcut cannot return an empty token, and it
- * shares the single-flight promise with any 401 refresh already in flight, so
- * a cold start rotates the refresh cookie exactly once.
+ * answered by exchanging the httpOnly refresh cookie. It shares the
+ * single-flight promise with any 401 refresh already in flight, so a cold
+ * start rotates the refresh cookie exactly once.
  *
  * A rejected exchange (401/400 or a 2xx without a token) means anonymous. A
  * transient failure is retried once — that absorbs the "network just came
@@ -533,12 +497,15 @@ export async function bootstrapSession(): Promise<SessionBootstrapOutcome> {
   const existing = getAccessToken();
   if (existing) return { status: "authenticated", token: existing };
 
-  const outcome = await refreshAccessToken(true);
+  // A cold start cannot be a cross-tab rotation race: no other tab could have
+  // rotated the cookie on behalf of this first load, so a 401 here means
+  // anonymous. Skipping the 401 retry resolves the probe in one round trip.
+  const outcome = await refreshAccessToken(false);
   if (outcome.token) return { status: "authenticated", token: outcome.token };
   if (outcome.sessionOver) return sessionEndedOutcome(outcome);
 
   await new Promise((resolve) => setTimeout(resolve, BOOTSTRAP_RETRY_DELAY_MS));
-  const retried = await refreshAccessToken(true);
+  const retried = await refreshAccessToken(false);
   if (retried.token) return { status: "authenticated", token: retried.token };
   return retried.sessionOver ? sessionEndedOutcome(retried) : { status: "unavailable" };
 }
@@ -574,7 +541,7 @@ export async function replayOnUnauthorized(
     triggerSessionExpired("session-terminated");
     return response;
   }
-  const outcome = await refreshAccessToken(true);
+  const outcome = await refreshAccessToken();
   if (outcome.token) return replay(outcome.token);
   if (outcome.sessionOver) {
     // Dead refresh credential: same session-end path as the axios interceptor.
@@ -693,10 +660,21 @@ export function isTrustedApiTarget(url: string | undefined, baseUrl: string | un
   }
 }
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  const trusted = isTrustedApiTarget(config.url, config.baseURL ?? BASE_URL);
+  // ADR-040 decision 2: the first action that needs the session establishes it.
+  // A request fired before the cold-start exchange settles would carry no
+  // bearer token, and a token-less 401 is terminal under ADR-048, so the race
+  // would end a healthy session instead of refreshing it. Awaiting the same
+  // single-flight exchange the layout bootstraps with means the request leaves
+  // with the token already attached; /auth/* stays exempt because those calls
+  // are the login flow itself (and the refresh exchange bypasses this instance).
+  if (trusted && !getAccessToken() && !AUTH_PATH_PATTERN.test(config.url ?? "")) {
+    await bootstrapSession();
+  }
   const token = getAccessToken();
   // Within the interceptor chain headers is always an AxiosHeaders instance.
-  if (token && isTrustedApiTarget(config.url, config.baseURL ?? BASE_URL)) {
+  if (token && trusted) {
     config.headers.set("Authorization", `Bearer ${token}`);
   }
   return config;
@@ -734,7 +712,7 @@ api.interceptors.response.use(
     if (isUnauthorized(error) && original && canSilentlyRefresh) {
       if (isRefreshable(normalized.kind)) {
         original._retriedAfterRefresh = true;
-        const outcome = await refreshAccessToken(true);
+        const outcome = await refreshAccessToken();
         if (outcome.token) {
           original.headers.set("Authorization", `Bearer ${outcome.token}`);
           // Replay goes through the same interceptor chain; its outcome is
