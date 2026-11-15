@@ -2,7 +2,7 @@
   "name": "auth",
   "type": "registry:lib",
   "title": "Auth utilities",
-  "description": "login/logout helpers, session-expired redirect binding and proactive-refresh bootstrap built on the api-client.",
+  "description": "login/logout helpers and session-expired redirect binding built on the api-client.",
   "dependencies": [],
   "registryDependencies": ["api-client"],
   "files": ["src/lib/auth.ts"],

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  apiClient,
-  clearSession,
-  getAccessToken,
-  initProactiveTokenRefresh,
-  onSessionExpired,
-  setSession,
-} from "@/lib/api-client";
+import { apiClient, clearSession, getAccessToken, onSessionExpired, setSession } from "@/lib/api-client";
 
 // ---------------------------------------------------------------------------
 // Project-specific configuration — edit these for your backend contract.
@@ -36,8 +29,9 @@ export interface LoginCredentials {
 let initialized = false;
 
 /**
- * Wire auth behaviour to the router and start proactive token refresh.
- * Call once on the client, e.g. in the authenticated layout's useEffect.
+ * Wire auth behaviour to the router. Call once on the client, e.g. in the
+ * authenticated layout's useEffect. No refresh timer is installed: the
+ * api-client request gate renews an expiring token on demand (devbie ADR-050).
  */
 export function initAuth(options?: { loginPath?: string }): void {
   if (initialized || typeof window === "undefined") return;
@@ -52,8 +46,6 @@ export function initAuth(options?: { loginPath?: string }): void {
       window.location.replace(`${loginPath}?redirect=${redirect}`);
     }
   });
-
-  initProactiveTokenRefresh();
 }
 
 /** Log in, persist the session, and return the raw result for callers. */
