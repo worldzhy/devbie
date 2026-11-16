@@ -28,7 +28,11 @@ function isUnauthorized(error: unknown): boolean {
 
 /** One refresh round-trip; persists the renewed token and its expiry. */
 async function requestRefreshOnce(): Promise<string | null> {
-  const response = await axios.get(`${BASE_URL}${REFRESH_PATH}`, {
+  // POST, not GET: the exchange rotates the refresh cookie, so it is not a
+  // read. The backend exposes it only as POST (strict RESTful paths), and a
+  // GET here 404s — which reads as a transient failure, then the token-less
+  // follow-up request 401s and the tab is bounced to login on every reload.
+  const response = await axios.post(`${BASE_URL}${REFRESH_PATH}`, null, {
     withCredentials: true,
     timeout: API_TIMEOUT_MS,
   });

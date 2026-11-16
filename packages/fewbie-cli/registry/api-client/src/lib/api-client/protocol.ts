@@ -11,7 +11,7 @@
 // ---------------------------------------------------------------------------
 
 /** Base URL of the API; same-origin by default. */
-export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
 /** Endpoint that exchanges the httpOnly refresh cookie for a new access token. */
 export const REFRESH_PATH = "/auth/refresh-session";
@@ -95,7 +95,7 @@ function pageOrigin(): string {
 
 /**
  * Whether a request target resolves to the one origin we may send the bearer
- * token to: the origin of `NEXT_PUBLIC_API_BASE_URL` when it is absolute, or the
+ * token to: the origin of `NEXT_PUBLIC_BASE_URL` when it is absolute, or the
  * page origin when it is relative/empty (the reverse-proxied deployment).
  *
  * Two leaks this closes:
