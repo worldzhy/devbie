@@ -40,7 +40,7 @@ describe("fewbie modules", () => {
 
     assert.deepEqual(await readModulesFile(root), ["api-client", "auth"]);
     assert.ok(await exists(root, "src/lib/auth.ts"));
-    assert.ok(await exists(root, "src/lib/api-client.ts"));
+    assert.ok(await exists(root, "src/lib/api-client/index.ts"));
   });
 
   it("repairs missing files from the declaration without naming modules", async () => {

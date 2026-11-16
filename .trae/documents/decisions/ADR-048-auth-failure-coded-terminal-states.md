@@ -3,6 +3,7 @@
 - 状态：已采纳（2026-11-14，§8 与 §12 全部条目落地）
 - 日期：2026-11-14
 - 更新：2026-11-14 — 命名口径按选项 A 统一（§2.1 三档 casing、§3 主体前缀、§4 有序判定、§5 映射不变量）；§8 第 1–5 步与 §12 全部条目已落地：newbie 1.18.1（新增 1105）、newbie-modules、nightwatch-backend、fewbie api-client 1.6.3 与 nightwatch-frontend、`@devbie/style-guide` 1.8.0（策略门禁扩到全部模块 + INV-8 wire 枚举扫描）、`InstallationStatus` 前后端同批改为 kebab-case
+- 更新：2026-11-16 — §3 `Session_Revoked`（1104）的**产生条件**由 [ADR-051](ADR-051-access-token-sid-decoupling.md) 收窄：会话行被删才发 1104，refresh 轮换不再作废同会话的 access token。码值、HTTP 状态、§4 客户端落点均不变，§3 表无需修改
 - 关系：扩展 [ADR-001](ADR-001-http-status-semantics-for-auth-failures.md)（不取代；ADR-001 的 HTTP 语义分类继续有效，本 ADR 补上它的判别层与客户端落点层）
 - 触发：R47 评审（`.trae/documents/reviews/` @ nightwatch-backend，2026-11-14）+ round5 命名复审（devbie，2026-11-14）
 

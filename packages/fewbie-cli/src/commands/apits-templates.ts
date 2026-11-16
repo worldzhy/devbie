@@ -13,7 +13,7 @@ export const GENERATOR_PACKAGE_NAME = "@devbie/apits";
 export const GENERATOR_PACKAGE_SPEC = "@devbie/apits@^1.2.1";
 
 export const CONFIG_PROJECT_PATH = "apits.config.ts";
-export const API_CLIENT_PROJECT_PATH = "src/lib/api-client.ts";
+export const API_CLIENT_PROJECT_PATH = "src/lib/api-client/index.ts";
 export const ADAPTER_PROJECT_PATH = "src/api/request.ts";
 export const DEFAULT_OUTPUT_DIR = "src/api/_gen";
 export const DEFAULT_GENERATED_NAME = "api";

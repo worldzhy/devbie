@@ -35,7 +35,7 @@
     "colorette": "^2.0.20",
     "commander": "^12.1.0",
     "figlet": "^1.7.0",
-    "prettier": "^3.9.9",
+    "prettier": "^3.10.1",
     "tsx": "^4.19.0"
   },
   "devDependencies": {

@@ -43,7 +43,7 @@ your root layout or application entry:
 import init from "@devbie/frontend-monitor-sdk";
 
 init({
-  api: "https://collector.example.com/api/web-monitor/report",
+  api: "https://collector.example.com/api/frontend-monitor/reports",
   token: "<report token>",
 });
 ```
@@ -52,7 +52,7 @@ The `init` call returns helper functions for manual reporting:
 
 ```ts
 const monitor = init({
-  api: "https://collector.example.com/api/web-monitor/report",
+  api: "https://collector.example.com/api/frontend-monitor/reports",
   token: "<report token>",
 });
 
@@ -86,7 +86,7 @@ The component is a no-op until both environment variables are present.
 | `isResource`          | `boolean`  | `true`       | No       | Collect resource timing and slow/failed resources.                                                                                                                           |
 | `isError`             | `boolean`  | `true`       | No       | Collect uncaught JS errors, unhandled rejections and resource load errors.                                                                                                   |
 | `captureConsoleError` | `boolean`  | `false`      | No       | Also collect `console.error` output as `log` entries. Off by default: console arguments are arbitrary objects and often carry credentials. Pair with `redact` when enabling. |
-| `filterUrls`          | `string[]` | `[]`         | No       | URLs excluded from AJAX/resource collection. The collector endpoint (`/api/web-monitor/report`) is always filtered automatically.                                            |
+| `filterUrls`          | `string[]` | `[]`         | No       | URLs excluded from AJAX/resource collection. The collector endpoint (`/api/frontend-monitor/reports`) is always filtered automatically.                                      |
 | `user`                | `object`   | `{}`         | No       | Initial user identity: `{ uid? }`. Phone numbers are never collected (ADR-044).                                                                                              |
 | `isTraceId`           | `boolean`  | `false`      | No       | Capture the trace ID response header from AJAX calls.                                                                                                                        |
 | `traceIdHeaderName`   | `string`   | `x-trace-id` | No       | Response header name to read when `isTraceId` is enabled.                                                                                                                    |
@@ -143,7 +143,7 @@ report an error:
 
 ```ts
 init({
-  api: "https://collector.example.com/api/web-monitor/report",
+  api: "https://collector.example.com/api/frontend-monitor/reports",
   token: "<report token>",
   errcodeReport: (responseData) => {
     return {

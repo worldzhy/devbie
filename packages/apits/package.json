@@ -40,7 +40,7 @@
     "json5": "^2.1.0",
     "openapi-types": "^7.0.1",
     "ora": "5.4.1",
-    "prettier": "^3.9.9",
+    "prettier": "^3.10.1",
     "prompts": "^2.0.4",
     "tsx": "^4.20.5",
     "yargs": "^16.2.0"

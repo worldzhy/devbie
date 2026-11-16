@@ -61,3 +61,7 @@
 3. **复用检测正向验证**：用跨越两代的旧 cookie 重放 → `401 404003: Session not found`，对应 session 被删除并记录 `SESSION_REVOKED` 审计。这是 ADR-034 的预期行为，且只影响探针自身那条 session，浏览器侧会话未受影响。
 
 结论：三标签冷启动安全，Web Lock 不是正确性必需（其价值在减少轮换次数与互相作废）。附带的既有特性是 `session.accessToken` 单值绑定——每次轮换作废该会话此前签发的 access token，多标签会多出一次「401 → 强制刷新 → 重放」往返，但不会登出；与 ADR-040 无关，属既有设计。
+
+> 追记（2026-11-16）：本 ADR 决策 2 引用的「跨标签 Web Locks 串行」已由 [ADR-049](ADR-049-drop-cross-tab-refresh-lock.md) 删除。存储决策（token 只存内存）与验证结论不受影响；并发正确性由单飞 + 服务端 CAS 幂等窗口 + 单次 401 重试承担。
+>
+> 追记（2026-11-16）：上一条结论里「`session.accessToken` 单值绑定属既有设计」的注记**已废止**。[ADR-051](ADR-051-access-token-sid-decoupling.md) 删除了 `Session.accessToken` 列，access token 改携带 `sid` 按会话 id 鉴权，refresh 轮换不再作废同会话的其它 access token。本 ADR 的存储决策（token 只存内存，绝不落 localStorage）不变；「数据库不保存可用 Bearer 明文」由此从约定升级为架构保证。
