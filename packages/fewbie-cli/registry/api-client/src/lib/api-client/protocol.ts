@@ -14,7 +14,7 @@
 export const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 /** Endpoint that exchanges the httpOnly refresh cookie for a new access token. */
-export const REFRESH_PATH = "/auth/refresh-access-token";
+export const REFRESH_PATH = "/auth/refresh-session";
 
 /** Paths that must never trigger a silent refresh (would recurse). */
 export const AUTH_PATH_PATTERN = /^\/auth\//;
