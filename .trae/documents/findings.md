@@ -653,3 +653,12 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R8-10 | devbie | D6 的 300 行阈值未接入任何闸门（闸门 2 按路径集合判定） | P2 | docs | 设计阶段 | open（round8，plan scope） |
 | R8-11 | devbie | worktree 内 node_modules 由容器 root 安装，产物属主为 root，宿主 git 操作遇权限问题 | P2 | ops | 执行器实现 | open（round8，plan scope） |
 | R8-12 | devbie / nightwatch-backend | staging 环境不存在使 TESTING 无验收环境，ADR 将其列为待决而非阻塞依赖 | P2 | docs | 设计阶段 | open（round8，plan scope） |
+| R9-01 | devbie | 闸门 1 只校验 `designRef` 非空，不校验可解析/仍生效/未被取代；`impact` 若开工后可改，`changeClass` 可被降级回 `SIMPLE` 绕过准入 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
+| R9-02 | devbie / nightwatch-backend | `scopePaths` 未禁止 `.github/workflows/**` 与 `deploy/**`，agent 改流水线或部署脚本即可在闸门之外执行任意命令，五闸同时失效 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
+| R9-03 | devbie / nightwatch-backend | 五闸均未声明 fail-closed 与自保护：闸门脚本可被同仓改动、CI 跳过或判定异常时默认放行 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
+| R9-04 | devbie | 闸门 3 只防测试数/断言数下降，不防弱化（新增 `skip`/`only`、断言降级为 `toBeDefined`、断言挪入不执行分支），计数反而上升 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
+| R9-05 | devbie | 闸门 2 路径匹配语义缺失：glob/前缀未定义、rename/delete 未纳入、空集与仓根通配无下限、lockfile 与 `migrations/` 豁免口径未定 | P2 | docs | 设计阶段 | open（round9，plan scope） |
+| R9-06 | devbie | 闸门 4 失败指纹归一化规则缺失（时间戳/行号/UUID 未脱敏）致同类失败计数永不触发；墙钟 45 分钟计入排队与 CI 等待会误杀，rebase 消耗 push 预算 | P2 | docs | 设计阶段 | open（round9，plan scope） |
+| R9-07 | devbie | 五闸均无「仅人可用 + 留痕」的 override 通道，绕过会转移到闸门之外（改配置/改脚本/`--no-verify`）且不留证据 | P2 | docs | 设计阶段 | open（round9，plan scope） |
+| R9-08 | devbie | 闸门 4 阈值无校准机制（未记录触发分布、无 P50/P90 回填），且预算未纳入模型 token 成本，仅有 CI 分钟数 | P2 | docs | 设计阶段 | open（round9，plan scope） |
+| R9-09 | devbie | `acceptanceCriteria` 闸位偏晚：D2 定为「进入 TESTING 前必填」，而缺验收标准时开工阶段最容易跑偏 | P2 | docs | 设计阶段 | open（round9，plan scope） |
