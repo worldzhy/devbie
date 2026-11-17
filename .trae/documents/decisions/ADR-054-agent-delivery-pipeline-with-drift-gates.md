@@ -1,6 +1,6 @@
 # ADR-054: Agent 交付流水线与漂移控制闸门
 
-状态：已采纳（2026-11-17，用户拍板；D1 跨仓形态、D3 准入判据、D4 闸门 4 / 闸门 5 由 ADR-055 取代）
+状态：已采纳（2026-11-17，用户拍板）
 日期：2026-11-17
 前置：ADR-008（compose 三层）、ADR-012（生产拓扑）、ADR-036（PG 迁移版本化）
 
@@ -64,6 +64,7 @@ dev 有新提交 → 静默窗口 3 分钟 → 构建 → 部署 staging → 冒
 4. **staging 由事件触发，不用定时**。dev 有新提交即触发，加 3 分钟静默窗口合并多次提交为一次构建，避免连跑与反馈延迟。顺序固定为构建 → 部署 → 冒烟，部署本身须有健康门禁。
 5. **staging 验收串行**。同一时刻只服务一个验收任务，按队列排；staging 是共享环境，并发验收会互相干扰。
 6. **dev 变红时 revert 优先于修复**。agent 不知道是谁弄坏的，让它修会开始猜。先恢复到绿，再把原任务退回 DEVELOPING 重做。这依赖「一个任务一个 squash 提交」，使 revert 成为原子操作。
+7. **跨仓任务是串行子任务组，不是一个更大的单仓任务**。一个父任务下，consumer 子任务先做（完整验证：build / lint / 测试 / 验收标准），完成后才允许开工 registry 子任务；后者验收标准是 `diff -rq <consumer>/src/modules/<key> <registry>/packages/modules/<key>` 输出为空——字节一致强于重跑测试，registry 侧按既有约定不重跑测试与 format，consumer 的验证输出随父任务留存。串行由 `dependsOn` 字段强制（dispatcher 只取依赖全部 COMPLETED 的队首），不靠人记。单条子任务仍是「一个 worktree、一条 `task/*` 分支、一个 PR」。
 
 ### D2 任务两层模型
 
@@ -83,8 +84,10 @@ dev 有新提交 → 静默窗口 3 分钟 → 构建 → 部署 staging → 冒
 | `parentId` | 指向父任务 | 可空；非空即不可直接开工 |
 | `designRef` | 设计真源引用 | 大任务必填；可指向 ADR 或既有决策文档 |
 | `acceptanceCriteria` | 验收标准 | 进入 TESTING 前必填 |
-| `scopePaths` | 允许改动的路径集合 | 提交前与 CI 双重校验 |
-| `changeClass` | `SIMPLE` / `DESIGNED` | 由判据计算，不由人声明 |
+| `scopePaths` | 允许改动的路径集合 | 提交前与 CI 双重校验；条数同时是准入判据的计量对象 |
+| `impact` | 影响面声明（`repos` / `touchesSchema` / `touchesContracts` / `irreversible`） | 建任务时填写；闸门 2 校验声明与实际一致 |
+| `changeClass` | `SIMPLE` / `DESIGNED` | 由 `impact` 与 `scopePaths` 推导，不存人工声明 |
+| `dependsOn` | 前置子任务 | 可空；非空且未全部 COMPLETED 即不可开工 |
 | `sourceRef` | 来源讨论（chatId + messageId） | 可空；用于澄清时回读原文 |
 | `blockedReason` | 阻塞原因 | 新增状态 BLOCKED 时必填 |
 
@@ -92,19 +95,37 @@ dev 有新提交 → 静默窗口 3 分钟 → 构建 → 部署 staging → 冒
 
 ### D3 准入判据
 
-**「大任务」必须可判定，否则规则不可执行。** 命中任一条即为 `DESIGNED`：
+**「大任务」必须可判定，否则规则不可执行。** 判定分三段：声明 → 推导 → 复检。
 
-1. 涉及超过一个仓库
-2. 涉及 `prisma/schema.prisma` 或迁移
-3. 涉及跨模块 / 跨仓契约（DTO、SPI、事件）
-4. 触发 agent 升级边界中的不可逆操作
-5. 改动文件数超过 20（一个会话装不下）
+**声明**。任务在创建时携带 `impact`，四个子字段由设计阶段（父任务或人）填写，不由 agent 从任务描述推断：
 
-这些条件复用既有的执行路由表与升级边界，使「大不大」由字段算出，不由人争论。
+| 子字段 | 语义 | 复检方式（闸门 2 / CI） |
+| --- | --- | --- |
+| `repos` | 预期改动的仓 | 实际改动仓集合必须 ⊆ `repos` |
+| `touchesSchema` | 是否动 `prisma/schema.prisma` 或迁移 | 实际路径命中 schema / `migrations/` 却未声明即失败 |
+| `touchesContracts` | 是否动跨模块 / 跨仓契约（DTO、SPI、事件） | `designRef` 列出契约文件清单，实际路径命中却未声明即失败 |
+| `irreversible` | 是否含不可逆操作 | 执行器升级边界命中时比对声明，未声明即停 |
+
+**推导**。`changeClass` 是纯函数，没有自由文本分支：
+
+```
+DESIGNED iff repos.length > 1
+         || touchesSchema
+         || touchesContracts
+         || irreversible
+         || scopePaths.length > 20
+```
+
+否则 `SIMPLE`。计量对象是设计阶段填写的 `scopePaths` 条数——可从任务拆解直接数出。**不得用实现完成后的 diff 文件数**：那是事后量，开工后翻转 `changeClass` 会破坏闸门 1 的准入语义。实际改动文件数只由闸门 2 用「⊆ `scopePaths`」约束。
+
+**复检**。声明错了由闸门抓，不靠声明人诚实：
+
+- 实际仓集合 ⊄ `repos`、实际路径 ⊄ `scopePaths`、或命中 schema / 契约清单却未声明 → 闸门 2 停手，任务退回 DEVELOPING 并附差异清单。
+- 同一子任务重复触发（连续 2 次）计入闸门 4 的失败计数，防止靠改声明绕过。
 
 `DESIGNED` 任务必须有 `designRef`。但 `designRef` 允许指向**已有** ADR——引入新决策才需要新写 ADR，只是实施既有设计的大任务引用即可。这条是刻意的收紧：ADR 定稿即封存、禁止重写正文，把一个会演进的实施计划强行写成 ADR 只会产生假 ADR 与编号膨胀。
 
-`SIMPLE` 任务免 `designRef` 校验，豁免条件由上述判据算出，不接受人工声明。
+`SIMPLE` 任务免 `designRef` 校验，但**不免 `impact` 声明**：`SIMPLE` 是「四元组为空 / 小且 `scopePaths` 不超 20」的结果，不是另一条独立通道。
 
 ### D4 闸门 × 执行位置
 
@@ -113,14 +134,25 @@ dev 有新提交 → 静默窗口 3 分钟 → 构建 → 部署 staging → 冒
 | 1. 无 `designRef` 不开工 | `PENDING → DEVELOPING` 转换时 | 服务端状态机 + dispatcher 预过滤 | 拒绝流转，任务标 BLOCKED 并通知 |
 | 2. 改动超出 `scopePaths` | 提交前 · 以及 PR CI | dispatcher 本地校验（快速失败）+ CI 复检（权威） | 停手，任务退回 DEVELOPING，附超出清单 |
 | 3. 测试数 / 断言数下降 | PR CI | CI job，对比 dev 的 merge-base | PR 红，自动合并被阻断 |
-| 4. 失败超预算 | 全程持续 | dispatcher 计数器（尝试次数、累计改动行数、时长） | 杀掉会话，任务转 BLOCKED |
-| 5. 破坏性命令 | 命令执行瞬间 | 沙箱 wrapper 拦截 + 远端 ruleset 兜底 | 命令被拒 |
+| 4. 失败超预算 | 全程持续 | dispatcher 计数器（见下表） | 杀掉会话，任务转 BLOCKED，`blockedReason` 写明触发项 |
+| 5. 破坏性命令与凭证越界 | 命令执行瞬间 · 环境构建时 | 执行器命令代理 + 凭证最小化 + 出站白名单（ruleset 仅作 git 维度补充） | 命令被拒 / 环境不可用 |
+
+闸门 4 的阈值：
+
+| 计数器 | 阈值 | 计量口径 |
+| --- | --- | --- |
+| 同类失败 | 连续 2 次 | 指纹 = 闸门编号 + 归一化错误摘要；不同闸门不互相累计 |
+| 累计改动 | 单子任务 > 600 行 | add + del；排除 lockfile、`dist/`、生成物、快照、`*.min.*` |
+| 墙钟 | 单子任务 > 45 分钟 | 从 worktree 创建到 push 或放弃 |
+| 提交次数 | 单子任务 > 3 次 push | 含 force-push |
+
+任一触发 → 杀掉会话、任务转 BLOCKED、通知人。计数器由 dispatcher 持久化，跨会话与 agent 重启**不重置**，只有人显式 reset 才清零；agent 不可读写。首版取值为工程估计，按真实会话数据调整时改 dispatcher 常量，不改本 ADR。
 
 分层理由：
 
 - **闸门 1 与 4 只能由外部执行**。状态机只看字段不看 agent 陈述；预算只能由 dispatcher 计数，agent 无法诚实自报。
 - **闸门 2 与 3 必须双层**。本地校验的价值是缩短漂移窗口（窗口为一次提交而非整个 PR）；CI 那层的价值是防止绕过（`--no-verify`、手改 hook）。
-- **闸门 5 真正有效的是远端 ruleset**。本地 deny-list 只省一次往返，agent 可以绕开 wrapper 直接调接口。分支保护是硬闸。
+- **闸门 5 的硬闸不是 ruleset**。ruleset 只约束受保护分支的 git 引用更新，不覆盖 `aws ssm send-command`、`aws s3 rm`、`docker compose down`、`docker run -v /:/`。硬闸是：agent 不在宿主直跑，只跑在无凭证容器内（不挂 `/root/.aws`、不注入 SSM / S3 写权限、不持有宿主 docker socket），部署由执行器的独立进程代发，另加出站白名单作纵深。本地 deny-list 只省一次往返。若某次实现因成本保留凭证挂载或 docker socket，必须**显式声明闸门 5 未闭合**，不得宣称有闸。
 
 ### D5 硬约束
 
@@ -145,14 +177,18 @@ dev 有新提交 → 静默窗口 3 分钟 → 构建 → 部署 staging → 冒
 | 每个大任务强制新写 ADR | 撞上 ADR 定稿封存约束，产生假 ADR 与编号膨胀；改为 `designRef` 可引用既有 ADR |
 | 把验收也自动化 | 链路退化为自证循环，跑得越快错得越远 |
 | 用更多规则覆盖全部风险 | 规则一多，人记不住哪个是真闸，agent 开始「通过检查」而非「做对事」 |
+| 跨仓拆成两个独立父任务 | 丢失串行依赖与验证证据链，registry 侧变成无人担保的孤儿提交 |
+| registry 子任务重跑全套验证 | 违反 registry 既有约定，且重跑证明力弱于 `diff -rq` 字节一致 |
+| 从任务文本推断影响面 | 语义推断不可求值，也无法保证正确；改为显式声明 + 闸门复检 |
+| 只靠 ruleset 兜底破坏性操作 | 不覆盖非 git 破坏性路径，属虚假保证 |
 
 ## 影响
 
-- **nightwatch-backend**：`task-management` 模块加字段（`parentId`、`designRef`、`acceptanceCriteria`、`scopePaths`、`changeClass`、`sourceRef`、`blockedReason`）与 `BLOCKED` 状态，需迁移；`task.service` 增加闸门 1 的流转校验。`deploy.yml` 增加部署成功回调与任务回写。新增 dev 分支的 PR CI（必要子集，非全量）与自动合并。
+- **nightwatch-backend**：`task-management` 模块加字段（`parentId`、`designRef`、`acceptanceCriteria`、`scopePaths`、`impact`、`changeClass`、`dependsOn`、`sourceRef`、`blockedReason`）与 `BLOCKED` 状态，需迁移；`task.service` 增加闸门 1 的流转校验与 `impact` 复检。`deploy.yml` 增加部署成功回调与任务回写。新增 dev 分支的 PR CI（必要子集，非全量）与自动合并。
 - **nightwatch-frontend**：任务看板支持父子层级与 BLOCKED 展示；staging 验收入口。
-- **本机执行器**（新增，不入仓）：dispatcher 轮询、`(repo, module)` 锁、worktree 管理、预算计数、命令沙箱、失败汇报。以 launchd 常驻，需单实例锁与日志轮转。
+- **本机执行器**（新增，不入仓）：dispatcher 轮询、`(repo, module)` 锁、worktree 管理、预算计数、命令代理、失败汇报。以 launchd 常驻，需单实例锁与日志轮转。**准入条件**：agent 只在无凭证容器内运行（不挂 `/root/.aws`、不注入 SSM / S3 写权限、不持有宿主 docker socket），命令由执行器代发，闸门 4 计数器持久化且 agent 不可读写——不满足不得宣称闸门闭合。
 - **worldzhy-knowledge**：`nightwatch-task-loop` skill 改为执行器调用约定，删除「靠人检查 git status 做并行互斥」的失效条款。
-- **newbie-modules**：`task-management` 的结构变更随 registry 走 back-port。
+- **newbie-modules**：`task-management` 的结构变更随 registry 走 back-port；back-port 段补充 registry 子任务验收口径（`diff -rq` 为空、不重跑测试）。
 
 ## 待决
 
@@ -173,5 +209,5 @@ dev 有新提交 → 静默窗口 3 分钟 → 构建 → 部署 staging → 冒
 ## 更新记录
 
 - 2026-11-17 — 待决第 1 项关闭：**dev 分支开放自动合并**（用户拍板）。与 D1 第 3 条一致，无需修改决策正文。落地前提有两条：dev 必须配置必需状态检查，未通过不得合并；自动合并仅对 `task/*` 分支生效，人工分支仍走常规 review。`main` 的保护规则不变，仍必须人工合并。
-- 2026-11-17 — round8 评审五条 P1 的修复落在 **ADR-055**：D1 补跨仓串行子任务形态与 `dependsOn`、D3 全文改为「显式 `impact` 声明 + 机械推导 + 闸门复检」、D4 闸门 4 给出四组阈值、闸门 5 撤回 ruleset 作为硬闸的覆盖声明并改为凭证与能力最小化。本 ADR 正文按采纳后封存规则不改，只有状态行与本节更新。
+- 2026-11-17 — round8 评审五条 P1 就地修复（R8-01 ~ R8-05）。本 ADR 尚无任何实现落地，故不另起 ADR，直接改写 D1 第 7 条、D2 字段表、D3 全文、D4 闸门 4 / 闸门 5：跨仓任务定为串行子任务组（`dependsOn` 强制，registry 验收为 `diff -rq` 为空）；准入改为「`impact` 声明 → 纯函数推导 → 闸门复检」，判据 20 的计量对象改为 `scopePaths` 条数；闸门 4 给出四组阈值并声明计数器持久化；闸门 5 撤回 ruleset 硬闸声明，改为凭证与能力最小化。R8-06 ~ R8-12 仍 open。
 

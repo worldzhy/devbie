@@ -641,11 +641,11 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R7-05 | newbie-modules | 模块准入缺"服务型模块"明文判据（Redis 已是先例；broker 需同样契约） | P2 | docs | 装配设计 | open（Phase 0 补条文） |
 | R7-06 | nightwatch-world | 3D 孪生提前：world 仅只读投影契约，设备遥测未纳入 | P2 | docs | 设计阶段 | open（延后至设备遥测契约） |
 | R7-07 | devbie / nightwatch-backend | 固件仓与跨仓契约归属未定，缺可执行 spec | P2 | docs | 设计阶段 | open（Phase 0 按 adr-placement 定归属） |
-| R8-01 | devbie | ADR-054 D3 判据「改动文件数超过 20」在准入时不可判定（事后量当准入量） | P1 | docs | 设计阶段 | fixed（ADR-055 B4：计量对象改为 `scopePaths` 条数，实测数只用于闸门 2 复检） |
-| R8-02 | devbie | ADR-054 称 changeClass「由判据计算」，但五条判据中三条只能从自由文本推断 | P1 | docs | 设计阶段 | fixed（ADR-055 B1-B3：显式 `impact` 声明 + 纯函数推导 + 闸门复检） |
-| R8-03 | devbie / nightwatch-backend / newbie-modules | 单仓单 PR 模型与 registry 双仓 back-port 流程冲突，首个实施任务即双仓 | P1 | docs | 设计阶段 | fixed（ADR-055 A：跨仓 = 父任务下串行子任务组，`dependsOn` 强制，registry 验收为 `diff -rq` 为空） |
-| R8-04 | devbie | ADR-054 闸门 4「失败超预算」无具体阈值（N 次 / M 行未定义） | P1 | docs | 设计阶段 | fixed（ADR-055 C：连续 2 次同类失败 / 600 行 / 45 分钟 / 3 次 push） |
-| R8-05 | devbie | ADR-054 闸门 5 高估远端 ruleset 覆盖：不约束 aws ssm / docker 等非 git 破坏性操作，agent 环境挂载 AWS 凭证 | P1 | docs | 设计阶段 | fixed（ADR-055 D：撤回 ruleset 硬闸声明，改为凭证与能力最小化 + 出口白名单） |
+| R8-01 | devbie | ADR-054 D3 判据「改动文件数超过 20」在准入时不可判定（事后量当准入量） | P1 | docs | 设计阶段 | fixed（ADR-054 D3 就地修订：计量对象改为 `scopePaths` 条数，实测数只由闸门 2 约束） |
+| R8-02 | devbie | ADR-054 称 changeClass「由判据计算」，但五条判据中三条只能从自由文本推断 | P1 | docs | 设计阶段 | fixed（ADR-054 D3 就地修订：`impact` 显式声明 + 纯函数推导 + 闸门复检） |
+| R8-03 | devbie / nightwatch-backend / newbie-modules | 单仓单 PR 模型与 registry 双仓 back-port 流程冲突，首个实施任务即双仓 | P1 | docs | 设计阶段 | fixed（ADR-054 D1 第 7 条就地修订：跨仓 = 串行子任务组，`dependsOn` 强制，registry 验收为 `diff -rq` 为空） |
+| R8-04 | devbie | ADR-054 闸门 4「失败超预算」无具体阈值（N 次 / M 行未定义） | P1 | docs | 设计阶段 | fixed（ADR-054 D4 就地修订：连续 2 次同类失败 / 600 行 / 45 分钟 / 3 次 push，计数器持久化） |
+| R8-05 | devbie | ADR-054 闸门 5 高估远端 ruleset 覆盖：不约束 aws ssm / docker 等非 git 破坏性操作，agent 环境挂载 AWS 凭证 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 就地修订：撤回 ruleset 硬闸声明，改为凭证与能力最小化 + 出口白名单） |
 | R8-06 | devbie | 静默窗口批量合并后冒烟失败无法归因到单提交，「revert 该提交」目标不确定 | P2 | docs | 设计阶段 | open（round8，plan scope） |
 | R8-07 | devbie / nightwatch-backend | 父任务派生状态与 `Task.status` 非空枚举列冲突；聚合查询会把父任务计入 | P2 | docs | 设计阶段 | open（round8，plan scope） |
 | R8-08 | devbie | ADR-054 新增 `BLOCKED` 未定义流转边 | P2 | docs | 设计阶段 | open（round8，plan scope） |
