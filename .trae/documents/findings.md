@@ -627,3 +627,17 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - **newbie-starter #10**（GHSA-g3hv-75wg-m249 / CVE-2026-118764，minimatch `>=7.0.0, <11.0.1`）：lockfile 中 10.2.6 由 `@nestjs/cli`（精确 pin）与 `@typescript-eslint/typescript-estree`（`^10.2.2`）引入。处置：`package.json` 增 `overrides`（`@nestjs/cli`、`@typescript-eslint/typescript-estree` → `minimatch ^11`；`@darraghor/eslint-plugin-nestjs-typed` → `glob 14.0.2`，与 nightwatch-backend 既有 overrides 同形）。install 后全树 minimatch 只剩 11.0.8 / 11.0.4 与 3.1.5（3.x 不在受影响区间且为 eslint 链路固有）；`npm run build` / `lint` / `format:check` 全绿。
 - **nightwatch-backend #21**（GHSA-w5hq-g745-h8pq / CVE-2026-41907，uuid `<11.1.1`）：8.3.2 来自 `exceljs@4.4.0` 嵌套依赖（root 已是 14.0.3）。处置：`overrides.exceljs.uuid = ^11.1.1`；install `changed 1 package`，嵌套解析为 11.1.1；exceljs 唯一调用点 `cf-rule-ext-xform.js` 用 `v4()`，条件格式工作簿写出冒烟实测通过（6152 字节）；`npm run build` / `format:check` 全绿。
 - 两者可达性评估：minimatch 只用于构建/lint 期模式匹配，漏洞需攻击者控制 glob 模式（宿主无此输入面）；uuid 漏洞只影响 v3/v5/v6 显式 `buf`/`offset` 入参（exceljs 只用无 buf 的 `v4`）。均非 live 风险，处置属供应链卫生；告警在 dev→main 合并后由 Dependabot 重扫关闭。
+
+## round7（2026-11-17，scope=`plan`：StackChan 开发方案；报告 `.trae/documents/reviews/expert-review-2026-11-17-round7.md`）
+
+> 锚点（开工）：devbie `6cfddd0c` / newbie-modules `1fdfae3` / nightwatch-backend `f0d16a6e` / nightwatch-frontend `8276008` / nightwatch-world `267ffa3`，五仓 clean。主张 K1–K13 判定见报告 §4；P0 = 0，P1 = 3，P2 = 4。
+
+| ID     | 仓 | 标题 | severity | 暴露面 | 可达性 | 状态 |
+| ------ | -- | ---- | -------- | ------ | ------ | ---- |
+| R7-01 | newbie-modules | 方案重复建设设备注册/在线能力，heartbeat installation 已覆盖凭证、presence、离线发现 | P1 | source/docs | 设计阶段 | open（修复方向：设备复用 installation；见报告 §9 Phase 1） |
+| R7-02 | newbie-modules ↔ nightwatch-backend | 设备动作无合法主体：alert-center 无 ack，resolve 需用户权限，安装实例 token 不是用户 | P1 | source/docs | 设计阶段 | open（v1 仅事件记录；服务主体须 ADR） |
+| R7-03 | newbie-modules ↔ nightwatch-backend | 传输决策未取证：部署层无 MQTT broker，LWT 会与 heartbeat 在线真源冲突，ESPHome MQTT 版本未实测 | P1 | source/docs | 设计阶段 | open（先定在线真源，再比较三条下行通道） |
+| R7-04 | nightwatch-backend / nightwatch-frontend | 部署状态单一真源冲突：backend AGENTS 称 live 且引用错误的 ADR-036，frontend AGENTS 称 offline，多份 ADR 称未上线 | P2 | docs | 设计/部署 | open（Phase 0 修正） |
+| R7-05 | newbie-modules | 模块准入缺"服务型模块"明文判据（Redis 已是先例；broker 需同样契约） | P2 | docs | 装配设计 | open（Phase 0 补条文） |
+| R7-06 | nightwatch-world | 3D 孪生提前：world 仅只读投影契约，设备遥测未纳入 | P2 | docs | 设计阶段 | open（延后至设备遥测契约） |
+| R7-07 | devbie / nightwatch-backend | 固件仓与跨仓契约归属未定，缺可执行 spec | P2 | docs | 设计阶段 | open（Phase 0 按 adr-placement 定归属） |
