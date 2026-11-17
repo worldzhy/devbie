@@ -648,17 +648,17 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R8-05 | devbie | ADR-054 闸门 5 高估远端 ruleset 覆盖：不约束 aws ssm / docker 等非 git 破坏性操作，agent 环境挂载 AWS 凭证 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 就地修订：撤回 ruleset 硬闸声明，改为凭证与能力最小化 + 出口白名单） |
 | R8-06 | devbie | 静默窗口批量合并后冒烟失败无法归因到单提交，「revert 该提交」目标不确定 | P2 | docs | 设计阶段 | open（round8，plan scope） |
 | R8-07 | devbie / nightwatch-backend | 父任务派生状态与 `Task.status` 非空枚举列冲突；聚合查询会把父任务计入 | P2 | docs | 设计阶段 | open（round8，plan scope） |
-| R8-08 | devbie | ADR-054 新增 `BLOCKED` 未定义流转边 | P2 | docs | 设计阶段 | open（round8，plan scope） |
-| R8-09 | devbie | 闸门 3「测试数/断言数单调不降」无正当删除测试的豁免通道 | P2 | docs | 设计阶段 | open（round8，plan scope） |
-| R8-10 | devbie | D6 的 300 行阈值未接入任何闸门（闸门 2 按路径集合判定） | P2 | docs | 设计阶段 | open（round8，plan scope） |
+| R8-08 | devbie | ADR-054 新增 `BLOCKED` 未定义流转边 | P2 | docs | 设计阶段 | fixed（ADR-054 D2 补 BLOCKED 流转边表：四条边 + 触发条件） |
+| R8-09 | devbie | 闸门 3「测试数/断言数单调不降」无正当删除测试的豁免通道 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 3 + 跨闸通则：合法删除只能走人工 override，PR 内不可自证） |
+| R8-10 | devbie | D6 的 300 行阈值未接入任何闸门（闸门 2 按路径集合判定） | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2 次要判定：diff > 300 行记 D6 违规并通知人，不按越界处理） |
 | R8-11 | devbie | worktree 内 node_modules 由容器 root 安装，产物属主为 root，宿主 git 操作遇权限问题 | P2 | ops | 执行器实现 | open（round8，plan scope） |
 | R8-12 | devbie / nightwatch-backend | staging 环境不存在使 TESTING 无验收环境，ADR 将其列为待决而非阻塞依赖 | P2 | docs | 设计阶段 | open（round8，plan scope） |
-| R9-01 | devbie | 闸门 1 只校验 `designRef` 非空，不校验可解析/仍生效/未被取代；`impact` 若开工后可改，`changeClass` 可被降级回 `SIMPLE` 绕过准入 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
-| R9-02 | devbie / nightwatch-backend | `scopePaths` 未禁止 `.github/workflows/**` 与 `deploy/**`，agent 改流水线或部署脚本即可在闸门之外执行任意命令，五闸同时失效 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
-| R9-03 | devbie / nightwatch-backend | 五闸均未声明 fail-closed 与自保护：闸门脚本可被同仓改动、CI 跳过或判定异常时默认放行 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
-| R9-04 | devbie | 闸门 3 只防测试数/断言数下降，不防弱化（新增 `skip`/`only`、断言降级为 `toBeDefined`、断言挪入不执行分支），计数反而上升 | P1 | docs | 设计阶段 | open（round9，单会话评审，未执行独立反驳轮） |
-| R9-05 | devbie | 闸门 2 路径匹配语义缺失：glob/前缀未定义、rename/delete 未纳入、空集与仓根通配无下限、lockfile 与 `migrations/` 豁免口径未定 | P2 | docs | 设计阶段 | open（round9，plan scope） |
-| R9-06 | devbie | 闸门 4 失败指纹归一化规则缺失（时间戳/行号/UUID 未脱敏）致同类失败计数永不触发；墙钟 45 分钟计入排队与 CI 等待会误杀，rebase 消耗 push 预算 | P2 | docs | 设计阶段 | open（round9，plan scope） |
-| R9-07 | devbie | 五闸均无「仅人可用 + 留痕」的 override 通道，绕过会转移到闸门之外（改配置/改脚本/`--no-verify`）且不留证据 | P2 | docs | 设计阶段 | open（round9，plan scope） |
-| R9-08 | devbie | 闸门 4 阈值无校准机制（未记录触发分布、无 P50/P90 回填），且预算未纳入模型 token 成本，仅有 CI 分钟数 | P2 | docs | 设计阶段 | open（round9，plan scope） |
-| R9-09 | devbie | `acceptanceCriteria` 闸位偏晚：D2 定为「进入 TESTING 前必填」，而缺验收标准时开工阶段最容易跑偏 | P2 | docs | 设计阶段 | open（round9，plan scope） |
+| R9-01 | devbie | 闸门 1 只校验 `designRef` 非空，不校验可解析/仍生效/未被取代；`impact` 若开工后可改，`changeClass` 可被降级回 `SIMPLE` 绕过准入 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 1 校验可解析/生效/未被取代；D3 冻结 `impact`/`scopePaths`/`changeClass`） |
+| R9-02 | devbie / nightwatch-backend | `scopePaths` 未禁止 `.github/workflows/**` 与 `deploy/**`，agent 改流水线或部署脚本即可在闸门之外执行任意命令，五闸同时失效 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2 禁止路径清单，并声明为闸门 5 前置不变量） |
+| R9-03 | devbie / nightwatch-backend | 五闸均未声明 fail-closed 与自保护：闸门脚本可被同仓改动、CI 跳过或判定异常时默认放行 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 跨闸通则：fail-closed + 闸门脚本受保护路径 + CI 校验其未被本次 PR 修改） |
+| R9-04 | devbie | 闸门 3 只防测试数/断言数下降，不防弱化（新增 `skip`/`only`、断言降级为 `toBeDefined`、断言挪入不执行分支），计数反而上升 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 3：禁用标记新增数必须为 0 + 弱断言净增检查 + AST 口径） |
+| R9-05 | devbie | 闸门 2 路径匹配语义缺失：glob/前缀未定义、rename/delete 未纳入、空集与仓根通配无下限、lockfile 与 `migrations/` 豁免口径未定 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2：glob 语义、本地与 CI 共用实现、`--name-status -M` 视野、禁止仓根通配、路径白名单豁免且 `migrations/` 不豁免） |
+| R9-06 | devbie | 闸门 4 失败指纹归一化规则缺失（时间戳/行号/UUID 未脱敏）致同类失败计数永不触发；墙钟 45 分钟计入排队与 CI 等待会误杀，rebase 消耗 push 预算 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 4：指纹 normalize 规则、有效执行时间 + 1 次续期、rebase 不计入 push 计数） |
+| R9-07 | devbie | 五闸均无「仅人可用 + 留痕」的 override 通道，绕过会转移到闸门之外（改配置/改脚本/`--no-verify`）且不留证据 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 跨闸通则：override 仅人可执行，记录原因/范围/有效期并写审计日志，只放行当次） |
+| R9-08 | devbie | 闸门 4 阈值无校准机制（未记录触发分布、无 P50/P90 回填），且预算未纳入模型 token 成本，仅有 CI 分钟数 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 4：dispatcher 记录触发分布与 token 成本，首月按真实数据回填阈值） |
+| R9-09 | devbie | `acceptanceCriteria` 闸位偏晚：D2 定为「进入 TESTING 前必填」，而缺验收标准时开工阶段最容易跑偏 | P2 | docs | 设计阶段 | fixed（ADR-054 D2 字段表 + D4 闸门 1：`acceptanceCriteria` 前移为开工前必填） |
