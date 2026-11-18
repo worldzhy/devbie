@@ -653,12 +653,34 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R8-10 | devbie | D6 的 300 行阈值未接入任何闸门（闸门 2 按路径集合判定） | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2 次要判定：diff > 300 行记 D6 违规并通知人，不按越界处理） |
 | R8-11 | devbie | worktree 内 node_modules 由容器 root 安装，产物属主为 root，宿主 git 操作遇权限问题 | P2 | ops | 执行器实现 | open（round8，plan scope） |
 | R8-12 | devbie / nightwatch-backend | staging 环境不存在使 TESTING 无验收环境，ADR 将其列为待决而非阻塞依赖 | P2 | docs | 设计阶段 | open（round8，plan scope） |
-| R9-01 | devbie | 闸门 1 只校验 `designRef` 非空，不校验可解析/仍生效/未被取代；`impact` 若开工后可改，`changeClass` 可被降级回 `SIMPLE` 绕过准入 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 1 校验可解析/生效/未被取代；D3 冻结 `impact`/`scopePaths`/`changeClass`） |
-| R9-02 | devbie / nightwatch-backend | `scopePaths` 未禁止 `.github/workflows/**` 与 `deploy/**`，agent 改流水线或部署脚本即可在闸门之外执行任意命令，五闸同时失效 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2 禁止路径清单，并声明为闸门 5 前置不变量） |
-| R9-03 | devbie / nightwatch-backend | 五闸均未声明 fail-closed 与自保护：闸门脚本可被同仓改动、CI 跳过或判定异常时默认放行 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 跨闸通则：fail-closed + 闸门脚本受保护路径 + CI 校验其未被本次 PR 修改） |
-| R9-04 | devbie | 闸门 3 只防测试数/断言数下降，不防弱化（新增 `skip`/`only`、断言降级为 `toBeDefined`、断言挪入不执行分支），计数反而上升 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 3：禁用标记新增数必须为 0 + 弱断言净增检查 + AST 口径） |
+| R9-01 | devbie | 闸门 1 只校验 `designRef` 非空，不校验可解析/仍生效/未被取代；`impact` 若开工后可改，`changeClass` 可被降级回 `SIMPLE` 绕过准入 | P1 | docs | 设计阶段 | verified（round10 反驳轮 REFUTED 原主张：ADR-054 L135 要求可解析/生效/未被取代；L74-75、L115 冻结 `impact`/`scopePaths`，`changeClass` 为纯函数不单独存储；相关性问题另见 R10-03） |
+| R9-02 | devbie / nightwatch-backend | `scopePaths` 未禁止 `.github/workflows/**` 与 `deploy/**`，agent 改流水线或部署脚本即可在闸门之外执行任意命令，五闸同时失效 | P1 | docs | 设计阶段 | verified（round10 反驳轮 REFUTED：ADR-054 L151 硬清单已列 `.github/workflows/**`、`.github/actions/**`、`deploy/**`；归属矛盾另见 R10-04） |
+| R9-03 | devbie / nightwatch-backend | 五闸均未声明 fail-closed 与自保护：闸门脚本可被同仓改动、CI 跳过或判定异常时默认放行 | P1 | docs | 设计阶段 | verified-partial（round10 反驳轮：L194 fail-closed 与 L195 自保护条文存在，但 L234 把路径匹配函数与禁止清单放进 `task.service`（agent 合法改动区），且未定义 CI 比对 base 还是 head 版规则；残余见 R10-01） |
+| R9-04 | devbie | 闸门 3 只防测试数/断言数下降，不防弱化（新增 `skip`/`only`、断言降级为 `toBeDefined`、断言挪入不执行分支），计数反而上升 | P1 | docs | 设计阶段 | verified-partial（round10 反驳轮：L160/L161 已关闭禁用标记与枚举内弱断言；不执行分支内断言、枚举外弱断言、等量填充对冲仍可绕过；残余见 R10-02） |
 | R9-05 | devbie | 闸门 2 路径匹配语义缺失：glob/前缀未定义、rename/delete 未纳入、空集与仓根通配无下限、lockfile 与 `migrations/` 豁免口径未定 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2：glob 语义、本地与 CI 共用实现、`--name-status -M` 视野、禁止仓根通配、路径白名单豁免且 `migrations/` 不豁免） |
 | R9-06 | devbie | 闸门 4 失败指纹归一化规则缺失（时间戳/行号/UUID 未脱敏）致同类失败计数永不触发；墙钟 45 分钟计入排队与 CI 等待会误杀，rebase 消耗 push 预算 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 4：指纹 normalize 规则、有效执行时间 + 1 次续期、rebase 不计入 push 计数） |
 | R9-07 | devbie | 五闸均无「仅人可用 + 留痕」的 override 通道，绕过会转移到闸门之外（改配置/改脚本/`--no-verify`）且不留证据 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 跨闸通则：override 仅人可执行，记录原因/范围/有效期并写审计日志，只放行当次） |
 | R9-08 | devbie | 闸门 4 阈值无校准机制（未记录触发分布、无 P50/P90 回填），且预算未纳入模型 token 成本，仅有 CI 分钟数 | P2 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 4：dispatcher 记录触发分布与 token 成本，首月按真实数据回填阈值） |
 | R9-09 | devbie | `acceptanceCriteria` 闸位偏晚：D2 定为「进入 TESTING 前必填」，而缺验收标准时开工阶段最容易跑偏 | P2 | docs | 设计阶段 | fixed（ADR-054 D2 字段表 + D4 闸门 1：`acceptanceCriteria` 前移为开工前必填） |
+| R10-01 | devbie / nightwatch-backend | 闸门自保护不闭合：L234 将路径匹配函数与禁止路径清单放入 `task.service`（`src/application/`，agent 合法 scopePaths），L151 仅以散文称「闸门自身脚本与配置」未落为可匹配路径；L195 未定义 CI 比对 base 版还是 PR head 版判定脚本 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2 闸门实现位置 + 跨闸通则第 2 条：实现移入 `tools/gates/**`，CI 从 base sha 读取闸门代码） |
+| R10-02 | devbie | 闸门 3 弱化绕过：断言放入 `if (false)` 或未调用 helper 仍计入 AST；弱断言为有限枚举且无成员判据（`toMatchObject({})` 等不在名单）；等量填充琐碎断言可对冲真实删除 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 3：有效断言口径 + 不可达断言规则 + 弱断言成员清单 + 能力边界声明） |
+| R10-03 | devbie | `designRef` 只验存在/生效/未被取代，不验与本次改动的相关性；任意 DESIGNED 任务可挂无关 ADR 通过闸门 1 | P1 | docs | 设计阶段 | fixed（ADR-054 D3 + D4 闸门 1 第 5 条：ADR 声明仓集合须与 `impact.repos` 相交，不可判定转 BLOCKED 并补 `designRefJustification`） |
+| R10-04 | devbie | 禁止路径清单归属矛盾：L151 为硬清单，L260 称「由宿主决定」；宿主少列 `.github/**` 即重新打开 R9-02 缺口 | P1 | docs | 设计阶段 | fixed（ADR-054 D4 闸门 2 与 Cross-host check：框架级下限不可覆写，宿主只能追加） |
+| R10-05 | devbie | 300 行阈值表述不一致：L153「不按越界处理，仅通知」vs L210「由闸门 2 的次要判定执行」，实现行为不确定 | P2 | docs | 设计阶段 | fixed（ADR-054 D6：统一为闸门 2 次要判定「观测」，只记违规并通知，不阻断） |
+
+## round11（2026-11-18，scope=`plan`：ADR-054 验收口径与生产 hotfix；报告 `.trae/documents/reviews/expert-review-2026-11-18-round11.md`）
+
+> 锚点（开工）：devbie `89035dbe`，dirty 3 项（ADR-054、findings.md、round10 报告）；对象指纹 `sha256 92327dbb…`（未提交）。主张 C1–C12 判定见报告 §4；P0 = 0，P1 = 4，P2 = 6。
+
+| ID     | 仓 | 标题 | severity | 暴露面 | 可达性 | 状态 |
+| ------ | -- | ---- | -------- | ------ | ------ | ---- |
+| R11-01 | nightwatch-backend / devbie | hotfix 合入 main 后无法部署：deploy.yml 的 provenance guard 只接受 `head.ref == dev` 的 dev→main PR，ADR 未把该放行规则列入改动 | P1 | ops | 任何 hotfix | open（ADR L203/L208/L410；deploy.yml L61-L66） |
+| R11-02 | devbie | 「main HEAD 是 dev HEAD 的祖先」不可持续：常规 dev→main 以 merge commit/squash 合并后 main 不再位于 dev 历史，cherry-pick 回灌必然破坏祖先；ADR 无 dev→main 合并策略与常规发布回灌规则 | P1 | docs | 首次常规发布 | open（ADR L211/L410；反驳轮 CONFIRMED） |
+| R11-03 | devbie | 自动验收失败的「revert 问题提交」依赖文档自认不可判定的归因：L196 承认批量无法归因，L430 R8-06 仍 open，L174「不存在切回旧 commit」与 L196「二分定位」未对齐 | P1 | docs | 设计阶段 | open（由 R8-06 升格；ADR L143/L175/L190） |
+| R11-04 | devbie | 候选验证启动窗口在活跃流水线下不可达：批次通过即放行队列，dev HEAD 立即前移，前置「dev HEAD == 部署版本」很难成立；无批次边界冻结或候选预约 | P1 | docs | 设计阶段 | open（ADR L144/L148/L192；反驳轮 CONFIRMED） |
+| R11-05 | devbie | 静默窗口是纯 debounce 无最大等待，合入间隔持续小于 3 分钟时批次永不成立，staging 长期空转 | P2 | docs | 设计阶段 | open（ADR L166 已改为「窗口到期 + merge queue 排空」双条件并捕获 batchBase；待实现/实测，持续合入导致队列长期非空时批次顺延） |
+| R11-06 | devbie | hotfix 与进行中的常规候选验证无反向抢占规则；hotfix 合入 main 还会使候选的合并基漂移；L177「只改变排队优先级」与 L209「抢占候选锁」措辞矛盾 | P2 | docs | 运维 | open（ADR L177/L209/L213） |
+| R11-07 | devbie | D1 与约束 1 写死「从 origin/dev 建 task 分支」，hotfix 起点是例外但未在 D1/约束 1 标注，照图实现会建错分支 | P2 | docs | 设计阶段 | open（ADR L128/L172；hotfix 小节 L200-L207） |
+| R11-08 | devbie | 前置 ADR 引用未标仓：`ADR-012` 在 devbie 内指向 `ADR-012-fewbie-merges-into-newbie-monorepo`，生产拓扑实际在 nightwatch-backend | P2 | docs | 阅读/实现 | open（ADR L5；两仓 ADR-012 目录实查） |
+| R11-09 | devbie | 把未决前提写成硬约束：约束 5/9/待决 7 以「原子暂停 merge queue」为既定能力，而待决 4/7 仍 open，平台是否支持未实测 | P2 | docs | 设计阶段 | open（ADR L166/L170/L424） |
+| R11-10 | devbie | 候选验证的「全量 CI」未定义复用 dev→main PR 已有 run 还是重跑，影响待决 3 的分钟数口径与候选证据链 | P2 | docs | 设计阶段 | open（ADR L168；ci.yml L22-L24） |
