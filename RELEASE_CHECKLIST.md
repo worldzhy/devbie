@@ -142,3 +142,13 @@ backfill that the new runtime code depends on, the backfill runs against the
   `typescript-eslint`, which the dependency-major policy defers to a dedicated
   upgrade milestone. Recorded 2026-11-06 while releasing
   `@devbie/frontend-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.
+
+- Glob/picomatch chain — re-verified 2026-11-18 while releasing
+  `@devbie/health-sdk@1.2.3`: the audit now reports 18 findings (8 moderate,
+  10 high) because `tinyglobby`/`fdir`/`picomatch` sit under
+  `eslint-import-resolver-typescript`, `json-schema-to-typescript` and
+  `@typescript-eslint/typescript-estree`, on top of the `micromatch`/`fast-glob`
+  chains above. All are lint- or type-generation-time only (same reasoning as
+  the lint-toolchain entry: `files = dist`, no runtime dependencies), and the
+  only remediation npm offers is a semver-major toolchain bump the
+  dependency-major policy defers. Waived until that milestone.
