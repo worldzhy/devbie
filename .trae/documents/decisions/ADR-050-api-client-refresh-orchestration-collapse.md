@@ -147,3 +147,12 @@ registry 正本 `packages/fewbie-cli/registry/api-client/src/lib/api-client.ts` 
 - [ ] 测试拆为按文件的 5 组，删除 scheduler 用例，bootstrap 断言改为「至多两次尝试」，新增门内到期续期与 `expiresAt === 0` 不主动刷新的用例
 - [ ] 验证：`vitest run`、`npm run lint`、`npm run build`、`newbie modules apply --check`、`npm run format:check`
 - [ ] 机械 back-port 到 registry 正本，两边 `diff -rq` 为空
+
+## 追记（2026-11-19）：幂等窗口与重试时序的错配
+
+nightwatch-backend 缺陷 R53-04 暴露了本 ADR 论证中的一处缺口，不改变已采纳的决策，仅记录：
+
+- 服务端把“上一个刷新令牌在幂等窗口外再次使用”判定为盗用，并删除整条 session（`src/modules/account/modules/session/session.service.ts:113-150`，窗口常量同文件 `:23`，规则由 2026-10-25 提交 `8b57ee23` 引入，本次重构未触及）。
+- 决策一删除主动定时刷新后，原先每 30 秒一次的重试兜底随之消失：刷新响应丢失时（服务端已轮换、浏览器未收到新的 Cookie），下一次尝试只由业务请求触发；决策五的 `REFRESH_FAILURE_COOLDOWN_MS` 又从失败完成时刻起算，30 秒冷却结束时距服务端轮换已超过当时的 30 秒窗口。
+- 本文“等价性证明”第 6 行把跨标签并发写作“由服务端 CAS + 30s 幂等窗口吸收”并标注“不涉及”；“删除定时器的代价与补偿”只论证了“回到前台后的首个请求”会触发刷新，未论证该刷新仍在幂等窗口内。两处都把窗口当成吸收器，而删除定时器与新增冷却的组合恰好使重试越过它。
+- 结论：这是时序契约缺口，而非“实现不优雅”。已由 [ADR-055](ADR-055-refresh-idempotency-window-and-gated-retry.md) 定案：窗口按到达上界放宽到 60 秒，门控瞬时失败后补非阻塞后台重试，先服务端后客户端。**周期刷新定时器仍然禁止**；事件驱动、有次数上限、随会话终结作废的后台重试不在此列。
