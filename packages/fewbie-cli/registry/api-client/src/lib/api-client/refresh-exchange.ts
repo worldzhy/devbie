@@ -15,19 +15,30 @@ import {
   BASE_URL,
   BOOTSTRAP_RETRY_DELAY_MS,
   EXPIRY_MARGIN_MS,
+  GATED_RETRY_DELAYS_MS,
   REFRESH_FAILURE_COOLDOWN_MS,
   REFRESH_PATH,
   REFRESH_RETRY_DELAY_MS,
 } from "./protocol";
 import { classifyFailure, type SessionEndReason } from "./failure";
-import { endSession, getAccessToken, getAccessTokenExpiresAt, setSession } from "./session-store";
+import {
+  endSession,
+  getAccessToken,
+  getAccessTokenExpiresAt,
+  getSessionEpoch,
+  onSessionCleared,
+  setSession,
+} from "./session-store";
 
 function isUnauthorized(error: unknown): boolean {
   return axios.isAxiosError(error) && error.response?.status === 401;
 }
 
 /** One refresh round-trip; persists the renewed token and its expiry. */
-async function requestRefreshOnce(): Promise<string | null> {
+async function requestRefreshOnce(signal?: AbortSignal): Promise<string | null> {
+  // Captured before the exchange: a response that lands after the user ended
+  // the session must not write the token back and re-arm the latch (ADR-055).
+  const epoch = getSessionEpoch();
   // POST, not GET: the exchange rotates the refresh cookie, so it is not a
   // read. The backend exposes it only as POST (strict RESTful paths), and a
   // GET here 404s — which reads as a transient failure, then the token-less
@@ -35,6 +46,7 @@ async function requestRefreshOnce(): Promise<string | null> {
   const response = await axios.post(`${BASE_URL}${REFRESH_PATH}`, null, {
     withCredentials: true,
     timeout: API_TIMEOUT_MS,
+    signal,
   });
   const body = response.data as ApiEnvelope<{
     token?: string;
@@ -42,6 +54,7 @@ async function requestRefreshOnce(): Promise<string | null> {
   }>;
   const token = body?.data?.token ?? "";
   if (!token) return null;
+  if (getSessionEpoch() !== epoch) return null;
   setSession(token, body.data?.tokenExpiresInSeconds);
   return token;
 }
@@ -73,7 +86,7 @@ export interface RefreshOutcome {
  * rotated on behalf of a first load, so a 401 there means "not signed in" and
  * must resolve in one round trip instead of sleeping through the retry delay.
  */
-async function requestRefreshWithRetry(retryUnauthorized = true): Promise<RefreshOutcome> {
+async function requestRefreshWithRetry(retryUnauthorized = true, signal?: AbortSignal): Promise<RefreshOutcome> {
   const classify = (error: unknown): RefreshOutcome => {
     if (!axios.isAxiosError(error)) return { token: null, sessionOver: false };
     const status = error.response?.status ?? 0;
@@ -89,14 +102,15 @@ async function requestRefreshWithRetry(retryUnauthorized = true): Promise<Refres
     return { token: null, sessionOver: false };
   };
   try {
-    const token = await requestRefreshOnce();
+    const token = await requestRefreshOnce(signal);
     return { token, sessionOver: token === null };
   } catch (firstError) {
-    if (retryUnauthorized && isUnauthorized(firstError)) {
+    if (retryUnauthorized && isUnauthorized(firstError) && !signal?.aborted) {
       // Possible cross-tab rotation race: retry once with the renewed cookie.
       await new Promise((resolve) => setTimeout(resolve, REFRESH_RETRY_DELAY_MS));
+      if (signal?.aborted) return classify(firstError);
       try {
-        const token = await requestRefreshOnce();
+        const token = await requestRefreshOnce(signal);
         return { token, sessionOver: token === null };
       } catch (secondError) {
         return classify(secondError);
@@ -205,6 +219,69 @@ export async function bootstrapSession(): Promise<SessionBootstrapOutcome> {
 let lastRefreshFailureAt = 0;
 
 /**
+ * The detached retry chain after a transient gate failure (devbie ADR-055).
+ *
+ * It exists because the server may have rotated the cookie before the response
+ * was lost: the browser then holds the previous generation, and without a retry
+ * it stays one behind until the idle interval exceeds the server's idempotency
+ * window — at which point the next refresh looks like theft and the session is
+ * revoked. The chain repairs the cookie only; it never hands the current
+ * request a token, and it never joins `refreshPromise`: the passive 401 path
+ * must stay free to refresh immediately while this chain sleeps.
+ */
+let gatedRetryChain: AbortController | null = null;
+
+/** Stop the chain when the session ends: a late success must not revive it. */
+onSessionCleared(() => {
+  gatedRetryChain?.abort();
+  gatedRetryChain = null;
+});
+
+function scheduleGatedRetries(): void {
+  if (gatedRetryChain) return;
+  const controller = new AbortController();
+  gatedRetryChain = controller;
+  void runGatedRetryChain(controller);
+}
+
+async function runGatedRetryChain(controller: AbortController): Promise<void> {
+  try {
+    for (const delay of GATED_RETRY_DELAYS_MS) {
+      await sleep(delay, controller.signal);
+      if (controller.signal.aborted) return;
+
+      const outcome = await requestRefreshWithRetry(true, controller.signal);
+      if (controller.signal.aborted) return;
+      if (outcome.token) {
+        // The cookie is current again; the gate resumes its normal cadence.
+        lastRefreshFailureAt = 0;
+        return;
+      }
+      if (outcome.sessionOver) {
+        endSession(outcome.kind ?? "session-terminated");
+        return;
+      }
+    }
+  } finally {
+    if (gatedRetryChain === controller) gatedRetryChain = null;
+  }
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        resolve();
+      },
+      { once: true },
+    );
+  });
+}
+
+/**
  * The request gate: hand back a token that is fresh enough to leave with.
  *
  * This is the only way a business request obtains a token (ADR-050 decision 4);
@@ -242,6 +319,9 @@ export async function ensureFreshToken(): Promise<string> {
     endSession(outcome.kind ?? "session-terminated");
   } else {
     lastRefreshFailureAt = Date.now();
+    // The request leaves now with the old token; the chain repairs the cookie
+    // in the background so the next rotation is not mistaken for theft.
+    scheduleGatedRetries();
   }
   return getAccessToken();
 }
