@@ -82,6 +82,16 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   });
   if (drifts.length > 0) {
     for (const drift of drifts) printSourceDrift(drift);
+    const unreadable = drifts.filter((drift) => drift.reason === "unavailable-pin");
+    // A stale registry cache is not drift: claiming it is sends the reader to
+    // back-port against a commit this checkout cannot even read.
+    if (unreadable.length === drifts.length) {
+      const pins = [...new Set(unreadable.map((drift) => drift.baselineCommit?.slice(0, 7) ?? "unknown"))].join(", ");
+      throw new CliError(
+        `the registry checkout at ${ctx.registry.root} cannot read the pinned commit(s) ${pins}; ` +
+          `refresh it with \`git -C ${ctx.registry.root} fetch\`, then re-run \`newbie modules apply --check\`.`,
+      );
+    }
     const keys = drifts.map((drift) => drift.key).join(", ");
     throw new CliError(
       `${drifts.length} installed module(s) do not match the registry pin in newbie-modules.json (${keys}); ` +
