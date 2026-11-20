@@ -138,3 +138,15 @@ ADR-054 定义了被管项目层的交付链路与五道闸门，执行器落在
 2. **采纳 `User.kind = HUMAN | AGENT` + scoped API key**。该变更触碰 registry `account` 契约，按设计先行规则另起一份 newbie-modules 契约 ADR，并在落地顺序第 2 步之前完成；执行器侧（第 1 步）不依赖它，可先行。
 3. **离线阈值 3 个 tick（约 90 秒）**，超过即看板标记 `OFFLINE`，在途任务不改派、只告警。
 
+### 2026-11-20 落地第 1 步（dispatcher）
+
+`nightwatch-dispatcher`（仓外，`/Users/worldzhy/src/nightwatch-dispatcher`）完成落地顺序第 1 步：
+
+- **`agent.json` 校验**：`agent-manifest.ts` 校验 slug、非空项目、space/project 去重，缺省 `maxConcurrentTasks=1`、`diskQuotaGb=20`；启动时扫描同级 `agents/*/agent.json` 做一项目一员工的本地冲突检查，冲突 fail-fast（服务端仍是权威，见 D3）。
+- **allow-list 轮询**：`selectWatchedSpaces` 只保留声明且项目匹配的 space；未声明的 space 与未在 `projectIds` 中的项目只告警、不轮询；`maxConcurrentTasks` 在认领处生效。
+- **heartbeat 与版本**：每 tick 与每次认领后写 `state/heartbeat.json`（agent、pid、当前 taskId、运行版本哈希）；启动写 `state/version.json`，每 tick 重算源码哈希，与运行版本不一致时告警一次（D6 的观测漂移）。
+- **配额与 GC**：认领前 `checkQuota` 超限即拒绝认领并告警；每 tick 后 `collectWorktrees` 清理非活跃且超过 7 天的 worktree。
+- **跨进程锁**：`resource-lock.ts` 实现 `~/nw/locks/<owner>/<repo>/<module>.lock`，元数据含 agent、taskId、pid、心跳时间；心跳超过 10 分钟或持有进程已死即回收。**实现偏差**：macOS 无 `flock(1)`，而执行器保持零依赖，故 D4 的 `flock` 以原子 `O_EXCL` 创建 + 心跳/死进程回收等价实现。锁原语已就绪，待执行器工作循环接入（当前无调用方）。
+- **验证**：85 项单测绿；CLI 启动冒烟覆盖冲突 fail-fast、manifest 校验、heartbeat/version 落盘与 tick 失败路径。
+- **未做**：服务端绑定表与数据范围校验（第 2 步，前置 registry 契约 ADR）、launchd 装配（第 3 步）、排空式升级与 `nw-agent status`（第 4 步）。
+
