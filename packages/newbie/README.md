@@ -101,19 +101,19 @@ npx @devbie/newbie-cli create my-app
 `NewbieFactory.create(rootModule, options)` accepts the following options
 (every field is optional):
 
-| Option               | Type              | Default                                 | Description                                                                      |
-| -------------------- | ----------------- | --------------------------------------- | -------------------------------------------------------------------------------- |
-| `environment`        | `string`          | `ENVIRONMENT` or `development`          | `development` enables Swagger; `production` enables Helmet.                      |
-| `port`               | `number`          | `PORT` or `3000`                        | Port the HTTP server listens on.                                                 |
-| `corsAllowedOrigins` | `string[]`        | `ALLOWED_ORIGINS`                       | Allowed CORS origins (credentials enabled).                                      |
-| `bodyLimit`          | `string`          | `10mb`                                  | Maximum request body size.                                                       |
-| `requestTimeout`     | `number`          | `60000`                                 | Request timeout in milliseconds.                                                 |
-| `keepAliveTimeout`   | `number`          | —                                       | Keep-alive timeout in milliseconds.                                              |
-| `logger`             | `string[]`        | `LOG_LEVEL` or `['log','warn','error']` | NestJS log levels.                                                               |
-| `swagger`            | `object \| false` | enabled in development                  | Swagger config (`title`, `description`, `version`, `path`, default path `/api`). |
-| `portRaceRecovery`   | `boolean`         | `environment !== "production"`          | Survive port races during `nest start --watch` under bind mounts.                |
-| `shutdownTimeoutMs`  | `number`          | `10000`                                 | Grace period for in-flight requests on SIGTERM/SIGINT.                           |
-| `cluster`            | `boolean`         | `false`                                 | Run one worker per available CPU core.                                           |
+| Option               | Type              | Default                                 | Description                                                                                                                                   |
+| -------------------- | ----------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `environment`        | `string`          | `ENVIRONMENT` or `development`          | `development` enables Swagger; `production` enables Helmet; `staging` behaves like production for proxy trust and shutdown but keeps Swagger. |
+| `port`               | `number`          | `PORT` or `3000`                        | Port the HTTP server listens on.                                                                                                              |
+| `corsAllowedOrigins` | `string[]`        | `ALLOWED_ORIGINS`                       | Allowed CORS origins (credentials enabled).                                                                                                   |
+| `bodyLimit`          | `string`          | `10mb`                                  | Maximum request body size.                                                                                                                    |
+| `requestTimeout`     | `number`          | `60000`                                 | Request timeout in milliseconds.                                                                                                              |
+| `keepAliveTimeout`   | `number`          | —                                       | Keep-alive timeout in milliseconds.                                                                                                           |
+| `logger`             | `string[]`        | `LOG_LEVEL` or `['log','warn','error']` | NestJS log levels.                                                                                                                            |
+| `swagger`            | `object \| false` | enabled in development                  | Swagger config (`title`, `description`, `version`, `path`, default path `/api`).                                                              |
+| `portRaceRecovery`   | `boolean`         | `environment === "development"`         | Survive port races during `nest start --watch` under bind mounts.                                                                             |
+| `shutdownTimeoutMs`  | `number`          | `10000`                                 | Grace period for in-flight requests on SIGTERM/SIGINT.                                                                                        |
+| `cluster`            | `boolean`         | `false`                                 | Run one worker per available CPU core.                                                                                                        |
 
 ### What the framework wires for you
 
@@ -123,7 +123,7 @@ npx @devbie/newbie-cli create my-app
   decorated with `@AllowAnyOrigin()` answer `Access-Control-Allow-Origin: *`
   (preflight included) while every other route keeps the origin whitelist.
 - A global `ValidationPipe` with `transform` and `whitelist` enabled.
-- Helmet in production; Swagger UI (cookie + bearer auth) in development.
+- Helmet in production; Swagger UI (cookie + bearer auth) elsewhere, including staging.
 - A global throttler guard (10000 requests / second per endpoint by default).
 - A response-shaping `HttpResponseInterceptor`.
 - Exception filters in priority order: throttler → Prisma → newbie → HTTP →
@@ -150,7 +150,7 @@ provides typed access to request cookies.
 
 | Variable              | Used for                                                                                      |
 | --------------------- | --------------------------------------------------------------------------------------------- |
-| `ENVIRONMENT`         | `development` or `production`.                                                                |
+| `ENVIRONMENT`         | `development`, `staging` or `production`.                                                     |
 | `PORT`                | HTTP listen port.                                                                             |
 | `ALLOWED_ORIGINS`     | Comma-separated CORS origin list.                                                             |
 | `LOG_LEVEL`           | Comma-separated NestJS log levels (e.g. `log,warn,error`).                                    |
