@@ -485,3 +485,76 @@ describe("path params stay in the URL only", () => {
     }
   });
 });
+
+describe("query parameters travel in the query string", () => {
+  const spec = {
+    openapi: "3.0.0",
+    info: { title: "Query Param Test", version: "1.0.0" },
+    paths: {
+      "/databases/sync": {
+        post: {
+          summary: "Sync databases",
+          tags: ["databases"],
+          parameters: [{ name: "accountId", in: "query", required: true, schema: { type: "string" } }],
+          responses: { "200": { description: "ok" } },
+        },
+      },
+      "/tasks": {
+        post: {
+          summary: "Create a task",
+          tags: ["tasks"],
+          parameters: [{ name: "projectId", in: "query", required: true, schema: { type: "string" } }],
+          requestBody: {
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+              },
+            },
+          },
+          responses: { "200": { description: "ok" } },
+        },
+      },
+    },
+  };
+
+  it("sends a bodyless POST payload as params", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "apits-queryparam-"));
+    try {
+      const specPath = path.join(tmpDir, "spec.json");
+      await fs.writeFile(specPath, JSON.stringify(spec));
+      const outDir = path.join(tmpDir, "out");
+      const generator = new Generator({ input: specPath, output: outDir, name: "queryparam", client: false });
+      await generator.write(await generator.generate());
+
+      const api = await fs.readFile(path.join(outDir, "queryparam.ts"), "utf-8");
+
+      // Without a request body the whole payload is query data; sending it as
+      // `data` would drop it from the request URL.
+      assert.match(api, /params: data/);
+      assert.doesNotMatch(api, /data: data/);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it("splits query fields out of a POST body", async () => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "apits-querybody-"));
+    try {
+      const specPath = path.join(tmpDir, "spec.json");
+      await fs.writeFile(specPath, JSON.stringify(spec));
+      const outDir = path.join(tmpDir, "out");
+      const generator = new Generator({ input: specPath, output: outDir, name: "querybody", client: false });
+      await generator.write(await generator.generate());
+
+      const api = await fs.readFile(path.join(outDir, "querybody.ts"), "utf-8");
+
+      // The JSON body and the query string are separate channels: the query
+      // field must be sent as a parameter and stripped from the body.
+      assert.match(api, /data: requestData/);
+      assert.match(api, /projectId: data\.projectId/);
+      assert.match(api, /delete \(requestData as Partial<typeof data>\)\["projectId"\]/);
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true });
+    }
+  });
+});
