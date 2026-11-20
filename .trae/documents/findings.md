@@ -677,10 +677,27 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R11-01 | nightwatch-backend / devbie | hotfix 合入 main 后无法部署：deploy.yml 的 provenance guard 只接受 `head.ref == dev` 的 dev→main PR，ADR 未把该放行规则列入改动 | P1 | ops | 任何 hotfix | open（ADR L203/L208/L410；deploy.yml L61-L66） |
 | R11-02 | devbie | 「main HEAD 是 dev HEAD 的祖先」不可持续：常规 dev→main 以 merge commit/squash 合并后 main 不再位于 dev 历史，cherry-pick 回灌必然破坏祖先；ADR 无 dev→main 合并策略与常规发布回灌规则 | P1 | docs | 首次常规发布 | open（ADR L211/L410；反驳轮 CONFIRMED） |
 | R11-03 | devbie | 自动验收失败的「revert 问题提交」依赖文档自认不可判定的归因：L196 承认批量无法归因，L430 R8-06 仍 open，L174「不存在切回旧 commit」与 L196「二分定位」未对齐 | P1 | docs | 设计阶段 | open（由 R8-06 升格；ADR L143/L175/L190） |
-| R11-04 | devbie | 候选验证启动窗口在活跃流水线下不可达：批次通过即放行队列，dev HEAD 立即前移，前置「dev HEAD == 部署版本」很难成立；无批次边界冻结或候选预约 | P1 | docs | 设计阶段 | open（ADR L144/L148/L192；反驳轮 CONFIRMED） |
-| R11-05 | devbie | 静默窗口是纯 debounce 无最大等待，合入间隔持续小于 3 分钟时批次永不成立，staging 长期空转 | P2 | docs | 设计阶段 | open（ADR L166 已改为「窗口到期 + merge queue 排空」双条件并捕获 batchBase；待实现/实测，持续合入导致队列长期非空时批次顺延） |
+| R11-04 | devbie | 候选验证启动窗口在活跃流水线下不可达：批次通过即放行队列，dev HEAD 立即前移，前置「dev HEAD == 部署版本」很难成立；无批次边界冻结或候选预约 | P1 | docs | 设计阶段 | open（2026-11-19 设计已改：候选入口前移到批次启动时的飞书通知，人按批选择，未选即放行，取消「事后启动」路径；待实现与实测） |
+| R11-05 | devbie | 静默窗口是纯 debounce 无最大等待，合入间隔持续小于 3 分钟时批次永不成立，staging 长期空转 | P2 | docs | 设计阶段 | open（ADR L166 已改为「窗口到期 + 合并队列排空」双条件并捕获 batchBase；2026-11-19 选型免费计划后，队列改由编排器维护，「排空」= 无待合入 PR 且无在途合并，`pulls?state=open&base=dev` 对账；静默窗口已定为 10 分钟；待实现/实测，持续合入导致队列长期非空时批次顺延） |
 | R11-06 | devbie | hotfix 与进行中的常规候选验证无反向抢占规则；hotfix 合入 main 还会使候选的合并基漂移；L177「只改变排队优先级」与 L209「抢占候选锁」措辞矛盾 | P2 | docs | 运维 | open（ADR L177/L209/L213） |
 | R11-07 | devbie | D1 与约束 1 写死「从 origin/dev 建 task 分支」，hotfix 起点是例外但未在 D1/约束 1 标注，照图实现会建错分支 | P2 | docs | 设计阶段 | open（ADR L128/L172；hotfix 小节 L200-L207） |
 | R11-08 | devbie | 前置 ADR 引用未标仓：`ADR-012` 在 devbie 内指向 `ADR-012-fewbie-merges-into-newbie-monorepo`，生产拓扑实际在 nightwatch-backend | P2 | docs | 阅读/实现 | open（ADR L5；两仓 ADR-012 目录实查） |
-| R11-09 | devbie | 把未决前提写成硬约束：约束 5/9/待决 7 以「原子暂停 merge queue」为既定能力，而待决 4/7 仍 open，平台是否支持未实测 | P2 | docs | 设计阶段 | open（ADR L166/L170/L424） |
+| R11-09 | devbie | 把未决前提写成硬约束：约束 5/9/待决 7 以「原子暂停 merge queue」为既定能力，而待决 4/7 仍 open，平台是否支持未实测 | P2 | docs | 设计阶段 | open（2026-11-19 部分消解：merge queue 确认不可用，改为编排器队列，「原子暂停」变成编排器内部状态迁移，不再依赖外部平台能力；仍需实现与并发测试验证） |
 | R11-10 | devbie | 候选验证的「全量 CI」未定义复用 dev→main PR 已有 run 还是重跑，影响待决 3 的分钟数口径与候选证据链 | P2 | docs | 设计阶段 | open（ADR L168；ci.yml L22-L24） |
+
+## round12（2026-11-19，plan scope：B 方案 thin caller + 载体复用工作流）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-19-round12.md`
+
+| ID     | 仓 | 标题 | severity | 暴露面 | 可达性 | 状态 |
+| ------ | -- | ---- | -------- | ------ | ------ | ---- |
+| R12-01 | nightwatch-backend | 合并门禁按 check 名精确匹配，同仓任意 workflow 可伪造同名通过 check | P1 | source | 被管项目 agent | open（merge-queue.service.ts:44-51；ADR-054 L383 仅 scope 声明） |
+| R12-02 | nightwatch-backend + devbie | reusable workflow 的 check 命名未验证；若为 `<caller>/<job>`，requiredChecks `verify` 永不命中 | P1 | docs/source | 首个客户 PR | open（merge-queue.service.ts:48；需 2 仓 spike 后写进 ADR 契约） |
+| R12-03 | nightwatch-backend | stub 完整性校验缺少端口能力：port 无文件内容读取，无法做 head/base 或模板 hash 比对 | P1 | source | 被管项目 agent | open（github-delivery.port.ts:43-55；ADR-054 L431） |
+| R12-04 | nightwatch-backend | `skipped`/`neutral` 计为通过，违反 ADR-054 fail-closed（被跳过一律按未通过） | P1 | source | 被管项目 agent | open（merge-queue.service.ts:44-50；ADR-054 L430） |
+| R12-05 | devbie + newbie-starter | 受影响测试脚本位置未定：客户仓无 `scripts/`，二次 checkout 引入跨仓 token，与「无 secrets」冲突 | P2 | docs | 首个客户 PR | open（task-pr.yml:58；newbie-starter `ls scripts` 为空） |
+| R12-06 | devbie | `@v1` 移动 tag 无审计，in-flight PR 闸门版本中途可漂移 | P2 | docs | 设计阶段 | open（ADR-054 L431） |
+| R12-07 | devbie | 载体仓成为所有客户 CI 硬依赖（改名/可见性/tag/共享设置），ADR 未写运行前提与监控 | P2 | docs | 运维 | open（ADR-054「适用范围」） |
+| R12-08 | devbie | ADR-054 L383/L384/L431 以「闸门与 workflow 在客户仓」为前提，未覆盖 B 拓扑 | P2 | docs | 设计阶段 | open |
+| R12-09 | devbie | PR 触发缓存不能被其他 PR 复用，每个 task PR 冷启动，分钟预算需重算 | P2 | docs | 成本 | open（task-pr.yml:51；ci.yml 只有 pull_request 触发） |
+| R12-10 | nightwatch-backend | 禁止路径（`.github/workflows/**`、`tools/gates/**`）缺运行时校验，合并前不检查 PR 是否改动这些路径 | P2 | source | 被管项目 agent | open（ADR-054 L383；MergeQueueService 无路径校验） |
