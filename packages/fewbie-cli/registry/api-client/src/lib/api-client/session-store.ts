@@ -26,6 +26,27 @@ let accessTokenExpiresAt = 0;
 let legacyKeysCleared = false;
 
 /**
+ * Bumped by every `clearSession` (devbie ADR-055). Background work captures it
+ * and abandons its result when it changed: a refresh response that lands after
+ * the user ended the session must not write the token back or re-arm the
+ * session-expired latch.
+ */
+let sessionEpoch = 0;
+
+/** Listeners fired when the local session is dropped; used to abort in-flight work. */
+const sessionClearedListeners = new Set<() => void>();
+
+/** Monotonic session generation; see `sessionEpoch` above. */
+export function getSessionEpoch(): number {
+  return sessionEpoch;
+}
+
+/** Register work that must stop when the session ends (devbie ADR-055). */
+export function onSessionCleared(listener: () => void): void {
+  sessionClearedListeners.add(listener);
+}
+
+/**
  * Fires at most once per session: after the first notification the user is on
  * their way to the login page, so repeat calls (concurrent 401s, or the SSE
  * and axios paths racing) must not stack redirects (R22-06). setSession()
@@ -85,6 +106,8 @@ export function clearSession(): void {
   accessToken = "";
   accessTokenExpiresAt = 0;
   clearLegacyStorage();
+  sessionEpoch += 1;
+  for (const listener of sessionClearedListeners) listener();
 }
 
 /**

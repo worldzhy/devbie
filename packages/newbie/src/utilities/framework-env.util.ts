@@ -1,6 +1,16 @@
 import { int } from "./int.util";
 
 /**
+ * Recognised ENVIRONMENT values. `staging` is a deployed environment (behind
+ * the same edge proxy as production) that ships pre-release code, so it must
+ * not fall back to `development` — that would silently enable local-only
+ * behaviour such as port-race recovery or auto-verified emails (ADR-048).
+ */
+export type FrameworkEnvironment = "production" | "staging" | "development";
+
+const FRAMEWORK_ENVIRONMENTS: readonly FrameworkEnvironment[] = ["production", "staging", "development"];
+
+/**
  * Environment-derived framework configuration.
  *
  * This is the single source of truth for resolving framework-level env vars.
@@ -13,7 +23,7 @@ import { int } from "./int.util";
  * env resolution.
  */
 export interface FrameworkEnv {
-  environment: "production" | "development";
+  environment: FrameworkEnvironment;
   port: number;
   allowedOrigins: string[];
   isPrimary: boolean;
@@ -23,9 +33,10 @@ export interface FrameworkEnv {
 
 export function resolveFrameworkEnv(env: NodeJS.ProcessEnv = process.env): FrameworkEnv {
   const rawEnvironment = env.ENVIRONMENT ?? "development";
-  const environment: "production" | "development" =
-    rawEnvironment === "production" || rawEnvironment === "development" ? rawEnvironment : "development";
-  if (rawEnvironment !== "production" && rawEnvironment !== "development") {
+  const environment: FrameworkEnvironment = FRAMEWORK_ENVIRONMENTS.includes(rawEnvironment as FrameworkEnvironment)
+    ? (rawEnvironment as FrameworkEnvironment)
+    : "development";
+  if (environment === "development" && rawEnvironment !== "development") {
     // Cannot import the framework logger here (it is created later in
     // NewbieFactory); fall back to console.warn for this one-off validation.
     console.warn(`Invalid ENVIRONMENT "${rawEnvironment}"; falling back to "development"`);

@@ -14,14 +14,14 @@ import { listenWithPortRaceRecovery } from "./port-race";
 import { registerGracefulShutdown } from "./graceful-shutdown";
 import { startModuleHubReporting } from "./module-hub/reporter";
 import { AllowAnyOriginRegistry } from "./cors/allow-any-origin.registry";
-import { resolveFrameworkEnv } from "./utilities/framework-env.util";
+import { resolveFrameworkEnv, type FrameworkEnvironment } from "./utilities/framework-env.util";
 
 const logger = new Logger("NewbieFactory");
 
 /** Default NestJS log levels — verbose/debug are opt-in via LOG_LEVEL env. */
 const DEFAULT_LOG_LEVELS: LogLevel[] = ["log", "warn", "error"];
 
-export type NewbieEnvironment = "development" | "production";
+export type NewbieEnvironment = FrameworkEnvironment;
 
 export interface NewbieSwaggerOptions {
   title: string;
@@ -53,12 +53,13 @@ export interface NewbieAppOptions {
    * probe the port, kill stale previous-generation holders, stand down when a
    * same-generation sibling wins, and fall back to SO_REUSEPORT. Also installs
    * fast-shutdown SIGTERM/SIGINT handlers that release the port immediately.
-   * Defaults to `environment !== "production"`.
+   * Defaults to `environment === "development"` (staging, like production,
+   * runs without watch mode and therefore without port races).
    */
   portRaceRecovery?: boolean;
   /**
    * Grace period for in-flight requests on SIGTERM/SIGINT when
-   * portRaceRecovery is disabled (production). Idle keep-alive connections
+   * portRaceRecovery is disabled (production and staging). Idle keep-alive connections
    * are dropped immediately; requests still running after this timeout get
    * force-closed so the process can exit. Defaults to 10s.
    */
@@ -144,8 +145,11 @@ export class NewbieFactory {
     const corsAllowedOrigins = options.corsAllowedOrigins ?? env.allowedOrigins;
     const bodyLimit = options.bodyLimit ?? "10mb";
     const requestTimeout = options.requestTimeout ?? 60_000;
-    const portRaceRecovery = options.portRaceRecovery ?? environment !== "production";
-    const trustProxy = options.trustProxy ?? (environment === "production" ? 1 : false);
+    const isLocal = environment === "development";
+    const portRaceRecovery = options.portRaceRecovery ?? isLocal;
+    // staging and production both sit behind the edge proxy (Caddy), so the
+    // proxy hop must be trusted in either case.
+    const trustProxy = options.trustProxy ?? (isLocal ? false : 1);
 
     const bootstrap = async (): Promise<NewbieBootstrapResult> => {
       // [step 1] Create a nestjs application.

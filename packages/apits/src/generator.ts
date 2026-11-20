@@ -34,12 +34,12 @@ function defaultClientImportTemplate(_config?: Config) {
   return `import request from './request'`;
 }
 
-const getDataKeySetStr = (method: string, payload = "data") => {
-  if (["head", "option", "get"].includes(method.toLowerCase())) {
-    return `params: ${payload}`;
-  }
-  return `data: ${payload}`;
-};
+// Object literal key for a parameter name; identifiers stay bare, anything
+// else (for example `page-size`) is quoted.
+const parameterKey = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : JSON.stringify(name));
+
+// Property access for a parameter name on the request object.
+const parameterAccess = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? `.${name}` : `[${JSON.stringify(name)}]`);
 
 // Replace `{param}` placeholders in the path with an encoded `${data.param}`
 // substitution. Path segments must be percent-encoded: ids may contain `/`,
@@ -105,15 +105,28 @@ function defaultRequestFunctionTemplate(props: RequestFunctionTemplateProps, con
   // form bodies are sent as JSON and the backend never receives the files.
   const isForm = requestBodyType === RequestBodyType.form;
   const isMultipart = isForm && requestBodyMultipart === true;
+  const isUrlOnlyMethod = ["head", "options", "option", "get"].includes(method);
+  // Only JSON and form operations carry a request body. Every other operation
+  // puts its inputs in the URL, so its payload must travel as `params`;
+  // routing it to `data` silently drops the query parameters.
+  const hasRequestBody = requestBodyType === RequestBodyType.json || isForm;
   // Path parameters belong in the URL only. They stay in the request type
   // (call-site compatibility and URL substitution) but are stripped from the
   // body/query copy so the server never receives them twice.
   const pathParamNames = pathParams.map((param) => param.name);
-  const payloadName = pathParamNames.length > 0 ? "requestData" : "data";
-  const stripPathParams =
-    pathParamNames.length > 0
+  const queryParamNames = queryParams.map((param) => param.name);
+  // Query parameters belong in the query string, so they are stripped from the
+  // body whenever the operation also sends one.
+  const bodyOmittedNames = pathParamNames.concat(hasRequestBody ? queryParamNames : []);
+  const payloadName = bodyOmittedNames.length > 0 ? "requestData" : "data";
+  const stripOmittedParams =
+    bodyOmittedNames.length > 0
       ? `const requestData = { ...data };
-${pathParamNames.map((name) => `  delete (requestData as Partial<typeof data>)[${JSON.stringify(name)}];`).join("\n")}`
+${bodyOmittedNames.map((name) => `  delete (requestData as Partial<typeof data>)[${JSON.stringify(name)}];`).join("\n")}`
+      : "";
+  const queryParamsExpr =
+    queryParamNames.length > 0
+      ? `params: { ${queryParamNames.map((name) => `${parameterKey(name)}: data${parameterAccess(name)}`).join(", ")} }`
       : "";
   const formBuilder = isForm
     ? `const form = new ${isMultipart ? "FormData" : "URLSearchParams"}();
@@ -123,12 +136,16 @@ ${pathParamNames.map((name) => `  delete (requestData as Partial<typeof data>)[$
       else form.append(k, ${isMultipart ? "v" : "String(v)"});
     });`
     : "";
-  const dataExpr = isForm ? "data: form" : getDataKeySetStr(method, payloadName);
+  const dataExpr = isForm
+    ? ["data: form", queryParamsExpr].filter(Boolean).join(", ")
+    : isUrlOnlyMethod || !hasRequestBody
+      ? `params: ${payloadName}`
+      : [`data: ${payloadName}`, queryParamsExpr].filter(Boolean).join(", ");
 
   return `export const ${requestFunctionName} = (data${
     hasData ? "" : "?"
   }: ${requestDataTypeName}${`,extra?:${clientConfigType}`}) => {
-    ${stripPathParams}
+    ${stripOmittedParams}
     ${formBuilder}
     return request.${method}<${requestDataTypeName},${responseDataTypeName}>(${handlePathParam(
       extendedInterfaceInfo.path,

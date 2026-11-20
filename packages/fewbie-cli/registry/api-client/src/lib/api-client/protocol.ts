@@ -55,6 +55,14 @@ export const REFRESH_RETRY_DELAY_MS = 1_500;
  */
 export const BOOTSTRAP_RETRY_DELAY_MS = 400;
 
+/**
+ * Delays of the detached retries that follow a transient gate refresh failure
+ * (devbie ADR-055). They exist to repair the browser's cookie after the server
+ * already rotated it, never to hand the current request a token: the request
+ * leaves immediately with the old one.
+ */
+export const GATED_RETRY_DELAYS_MS = [2_000, 4_000] as const;
+
 // ---------------------------------------------------------------------------
 // Response envelope (newbie backend contract)
 // ---------------------------------------------------------------------------
