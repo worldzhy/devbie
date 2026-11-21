@@ -823,3 +823,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 判定表：C1/C2/C5 成立（C5 未达成），C3 不成立，C4 部分成立。报告保留完整主张表与依据。
 - 无 P0/P1，未启动反驳轮。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round79.md`。
+
+## Round 80
+
+判决对象：adapter 为什么不在安装时生成（claim scope，只读）。
+
+判定摘要：**不在安装时生成是正确选择**——生成依赖 i18n 声明、contract、宿主字典三者在场，并绑定 `next-intl`，安装命令要对所有宿主成立。缺陷在补偿机制缺失：安装后没有任何提醒或校验。
+
+| ID    | 仓     | 标题                                                                                                    | 严重度 | 暴露面 | 可达性   | 状态 |
+| ----- | ------ | ------------------------------------------------------------------------------------------------------- | ------ | ------ | -------- | ---- |
+| R80-01 | devbie | 声明了 i18n 的宿主在 `modules add/update` 后没有提醒或校验 adapter；`doctor` 与 `apply --check` 都不覆盖 | P2     | source | 模块作者 | open |
+
+### Round 80 备注
+
+- 计数（命令见报告 §2）：`runAdapters({` 调用点 1；`doctor.ts` 中 adapter 检查 0；宿主声明 i18n 1/2；nwf 脚本与 CI 中 `modules adapters` 0；fewbie-modules 无 contract 9/14。
+- 判定表：C1–C4 成立，C5/C6 不成立。报告保留完整主张表。
+- 无 P0/P1，未启动反驳轮。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round80.md`。
