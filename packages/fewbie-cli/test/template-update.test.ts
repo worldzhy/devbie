@@ -11,6 +11,7 @@ import {
   FRAMEWORK_MANIFEST_PATH,
   FRAMEWORK_MARKER_END,
   FRAMEWORK_MARKER_START,
+  hashContent,
   serializeFrameworkManifest,
   SYNCABLE_ASSETS,
 } from "../src/lib/template-ownership";
@@ -342,5 +343,39 @@ describe("fewbie template update", () => {
     );
     await runTemplateUpdate({ cwd: project, templatePath: template });
     assert.match(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), /host edit/);
+  });
+
+  it("records the template bytes as the baseline after --adopt (R83-01)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+
+    // A pre-manifest host whose framework copy diverges from the template.
+    const hostCopy = "export const cn = () => 'host edit';\n";
+    const templateCopy = "export const cn = () => '';\n";
+    await writeFile(project, "src/lib/utils.ts", hostCopy);
+
+    await runTemplateUpdate({ cwd: project, adopt: true, templatePath: template });
+
+    // The baseline must describe what the template shipped, not what the host
+    // happens to hold; otherwise the next run cannot tell the edit apart.
+    const manifest = JSON.parse(await fs.readFile(path.join(project, FRAMEWORK_MANIFEST_PATH), "utf8")) as {
+      files: Record<string, string>;
+    };
+    assert.equal(manifest.files["src/lib/utils.ts"], hashContent(templateCopy));
+
+    // A template change after adoption must not overwrite the host edit.
+    const templateV2 = "export const cn = () => 'template v2';\n";
+    await writeFile(template, "src/lib/utils.ts", templateV2);
+    await writeTemplateBaseline(template);
+    await assert.rejects(
+      runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
+      /modified-framework conflict/,
+    );
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    assert.equal(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), hostCopy);
   });
 });

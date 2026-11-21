@@ -111,7 +111,7 @@ export async function runCreate(options: CreateOptions): Promise<void> {
     // The declaration file is the single entry point for every later module
     // operation (ADR-024 clause 10); a fresh project declares nothing.
     await fs.writeFile(path.join(targetDir, MODULES_FILE), modulesFileContent([]));
-    await recordFrameworkBaseline(targetDir);
+    await recordFrameworkBaseline(targetDir, template.root);
 
     const packageJsonPath = path.join(targetDir, "package.json");
     const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8")) as {
