@@ -49,7 +49,7 @@
 
 ## 其他
 
-- [ ] `[2026-11-21 fewbie 外部 registry 验证]` **发布 `@devbie/fewbie-cli` 1.7.0 并升级宿主 pin**：dev `1534e5c5` 已支持 `fewbie.json` 的 `registry: { url, ref }`（按 ref 克隆/热更、写入时保留未知键，含单测），验证仓为 `worldzhy/fewbie-modules`（`login-page`、`forgot-password`、`profile-settings`、`security-settings`、`preferences-settings` 页级模块，main 已就绪）。消费方 crewbie-console-frontend pin `@devbie/fewbie-cli@^1.6.3`、nightwatch-frontend pin `^1.6.2` 且已声明 `fewbie.json` registry 指向 fewbie-modules main；这两个版本写入 `fewbie.json` 会丢掉 `registry` 键。下一步：按 `RELEASE_CHECKLIST.md` 发布 1.7.0，把两个宿主的 devDependency 与锁文件升到 `^1.7.0`，再跑 `modules apply --check` / `modules update --check`。
+- （已完成）外部 registry 验证：`@devbie/fewbie-cli` 1.12.0 已发布，nwf 升级后 `modules apply/update/adapters --check` 全绿并挂进 CI（`1d5978c` + `8584cbc`）。crewbie 不在工作区，其 pin 升级仍由下文条目跟踪。
 
 - [ ] `[2026-11-12 ADR-044 遗留]` **frontend-monitor 手机号读路径清尾（P3）**：写入链路已删除，`phone` 列恒为空但读侧仍在——DTO 的 `phone` 查询参数、`ilike(phone, …)`（`error.service.ts`）、analysis `$match.phone`、前端错误页「按手机号搜索」输入框与详情页手机号展示。下一步：确认无人依赖后一次性移除，或改为展示层明确标注「已停止采集」。
 
@@ -96,16 +96,13 @@
 
 - [ ] **api-client 测试未随框架进模板**：`src/lib/api-client/*.test.ts` 基于 vitest + axios-mock-adapter，而 starter 的 `npm test` 是 node:test；为避免模板同时背两套 runner，M2 只复制运行时文件。M3 统一测试栈后再决定回填；M4 迁移时测试留在宿主 `src/tests/api-client/**`（不能用 `src/lib/api-client/**`，该路径是 framework 所有权）。
 - [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
-- [ ] **发布后才能被宿主消费**：M2 的框架代码目前只在本地 `fewbie-starter` 工作树；`@devbie/fewbie-cli` 与模板需按发布清单各发一个 minor，nightwatch 与客户项目才能通过 `template update` 拉到（否则跑的仍是 1.6.2 + 旧模板）。
 
 ## ADR-056 M3 遗留（2026-11-21）
 
-- [ ] **`check:template` 需等 CLI 发布**：`fewbie-starter` 的 `check:template` 仍调用已发布 `@devbie/fewbie-cli@1.6.2`，该版本没有 ADR-056 的 framework 所有权表，会把 `src/framework/**`、`src/lib/api-client/**`、`src/app/fonts/**`、`scripts/**` 等 79 个文件报成「未分类」。发布携带 ADR-056 所有权表的 CLI minor 后，同步升 starter 依赖并确认 `check:template` 绿。
-- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。M4 迁移时决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。
+- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。nwf 已手工补 `doctor` 与三条 modules 门禁（`1d5978c`、`8584cbc`），但 `check:structure` / `check:framework-adr` 仍未进宿主 CI。需决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。
 - [ ] **R12 的「版本号/changelog」未自动化**：当前只校验框架路径变更必须带 `.trae/documents/decisions/` 下的 ADR；版本递增仍靠发布清单人工执行。
-- [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发，但 `package.json` 是 host 所有权，`check:structure` / `check:framework-adr` / `check:*` 别名需在 M4 迁移时手工补入宿主脚本。
+- [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发（nwf 已有 6 个 mjs），但 `package.json` 是 host 所有权；M4 迁移已完成，`check:structure` / `check:framework-adr` 别名仍未补入宿主脚本，因此宿主 CI 实际不跑这两个门禁。
 
 ## fewbie 终极状态落地（2026-11-21）
 
-- [ ] **crewbie-console-frontend 的 `@devbie/fewbie-cli` pin 待升级**：该宿主不在当前工作区，1.7.0 发布后其 `package.json` / 锁文件仍指向旧版本；工作区可用时升到 `^1.7.0` 并跑 `modules apply --check` / `modules update --check`。
-- [ ] **fewbie-starter 的 `check:template-deps` 需等 dev→main**：模板锁文件已在 dev 更新到 1.7.0，但校验脚本克隆默认分支，合并前仍会报陈旧。
+- [ ] **crewbie-console-frontend 的 `@devbie/fewbie-cli` pin 待升级**：该宿主不在当前工作区，其 `package.json` / 锁文件仍指向旧版本；工作区可用时升到 `^1.12.0` 并跑 `modules apply --check` / `modules update --check`。

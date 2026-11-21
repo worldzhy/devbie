@@ -90,6 +90,7 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 - findings 事实过期：R73-01 称「nightwatch 无 `fewbie.json`」（现已存在）；R73-02 的路径仍写 `registry/auth/item.json`（已改名 `fewbie.module.json`）（[findings.md](file:///Users/worldzhy/src/devbie/.trae/documents/findings.md#L711-L713)）。
 - nwf backlog 第 72 行称「fewbie doctor 该门禁恢复绿」，与 R81-02 的实测红灯矛盾（[backlog.md](file:///Users/worldzhy/src/nightwatch-frontend/.trae/documents/backlog.md#L72)）。
 - 影响：下一轮排期会按旧版本/旧路径做决策；属治理项，不阻塞发布。
+- **状态：fixed（2026-11-22）**。devbie backlog 删除已完成的三条（1.7.0 发布与宿主升级、M2 框架代码发布后才能被消费、`check:template` 等 CLI 发布），`check:template-deps` 条目删除（该脚本已不存在），`.github/**` 与宿主 script 别名两条改写为当前事实（nwf 已补 doctor + modules 门禁，`check:structure`/`check:framework-adr` 仍未进宿主 CI）；starter backlog 的 1.6.3/1.6.2 与 digest 两条改为关闭（`1.12.0` 下 `check:template` 实测绿）；nwf backlog 的 doctor 条目补上 `1d5978c` 与真实修复原因；findings R73-01 转 fixed（nwf 已装 4 个模块），R73-02 路径更新为 `packages/modules/auth/fewbie.module.json` 并保留 open（crewbie 不在工作区）。
 
 ### R81-05（fewbie-starter）M4 门禁与模板契约的四处缺口（R81-02 迁移中实测）
 
@@ -126,7 +127,7 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 3. ~~R81-03：nwf CI 加三条模块门禁~~（已 fixed，`8584cbc`）。
 4. R81-05：模板侧修四处缺口（可配置品牌、框架测试入口、states barrel、结构性 R2 + inline spinner）。
 5. R79-01：补 `login-form` / `password-checklist` / `theme` 的 contract。
-6. R81-04：清理 backlog 与两条过期 findings 引用。
+6. ~~R81-04：清理 backlog 与两条过期 findings 引用~~（已 fixed，2026-11-22）。
 
 ## 11. 台账指针
 
