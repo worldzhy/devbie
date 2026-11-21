@@ -911,3 +911,44 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round82.md`。
 - 修复（2026-11-22，仅 P1）：R82-01/03 在 `c4b3104e`（锁基线取安装字节并新增回归测试；remove/adapters 清理孤儿 adapter），R82-02 在 `c4b3104e`（ADR-060：`create` 自生成基线、无基线拒绝覆盖、`--adopt` 显式采纳、release gate 断言默认分支含基线），并已通过 fewbie-starter PR #40 合并到 main（`dc0e08a`，`origin/main` 含 `.fewbie/framework.json`，release gate 可满足），R82-04 在 `feb3fe8`。R82-05…R82-25 见下条。
 - 修复（2026-11-22，P2）：R82-05/06/08/09/10/11 在 devbie `1f4ebb6f`（`--check` 计 missing/stale 为失败并给可达补救、锁条目逐模块校验、stale target 报告与清理、registry 缓存进程锁、快照门禁固定 `SOURCE_URL` 并断言 `commit` 是 `SOURCE_REF` 祖先、`create` 失败回滚与 SHA ref、`template update` 具体文件命中 `dir/**` glob）；R82-07 同提交（`semver.satisfies`）；R82-12 在 `1f4ebb6f`（release-check 预检 dev）+ fewbie-starter `a83eed5`（`guards` 跑完整门禁）；R82-13/15 在 fewbie-modules `3b5a27f`、R82-14 在 `3b5a27f`+`cc8e93c`（import/deps/UI/states 门禁与 `check:types`），随 dev→main PR #1 合并（`72671f4`）；R82-16…R82-25 在 fewbie-starter `a83eed5`，配套 ADR-003 在 `f427821`。`check:registry-snapshot` 现指向 `cc8e93c`（已是 `origin/main` 祖先）。
+
+## Round 83（2026-11-22，fewbie 前端框架专项，第 3 轮）
+
+锚点：devbie `96a7ceb7`、fewbie-starter `f427821`、fewbie-modules `cc8e93c`、nightwatch-frontend `34e8732`，四仓 dev、clean，无 provisional。报告：`.trae/documents/reviews/expert-review-2026-11-22-round83.md`。
+
+判定摘要：**分层与门禁骨架成形，但三条信任链各有一个洞**——模板基线可被宿主内容洗白、二进制资产走文本通道、已修复的 CLI 没有发布；宿主整棵托管树落后模板一版。
+
+| ID     | 仓                             | 标题                                                                     | 严重度 | 暴露面   | 可达性       | 状态 |
+| ------ | ------------------------------ | ------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
+| R83-01 | devbie                         | `--adopt` 后基线被宿主磁盘内容覆盖，下一轮普通 update 静默覆盖宿主改动   | P1     | template | 宿主维护者   | open |
+| R83-02 | devbie                         | framework 二进制资产走 UTF-8 文本通道，字体更新会写入损坏内容            | P1     | template | 宿主维护者   | open |
+| R83-03 | nightwatch-frontend            | 托管树落后模板 12 项，门禁必红且含认证/日期缺陷                          | P1     | host     | 任意宿主用户 | open |
+| R83-04 | devbie                         | npm latest 1.12.0 不含 ADR-060 与 R82 修复，`^1.12.0` 拿到旧语义          | P1     | artifact | 所有宿主     | open |
+| R83-05 | devbie                         | `--check` 的补救指令对缺 marker / 脚手架过期不可达（R82-05 残留）        | P2     | live     | 宿主维护者   | open |
+| R83-06 | devbie                         | 路径过滤对 glob 资产失效，指定单文件会改整个目录                         | P2     | live     | 宿主维护者   | open |
+| R83-07 | devbie                         | manifest digest 无密钥，注释声称的抗篡改不成立                           | P2     | source   | 宿主维护者   | open |
+| R83-08 | devbie                         | `create --template-ref` 未做参数校验                                     | P2     | source   | 宿主维护者   | open |
+| R83-09 | devbie                         | `create` 把 ENOTDIR/EACCES 当不存在，回滚会删同名用户文件                | P2     | source   | 宿主维护者   | open |
+| R83-10 | fewbie-modules                 | `next` 被当框架包放行，模块可 import 宿主 router                         | P2     | artifact | 模块作者     | open |
+| R83-11 | fewbie-modules                 | 3 个 `registry:block` 无 contract 且硬编码英文                           | P2     | artifact | 模块作者     | open |
+| R83-12 | devbie                         | registry 删除 item 会锁死宿主；手改声明的孤儿文件永不清                  | P2     | live     | 宿主维护者   | open |
+| R83-13 | devbie                         | 删一条 lock 条目即降级 legacy 并并入可写集合                             | P2     | live     | 宿主维护者   | open |
+| R83-14 | devbie                         | registry 缓存锁不覆盖读取，异 ref 并发可读到错 commit                    | P2     | source   | 宿主维护者   | open |
+| R83-15 | fewbie-starter                 | R3/R6 对任意值与未定义 token 全部放行                                    | P2     | template | 模板使用者   | open |
+| R83-16 | fewbie-starter                 | R1/R5 仍有影子通过路径（嵌套 PageShell、仅 import SidebarShell）         | P2     | template | 模板使用者   | open |
+| R83-17 | fewbie-starter                 | 模块边界未覆盖 `@/components/*`                                          | P2     | template | 模板使用者   | open |
+| R83-18 | fewbie-starter                 | `ui/date-picker.tsx` 是 primitive 豁免目录里的复合件                     | P2     | template | 模板使用者   | open |
+| R83-19 | fewbie-starter                 | api-client 8 个源文件零测试                                              | P2     | template | 框架维护者   | open |
+| R83-20 | fewbie-starter                 | 框架托管的 layout 硬编码 `title: "fewbie"`，宿主无法覆盖                  | P2     | template | 模板使用者   | open |
+| R83-21 | fewbie-starter                 | `/auth/*` 豁免匹配原始 url，同源绝对 URL 被当业务请求                    | P2     | template | 模板使用者   | open |
+| R83-22 | fewbie-starter                 | 图表 aria-label 硬编码英文                                               | P2     | template | 非英文用户   | open |
+| R83-23 | nightwatch-frontend            | page/shell/chart/feedback 仍用影子第二实现                               | P2     | host     | 宿主维护者   | open |
+| R83-24 | nightwatch-frontend + starter  | `AGENTS.md` 托管清单落后（host 7 项；starter main 7 项 / dev 17 项）     | P2     | docs     | 两仓 agent   | open |
+| R83-25 | devbie                         | 快照门禁只验祖先，不要求与 registry main 同步                            | P2     | ops      | 维护者       | open |
+
+### Round 83 备注
+
+- 计数（命令见报告 §9）：CLI `src` 30 文件 / 4849 行；registry 14 items / 5 带 contract / 8 个 block 中 3 个无 contract；starter `src/framework` 23 文件、`src/components/ui` 29 个 `.tsx`、`api-client` 8 文件 0 测试；宿主 `@/framework` 75 处 / 58 文件，`@/components/page-shell` 35 个引用文件。
+- 反驳轮：4 条拟 P1（R83-01…04）由独立代理逐条尝试推翻，全部维持；误报剔除 6 条见报告 §7（含 R2-01/R2-03/R2-05 关闭、绝对 URL 跨源泄漏不成立、字体损坏仅限模板字体变更、宿主 dev 无 CI 属已记录取舍）。
+- carry-over：fewbie-starter R2-01/R2-03/R2-05 关闭；R2-02/R2-04/R2-06/R2-07/R2-08、R79-01、R80-01、R81-05 仍 open（明细见报告 §11 与 fewbie-starter 台账）。
+- 环境限制：宿主 PATH 无 Node；CLI / registry / starter 测试由子代理在 Docker `devbie-work` 内执行（executed），P2 未逐条重跑者标 static。
