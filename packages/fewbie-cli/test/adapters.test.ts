@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { runAdapters } from "../src/commands/modules/adapters";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 interface Fixture {
   root: string;
@@ -35,7 +36,7 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
 
   await fs.mkdir(path.join(item, "src/modules/fixture"), { recursive: true });
   await fs.writeFile(
-    path.join(item, "item.json"),
+    path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
       type: "registry:block",

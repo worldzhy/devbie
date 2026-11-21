@@ -6,6 +6,7 @@ import { test } from "node:test";
 
 import { parseModuleContract, validateManifestContract } from "../src/registry/contract";
 import { loadItem } from "../src/registry/store";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const VALID = {
   version: "1.0.0",
@@ -23,7 +24,7 @@ async function writeItem(contract: unknown): Promise<{ root: string; name: strin
   await fs.mkdir(path.join(root, name, "src/modules/fixture"), { recursive: true });
   await fs.writeFile(path.join(root, name, VALID.entry), "export {};\n");
   await fs.writeFile(
-    path.join(root, name, "item.json"),
+    path.join(root, name, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name,
       type: "registry:block",

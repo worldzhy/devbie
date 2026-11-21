@@ -11,6 +11,7 @@ import { runUpdate } from "../src/commands/modules/update";
 import { MODULES_FILE, readModulesFile } from "../src/lib/modules-file";
 import { loadItem, readItemFileContent } from "../src/registry/store";
 import { resolveRegistryRoot } from "../src/registry/source";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 async function makeProject(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-modules-"));
@@ -160,7 +161,7 @@ describe("registry manifest targets", () => {
     const itemDir = path.join(registryRoot, "escape");
     await fs.mkdir(itemDir);
     await fs.writeFile(
-      path.join(itemDir, "item.json"),
+      path.join(itemDir, REGISTRY_MANIFEST_FILE),
       JSON.stringify({ name: "escape", type: "registry:component", title: "Escape", files: ["../../outside.ts"] }),
     );
 
@@ -173,7 +174,7 @@ describe("registry manifest targets", () => {
     const itemDir = path.join(registryRoot, "ok");
     await fs.mkdir(itemDir);
     await fs.writeFile(
-      path.join(itemDir, "item.json"),
+      path.join(itemDir, REGISTRY_MANIFEST_FILE),
       JSON.stringify({ name: "ok", type: "registry:component", title: "Ok", files: ["src/components/ok.tsx"] }),
     );
 

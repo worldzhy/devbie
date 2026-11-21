@@ -1,11 +1,14 @@
 /**
  * Registry manifest types.
  *
- * The authored form (registry/<name>/item.json) keeps files as repo-relative
- * path strings so the source tree stays the single source of truth. The
- * build step emits the shadcn-compatible form, where each file carries its
- * inlined content for `npx shadcn add <url>` consumption.
+ * The authored form (registry/<name>/fewbie.module.json) keeps files as
+ * repo-relative path strings so the source tree stays the single source of
+ * truth. The build step emits the shadcn-compatible form, where each file
+ * carries its inlined content for `npx shadcn add <url>` consumption.
  */
+
+/** Manifest filename inside an item directory, authored and generated alike. */
+export const REGISTRY_MANIFEST_FILE = "fewbie.module.json";
 
 /** shadcn registry item kinds fewbie uses. */
 export type RegistryItemType = "registry:lib" | "registry:component" | "registry:block";
@@ -50,7 +53,7 @@ export interface ModuleContract {
   states: ModuleState[];
 }
 
-/** Authored item.json (files are plain path strings). */
+/** Authored fewbie.module.json (files are plain path strings). */
 export interface RegistryManifest {
   name: string;
   type: RegistryItemType;
@@ -67,7 +70,7 @@ export interface RegistryManifest {
   contract?: ModuleContract;
 }
 
-/** Built shadcn-compatible registry-item.json. */
+/** Built shadcn-compatible registry-item manifest. */
 export interface BuiltRegistryItem {
   $schema: string;
   name: string;

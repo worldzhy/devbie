@@ -4,7 +4,7 @@ import { yellow } from "colorette";
 
 import { CliError } from "@devbie/cli-kit";
 import { parseModuleContract, validateManifestContract } from "./contract";
-import type { BuiltRegistryItem, ModuleContract, RegistryManifest } from "./types";
+import { REGISTRY_MANIFEST_FILE, type BuiltRegistryItem, type ModuleContract, type RegistryManifest } from "./types";
 
 /** A loaded item plus the absolute paths its files should be copied from. */
 export interface LoadedItem {
@@ -14,7 +14,7 @@ export interface LoadedItem {
 }
 
 async function readItemFile(root: string, name: string): Promise<RegistryManifest | BuiltRegistryItem> {
-  const raw = await fs.readFile(path.join(root, name, "item.json"), "utf8");
+  const raw = await fs.readFile(path.join(root, name, REGISTRY_MANIFEST_FILE), "utf8");
   return JSON.parse(raw) as RegistryManifest | BuiltRegistryItem;
 }
 
@@ -49,7 +49,7 @@ export async function listRegistryItemNames(root: string): Promise<string[]> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const hasItem = await fs
-      .access(path.join(root, entry.name, "item.json"))
+      .access(path.join(root, entry.name, REGISTRY_MANIFEST_FILE))
       .then(() => true)
       .catch(() => false);
     if (hasItem) names.push(entry.name);

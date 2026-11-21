@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 import { runAdd } from "../src/commands/modules/add";
 import { MODULES_FILE, readModulesFile, readRegistryDeclaration } from "../src/lib/modules-file";
 import { resolveRegistryRoot } from "../src/registry/source";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const execFileAsync = promisify(execFile);
 
@@ -30,7 +31,7 @@ async function makeRegistryRepo(options: { container?: boolean } = {}): Promise<
   const itemsRoot = options.container ? path.join(root, "packages", "modules") : root;
   await fs.mkdir(path.join(itemsRoot, "hello", "src", "components"), { recursive: true });
   await fs.writeFile(
-    path.join(itemsRoot, "hello", "item.json"),
+    path.join(itemsRoot, "hello", REGISTRY_MANIFEST_FILE),
     JSON.stringify(
       { name: "hello", type: "registry:component", title: "Hello", files: ["src/components/hello.tsx"] },
       null,

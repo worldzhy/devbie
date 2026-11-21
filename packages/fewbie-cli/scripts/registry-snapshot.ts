@@ -11,6 +11,8 @@ import path from "node:path";
 
 import { CliError, execCapture } from "@devbie/cli-kit";
 
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
+
 export const SNAPSHOT_FILE = ".snapshot.json";
 export const SOURCE_URL = "https://github.com/worldzhy/fewbie-modules.git";
 export const SOURCE_REF = "main";
@@ -65,7 +67,7 @@ export async function buildSnapshot(sourceRoot: string, outputRoot: string): Pro
   for (const entry of await fs.readdir(itemsRoot, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith(".") || INFRASTRUCTURE.has(entry.name)) continue;
     const itemDir = path.join(itemsRoot, entry.name);
-    const manifestRaw = await fs.readFile(path.join(itemDir, "item.json"), "utf8").catch(() => undefined);
+    const manifestRaw = await fs.readFile(path.join(itemDir, REGISTRY_MANIFEST_FILE), "utf8").catch(() => undefined);
     if (manifestRaw === undefined) continue;
 
     const manifest = JSON.parse(manifestRaw) as { name?: unknown; files?: unknown };
@@ -78,7 +80,7 @@ export async function buildSnapshot(sourceRoot: string, outputRoot: string): Pro
     const target = path.join(outputRoot, entry.name);
     await fs.rm(target, { recursive: true, force: true });
     await fs.mkdir(target, { recursive: true });
-    await fs.writeFile(path.join(target, "item.json"), manifestRaw);
+    await fs.writeFile(path.join(target, REGISTRY_MANIFEST_FILE), manifestRaw);
 
     for (const file of files) {
       if (typeof file !== "string") throw new CliError(`Item '${entry.name}' has a non-string files entry.`);

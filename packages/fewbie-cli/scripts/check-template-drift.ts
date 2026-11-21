@@ -30,6 +30,7 @@ import path from "node:path";
 import { resolveTemplate } from "../src/commands/create";
 import { listTemplateFiles } from "../src/commands/template/update";
 import { findAmbiguousTemplatePaths, findUnclassifiedTemplateFiles } from "../src/lib/template-ownership";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const packageRoot = path.resolve(__dirname, "..");
 const registryRoot = path.join(packageRoot, "registry");
@@ -39,14 +40,16 @@ interface RegistryItemEntry {
   files: string[];
 }
 
-/** Authored registry items (registry/<name>/item.json) and their declared files. */
+/** Authored registry items (registry/<name>/fewbie.module.json) and their declared files. */
 async function readRegistryItems(): Promise<RegistryItemEntry[]> {
   const entries = await fs.readdir(registryRoot, { withFileTypes: true });
   const items: RegistryItemEntry[] = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const raw = await fs.readFile(path.join(registryRoot, entry.name, "item.json"), "utf8").catch(() => undefined);
+    const raw = await fs
+      .readFile(path.join(registryRoot, entry.name, REGISTRY_MANIFEST_FILE), "utf8")
+      .catch(() => undefined);
     if (raw === undefined) continue;
     const manifest = JSON.parse(raw) as { name?: unknown; files?: unknown };
     const files = Array.isArray(manifest.files)

@@ -196,7 +196,7 @@ fewbie-modules, then run `npm run registry:sync -w @devbie/fewbie-cli`.
 against the recorded commit and gates a release.
 
 A registry checkout is resolved to its item directory: `packages/modules/`
-wins, and a flat checkout with `<item>/item.json` at its root stays supported
+wins, and a flat checkout with `<item>/fewbie.module.json` at its root stays supported
 (ADR-059). `FEWBIE_REGISTRY_PATH` accepts either shape.
 
 Items follow the shadcn conventions (`registry:lib`, `registry:component`,

@@ -6,6 +6,7 @@ import path from "node:path";
 import { CliError, execCapture, pathExists } from "@devbie/cli-kit";
 import { readRegistryDeclaration } from "../lib/modules-file";
 import { registryCommit } from "../lib/git-commit";
+import { REGISTRY_MANIFEST_FILE } from "./types";
 
 /** Local registry checkout, overriding any declaration (development override). */
 const REGISTRY_PATH_ENV = "FEWBIE_REGISTRY_PATH";
@@ -17,8 +18,8 @@ export const REGISTRY_ITEMS_DIR = "packages/modules";
 
 /**
  * A candidate directory is only a valid registry root if it contains at
- * least one `<name>/item.json`. Merely existing is not enough: when this
- * module runs uncompiled via tsx, the first candidate resolves to the
+ * least one `<name>/fewbie.module.json`. Merely existing is not enough: when
+ * this module runs uncompiled via tsx, the first candidate resolves to the
  * src/registry directory itself (which holds code, not items).
  */
 export async function isRegistryRoot(candidate: string): Promise<boolean> {
@@ -31,7 +32,7 @@ export async function isRegistryRoot(candidate: string): Promise<boolean> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const hasItem = await fs
-      .access(path.join(candidate, entry.name, "item.json"))
+      .access(path.join(candidate, entry.name, REGISTRY_MANIFEST_FILE))
       .then(() => true)
       .catch(() => false);
     if (hasItem) return true;
@@ -53,7 +54,7 @@ export async function locateItemsDir(checkout: string): Promise<string | null> {
 
 /** Both accepted registry shapes, for error messages. */
 function expectedRegistryShape(): string {
-  return `${path.join(REGISTRY_ITEMS_DIR, "<item>", "item.json")} or <item>/item.json`;
+  return `${path.join(REGISTRY_ITEMS_DIR, "<item>", REGISTRY_MANIFEST_FILE)} or <item>/${REGISTRY_MANIFEST_FILE}`;
 }
 
 /**

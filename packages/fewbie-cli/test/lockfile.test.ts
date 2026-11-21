@@ -8,6 +8,7 @@ import { applyModuleSelection } from "../src/commands/modules/apply";
 import { runUpdate } from "../src/commands/modules/update";
 import { hashContent } from "../src/lib/hashes";
 import { readLockfile } from "../src/lib/lockfile";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const TARGET = "src/modules/fixture/index.ts";
 const ORIGINAL = "export const fixture = 1;\n";
@@ -27,7 +28,7 @@ async function setup(): Promise<Fixture> {
 
   await fs.mkdir(path.join(item, "src/modules/fixture"), { recursive: true });
   await fs.writeFile(
-    path.join(item, "item.json"),
+    path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
       type: "registry:block",

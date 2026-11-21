@@ -2,7 +2,7 @@
  * CI gate: dist/registry must be exactly what registry/ builds to.
  *
  * The published artifact is the shadcn-compatible registry under dist/registry:
- * each authored item becomes one item.json with the source file contents
+ * each authored item becomes one fewbie.module.json with the source file contents
  * inlined. `fewbie modules add` and `npx shadcn add <url>` both consume that
  * artifact, so a build bug (a dropped file, stale metadata, an item left over
  * from a rename) ships broken installs even though the authored source looks
@@ -19,12 +19,13 @@ import os from "node:os";
 import path from "node:path";
 
 import { buildRegistry } from "../src/registry/build";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const packageRoot = path.resolve(__dirname, "..");
 const sourceRoot = path.join(packageRoot, "registry");
 const outputRoot = path.join(packageRoot, "dist", "registry");
 
-/** Item name -> built item.json content, for every item directory under root. */
+/** Item name -> built fewbie.module.json content, for every item directory under root. */
 async function readItemManifests(root: string): Promise<Map<string, string>> {
   const manifests = new Map<string, string>();
   let entries: Dirent[];
@@ -36,7 +37,9 @@ async function readItemManifests(root: string): Promise<Map<string, string>> {
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const content = await fs.readFile(path.join(root, entry.name, "item.json"), "utf8").catch(() => undefined);
+    const content = await fs
+      .readFile(path.join(root, entry.name, REGISTRY_MANIFEST_FILE), "utf8")
+      .catch(() => undefined);
     if (content !== undefined) manifests.set(entry.name, content);
   }
 
