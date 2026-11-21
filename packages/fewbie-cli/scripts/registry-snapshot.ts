@@ -15,7 +15,9 @@ export const SNAPSHOT_FILE = ".snapshot.json";
 export const SOURCE_URL = "https://github.com/worldzhy/fewbie-modules.git";
 export const SOURCE_REF = "main";
 
-/** Root directories of fewbie-modules that are tooling, not registry items. */
+/** Container directory holding every authored item (ADR-059). */
+const ITEMS_DIR = "packages/modules";
+/** Root directories of a flat checkout that are tooling, not registry items. */
 const INFRASTRUCTURE = new Set(["harness", "node_modules", "scripts"]);
 
 export interface SnapshotMeta {
@@ -44,14 +46,25 @@ export async function gitDirty(root: string): Promise<boolean> {
   return stdout.trim().length > 0;
 }
 
+/** Items directory of a checkout: the `packages/modules` container wins, else its root. */
+async function locateItemsRoot(sourceRoot: string): Promise<string> {
+  const container = path.join(sourceRoot, ITEMS_DIR);
+  const exists = await fs
+    .access(container)
+    .then(() => true)
+    .catch(() => false);
+  return exists ? container : sourceRoot;
+}
+
 /** Copy every authored item's manifest and declared payload into `outputRoot`. */
 export async function buildSnapshot(sourceRoot: string, outputRoot: string): Promise<string[]> {
+  const itemsRoot = await locateItemsRoot(sourceRoot);
   await fs.mkdir(outputRoot, { recursive: true });
   const names: string[] = [];
 
-  for (const entry of await fs.readdir(sourceRoot, { withFileTypes: true })) {
+  for (const entry of await fs.readdir(itemsRoot, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name.startsWith(".") || INFRASTRUCTURE.has(entry.name)) continue;
-    const itemDir = path.join(sourceRoot, entry.name);
+    const itemDir = path.join(itemsRoot, entry.name);
     const manifestRaw = await fs.readFile(path.join(itemDir, "item.json"), "utf8").catch(() => undefined);
     if (manifestRaw === undefined) continue;
 

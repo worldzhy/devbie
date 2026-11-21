@@ -12,6 +12,9 @@ const REGISTRY_PATH_ENV = "FEWBIE_REGISTRY_PATH";
 /** Base directory for cloned registries (`<base>/<url hash>`). */
 const REGISTRY_CACHE_ENV = "FEWBIE_REGISTRY_CACHE_DIR";
 
+/** Container directory holding every authored item inside a checkout (ADR-059). */
+export const REGISTRY_ITEMS_DIR = "packages/modules";
+
 /**
  * A candidate directory is only a valid registry root if it contains at
  * least one `<name>/item.json`. Merely existing is not enough: when this
@@ -34,6 +37,23 @@ export async function isRegistryRoot(candidate: string): Promise<boolean> {
     if (hasItem) return true;
   }
   return false;
+}
+
+/**
+ * Item directory inside a registry checkout. `packages/modules` wins; a flat
+ * checkout (items at its root) stays supported for older registries and for
+ * the CLI's own built-in snapshot. Null when neither shape holds.
+ */
+export async function locateItemsDir(checkout: string): Promise<string | null> {
+  const container = path.join(checkout, REGISTRY_ITEMS_DIR);
+  if (await isRegistryRoot(container)) return container;
+  if (await isRegistryRoot(checkout)) return checkout;
+  return null;
+}
+
+/** Both accepted registry shapes, for error messages. */
+function expectedRegistryShape(): string {
+  return `${path.join(REGISTRY_ITEMS_DIR, "<item>", "item.json")} or <item>/item.json`;
 }
 
 /**
@@ -76,10 +96,11 @@ async function syncGitRegistry(url: string, ref: string | undefined): Promise<st
     throw new CliError(`Failed to fetch registry ${url}${ref ? `#${ref}` : ""}: ${(error as Error).message}`);
   }
 
-  if (!(await isRegistryRoot(cacheDir))) {
-    throw new CliError(`Registry ${url}${ref ? `#${ref}` : ""} contains no <item>/item.json at its root.`);
+  const itemsDir = await locateItemsDir(cacheDir);
+  if (itemsDir === null) {
+    throw new CliError(`Registry ${url}${ref ? `#${ref}` : ""} has no items (expected ${expectedRegistryShape()}).`);
   }
-  return cacheDir;
+  return itemsDir;
 }
 
 /**
@@ -94,10 +115,11 @@ export async function resolveRegistryRoot(projectRoot?: string): Promise<string>
   const override = process.env[REGISTRY_PATH_ENV];
   if (override) {
     const candidate = path.resolve(override);
-    if (!(await isRegistryRoot(candidate))) {
-      throw new CliError(`${REGISTRY_PATH_ENV} '${candidate}' is not a registry root (no <item>/item.json).`);
+    const itemsDir = await locateItemsDir(candidate);
+    if (itemsDir === null) {
+      throw new CliError(`${REGISTRY_PATH_ENV} '${candidate}' is not a registry root (no ${expectedRegistryShape()}).`);
     }
-    return candidate;
+    return itemsDir;
   }
 
   if (projectRoot) {

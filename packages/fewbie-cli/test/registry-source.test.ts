@@ -21,12 +21,16 @@ async function git(cwd: string, args: string[]): Promise<void> {
   );
 }
 
-/** A one-item registry repository, usable both as a git URL and a local root. */
-async function makeRegistryRepo(): Promise<string> {
+/**
+ * A one-item registry repository, usable both as a git URL and a local root.
+ * `container: true` puts the item under `packages/modules` (ADR-059).
+ */
+async function makeRegistryRepo(options: { container?: boolean } = {}): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-repo-"));
-  await fs.mkdir(path.join(root, "hello", "src", "components"), { recursive: true });
+  const itemsRoot = options.container ? path.join(root, "packages", "modules") : root;
+  await fs.mkdir(path.join(itemsRoot, "hello", "src", "components"), { recursive: true });
   await fs.writeFile(
-    path.join(root, "hello", "item.json"),
+    path.join(itemsRoot, "hello", "item.json"),
     JSON.stringify(
       { name: "hello", type: "registry:component", title: "Hello", files: ["src/components/hello.tsx"] },
       null,
@@ -34,7 +38,7 @@ async function makeRegistryRepo(): Promise<string> {
     ),
   );
   await fs.writeFile(
-    path.join(root, "hello", "src", "components", "hello.tsx"),
+    path.join(itemsRoot, "hello", "src", "components", "hello.tsx"),
     "export function Hello() {\n  return null;\n}\n",
   );
   await git(root, ["init", "-q", "-b", "main"]);
@@ -87,6 +91,30 @@ describe("external registry source", () => {
     assert.deepEqual(document.registry, { url: fileUrl(repo), ref: "main" });
   });
 
+  it("clones a registry whose items live under packages/modules", async () => {
+    const repo = await makeRegistryRepo({ container: true });
+    after(async () => fs.rm(repo, { recursive: true, force: true }));
+    const cache = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-cache-"));
+    after(async () => fs.rm(cache, { recursive: true, force: true }));
+    const project = await makeProject({ url: fileUrl(repo), ref: "main" });
+    after(async () => fs.rm(project, { recursive: true, force: true }));
+
+    const previousCache = process.env.FEWBIE_REGISTRY_CACHE_DIR;
+    process.env.FEWBIE_REGISTRY_CACHE_DIR = cache;
+    try {
+      await runAdd({ cwd: project, names: ["hello"], yes: true, skipInstall: true });
+    } finally {
+      if (previousCache === undefined) delete process.env.FEWBIE_REGISTRY_CACHE_DIR;
+      else process.env.FEWBIE_REGISTRY_CACHE_DIR = previousCache;
+    }
+
+    assert.deepEqual(await readModulesFile(project), ["hello"]);
+    assert.equal(
+      await fs.readFile(path.join(project, "src/components/hello.tsx"), "utf8"),
+      "export function Hello() {\n  return null;\n}\n",
+    );
+  });
+
   it("lets FEWBIE_REGISTRY_PATH override the declared registry", async () => {
     const local = await makeRegistryRepo();
     after(async () => fs.rm(local, { recursive: true, force: true }));
@@ -97,6 +125,22 @@ describe("external registry source", () => {
     process.env.FEWBIE_REGISTRY_PATH = local;
     try {
       assert.equal(await resolveRegistryRoot(project), local);
+    } finally {
+      if (previousPath === undefined) delete process.env.FEWBIE_REGISTRY_PATH;
+      else process.env.FEWBIE_REGISTRY_PATH = previousPath;
+    }
+  });
+
+  it("resolves FEWBIE_REGISTRY_PATH to the packages/modules container", async () => {
+    const local = await makeRegistryRepo({ container: true });
+    after(async () => fs.rm(local, { recursive: true, force: true }));
+    const project = await makeProject({ url: "file:///nonexistent/registry" });
+    after(async () => fs.rm(project, { recursive: true, force: true }));
+
+    const previousPath = process.env.FEWBIE_REGISTRY_PATH;
+    process.env.FEWBIE_REGISTRY_PATH = local;
+    try {
+      assert.equal(await resolveRegistryRoot(project), path.join(local, "packages", "modules"));
     } finally {
       if (previousPath === undefined) delete process.env.FEWBIE_REGISTRY_PATH;
       else process.env.FEWBIE_REGISTRY_PATH = previousPath;
