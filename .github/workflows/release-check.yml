@@ -30,3 +30,6 @@ jobs:
       - run: npm ci
       - run: npm run build -w @devbie/cli-kit
       - run: npm run check:template-drift -w @devbie/fewbie-cli
+      # ADR-058: registry/ is a generated snapshot of fewbie-modules; a stale
+      # copy would give undeclared hosts a different item set.
+      - run: npm run check:registry-snapshot -w @devbie/fewbie-cli

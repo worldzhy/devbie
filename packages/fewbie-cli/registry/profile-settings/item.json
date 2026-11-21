@@ -1,0 +1,33 @@
+{
+  "name": "profile-settings",
+  "type": "registry:block",
+  "title": "Profile settings card",
+  "description": "Account profile card: first, middle and last name plus the display name, with a host-owned save port. Data loading, persistence and toasts stay in the host.",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    "src/modules/profile-settings/index.ts",
+    "src/modules/profile-settings/types.ts",
+    "src/modules/profile-settings/profile-settings.tsx"
+  ],
+  "contract": {
+    "version": "1.0.0",
+    "framework": "^1.7.0",
+    "entry": "src/modules/profile-settings/index.ts",
+    "labels": [
+      "personalInfo",
+      "firstName",
+      "middleName",
+      "lastName",
+      "displayName",
+      "displayNamePlaceholder",
+      "saveChanges",
+      "email",
+      "saveFailed"
+    ],
+    "ports": ["onSave"],
+    "ui": ["button", "card", "input", "label"],
+    "states": ["loading", "error", "ready"]
+  },
+  "postInstall": "Render <ProfileSettings labels={...} profile={...} onSave={...} /> inside your settings shell. The host supplies translated labels, the current account values and a save function that persists them and toasts. Requires the shadcn ui primitives button, card, input and label."
+}

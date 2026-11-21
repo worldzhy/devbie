@@ -27,6 +27,8 @@ export default [
     },
   },
   {
-    ignores: ["**/dist/**", "**/coverage/**"],
+    // registry/ is a generated snapshot of fewbie-modules (ADR-058): installable
+    // source whose lint contract belongs to the hosts, not to this monorepo.
+    ignores: ["**/dist/**", "**/coverage/**", "packages/fewbie-cli/registry/**"],
   },
 ];

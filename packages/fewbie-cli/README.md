@@ -186,8 +186,17 @@ Print machine-readable project state as JSON (always JSON, no flag). Reports
 
 ## Registry items
 
-The built-in registry follows the shadcn item conventions
-(`registry:lib`, `registry:component`, `registry:block`):
+The registry is authored in
+[fewbie-modules](https://github.com/worldzhy/fewbie-modules); this package ships
+a generated snapshot of it (`.snapshot.json` records the source commit), so a
+host that declares `registry` and one that declares nothing see the same item
+set (ADR-058). Never edit `registry/` by hand: change the item in
+fewbie-modules, then run `npm run registry:sync -w @devbie/fewbie-cli`.
+`npm run check:registry-snapshot -w @devbie/fewbie-cli` compares the snapshot
+against the recorded commit and gates a release.
+
+Items follow the shadcn conventions (`registry:lib`, `registry:component`,
+`registry:block`):
 
 | Item                      | Type        | Description                                                                                                                             |
 | ------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
@@ -200,6 +209,11 @@ The built-in registry follows the shadcn item conventions
 | `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                     |
 | `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                     |
 | `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout. |
+| `login-page`              | `block`     | Page-level password/code login with inline TOTP and third-party provider entries.                                                       |
+| `forgot-password`         | `block`     | Email plus verification code password reset with a live strength checklist.                                                             |
+| `profile-settings`        | `block`     | Account profile card: names and display name, persisted by the host.                                                                    |
+| `security-settings`       | `block`     | Active sessions with per-row sign-out, and authenticator-app enrollment.                                                                |
+| `preferences-settings`    | `block`     | Interface language, theme and timezone, with host-side cache and cookie updates.                                                        |
 
 Framework assets (`src/components/ui/**`, `src/framework/**`,
 `src/lib/api-client/**`, the root layout and i18n config) ship only through the
