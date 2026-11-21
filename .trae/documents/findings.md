@@ -753,3 +753,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 本轮为 claim scope、只读；报告冻结于 devbie `89bd3b0d` / fewbie-modules `b5685e3` / nwf `da4229e` / starter `d6f12c1`。
 - 无 P0/P1，未启动反驳轮；已剔除「当前结构导致安装失败」与「宿主目标统一到 `src/modules/`」两种读法。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round75.md`。
+
+## Round 76
+
+判决对象：`item.json` 命名是否恰当（claim scope，只读）。
+
+判定摘要：**恰当，保留**。与 `package.json` 同构（容器名 + `.json`），`item` 是 shadcn registry item 的域术语；与 `newbie.module.json` 的前缀风格差异是唯一分歧，但改名收益为负。
+
+| ID    | 仓      | 标题                                   | 严重度 | 暴露面 | 可达性 | 状态                                                                                       |
+| ----- | ------- | -------------------------------------- | ------ | ------ | ------ | ------------------------------------------------------------------------------------------ |
+| R76-01 | devbie  | `item.json` 过泛、应带命名空间前缀（候选） | P2     | source | 模块作者 | withdrawn（`package.json` 同构反例；目录上下文已消歧；改名影响 14 清单 + 12 代码 + 7 文档且固有值不变） |
+
+### Round 76 备注
+
+- 影响面计数：代码引用 12 文件、文档 7 份、清单 14 个、宿主引用 0 处（命令见报告 §2）。
+- 无 P0/P1，未启动反驳轮。
+- 可选后续（P2，文档）：在 ADR-058 更新记录补一行命名理由，避免重复质疑；不改清单名。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round76.md`。
