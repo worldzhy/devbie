@@ -922,8 +922,8 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | ------ | ------------------------------ | ------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
 | R83-01 | devbie                         | `--adopt` 后基线被宿主磁盘内容覆盖，下一轮普通 update 静默覆盖宿主改动   | P1     | template | 宿主维护者   | fixed f8dcac0f |
 | R83-02 | devbie                         | framework 二进制资产走 UTF-8 文本通道，字体更新会写入损坏内容            | P1     | template | 宿主维护者   | fixed bf40890f |
-| R83-03 | nightwatch-frontend            | 托管树落后模板 12 项，门禁必红且含认证/日期缺陷                          | P1     | host     | 任意宿主用户 | open |
-| R83-04 | devbie                         | npm latest 1.12.0 不含 ADR-060 与 R82 修复，`^1.12.0` 拿到旧语义          | P1     | artifact | 所有宿主     | open |
+| R83-03 | nightwatch-frontend            | 托管树落后模板 12 项，门禁必红且含认证/日期缺陷                          | P1     | host     | 任意宿主用户 | fixed b0a44a9 |
+| R83-04 | devbie                         | npm latest 1.12.0 不含 ADR-060 与 R82 修复，`^1.12.0` 拿到旧语义          | P1     | artifact | 所有宿主     | fixed 6ffff873 |
 | R83-05 | devbie                         | `--check` 的补救指令对缺 marker / 脚手架过期不可达（R82-05 残留）        | P2     | live     | 宿主维护者   | open |
 | R83-06 | devbie                         | 路径过滤对 glob 资产失效，指定单文件会改整个目录                         | P2     | live     | 宿主维护者   | open |
 | R83-07 | devbie                         | manifest digest 无密钥，注释声称的抗篡改不成立                           | P2     | source   | 宿主维护者   | open |
