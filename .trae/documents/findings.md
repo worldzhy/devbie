@@ -701,3 +701,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R12-08 | devbie | ADR-054 L383/L384/L431 以「闸门与 workflow 在客户仓」为前提，未覆盖 B 拓扑 | P2 | docs | 设计阶段 | open |
 | R12-09 | devbie | PR 触发缓存不能被其他 PR 复用，每个 task PR 冷启动，分钟预算需重算 | P2 | docs | 成本 | open（task-pr.yml:51；ci.yml 只有 pull_request 触发） |
 | R12-10 | nightwatch-backend | 禁止路径（`.github/workflows/**`、`tools/gates/**`）缺运行时校验，合并前不检查 PR 是否改动这些路径 | P2 | source | 被管项目 agent | open（ADR-054 L383；MergeQueueService 无路径校验） |
+
+## Round 73（2026-11-21，plan scope：fewbie 是否按 newbie 方式设计）
+
+判定摘要：C1a（运行时包）不成立，依据 `fewbie-framework-design.md:59,218` 与 `newbie-framework-split-plan.md:58` 的 2026-09-24 决议；C1b（页面进 registry）部分成立——block/lib 可复用、路由页留宿主、独立仓暂不必要；C2（声明式装配）已实现。0 P0 / 0 P1 / 4 P2。
+
+| ID    | 仓                                | 标题                                                             | 严重度 | 暴露面          | 可达性       | 状态                                                                                               |
+| ----- | --------------------------------- | ---------------------------------------------------------------- | ------ | --------------- | ------------ | -------------------------------------------------------------------------------------------------- |
+| R73-01 | devbie + hosts                    | 模块系统采用率为 0，新增仓库/包之前缺少使用证据                   | P2     | source/template | 宿主维护者   | open（crewbie `fewbie.json` = `{"modules":[]}`；nightwatch 无 `fewbie.json`）                      |
+| R73-02 | nightwatch-frontend + crewbie      | `safe-path` 两宿主已漂移，`auth` item 未覆盖该安全谓词            | P2     | source          | 页面作者     | open（`diff -q` differ；`registry/auth/item.json` files 仅 `src/lib/auth.ts`）                      |
+| R73-03 | devbie (fewbie-cli)                | `modules add/apply` 可写 framework 路径，overlap 失败延迟到 update | P2     | source          | 开发者       | open（`modules/apply.ts:225-229` 无白名单；`template/update.ts:290-302` 才抛错）                    |
+| R73-04 | devbie (fewbie-cli)                | CLI README ownership 清单过期（scaffold/framework/mixed 与实际不符） | P2     | docs            | 宿主维护者   | open（`README.md:141-154` 与 `template-ownership.ts` 对照）                                         |
+
+### Round 73 备注
+
+- 本轮为 plan scope、只读；报告冻结于 devbie `7b5aff59` / starter `269641e` / newbie-modules `5ab1ccc` / host `659b805` / crewbie `f135c4f`。
+- 反驳轮推翻的 4 条初判表述见报告 §6；`assertNoRegistryOverlap` 仅注释命名过期，实际守卫在 `template/update.ts` 内联存在，未记为 finding。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-21-round73.md`。
