@@ -247,10 +247,10 @@ export const FRAMEWORK_DEPENDENCIES: readonly FrameworkDependency[] = [
   { name: "tw-animate-css", importedBy: "src/app/globals.css" },
   { name: "shadcn", importedBy: "src/app/globals.css (shadcn/tailwind.css)" },
   { name: "axios", importedBy: "src/lib/api-client/client.ts" },
-  { name: "dayjs", importedBy: "src/components/ui/date-picker.tsx" },
+  { name: "dayjs", importedBy: "src/framework/forms/date-picker.tsx" },
   { name: "cmdk", importedBy: "src/components/ui/command.tsx" },
   { name: "echarts", importedBy: "src/framework/chart/echarts.ts" },
-  { name: "react-day-picker", importedBy: "src/components/ui/calendar.tsx, src/components/ui/date-picker.tsx" },
+  { name: "react-day-picker", importedBy: "src/components/ui/calendar.tsx, src/framework/forms/date-picker.tsx" },
 ];
 
 /**

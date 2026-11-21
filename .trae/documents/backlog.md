@@ -94,7 +94,8 @@
 
 ## ADR-056 M2 遗留（2026-11-21）
 
-- [ ] **api-client 测试未随框架进模板**：`src/lib/api-client/*.test.ts` 基于 vitest + axios-mock-adapter，而 starter 的 `npm test` 是 node:test；为避免模板同时背两套 runner，M2 只复制运行时文件。M3 统一测试栈后再决定回填；M4 迁移时测试留在宿主 `src/tests/api-client/**`（不能用 `src/lib/api-client/**`，该路径是 framework 所有权）。
+- [x] **api-client 测试回填模板（2026-11-22，R83-19）**：原决定因 vitest + axios-mock-adapter 与模板 node:test 双 runner 而搁置；改为直接用 node:test 写在 `src/lib/api-client/*.test.ts`（protocol / failure / session-store / refresh-exchange，axios 走 adapter 注入替身），与 `npm test` 同栈，随 framework 所有权同步。
+- [ ] **`text-[13px]` 类任意字号门禁（R83-15 残留）**：R3 已拦任意色值与未定义 palette、R6 已拦任意 radius；nightwatch 仍有约 40 处亚刻度字号（`text-[10px]` / `text-[0.8125rem]` 等）依赖，需先在 framework theme 增补 micro-typography token（如 `text-2xs`）并迁移宿主，才能把 `text-\[` 纳入 OFF_SCALE。
 - [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
 
 ## ADR-056 M3 遗留（2026-11-21）

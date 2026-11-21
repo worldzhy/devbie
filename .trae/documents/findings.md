@@ -934,14 +934,14 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R83-12 | devbie                         | registry 删除 item 会锁死宿主；手改声明的孤儿文件永不清                  | P2     | live     | 宿主维护者   | fixed e0138740 |
 | R83-13 | devbie                         | 删一条 lock 条目即降级 legacy 并并入可写集合                             | P2     | live     | 宿主维护者   | fixed e0138740 |
 | R83-14 | devbie                         | registry 缓存锁不覆盖读取，异 ref 并发可读到错 commit                    | P2     | source   | 宿主维护者   | fixed e0138740 |
-| R83-15 | fewbie-starter                 | R3/R6 对任意值与未定义 token 全部放行                                    | P2     | template | 模板使用者   | open |
-| R83-16 | fewbie-starter                 | R1/R5 仍有影子通过路径（嵌套 PageShell、仅 import SidebarShell）         | P2     | template | 模板使用者   | open |
-| R83-17 | fewbie-starter                 | 模块边界未覆盖 `@/components/*`                                          | P2     | template | 模板使用者   | open |
-| R83-18 | fewbie-starter                 | `ui/date-picker.tsx` 是 primitive 豁免目录里的复合件                     | P2     | template | 模板使用者   | open |
-| R83-19 | fewbie-starter                 | api-client 8 个源文件零测试                                              | P2     | template | 框架维护者   | open |
-| R83-20 | fewbie-starter                 | 框架托管的 layout 硬编码 `title: "fewbie"`，宿主无法覆盖                  | P2     | template | 模板使用者   | open |
-| R83-21 | fewbie-starter                 | `/auth/*` 豁免匹配原始 url，同源绝对 URL 被当业务请求                    | P2     | template | 模板使用者   | open |
-| R83-22 | fewbie-starter                 | 图表 aria-label 硬编码英文                                               | P2     | template | 非英文用户   | open |
+| R83-15 | fewbie-starter                 | R3/R6 对任意值与未定义 token 全部放行                                    | P2     | template | 模板使用者   | fixed 5c28f0a（`text-[…]` 微排版待 token 化） |
+| R83-16 | fewbie-starter                 | R1/R5 仍有影子通过路径（嵌套 PageShell、仅 import SidebarShell）         | P2     | template | 模板使用者   | fixed 5c28f0a |
+| R83-17 | fewbie-starter                 | 模块边界未覆盖 `@/components/*`                                          | P2     | template | 模板使用者   | fixed 5c28f0a |
+| R83-18 | fewbie-starter                 | `ui/date-picker.tsx` 是 primitive 豁免目录里的复合件                     | P2     | template | 模板使用者   | fixed 5c28f0a（移至 `src/framework/forms/`） |
+| R83-19 | fewbie-starter                 | api-client 8 个源文件零测试                                              | P2     | template | 框架维护者   | fixed 5c28f0a |
+| R83-20 | fewbie-starter                 | 框架托管的 layout 硬编码 `title: "fewbie"`，宿主无法覆盖                  | P2     | template | 模板使用者   | fixed 5c28f0a |
+| R83-21 | fewbie-starter                 | `/auth/*` 豁免匹配原始 url，同源绝对 URL 被当业务请求                    | P2     | template | 模板使用者   | fixed 5c28f0a |
+| R83-22 | fewbie-starter                 | 图表 aria-label 硬编码英文                                               | P2     | template | 非英文用户   | fixed 5c28f0a |
 | R83-23 | nightwatch-frontend            | page/shell/chart/feedback 仍用影子第二实现                               | P2     | host     | 宿主维护者   | open |
 | R83-24 | nightwatch-frontend + starter  | `AGENTS.md` 托管清单落后（host 7 项；starter main 7 项 / dev 17 项）     | P2     | docs     | 两仓 agent   | open |
 | R83-25 | devbie                         | 快照门禁只验祖先，不要求与 registry main 同步                            | P2     | ops      | 维护者       | fixed e0138740 |
@@ -951,4 +951,6 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 计数（命令见报告 §9）：CLI `src` 30 文件 / 4849 行；registry 14 items / 5 带 contract / 8 个 block 中 3 个无 contract；starter `src/framework` 23 文件、`src/components/ui` 29 个 `.tsx`、`api-client` 8 文件 0 测试；宿主 `@/framework` 75 处 / 58 文件，`@/components/page-shell` 35 个引用文件。
 - 反驳轮：4 条拟 P1（R83-01…04）由独立代理逐条尝试推翻，全部维持；误报剔除 6 条见报告 §7（含 R2-01/R2-03/R2-05 关闭、绝对 URL 跨源泄漏不成立、字体损坏仅限模板字体变更、宿主 dev 无 CI 属已记录取舍）。
 - carry-over：fewbie-starter R2-01/R2-03/R2-05 关闭；R2-02/R2-04/R2-06/R2-07/R2-08、R79-01、R80-01、R81-05 仍 open（明细见报告 §11 与 fewbie-starter 台账）。
+- R83-15 残留：R3 已覆盖任意色值（`bg-[#ff0000]`）与未定义 palette（`bg-night-900`），R6 已覆盖 `rounded-[7px]`；`text-[13px]` 类任意字号未纳入门禁，因为 nightwatch 宿主有 40 处亚刻度字号依赖，需先补 typography token 再收紧（已入 devbie backlog）。
+- R83-18 影响：`date-picker.tsx` 从 `src/components/ui/` 移到 `src/framework/forms/`；宿主导入路径需同步（nightwatch 10 处），否则 template update 后旧文件成为孤儿。
 - 环境限制：宿主 PATH 无 Node；CLI / registry / starter 测试由子代理在 Docker `devbie-work` 内执行（executed），P2 未逐条重跑者标 static。
