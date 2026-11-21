@@ -62,9 +62,9 @@ function assertNonEmptyString(itemName: string, field: string, value: unknown): 
   return value;
 }
 
-function assertStringList(itemName: string, field: string, value: unknown): string[] {
-  if (!Array.isArray(value) || value.length === 0) {
-    fail(itemName, `${field} must be a non-empty array of strings.`);
+function assertStringList(itemName: string, field: string, value: unknown, allowEmpty = false): string[] {
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) {
+    fail(itemName, `${field} must be ${allowEmpty ? "an" : "a non-empty"} array of strings.`);
   }
   const seen = new Set<string>();
   for (const entry of value) {
@@ -102,12 +102,15 @@ export function parseModuleContract(value: unknown, itemName: string): ModuleCon
 
   const entry = assertNonEmptyString(itemName, "entry", raw.entry);
   const labels = assertStringList(itemName, "labels", raw.labels);
-  const ports = assertStringList(itemName, "ports", raw.ports);
+  // A presentational item may need no host transport and no shadcn primitive;
+  // an empty list then states that surface truthfully instead of inventing a
+  // fake port to satisfy the parser (R83-11).
+  const ports = assertStringList(itemName, "ports", raw.ports, true);
   for (const port of ports) {
     if (!PORT_METHOD.test(port)) fail(itemName, `ports entry '${port}' is not a valid method name.`);
   }
 
-  const ui = assertStringList(itemName, "ui", raw.ui);
+  const ui = assertStringList(itemName, "ui", raw.ui, true);
   for (const atom of ui) {
     if (!ALLOWED_UI.has(atom)) fail(itemName, `ui entry '${atom}' is not an allowed shadcn primitive.`);
   }

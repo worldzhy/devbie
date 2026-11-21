@@ -44,7 +44,7 @@ describe("fewbie modules", () => {
 
     assert.deepEqual(await readModulesFile(root), ["auth", "login-form"]);
     assert.ok(await exists(root, "src/lib/auth.ts"));
-    assert.ok(await exists(root, "src/components/login-form.tsx"));
+    assert.ok(await exists(root, "src/modules/login-form/login-form.tsx"));
   });
 
   it("repairs missing files from the declaration without naming modules", async () => {

@@ -58,6 +58,12 @@ test("rejects an empty label list", () => {
   assert.throws(() => parseModuleContract({ ...VALID, labels: [] }, "fixture"), /labels must be a non-empty array/);
 });
 
+test("accepts a presentational contract with no ports and no ui primitives", () => {
+  const parsed = parseModuleContract({ ...VALID, ports: [], ui: [] }, "fixture");
+  assert.deepEqual(parsed.ports, []);
+  assert.deepEqual(parsed.ui, []);
+});
+
 test("rejects a port that is not a method name", () => {
   assert.throws(() => parseModuleContract({ ...VALID, ports: ["save-all"] }, "fixture"), /not a valid method name/);
 });

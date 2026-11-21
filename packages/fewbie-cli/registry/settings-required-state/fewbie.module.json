@@ -1,9 +1,23 @@
 {
   "name": "settings-required-state",
   "title": "Settings required state",
-  "description": "Empty state shown when required configuration is missing, with a call-to-action linking to the settings page.",
+  "description": "Empty state shown when required configuration is missing, with a call-to-action whose navigation stays in the host.",
   "type": "registry:block",
   "dependencies": [],
   "registryDependencies": [],
-  "files": ["src/components/settings-required-state.tsx"]
+  "files": [
+    "src/modules/settings-required-state/index.ts",
+    "src/modules/settings-required-state/types.ts",
+    "src/modules/settings-required-state/settings-required-state.tsx"
+  ],
+  "contract": {
+    "version": "1.0.0",
+    "framework": "^1.7.0",
+    "entry": "src/modules/settings-required-state/index.ts",
+    "labels": ["actionLabel"],
+    "ports": ["onOpenSettings"],
+    "ui": ["button", "card"],
+    "states": ["ready"]
+  },
+  "postInstall": "Render <SettingsRequiredState labels={...} title={...} settingsHref={...} onOpenSettings={...} /> wherever a feature needs its configuration first. The host supplies the translated action label, the in-app settings path and the navigation callback. Requires the shadcn ui primitives button and card."
 }

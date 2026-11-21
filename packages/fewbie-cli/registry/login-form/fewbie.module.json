@@ -1,9 +1,23 @@
 {
   "name": "login-form",
   "title": "Login form",
-  "description": "Account/password login card built on shadcn ui primitives; submits through the auth util and honors the ?redirect= query parameter.",
+  "description": "Account/password login card built on shadcn ui primitives; submits through the auth util and hands the post-sign-in navigation back to the host.",
   "type": "registry:block",
   "dependencies": [],
   "registryDependencies": ["auth"],
-  "files": ["src/components/login-form.tsx"]
+  "files": [
+    "src/modules/login-form/index.ts",
+    "src/modules/login-form/types.ts",
+    "src/modules/login-form/login-form.tsx"
+  ],
+  "contract": {
+    "version": "1.0.0",
+    "framework": "^1.7.0",
+    "entry": "src/modules/login-form/index.ts",
+    "labels": ["title", "description", "account", "accountPlaceholder", "password", "submit", "loginFailed"],
+    "ports": ["onLoggedIn"],
+    "ui": ["button", "card", "input", "label"],
+    "states": ["loading", "error", "ready"]
+  },
+  "postInstall": "Render <LoginForm labels={...} onLoggedIn={...} /> inside your auth shell. The host supplies translated labels, the app path to open after sign-in (redirectPath, usually read from ?redirect=) and the onLoggedIn callback that performs the navigation. Requires the shadcn ui primitives button, card, input and label, plus the auth item for the login helper."
 }

@@ -1,29 +1,12 @@
 "use client";
 
-import type { ReactNode } from "react";
-import Link from "next/link";
 import { ArrowRight, Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-interface SettingsRequiredStateProps {
-  /** Short headline shown below the icon, e.g. "AWS credential required". */
-  title: string;
-  /** Explanation of which setting is missing and why it is needed. */
-  description?: ReactNode;
-  /** Destination of the settings call-to-action, usually the project settings page. */
-  settingsHref: string;
-  /** Label of the call-to-action button. */
-  actionLabel?: string;
-  /** Optional custom icon rendered inside the tinted badge. */
-  icon?: ReactNode;
-  /** Stretch the state to fill the parent height (used by full-screen panels). */
-  fullHeight?: boolean;
-  /** Allow callers to tweak the outer container when needed. */
-  className?: string;
-}
+import type { SettingsRequiredStateProps } from "./types";
 
 /**
  * Unified "required settings are missing" state. Feature modules render this
@@ -31,10 +14,11 @@ interface SettingsRequiredStateProps {
  * empty-state visuals and the settings entry point stay consistent.
  */
 export function SettingsRequiredState({
+  labels,
   title,
   description,
   settingsHref,
-  actionLabel = "Open Settings",
+  onOpenSettings,
   icon,
   fullHeight = false,
   className,
@@ -52,12 +36,9 @@ export function SettingsRequiredState({
 
           {description ? <p className="mt-2 max-w-md text-sm leading-7 text-muted-foreground">{description}</p> : null}
 
-          {/* settingsHref may be a full in-app path; Link handles client-side navigation. */}
-          <Button asChild className="mt-6">
-            <Link href={settingsHref}>
-              {actionLabel}
-              <ArrowRight className="size-4" />
-            </Link>
+          <Button className="mt-6" onClick={() => onOpenSettings(settingsHref)}>
+            {labels.actionLabel}
+            <ArrowRight className="size-4" />
           </Button>
         </CardContent>
       </Card>
