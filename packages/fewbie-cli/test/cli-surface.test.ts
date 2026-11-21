@@ -83,7 +83,7 @@ describe("fewbie CLI surface", () => {
             {
               name: "update",
               arguments: [{ name: "names", required: false, variadic: true }],
-              options: ["--check", "-y, --yes"],
+              options: ["--check", "--preview", "-f, --force", "-y, --yes"],
               commands: [],
             },
           ],

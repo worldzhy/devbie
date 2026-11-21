@@ -104,16 +104,19 @@ describe("fewbie modules", () => {
     assert.equal(await read(root, "src/components/data-table.tsx"), "// customized\n");
   });
 
-  it("update --check gates drift and update writes the registry version", async () => {
+  it("update --check gates drift; update keeps host edits unless forced", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
     const original = await read(root, "src/components/data-table.tsx");
     await fs.writeFile(path.join(root, "src/components/data-table.tsx"), "// drift\n");
 
-    await assert.rejects(runUpdate({ cwd: root, check: true }), /drift from the registry/);
+    await assert.rejects(runUpdate({ cwd: root, check: true }), /modified locally/);
 
     await runUpdate({ cwd: root, yes: true });
+    assert.equal(await read(root, "src/components/data-table.tsx"), "// drift\n");
+
+    await runUpdate({ cwd: root, yes: true, force: true });
     assert.equal(await read(root, "src/components/data-table.tsx"), original);
   });
 

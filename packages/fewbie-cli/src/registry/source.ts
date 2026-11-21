@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { CliError, execCapture, pathExists } from "@devbie/cli-kit";
 import { readRegistryDeclaration } from "../lib/modules-file";
+import { registryCommit } from "../lib/git-commit";
 
 /** Local registry checkout, overriding any declaration (development override). */
 const REGISTRY_PATH_ENV = "FEWBIE_REGISTRY_PATH";
@@ -114,4 +115,17 @@ export async function resolveRegistryRoot(projectRoot?: string): Promise<string>
     }
   }
   throw new CliError("Registry not found (expected dist/registry or registry/).");
+}
+
+/** Registry root plus the revision the lockfile should record (ADR-057 D4). */
+export interface RegistryContext {
+  root: string;
+  /** Resolved commit, `dev` for a local override, `unknown` when git cannot answer. */
+  commit: string;
+}
+
+/** Resolve the registry root and the commit its files came from. */
+export async function resolveRegistryContext(projectRoot?: string): Promise<RegistryContext> {
+  const root = await resolveRegistryRoot(projectRoot);
+  return { root, commit: await registryCommit(root, Boolean(process.env[REGISTRY_PATH_ENV])) };
 }

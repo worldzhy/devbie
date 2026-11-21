@@ -158,12 +158,23 @@ export function buildProgram(): Command {
 
   modules
     .command("update [names...]")
-    .description("update declared module files to the registry source; --check is the drift gate")
-    .option("--check", "CI gate: verify installed files against the registry without writing anything", false)
+    .description(
+      "update declared module files to the registry source using the lockfile baseline; --check is the drift gate, --preview classifies without writing",
+    )
+    .option("--check", "CI gate: fail on pristine drift or conflicts without writing anything", false)
+    .option("--preview", "show the three-way classification (pristine/host-modified/conflict) without writing", false)
+    .option("-f, --force", "also overwrite host-modified and conflicting files", false)
     .option("-y, --yes", "skip confirmation prompts", false)
     .action(function (this: Command, names: string[]) {
       const flags = this.opts();
-      return runUpdate({ ...globals(this), names, check: Boolean(flags.check), yes: Boolean(flags.yes) });
+      return runUpdate({
+        ...globals(this),
+        names,
+        check: Boolean(flags.check),
+        preview: Boolean(flags.preview),
+        force: Boolean(flags.force),
+        yes: Boolean(flags.yes),
+      });
     });
 
   const template = program.command("template").description("manage the framework-owned part of the project template");

@@ -3,10 +3,12 @@ import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
 import { LoadedItem, listRegistryItemNames, readItemFileContent, resolveInstallSet } from "../../registry/store";
-import { resolveRegistryRoot } from "../../registry/source";
+import { resolveRegistryContext, resolveRegistryRoot, RegistryContext } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
-import { requireModulesFile, writeModulesFile } from "../../lib/modules-file";
+import { hashContent } from "../../lib/hashes";
+import { LOCKFILE_VERSION, LockfileModule, readLockfile, writeLockfile } from "../../lib/lockfile";
+import { readRegistryDeclaration, requireModulesFile, writeModulesFile } from "../../lib/modules-file";
 import { missingPackages } from "../../lib/npm-spec";
 import { assertProjectRoot } from "../../lib/project";
 
@@ -152,9 +154,10 @@ export interface ApplySelectionResult {
  */
 export async function applyModuleSelection(options: ApplySelectionOptions): Promise<ApplySelectionResult> {
   const { projectRoot, dryRun } = options;
-  const registryRoot = await resolveRegistryRoot(projectRoot);
-  const currentItems = await resolveInstallSet(registryRoot, options.current);
-  const nextItems = await resolveInstallSet(registryRoot, options.next);
+  const context = await resolveRegistryContext(projectRoot);
+  const currentItems = await resolveInstallSet(context.root, options.current);
+  const nextItems = await resolveInstallSet(context.root, options.next);
+  const lockfile = await readLockfile(projectRoot);
 
   const currentClosure = currentItems.map((item) => item.manifest.name);
   const nextClosure = nextItems.map((item) => item.manifest.name);
@@ -203,8 +206,13 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
       const target = path.join(projectRoot, file.target);
       const current = await readTextIfExists(target);
       if (current === null) continue;
-      // Never destroy host customization silently; report it instead.
-      if (current === (await readItemFileContent(file))) deletions.push(file.target);
+      // Never destroy host customization silently; report it instead. With a
+      // lockfile the baseline is the installed bytes, without one fall back to
+      // comparing against the registry copy (1.8 behavior).
+      const lockedHash = lockfile?.modules[item.manifest.name]?.files[file.target];
+      const pristine =
+        lockedHash === undefined ? current === (await readItemFileContent(file)) : hashContent(current) === lockedHash;
+      if (pristine) deletions.push(file.target);
       else kept.push(file.target);
     }
   }
@@ -226,6 +234,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
   }
 
   await writeModulesFile(projectRoot, nextClosure);
+  await writeModuleLockfile(projectRoot, context, nextItems);
 
   for (const target of writes) console.info(`  ${green("added")} ${target.target}`);
   for (const target of deletions) console.info(`  ${green("removed")} ${target}`);
@@ -258,4 +267,28 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
     deleted: deletions,
     kept,
   };
+}
+
+/**
+ * Record what was installed: the registry revision and the hash of every
+ * installed file. These hashes are the baseline `modules update` compares
+ * against once the registry moves (ADR-057 D4).
+ */
+async function writeModuleLockfile(projectRoot: string, context: RegistryContext, items: LoadedItem[]): Promise<void> {
+  const declaration = await readRegistryDeclaration(projectRoot);
+  const modules: Record<string, LockfileModule> = {};
+  for (const item of items) {
+    const files: Record<string, string> = {};
+    for (const file of item.files) files[file.target] = hashContent(await readItemFileContent(file));
+    modules[item.manifest.name] = {
+      version: item.manifest.contract?.version ?? "0.0.0",
+      commit: context.commit,
+      files,
+    };
+  }
+  await writeLockfile(projectRoot, {
+    lockfileVersion: LOCKFILE_VERSION,
+    registry: { url: declaration?.url ?? "", ref: declaration?.ref ?? "", commit: context.commit },
+    modules,
+  });
 }
