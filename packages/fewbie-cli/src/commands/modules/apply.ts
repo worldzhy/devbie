@@ -7,7 +7,7 @@ import { resolveRegistryContext, resolveRegistryRoot, RegistryContext } from "..
 import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
 import { hashContent } from "../../lib/hashes";
-import { LOCKFILE_VERSION, LockfileModule, readLockfile, writeLockfile } from "../../lib/lockfile";
+import { LOCKFILE_VERSION, Lockfile, LockfileModule, readLockfile, writeLockfile } from "../../lib/lockfile";
 import { readRegistryDeclaration, requireModulesFile, writeModulesFile } from "../../lib/modules-file";
 import { missingPackages } from "../../lib/npm-spec";
 import { assertProjectRoot } from "../../lib/project";
@@ -234,7 +234,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
   }
 
   await writeModulesFile(projectRoot, nextClosure);
-  await writeModuleLockfile(projectRoot, context, nextItems);
+  await writeModuleLockfile(projectRoot, context, nextItems, new Set(writes.map((write) => write.target)), lockfile);
 
   for (const target of writes) console.info(`  ${green("added")} ${target.target}`);
   for (const target of deletions) console.info(`  ${green("removed")} ${target}`);
@@ -273,13 +273,37 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
  * Record what was installed: the registry revision and the hash of every
  * installed file. These hashes are the baseline `modules update` compares
  * against once the registry moves (ADR-057 D4).
+ *
+ * The baseline is the bytes the host received, never the registry's current
+ * bytes: a file this run did not write keeps its previous hash even when the
+ * registry moved on (R82-01). Recording the registry copy for an untouched file
+ * would make the next `modules update --check` call it host-modified and push
+ * the host toward `--force`, which overwrites real edits.
  */
-async function writeModuleLockfile(projectRoot: string, context: RegistryContext, items: LoadedItem[]): Promise<void> {
+async function writeModuleLockfile(
+  projectRoot: string,
+  context: RegistryContext,
+  items: LoadedItem[],
+  writtenTargets: ReadonlySet<string>,
+  previous: Lockfile | null,
+): Promise<void> {
   const declaration = await readRegistryDeclaration(projectRoot);
   const modules: Record<string, LockfileModule> = {};
   for (const item of items) {
     const files: Record<string, string> = {};
-    for (const file of item.files) files[file.target] = hashContent(await readItemFileContent(file));
+    for (const file of item.files) {
+      const recorded = previous?.modules[item.manifest.name]?.files[file.target];
+      if (recorded !== undefined && !writtenTargets.has(file.target)) {
+        files[file.target] = recorded;
+        continue;
+      }
+      // A file this run wrote gets the registry bytes; one that already existed
+      // without a lock entry keeps the bytes now on disk as its baseline.
+      const installed = writtenTargets.has(file.target)
+        ? null
+        : await readTextIfExists(path.join(projectRoot, file.target));
+      files[file.target] = hashContent(installed ?? (await readItemFileContent(file)));
+    }
     modules[item.manifest.name] = {
       version: item.manifest.contract?.version ?? "0.0.0",
       commit: context.commit,

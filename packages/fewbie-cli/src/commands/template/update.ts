@@ -41,6 +41,12 @@ export interface TemplateUpdateOptions {
    */
   registryComplete?: boolean;
   dryRun?: boolean;
+  /**
+   * Pre-manifest project: record the template framework copy as the baseline
+   * instead of refusing. Files the host edited then surface as
+   * modified-framework conflicts and stay untouched (R82-02).
+   */
+  adopt?: boolean;
   templatePath?: string;
   templateRef?: string;
 }
@@ -215,6 +221,36 @@ async function syncTemplateBaseline(templateRoot: string, check: boolean): Promi
   console.info(green(`✓ Regenerated ${FRAMEWORK_MANIFEST_PATH} for ${count} framework file(s).`));
 }
 
+/**
+ * Record the framework baseline the project currently holds. `create` uses it
+ * so a new project never starts without a baseline (R82-02); `--adopt` uses it
+ * to give a pre-manifest host one without overwriting anything.
+ */
+export async function recordFrameworkBaseline(projectRoot: string): Promise<void> {
+  const files = new Map<string, string | null>();
+  for (const filePath of await listTemplateFiles(projectRoot)) {
+    if (resolveTemplateAsset(filePath)?.ownership !== "framework") continue;
+    files.set(filePath, await readTextIfExists(path.join(projectRoot, filePath)));
+  }
+  const manifest = buildFrameworkManifest(files);
+  const target = path.join(projectRoot, FRAMEWORK_MANIFEST_PATH);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, serializeFrameworkManifest(manifest));
+}
+
+/** Baseline declared by `--adopt`: the framework bytes the template ships. */
+async function templateBaseline(
+  templateRoot: string,
+  assets: readonly TemplateAsset[],
+): Promise<Record<string, string>> {
+  const files = new Map<string, string | null>();
+  for (const asset of assets) {
+    if (asset.ownership !== "framework" || asset.path === FRAMEWORK_MANIFEST_PATH) continue;
+    files.set(asset.path, await readTextIfExists(path.join(templateRoot, asset.path)));
+  }
+  return buildFrameworkManifest(files).files;
+}
+
 function printChange(change: TemplateChange): void {
   if (change.kind === "missing-markers") {
     const markers = assetMarkers(change.asset);
@@ -351,7 +387,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       templateFiles.set(asset.path, await readTextIfExists(path.join(template.root, asset.path)));
     }
 
-    const baseline = await readProjectBaseline(projectRoot);
+    let baseline = await readProjectBaseline(projectRoot);
     let changes: TemplateChange[];
     try {
       changes = planTemplateUpdate(projectFiles, templateFiles, syncAssets, baseline);
@@ -359,19 +395,42 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       throw new CliError((error as Error).message);
     }
 
-    if (
+    // R82-02: a pre-manifest project cannot prove an existing framework file
+    // is unmodified, so overwriting it may destroy host edits. Refuse until the
+    // host adopts a baseline — `create` writes one, `--adopt` adds one here.
+    const overwrites = changes.filter((change) => change.asset.ownership === "framework" && change.kind === "update");
+    let adopted = false;
+    if (baseline === undefined && overwrites.length > 0) {
+      if (!options.adopt) {
+        throw new CliError(
+          `No ${FRAMEWORK_MANIFEST_PATH} in this project, so host edits of framework files cannot be ` +
+            `distinguished from template changes (would overwrite: ${overwrites
+              .map((change) => change.asset.path)
+              .join(", ")}). Run \`fewbie template update --adopt\` to record the template framework copy as ` +
+            "the baseline; files you edited then appear as modified-framework conflicts and stay untouched.",
+        );
+      }
+      baseline = await templateBaseline(template.root, syncAssets);
+      changes = planTemplateUpdate(projectFiles, templateFiles, syncAssets, baseline);
+      adopted = true;
+    } else if (
       baseline === undefined &&
       changes.some((change) => change.asset.ownership === "framework" && change.kind !== "modified-framework")
     ) {
       console.warn(
         yellow(
           `! No ${FRAMEWORK_MANIFEST_PATH} in this project: host edits of framework files cannot be detected on ` +
-            "this run. Review the diff before committing; the manifest shipped by this update protects later runs.",
+            "this run. Review the diff before committing; the manifest written by this update protects later runs.",
         ),
       );
     }
 
     if (changes.length === 0) {
+      // A project already matching the template still needs a baseline for the
+      // next run; `--check` and `--dry-run` never write (R82-02).
+      if (!options.check && !options.dryRun && (adopted || baseline === undefined)) {
+        await recordFrameworkBaseline(projectRoot);
+      }
       const suffix = scope ? ` (scope: ${scope})` : "";
       console.info(green(bold(`✓ Project template files are up to date with the template${suffix}.`)));
       return;
@@ -408,6 +467,9 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, change.nextContent);
     }
+    // Record the baseline whenever this run started without one, so the next
+    // update can tell host edits from template changes (R82-02).
+    if (adopted || baseline === undefined) await recordFrameworkBaseline(projectRoot);
     const skipped = changes.length - actionable.length;
     if (skipped > 0) {
       console.warn(yellow(`\n${skipped} file(s) left untouched (conflicts, missing markers or host adoption).`));

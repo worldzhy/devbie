@@ -100,7 +100,7 @@ export function pascalCase(name: string): string {
 }
 
 /** Host import specifier of a module entry, e.g. `@/modules/preferences-settings`. */
-function moduleSpecifier(entry: string, itemName: string): string {
+export function moduleSpecifier(entry: string, itemName: string): string {
   if (!entry.startsWith("src/")) {
     throw new CliError(
       `Registry item '${itemName}': contract.entry '${entry}' must live under src/ so the adapter can import it.`,

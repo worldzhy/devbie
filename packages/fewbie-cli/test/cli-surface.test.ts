@@ -102,7 +102,7 @@ describe("fewbie CLI surface", () => {
             {
               name: "update",
               arguments: [{ name: "paths", required: false, variadic: true }],
-              options: ["--template-path <dir>", "--template-ref <ref>", "--check"],
+              options: ["--template-path <dir>", "--template-ref <ref>", "--check", "--adopt"],
               commands: [],
             },
           ],

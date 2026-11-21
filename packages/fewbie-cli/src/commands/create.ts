@@ -5,6 +5,7 @@ import { bold, cyan, green } from "colorette";
 
 import { CliError, execCapture } from "@devbie/cli-kit";
 import { MODULES_FILE, modulesFileContent } from "../lib/modules-file";
+import { recordFrameworkBaseline } from "./template/update";
 
 /** Repository that ships the starter template at its root. */
 export const TEMPLATE_REPOSITORY_URL = "https://github.com/worldzhy/fewbie-starter.git";
@@ -100,6 +101,7 @@ export async function runCreate(options: CreateOptions): Promise<void> {
   // The declaration file is the single entry point for every later module
   // operation (ADR-024 clause 10); a fresh project declares nothing.
   await fs.writeFile(path.join(targetDir, MODULES_FILE), modulesFileContent([]));
+  await recordFrameworkBaseline(targetDir);
 
   const packageJsonPath = path.join(targetDir, "package.json");
   const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8")) as {

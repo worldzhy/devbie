@@ -97,19 +97,36 @@ async function dropDependencies(root: string, names: string[]): Promise<void> {
 }
 
 describe("fewbie template update", () => {
-  it("--check reports drift without writing files", async () => {
+  it("--check refuses to plan framework updates without a baseline (R82-02)", async () => {
     const project = await makeProject();
     const template = await makeTemplate();
     after(async () => {
       await fs.rm(project, { recursive: true, force: true });
       await fs.rm(template, { recursive: true, force: true });
     });
+    // A pre-manifest project that already holds a framework file the template
+    // changed: overwriting it could destroy host edits.
+    const hostCopy = "export const cn = () => 'host v1';\n";
+    await writeFile(project, "src/lib/utils.ts", hostCopy);
 
+    await assert.rejects(
+      runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
+      /No \.fewbie\/framework\.json/,
+    );
+    await assert.rejects(runTemplateUpdate({ cwd: project, templatePath: template }), /No \.fewbie\/framework\.json/);
+    assert.equal(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), hostCopy);
+    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
+
+    // --adopt records the template as the baseline and keeps the host copy.
+    await runTemplateUpdate({ cwd: project, adopt: true, templatePath: template });
+    assert.equal(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), hostCopy);
+    await assert.doesNotReject(() => fs.access(path.join(project, FRAMEWORK_MANIFEST_PATH)));
+
+    // With a baseline the same gate reports the conflict as drift.
     await assert.rejects(
       runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
       /drift from the template/,
     );
-    assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), NEXT_CONFIG_HOST);
   });
 
   it("writes framework files, updates only the marked block and creates missing files", async () => {

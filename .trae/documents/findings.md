@@ -866,3 +866,46 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
   3. R2 的提示文案让宿主改用 `@/framework/states`，但模板没有 `states/index.ts` barrel，照做即 TS2307。
   4. R2 的选择器按变量名匹配（`isLoading|loading|...`），改个变量名就能消除违规而不使用共享状态组件；`Loader2` 换成 lucide 的 `LoaderCircle` 也不被拦截；同时框架没有按钮/表格行内可用的 inline spinner 原语，这正是宿主绕过的动因。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round81.md`。
+
+## Round 82
+
+判决对象：fewbie framework 三仓（`devbie/packages/fewbie-cli`、`fewbie-starter`、`fewbie-modules`）全量 detailed 评审（scope=workspace 限定三仓，只读）。
+
+判定摘要：**地基设计自洽，但「基线」在两条主链上被写坏**——模块锁基线被 `apply` 无条件前移、模板基线不在发布分支上；加上 `modules remove` 留下孤儿 adapter，三者都能让门禁与事实相反。
+
+| ID     | 仓             | 标题                                                                                             | 严重度 | 暴露面   | 可达性       | 状态 |
+| ------ | -------------- | ------------------------------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
+| R82-01 | devbie         | `modules apply` 无条件前移锁基线，制造假 `host-modified`，唯一出路 `--force` 会覆盖宿主真实改动 | P1     | live     | 宿主维护者   | open |
+| R82-02 | devbie+starter | 发布默认分支无 `.fewbie/framework.json`，`create` 产物首轮 `template update` 静默覆盖宿主改动  | P1     | template | 新宿主/旧宿主 | open |
+| R82-03 | devbie         | `modules remove` 遗留生成的标签 adapter，宿主构建必坏而三条模块门禁全绿                         | P1     | live     | 宿主维护者   | open |
+| R82-04 | fewbie-starter | 模板 Dockerfile 无法在 build 期注入 `NEXT_PUBLIC_*`，且运行阶段不复制 `public/`                  | P1     | template | 模板使用者   | open |
+| R82-05 | devbie         | `update --check` 把「文件缺失」当成功；`--check` 的补救指令在普通 `update` 上不可达              | P2     | live     | 宿主维护者   | open |
+| R82-06 | devbie         | 锁文件只校验顶层形状，`modules[*].files` 损坏会降级为 `legacy` 并被并入可写集合                  | P2     | live     | 宿主维护者   | open |
+| R82-07 | devbie         | `contract.framework` 只过 `validRange`，全仓无 `satisfies`，旧 CLI 可静默装更高框架范围的 item  | P2     | artifact | 模块作者     | open |
+| R82-08 | devbie         | registry 改名/删文件后旧 target 不报告、不清理（update/apply 删除分支都只看当前 manifest）       | P2     | live     | 宿主维护者   | open |
+| R82-09 | devbie         | 共享 registry 缓存是单棵可写工作树，`fetch/checkout --force` 无进程锁，并发可能 commit 错配     | P2     | source   | 宿主维护者   | open |
+| R82-10 | devbie         | 快照门禁自证来源：`check-registry-snapshot` 用被校验对象里的 `meta.source` 去 clone              | P2     | source   | 维护者       | open |
+| R82-11 | devbie         | `create` 失败留半成品目录；`--template-ref` 不收 commit SHA；`COPY_IGNORE` 漏 `.env.local`       | P2     | source   | 宿主维护者   | open |
+| R82-12 | devbie+starter | 发布门禁只挂 devbie `push main`，dev 合并前无法预检；starter `check:template` 用已发布 CLI      | P2     | ops      | 维护者       | open |
+| R82-13 | fewbie-modules | manifest 与 import 不一致：auth/login-form/data-table/theme/settings-required-state 漏外部依赖  | P2     | artifact | 模块作者     | open |
+| R82-14 | fewbie-modules | `check-contract` 盲区（Set 去重、ui 无白名单、states 只查成员、无 contract 跳过）+ 无 tsc 门禁  | P2     | artifact | 模块作者     | open |
+| R82-15 | fewbie-modules | 密码策略三份实现（password-checklist / forgot-password 各一套），Spinner 与图标跨 item 复制    | P2     | artifact | 模块作者     | open |
+| R82-16 | fewbie-starter | framework 消息 import 失败被静默吞掉，老宿主升级后打开 ConfirmDialog/DatePicker 才抛错           | P2     | template | 模板使用者   | open |
+| R82-17 | fewbie-starter | api-client 文档/行为漂移：注释指向不存在的 `request.ts`；`/auth/*` 仍附 Bearer；默认 toast 丢弃 | P2     | template | 模板使用者   | open |
+| R82-18 | fewbie-starter | `ConfirmDialog` 三开关同时成立无关闭路径；`title` 可空致无可访问名称；注释与默认值不符          | P2     | template | 模板使用者   | open |
+| R82-19 | fewbie-starter | `DatePicker` 未选日期时先改时/分会提交「今天」（`dayjs(undefined)`）                              | P2     | template | 模板使用者   | open |
+| R82-20 | fewbie-starter | `SectionTabs` 受控 `value` 但无 `onValueChange`，键盘激活无法改变选中态                          | P2     | template | 模板使用者   | open |
+| R82-21 | fewbie-starter | `Toaster` 在 `ThemeProvider` 外且未传 `theme`，暗色主题下 toast 仍浅色                            | P2     | template | 模板使用者   | open |
+| R82-22 | fewbie-starter | 图表：pie 忽略 `dataset.color`、`splitLine` 硬编码黑、`withAlpha` 只认 `#rrggbb`、无 aria        | P2     | template | 模板使用者   | open |
+| R82-23 | fewbie-starter | 门禁可被「影子实现」满足：`check-page-contract` 仅词匹配，`gates.test.mjs` 把绕过写成应通过      | P2     | template | 模板维护者   | open |
+| R82-24 | fewbie-starter | 直推 dev 的 `guards` 不跑 `check:template`/测试/构建，仅 PR 的 `verify` 跑                       | P2     | ops      | 模板维护者   | open |
+| R82-25 | fewbie-starter | `AGENTS.md` 框架文件清单仍只有 7 项（R2-06 开放）                                                | P2     | docs     | 宿主维护者   | open |
+
+### Round 82 备注
+
+- 锚点：devbie `1c03729e`、fewbie-starter `c2ae10d`、fewbie-modules `8ec5fbc`，三仓工作树 clean，无 provisional。
+- 计数（命令见报告 §2）：registry 14 items / 5 带 contract / 5 测试；CLI 36 文件 5093 行 / 124 测试全绿；starter 38 文件 / 37 测试全绿；registry 28 测试全绿；starter `origin/main..origin/dev` 26 commits / 86 files；dev 基线 80 files、origin/main 无基线。
+- 复现（executed）：R82-01（registry v1→v2 后 `modules add`，锁哈希=新版、磁盘=旧版，`update --check` 红且普通 `update` 拒写）、R82-03（`modules remove forgot-password` 后残留 adapter import，三条门禁绿）、R82-02（`git cat-file -e origin/main:.fewbie/framework.json` 失败）。
+- 反驳轮：4 条拟 P1 被撤销/降级（ADR-055 retry 单飞、snapshot ref 不符、auth 安装即失败、交互式 default 恢复依赖），见报告 §7。
+- carry-over：R2-05 已修复；R2-01/02/03/04/06/07/08、R79-01、R80-01、R81-05 仍开放或部分修复（R82-02 即 R2-02 未修复的现网表现）。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round82.md`。

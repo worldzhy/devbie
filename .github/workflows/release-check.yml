@@ -30,6 +30,13 @@ jobs:
       - run: npm ci
       - run: npm run build -w @devbie/cli-kit
       - run: npm run check:template-drift -w @devbie/fewbie-cli
+      # R82-02: `fewbie create` clones the default branch, so a release branch
+      # without the baseline manifest would hand every new project to a first
+      # `template update` that cannot detect host edits.
+      - name: Assert the starter default branch ships the template baseline
+        run: |
+          git clone --quiet --depth 1 https://github.com/worldzhy/fewbie-starter.git /tmp/fewbie-starter
+          test -f /tmp/fewbie-starter/.fewbie/framework.json
       # ADR-058: registry/ is a generated snapshot of fewbie-modules; a stale
       # copy would give undeclared hosts a different item set.
       - run: npm run check:registry-snapshot -w @devbie/fewbie-cli

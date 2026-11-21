@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, green } from "colorette";
 
@@ -7,6 +8,7 @@ import { confirm } from "../../lib/confirm";
 import { CliError } from "@devbie/cli-kit";
 import { requireModulesFile } from "../../lib/modules-file";
 import { assertProjectRoot } from "../../lib/project";
+import { findOrphanAdapters } from "./adapters";
 import { applyModuleSelection } from "./apply";
 
 export interface ModulesRemoveOptions {
@@ -55,6 +57,17 @@ export async function runRemove(options: ModulesRemoveOptions): Promise<void> {
   }
 
   await applyModuleSelection({ projectRoot, current: declared, next: remaining, dryRun: options.dryRun });
+
+  // Generated label adapters are CLI output, not `item.files`, so the apply
+  // pass above cannot reach them; leaving one behind imports a module that no
+  // longer exists and breaks the host build (R82-03).
+  const orphans = await findOrphanAdapters(projectRoot, remaining);
+  if (options.dryRun) {
+    for (const target of orphans) console.info(`[dry-run] remove ${target} (module no longer declared)`);
+  } else {
+    for (const target of orphans) await fs.rm(path.join(projectRoot, target), { force: true });
+    for (const target of orphans) console.info(`  ${green("removed")} ${target} (module no longer declared)`);
+  }
 
   if (options.dryRun) console.info("[dry-run] no files were modified");
   else console.info(bold(green("\n✓ Modules removed.")));

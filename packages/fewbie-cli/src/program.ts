@@ -209,12 +209,18 @@ export function buildProgram(): Command {
     .option("--template-path <dir>", "use a local template directory instead of cloning fewbie-starter")
     .option("--template-ref <ref>", "git ref of fewbie-starter to update the template from")
     .option("--check", "CI gate: print the diff and exit non-zero when template files drift", false)
+    .option(
+      "--adopt",
+      "record the template framework copy as the baseline for a project created before baselines existed; host-edited files stay untouched",
+      false,
+    )
     .action(function (this: Command, paths: string[]) {
       const flags = this.opts();
       return runTemplateUpdate({
         ...globals(this),
         paths,
         check: Boolean(flags.check),
+        adopt: Boolean(flags.adopt),
         // Template-repository CI opts in via env; a created project's copied
         // gate must not inherit it (see `create`).
         registryComplete: process.env.FEWBIE_TEMPLATE_REGISTRY_COMPLETE === "1",
