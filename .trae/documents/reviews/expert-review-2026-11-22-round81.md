@@ -82,6 +82,7 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 - nwf 的 CI 只跑 format/lint/test/template update/build/docker，`modules apply --check`、`modules update --check`、`modules adapters --check` 均未挂载（`modules adapters` 在 package.json 与 .github 中 0 处）。
 - 本轮手动执行三项均通过（`3cc8a0a`），但 R79-01/R80-01 描述的两类漂移只能靠人记得跑；这与 R80-01 的宿主侧是同一根因。
 - 修复方向：CI 加一条 `npx fewbie modules apply --check && npx fewbie modules update --check && npx fewbie modules adapters --check`。
+- **状态：fixed（`8584cbc`，2026-11-22）**。CI 在 `npx fewbie doctor` 之后新增三个独立步骤（`modules apply --check`、`modules update --check`、`modules adapters --check`），失败时能按步骤直接定位；本地复核三条均绿，`format:check` 通过。
 
 ### R81-04（devbie + fewbie-starter + nightwatch-frontend）台账与 backlog 失真
 
@@ -122,7 +123,7 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 
 1. ~~R81-01：重新生成 starter 的 framework 基线~~（已 fixed，`13ed56e`）。
 2. ~~R81-02：nwf `template update` 补 scaffold 与基线；CI 加 `fewbie doctor`~~（已 fixed，`1d5978c`）。
-3. R81-03：nwf CI 加三条模块门禁（同时消掉 R80-01 的宿主侧暴露）。
+3. ~~R81-03：nwf CI 加三条模块门禁~~（已 fixed，`8584cbc`）。
 4. R81-05：模板侧修四处缺口（可配置品牌、框架测试入口、states barrel、结构性 R2 + inline spinner）。
 5. R79-01：补 `login-form` / `password-checklist` / `theme` 的 contract。
 6. R81-04：清理 backlog 与两条过期 findings 引用。

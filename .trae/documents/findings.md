@@ -851,7 +851,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | ----- | ----------------------------- | ------------------------------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
 | R81-01 | fewbie-starter                | 框架基线过期（80 文件），`check:template` 红；verify job 只在 PR 运行，下一次 dev→main 必红 | P1     | template | 模板维护者   | fixed（`13ed56e`；仅 `eslint.config.mjs`、`scripts/eslint-rules.test.mjs` 与聚合 digest 变化；`check:template` 绿） |
 | R81-02 | nightwatch-frontend           | `fewbie doctor` 红（缺 `src/app/host-providers.tsx`、无 `.fewbie/framework.json`），CI 不跑 doctor | P2     | source   | 宿主维护者   | fixed（`1d5978c`；template update 同步 46 文件，宿主完成完整 M4 迁移，doctor 0 error / 0 warning，CI 加 doctor 步骤） |
-| R81-03 | nightwatch-frontend           | 模块生命周期无 CI 门禁（`modules apply/update/adapters --check` 均未挂载）                     | P2     | source   | 宿主维护者   | open |
+| R81-03 | nightwatch-frontend           | 模块生命周期无 CI 门禁（`modules apply/update/adapters --check` 均未挂载）                     | P2     | source   | 宿主维护者   | fixed（`8584cbc`；三条门禁挂在 CI 的 doctor 之后，本地复核全绿） |
 | R81-04 | devbie + starter + nwf        | 台账与 backlog 失真：1.6.x/1.7.0 仍写作下一步；R73-01 称 nwf 无 `fewbie.json`；R73-02 路径仍写 `item.json` | P2     | docs     | 宿主维护者   | open |
 | R81-05 | fewbie-starter                | M4 门禁与模板契约的四处缺口（见备注）                                                           | P2     | template | 模板维护者   | open |
 
