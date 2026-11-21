@@ -5,7 +5,15 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { runTemplateUpdate } from "../src/commands/template/update";
-import { FRAMEWORK_DEPENDENCIES, FRAMEWORK_MARKER_END, FRAMEWORK_MARKER_START } from "../src/lib/template-ownership";
+import {
+  buildFrameworkManifest,
+  FRAMEWORK_DEPENDENCIES,
+  FRAMEWORK_MANIFEST_PATH,
+  FRAMEWORK_MARKER_END,
+  FRAMEWORK_MARKER_START,
+  serializeFrameworkManifest,
+  SYNCABLE_ASSETS,
+} from "../src/lib/template-ownership";
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -35,6 +43,21 @@ async function writeFile(root: string, relativePath: string, content: string): P
   await fs.writeFile(path.join(root, relativePath), content);
 }
 
+/**
+ * Regenerate the template's baseline manifest (ADR-056 D3). The real template
+ * repository does this through `fewbie template update --template-path .`; the
+ * fixture needs the same artifact after every framework change.
+ */
+async function writeTemplateBaseline(root: string): Promise<void> {
+  const files = new Map<string, string | null>();
+  for (const asset of SYNCABLE_ASSETS) {
+    if (asset.ownership !== "framework" || asset.path === FRAMEWORK_MANIFEST_PATH) continue;
+    files.set(asset.path, await fs.readFile(path.join(root, asset.path), "utf8").catch(() => null));
+  }
+  const manifest = buildFrameworkManifest(files, SYNCABLE_ASSETS);
+  await writeFile(root, FRAMEWORK_MANIFEST_PATH, serializeFrameworkManifest(manifest));
+}
+
 async function makeTemplate(): Promise<string> {
   const root = await makeTempDir("fewbie-update-template-");
   await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "fewbie-basic-template" }, null, 2));
@@ -45,6 +68,7 @@ async function makeTemplate(): Promise<string> {
   await writeFile(root, "AGENTS.md", agentsMd("Template contract.", ""));
   // Host-owned: template update must never copy this.
   await writeFile(root, "src/app/page.tsx", "// template page\n");
+  await writeTemplateBaseline(root);
   return root;
 }
 
@@ -269,5 +293,37 @@ describe("fewbie template update", () => {
     assert.equal(await fs.readFile(path.join(project, "next.config.ts"), "utf8"), legacyHostConfig);
     const joined = warnings.join("\n");
     assert.match(joined, /next\.config\.ts: the host copy does not reference the framework entry point/);
+  });
+
+  it("refuses to overwrite a framework file the host modified (ADR-056 D3)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+
+    // First sync ships the baseline into the project.
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    const baseline = await fs.readFile(path.join(project, FRAMEWORK_MANIFEST_PATH), "utf8");
+    assert.match(baseline, /src\/lib\/utils\.ts/);
+
+    // Host copy still matches the baseline: a template change upgrades silently.
+    await writeFile(template, "src/lib/utils.ts", "export const cn = () => 'template v2';\n");
+    await writeTemplateBaseline(template);
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    assert.match(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), /template v2/);
+
+    // Host edit plus a template change: a conflict, never an overwrite.
+    await writeFile(project, "src/lib/utils.ts", "export const cn = () => 'host edit';\n");
+    await writeFile(template, "src/lib/utils.ts", "export const cn = () => 'template v3';\n");
+    await writeTemplateBaseline(template);
+
+    await assert.rejects(
+      runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
+      /modified-framework conflict/,
+    );
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    assert.match(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), /host edit/);
   });
 });

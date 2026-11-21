@@ -5,7 +5,13 @@ import { bold, green, red, yellow } from "colorette";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { readModulesFile } from "../lib/modules-file";
 import { packageNameOf } from "../lib/npm-spec";
-import { FRAMEWORK_DEPENDENCIES, TEMPLATE_ASSETS } from "../lib/template-ownership";
+import {
+  FRAMEWORK_DEPENDENCIES,
+  FRAMEWORK_MANIFEST_PATH,
+  hashContent,
+  parseFrameworkManifest,
+  TEMPLATE_ASSETS,
+} from "../lib/template-ownership";
 import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
 
 export interface DoctorOptions {
@@ -217,6 +223,62 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
           `${asset.path} does not use the framework entry point (${asset.requiredSnippet}). ` +
           "Template update never rewrites it; adopt the shape printed by 'fewbie template update --check'.",
       });
+    }
+  }
+
+  // --- 3d. Framework baseline (ADR-056 D3) ---
+  // Framework files are upgraded silently only while they still match the
+  // baseline the project received, so a mismatch here is the early warning that
+  // `template update` will refuse those files.
+  const frameworkManifestRaw = await readTextIfExists(path.join(projectRoot, FRAMEWORK_MANIFEST_PATH));
+  if (frameworkManifestRaw === null) {
+    findings.push({
+      severity: "warn",
+      category: "framework",
+      message:
+        `No ${FRAMEWORK_MANIFEST_PATH} — host edits of framework files cannot be detected. ` +
+        "Run 'fewbie template update' to receive the baseline.",
+    });
+  } else {
+    const manifest = parseFrameworkManifest(frameworkManifestRaw);
+    if (manifest === null) {
+      findings.push({
+        severity: "error",
+        category: "framework",
+        message: `${FRAMEWORK_MANIFEST_PATH} is malformed — restore the template copy before running template update.`,
+      });
+    } else {
+      const modified: string[] = [];
+      const missing: string[] = [];
+      for (const [filePath, recorded] of Object.entries(manifest.files)) {
+        const content = await readTextIfExists(path.join(projectRoot, filePath));
+        if (content === null) missing.push(filePath);
+        else if (hashContent(content) !== recorded) modified.push(filePath);
+      }
+      if (modified.length > 0) {
+        findings.push({
+          severity: "warn",
+          category: "framework",
+          message:
+            `Framework file(s) modified by the host: ${modified.join(", ")}. ` +
+            "Template update refuses to overwrite them (no --force): port the change into fewbie-starter or " +
+            "restore the framework copy.",
+        });
+      }
+      if (missing.length > 0) {
+        findings.push({
+          severity: "warn",
+          category: "framework",
+          message: `Framework file(s) missing: ${missing.join(", ")}. Run 'fewbie template update'.`,
+        });
+      }
+      if (modified.length === 0 && missing.length === 0) {
+        findings.push({
+          severity: "info",
+          category: "framework",
+          message: `Framework baseline intact (${Object.keys(manifest.files).length} file(s)).`,
+        });
+      }
     }
   }
 

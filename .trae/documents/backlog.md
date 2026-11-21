@@ -84,3 +84,8 @@
 - [ ] **P3 inhibition（暂缓，条件触发）**：抑制需要源告警可终止——`NotificationAlert` 目前只在 `notify()` 时改写 `state`，无 TTL / 自动 resolved，抑制会因源告警悬挂而永久生效。前置条件：alert 状态机补齐过期与自动 resolved 后再按 ADR-063 落地独立实体 `NotificationInhibition`（不复用 `NotificationDeliveryRule`，该表语义为「有序、priority、参与裁决」）。
 - [x] **github 模块漂移（非本轮引入）** — **fixed（2026-11-14 核验）**：registry `e976d46 feat(github): fail fast on foreign targets and surface 403 permissions` 已把 `GitHubPermissionError` / `probeProvisioningTarget` 等宿主改动回写（在 `origin/dev`），消费仓 `newbie-modules.json` 的 github `sourceCommit` 已 pin 到 `e976d46`；`diff -rq` 零差异，`newbie modules apply --check` 绿（registry `1ab63d8` 下复核）。
 - [ ] **staging 的 GitHub Actions 一键部署仍不可用（2026-11-20）**：`nightwatch-prod-github-ci` 的信任只含 `nightwatch-backend|frontend:ref:refs/heads/main`，`secrets-read` 只覆盖 `nightwatch/prod/*`；`deploy-staging.yml` 从 dev dispatch 会在 AssumeRoleWithWebIdentity 被拒。打通需在 `deploy/aws/stack.yml` 加 dev 分支与 `nightwatch/staging/*` 并更新 prod 栈——因 prod 栈更新会替换实例（AMI 参数动态解析），未经用户批准不动。当前 staging 走"本地 build → 推 `:staging` → SSM 手工 deploy.sh"。
+
+## ADR-056 M1 收尾（2026-11-21）
+
+- [ ] **registry `api-client` 与模板 `src/lib/api-client/**` 双通道归属（M2 前必须解决）**：ADR-056 D1 把 `src/lib/api-client/**` 划为 framework，但 fewbie-cli registry 仍有 `api-client` 项（`files` 覆盖同一子树）。当前 `assertNoRegistryOverlap` 只做精确路径字符串比较，glob 资产不会触发，故暂无报错；一旦 M2 让模板真正携带这些文件，两条通道会各自装配同一批文件。处置：M2 落文件前删除 registry `api-client` 项（或改为仅提供宿主适配层），并把重叠检测改成按最长前缀/glob 判定。
+- [ ] **基线新鲜度门禁随发布生效**：`syncTemplateBaseline` 已让模板仓 `template update --check` 校验 `.fewbie/framework.json` 是否过期，但 fewbie-starter 的 `check:template` 跑的是已发布 CLI；新版发布后需确认 fewbie-starter CI 真正拦截过期基线（现状只验证 registry 完备）。

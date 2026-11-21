@@ -4,14 +4,21 @@ import { describe, it } from "node:test";
 import {
   assetCoversPath,
   assetMarkers,
+  buildFrameworkManifest,
   extractMarkerBlock,
+  findAmbiguousTemplatePaths,
   findUnclassifiedTemplateFiles,
   FRAMEWORK_DEPENDENCIES,
+  FRAMEWORK_MANIFEST_PATH,
   FRAMEWORK_MARKER_END,
   FRAMEWORK_MARKER_START,
+  hashContent,
   isTemplateScanIgnored,
+  parseFrameworkManifest,
   planTemplateUpdate,
   replaceMarkerBlock,
+  resolveTemplateAsset,
+  serializeFrameworkManifest,
   TEMPLATE_ASSETS,
   TemplateAsset,
 } from "../src/lib/template-ownership";
@@ -56,6 +63,111 @@ describe("ownership registry completeness (ADR-025)", () => {
     for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts", "backlog.md"]) {
       assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
     }
+  });
+});
+
+describe("longest-prefix ownership (ADR-056 D2)", () => {
+  it("lets a nested framework subtree win over its host parent", () => {
+    assert.equal(resolveTemplateAsset("src/components/ui/button.tsx")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/components/shell/app-shell.tsx")?.ownership, "host");
+    assert.equal(resolveTemplateAsset("src/framework/page-shell.tsx")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/i18n/config.ts")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/i18n/messages/framework.en.json")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/i18n/messages/nightwatch.en.json")?.ownership, "host");
+    assert.equal(resolveTemplateAsset("src/app/layout.tsx")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/app/page.tsx")?.ownership, "host");
+    assert.equal(resolveTemplateAsset("src/orphan.ts"), null);
+  });
+
+  it("rejects entries that share a normalized path root", () => {
+    const assets: TemplateAsset[] = [
+      { path: "src/components/ui/**", ownership: "framework" },
+      { path: "./src/components/ui", ownership: "host" },
+    ];
+    assert.deepEqual(findAmbiguousTemplatePaths(assets), [
+      { path: "src/components/ui", ownerships: ["framework", "host"] },
+    ]);
+    assert.deepEqual(findAmbiguousTemplatePaths(), [], "the shipped registry must stay unambiguous");
+  });
+});
+
+describe("baseline manifest (ADR-056 D3)", () => {
+  const layoutAsset: TemplateAsset = { path: "src/app/layout.tsx", ownership: "framework" };
+  const manifestAsset: TemplateAsset = { path: FRAMEWORK_MANIFEST_PATH, ownership: "framework" };
+
+  it("serializes deterministically and never lists the manifest itself", () => {
+    const files = new Map<string, string | null>([
+      ["src/app/layout.tsx", "<main />"],
+      [FRAMEWORK_MANIFEST_PATH, "{}"],
+    ]);
+    const manifest = buildFrameworkManifest(files, [layoutAsset, manifestAsset]);
+    assert.deepEqual(manifest.files, { "src/app/layout.tsx": hashContent("<main />") });
+    assert.deepEqual(parseFrameworkManifest(serializeFrameworkManifest(manifest)), manifest);
+  });
+
+  it("rejects malformed manifests instead of trusting them", () => {
+    assert.equal(parseFrameworkManifest("not json"), null);
+    assert.equal(parseFrameworkManifest(JSON.stringify({ version: 2, algorithm: "sha256", files: {} })), null);
+    assert.equal(parseFrameworkManifest(JSON.stringify({ version: 1, algorithm: "md5", files: {} })), null);
+    assert.equal(parseFrameworkManifest(JSON.stringify({ version: 1, algorithm: "sha256", files: { a: 1 } })), null);
+  });
+
+  it("upgrades silently while the host copy still matches the baseline", () => {
+    const changes = planTemplateUpdate(
+      new Map([["src/app/layout.tsx", "old"]]),
+      new Map([["src/app/layout.tsx", "new"]]),
+      [layoutAsset],
+      { "src/app/layout.tsx": hashContent("old") },
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "update");
+    assert.equal(changes[0].nextContent, "new");
+  });
+
+  it("reports modified-framework when the host copy diverges from the baseline", () => {
+    const changes = planTemplateUpdate(
+      new Map([["src/app/layout.tsx", "host edit"]]),
+      new Map([["src/app/layout.tsx", "new"]]),
+      [layoutAsset],
+      { "src/app/layout.tsx": hashContent("original") },
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "modified-framework");
+    assert.equal(changes[0].nextContent, null);
+    assert.equal(changes[0].baselineHash, hashContent("original"));
+  });
+
+  it("reports modified-framework when the manifest has no entry for an existing framework file", () => {
+    const changes = planTemplateUpdate(
+      new Map([["src/app/layout.tsx", "host content"]]),
+      new Map([["src/app/layout.tsx", "template"]]),
+      [layoutAsset],
+      {},
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "modified-framework");
+    assert.equal(changes[0].baselineHash, null);
+  });
+
+  it("never conflicts on the manifest itself", () => {
+    const changes = planTemplateUpdate(
+      new Map([[FRAMEWORK_MANIFEST_PATH, "stale"]]),
+      new Map([[FRAMEWORK_MANIFEST_PATH, "fresh"]]),
+      [manifestAsset],
+      {},
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "update");
+  });
+
+  it("keeps the legacy upgrade path when no manifest is supplied", () => {
+    const changes = planTemplateUpdate(
+      new Map([["src/app/layout.tsx", "host"]]),
+      new Map([["src/app/layout.tsx", "template"]]),
+      [layoutAsset],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "update");
   });
 });
 

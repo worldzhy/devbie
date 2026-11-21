@@ -5,11 +5,18 @@ import { bold, cyan, green, yellow } from "colorette";
 import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../registry/store";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
+  assetCoversPath,
   assetMarkers,
+  buildFrameworkManifest,
+  findAmbiguousTemplatePaths,
   findUnclassifiedTemplateFiles,
   FRAMEWORK_DEPENDENCIES,
+  FRAMEWORK_MANIFEST_PATH,
   isTemplateScanIgnored,
+  parseFrameworkManifest,
   planTemplateUpdate,
+  resolveTemplateAsset,
+  serializeFrameworkManifest,
   SYNCABLE_ASSETS,
   TemplateAsset,
   TemplateChange,
@@ -116,6 +123,95 @@ async function assertTemplateRegistryComplete(templateRoot: string): Promise<voi
   );
 }
 
+/**
+ * Expand `/**` subtree assets into one entry per template file (ADR-056 D1), so
+ * `src/components/ui/**` ships and syncs concrete files instead of a literal
+ * directory path. Files only the project has are left alone: template update
+ * never deletes host content.
+ */
+function expandGlobAssets(assets: readonly TemplateAsset[], templateFiles: readonly string[]): TemplateAsset[] {
+  const expanded: TemplateAsset[] = [];
+  for (const asset of assets) {
+    if (!asset.path.endsWith("/**")) {
+      expanded.push(asset);
+      continue;
+    }
+    for (const filePath of templateFiles) {
+      if (assetCoversPath(asset, filePath)) expanded.push({ ...asset, path: filePath });
+    }
+  }
+  return expanded;
+}
+
+/**
+ * ADR-056 D2 / acceptance 3: two registry entries with the same normalized
+ * root make longest-prefix resolution undecidable, so the CLI refuses to run
+ * instead of silently picking one.
+ */
+function assertTemplateOwnershipUnambiguous(): void {
+  const ambiguous = findAmbiguousTemplatePaths();
+  if (ambiguous.length === 0) return;
+  throw new CliError(
+    `Template ownership registry is ambiguous (ADR-056):\n  - ${ambiguous
+      .map((entry) => `${entry.path} (${entry.ownerships.join(", ")})`)
+      .join("\n  - ")}\n` +
+      "Longest-prefix resolution cannot decide between them. " +
+      "Fix TEMPLATE_ASSETS in packages/fewbie-cli/src/lib/template-ownership.ts.",
+  );
+}
+
+/**
+ * The framework baseline the project last received (ADR-056 D3). Undefined for
+ * a pre-manifest host: conflict detection had no baseline to compare against,
+ * so `planTemplateUpdate` keeps the legacy upgrade behavior for that run; the
+ * manifest shipped by this update takes effect from the next one.
+ */
+async function readProjectBaseline(projectRoot: string): Promise<Record<string, string> | undefined> {
+  const raw = await readTextIfExists(path.join(projectRoot, FRAMEWORK_MANIFEST_PATH));
+  if (raw === null) return undefined;
+  const manifest = parseFrameworkManifest(raw);
+  if (manifest === null) {
+    throw new CliError(
+      `${FRAMEWORK_MANIFEST_PATH} is malformed. Restore the template copy, or delete it to re-adopt the ` +
+        "framework files and lose the ability to detect host edits.",
+    );
+  }
+  return manifest.files;
+}
+
+/**
+ * Template repository self-check (ADR-056 D3): the baseline manifest must match
+ * the framework files currently in the template. `--check` fails when it is
+ * stale; an apply run regenerates it, so `check:template` keeps the template
+ * repository honest without a separate command.
+ */
+async function syncTemplateBaseline(templateRoot: string, check: boolean): Promise<void> {
+  const files = new Map<string, string | null>();
+  for (const filePath of await listTemplateFiles(templateRoot)) {
+    if (resolveTemplateAsset(filePath)?.ownership !== "framework") continue;
+    files.set(filePath, await readTextIfExists(path.join(templateRoot, filePath)));
+  }
+  const manifest = buildFrameworkManifest(files);
+  const count = Object.keys(manifest.files).length;
+  const desired = serializeFrameworkManifest(manifest);
+  const target = path.join(templateRoot, FRAMEWORK_MANIFEST_PATH);
+  const current = await readTextIfExists(target);
+
+  if (current === desired) {
+    console.info(green(`✓ Framework baseline covers ${count} file(s)`));
+    return;
+  }
+  if (check) {
+    throw new CliError(
+      `${FRAMEWORK_MANIFEST_PATH} is stale (${count} framework file(s) in the template). ` +
+        "Regenerate it with `fewbie template update --template-path .` and commit the result.",
+    );
+  }
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, desired);
+  console.info(green(`✓ Regenerated ${FRAMEWORK_MANIFEST_PATH} for ${count} framework file(s).`));
+}
+
 function printChange(change: TemplateChange): void {
   if (change.kind === "missing-markers") {
     const markers = assetMarkers(change.asset);
@@ -140,6 +236,29 @@ function printChange(change: TemplateChange): void {
     return;
   }
 
+  if (change.kind === "modified-framework") {
+    const baseline = change.baselineHash ? change.baselineHash.slice(0, 12) : "none recorded";
+    const label = change.asset.path;
+    console.warn(
+      yellow(
+        `! ${label}: modified-framework conflict — the host copy diverged from the framework baseline ` +
+          `(${baseline}). Template update never overwrites it, and there is no --force.`,
+      ),
+    );
+    console.warn(
+      yellow(
+        "  Resolve it by porting the host change into fewbie-starter (then regenerate the baseline with " +
+          "`fewbie template update --template-path .`) or by restoring the framework copy by hand, then re-run.",
+      ),
+    );
+    if (change.templateComparable !== null) {
+      process.stdout.write(
+        unifiedDiff(change.currentComparable ?? "", change.templateComparable, `a/${label}`, `b/${label}`),
+      );
+    }
+    return;
+  }
+
   const label = change.asset.path;
   const kindLabel = change.kind === "create" ? "missing in project" : "differs from template";
   console.info(bold(`\n# ${label} (${kindLabel})`));
@@ -151,6 +270,7 @@ function printChange(change: TemplateChange): void {
 
 export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise<void> {
   const projectRoot = path.resolve(options.cwd);
+  assertTemplateOwnershipUnambiguous();
   const assets = filterAssets(options.paths);
   const scope = options.paths && options.paths.length > 0 ? options.paths.join(", ") : null;
 
@@ -178,11 +298,14 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       if (options.registryComplete) {
         console.info(green(bold("✓ Ownership registry covers every template file")));
       }
+      await syncTemplateBaseline(template.root, Boolean(options.check));
       console.warn(
         yellow(
           "Template source is the project root itself, so content drift cannot be detected by comparing a tree " +
             "with itself. This run only enforced " +
-            (options.registryComplete ? "the ownership registry and overlap guards" : "the ownership-overlap guard") +
+            (options.registryComplete
+              ? "the ownership registry, baseline and overlap guards"
+              : "the ownership-overlap and baseline guards") +
             "; drift gates belong in consuming projects (`fewbie template update --check`).",
         ),
       );
@@ -211,18 +334,33 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       );
     }
 
+    const templateFileList = await listTemplateFiles(template.root);
+    const syncAssets = expandGlobAssets(assets, templateFileList);
     const projectFiles = new Map<string, string | null>();
     const templateFiles = new Map<string, string | null>();
-    for (const asset of assets) {
+    for (const asset of syncAssets) {
       projectFiles.set(asset.path, await readTextIfExists(path.join(projectRoot, asset.path)));
       templateFiles.set(asset.path, await readTextIfExists(path.join(template.root, asset.path)));
     }
 
+    const baseline = await readProjectBaseline(projectRoot);
     let changes: TemplateChange[];
     try {
-      changes = planTemplateUpdate(projectFiles, templateFiles, assets);
+      changes = planTemplateUpdate(projectFiles, templateFiles, syncAssets, baseline);
     } catch (error) {
       throw new CliError((error as Error).message);
+    }
+
+    if (
+      baseline === undefined &&
+      changes.some((change) => change.asset.ownership === "framework" && change.kind !== "modified-framework")
+    ) {
+      console.warn(
+        yellow(
+          `! No ${FRAMEWORK_MANIFEST_PATH} in this project: host edits of framework files cannot be detected on ` +
+            "this run. Review the diff before committing; the manifest shipped by this update protects later runs.",
+        ),
+      );
     }
 
     if (changes.length === 0) {
@@ -241,9 +379,13 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
 
     if (options.check) {
       const command = scope ? `fewbie template update ${scope}` : "fewbie template update";
+      const conflicts = changes.filter((change) => change.kind === "modified-framework").length;
+      const resolution =
+        conflicts > 0
+          ? `${conflicts} modified-framework conflict(s) must be resolved by hand (no --force).`
+          : `Run \`${command}\` to apply the template version.`;
       throw new CliError(
-        `${changes.length} template file(s) drift from the template (${actionable.length} auto-fixable). ` +
-          `Run \`${command}\` to apply the template version.`,
+        `${changes.length} template file(s) drift from the template (${actionable.length} auto-fixable). ` + resolution,
       );
     }
 
@@ -259,7 +401,9 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
       await fs.writeFile(target, change.nextContent);
     }
     const skipped = changes.length - actionable.length;
-    if (skipped > 0) console.warn(yellow(`\n${skipped} file(s) left untouched (missing markers or host adoption).`));
+    if (skipped > 0) {
+      console.warn(yellow(`\n${skipped} file(s) left untouched (conflicts, missing markers or host adoption).`));
+    }
     console.info(green(bold("\n✓ Template files updated.")));
     console.info("Review with `git diff`, then commit on a branch and open a PR.");
   } finally {

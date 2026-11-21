@@ -27,10 +27,29 @@
  * Framework runtime dependencies are declared in the same file so the file
  * classification, `template update` and `doctor` read one source instead of
  * each keeping its own copy.
+ *
+ * Overlapping entries are allowed: a parent subtree (e.g. `src/components/**`,
+ * host) and a nested framework subtree (e.g. `src/components/ui/**`) both match
+ * the same file, and the longest path wins (ADR-056 D2). Two entries that
+ * normalize to the same root are ambiguous, which is a template defect and is
+ * rejected at startup rather than resolved silently.
+ *
+ * Framework files are protected against silent host edits by a baseline
+ * manifest shipped with the template (`.fewbie/framework.json`, ADR-056 D3):
+ * path -> sha256 of the framework copy the host last received. `template update`
+ * updates a framework file silently only when the host copy still matches the
+ * baseline; any other divergence is reported as a `modified-framework` conflict
+ * that can only be resolved by porting the host change into the template or
+ * restoring the framework copy. There is deliberately no `--force`.
  */
+import { createHash } from "node:crypto";
 
 export const FRAMEWORK_MARKER_START = "/* fewbie:framework:start */";
 export const FRAMEWORK_MARKER_END = "/* fewbie:framework:end */";
+
+/** Baseline manifest shipped inside every project (ADR-056 D3). */
+export const FRAMEWORK_MANIFEST_PATH = ".fewbie/framework.json";
+export const FRAMEWORK_MANIFEST_VERSION = 1;
 
 /** Marker pair delimiting the framework-owned block of a mixed file. */
 export interface TemplateMarkers {
@@ -107,12 +126,38 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
     markers: { start: "# fewbie:framework:start", end: "# fewbie:framework:end" },
   },
 
+  // Framework-owned UI and layout assets (ADR-056 D1). The host keeps its
+  // business components and host copy under the same parent paths, so these
+  // nested entries rely on longest-prefix resolution (D2).
+  { path: "src/components/ui/**", ownership: "framework" },
+  { path: "src/framework/**", ownership: "framework" },
+  { path: "src/lib/api-client/**", ownership: "framework" },
+  {
+    path: "src/i18n/config.ts",
+    ownership: "framework",
+    note: "locale list and message loading are framework policy",
+  },
+  { path: "src/i18n/request.ts", ownership: "framework" },
+  {
+    path: "src/i18n/messages/framework.en.json",
+    ownership: "framework",
+    note: "framework namespace; host messages live in src/i18n/messages/<host>.*.json",
+  },
+  { path: "src/i18n/messages/framework.zh.json", ownership: "framework" },
+  {
+    path: "src/app/layout.tsx",
+    ownership: "framework",
+    note: "root layout is framework-owned; hosts inject widgets through slots (ADR-056 D5)",
+  },
+  // Baseline of the framework files above (ADR-056 D3). It is never compared
+  // against itself, so update always takes the template copy.
+  { path: FRAMEWORK_MANIFEST_PATH, ownership: "framework" },
+
   // Host-owned: distributed once by create, then never touched by template update.
   // Workspace metadata rather than framework content: the agent-session ledger
   // is copied once, and `.trae/skills` is a symlink the scan and create both
   // skip (see the file header).
   { path: ".trae/**", ownership: "host", note: "workspace ledger and skill mount; symlinks are never copied" },
-  { path: "src/app/layout.tsx", ownership: "host" },
   { path: "src/app/page.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
   { path: "src/components/**", ownership: "host" },
@@ -178,6 +223,115 @@ export function assetCoversPath(asset: TemplateAsset, filePath: string): boolean
   return filePath === asset.path;
 }
 
+/** Normalize a registry path: drop a leading `./` and trailing slashes. */
+export function normalizeAssetPath(assetPath: string): string {
+  return assetPath.replace(/^\.\//, "").replace(/\/+$/, "");
+}
+
+/** Path depth used for longest-prefix resolution (`a/**` and `a` are equal). */
+function assetDepth(asset: TemplateAsset): number {
+  const normalized = normalizeAssetPath(asset.path);
+  return (normalized.endsWith("/**") ? normalized.slice(0, -3) : normalized).length;
+}
+
+/**
+ * The asset that owns `filePath` (ADR-056 D2): the longest matching path wins,
+ * so `src/components/ui/**` beats `src/components/**`. Returns null when no
+ * entry matches (an unclassified template file).
+ */
+export function resolveTemplateAsset(
+  filePath: string,
+  assets: readonly TemplateAsset[] = TEMPLATE_ASSETS,
+): TemplateAsset | null {
+  const matches = assets.filter((asset) => assetCoversPath(asset, filePath));
+  if (matches.length === 0) return null;
+  return matches.reduce((best, candidate) => (assetDepth(candidate) > assetDepth(best) ? candidate : best));
+}
+
+export interface AmbiguousOwnership {
+  /** Normalized path root shared by the conflicting entries. */
+  path: string;
+  ownerships: TemplateOwnership[];
+}
+
+/**
+ * Registry entries whose normalized roots collide (e.g. `a` twice, or `a` and
+ * `a/**`). Longest-prefix resolution cannot decide between them, so the
+ * registry is a template defect (ADR-056 D2 / acceptance 3) and update refuses
+ * to run instead of picking one silently.
+ */
+export function findAmbiguousTemplatePaths(assets: readonly TemplateAsset[] = TEMPLATE_ASSETS): AmbiguousOwnership[] {
+  const byRoot = new Map<string, TemplateAsset[]>();
+  for (const asset of assets) {
+    const root = normalizeAssetPath(asset.path).replace(/\/\*\*$/, "");
+    byRoot.set(root, [...(byRoot.get(root) ?? []), asset]);
+  }
+  return [...byRoot.entries()]
+    .filter(([, entries]) => entries.length > 1)
+    .map(([path, entries]) => ({ path, ownerships: entries.map((entry) => entry.ownership) }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+}
+
+/** sha256 of a file's text content, hex-encoded (ADR-056 D3 baseline). */
+export function hashContent(content: string): string {
+  return createHash("sha256").update(content, "utf8").digest("hex");
+}
+
+/** Baseline manifest shipped as `.fewbie/framework.json` (ADR-056 D3). */
+export interface FrameworkManifest {
+  version: number;
+  algorithm: "sha256";
+  /** Asset path -> sha256 of the framework copy the host last received. */
+  files: Record<string, string>;
+}
+
+/**
+ * Build the baseline manifest from a map of concrete template file paths.
+ * Ownership is resolved per path, so `/**` subtrees (e.g. `src/components/ui/**`)
+ * are recorded file by file; the manifest itself is never listed.
+ */
+export function buildFrameworkManifest(
+  templateFiles: ReadonlyMap<string, string | null>,
+  assets: readonly TemplateAsset[] = TEMPLATE_ASSETS,
+): FrameworkManifest {
+  const files: Record<string, string> = {};
+  for (const [filePath, content] of templateFiles) {
+    if (content == null || filePath === FRAMEWORK_MANIFEST_PATH) continue;
+    if (resolveTemplateAsset(filePath, assets)?.ownership !== "framework") continue;
+    files[filePath] = hashContent(content);
+  }
+  return { version: FRAMEWORK_MANIFEST_VERSION, algorithm: "sha256", files };
+}
+
+/** Deterministic serialization: sorted keys, two-space indent, trailing newline. */
+export function serializeFrameworkManifest(manifest: FrameworkManifest): string {
+  const files = Object.fromEntries(Object.entries(manifest.files).sort(([a], [b]) => a.localeCompare(b)));
+  return `${JSON.stringify({ ...manifest, files }, null, 2)}\n`;
+}
+
+/**
+ * Parse a baseline manifest. Returns null for malformed content so callers can
+ * report it as a project defect instead of crashing on JSON.parse.
+ */
+export function parseFrameworkManifest(raw: string): FrameworkManifest | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const candidate = parsed as { version?: unknown; algorithm?: unknown; files?: unknown };
+  if (candidate.version !== FRAMEWORK_MANIFEST_VERSION || candidate.algorithm !== "sha256") return null;
+  if (typeof candidate.files !== "object" || candidate.files === null || Array.isArray(candidate.files)) return null;
+  const files: Record<string, string> = {};
+  for (const [filePath, hash] of Object.entries(candidate.files)) {
+    if (typeof hash !== "string" || hash.length === 0) return null;
+    files[filePath] = hash;
+  }
+  return { version: FRAMEWORK_MANIFEST_VERSION, algorithm: "sha256", files };
+}
+
 /**
  * Directories and file names excluded from the ownership-completeness guard:
  * runtime outputs, VCS metadata and the per-project lockfile. Ignore entries
@@ -223,7 +377,7 @@ function withoutComments(source: string): string {
  * framework file cannot ship unclassified.
  */
 export function findUnclassifiedTemplateFiles(filePaths: Iterable<string>): string[] {
-  return [...filePaths].filter((filePath) => !TEMPLATE_ASSETS.some((asset) => assetCoversPath(asset, filePath))).sort();
+  return [...filePaths].filter((filePath) => resolveTemplateAsset(filePath) === null).sort();
 }
 
 /** Extract the framework marker block (markers included); null when absent. */
@@ -255,7 +409,12 @@ function comparable(asset: TemplateAsset, content: string): string {
   return block;
 }
 
-export type TemplateChangeKind = "create" | "update" | "missing-markers" | "scaffold-outdated";
+/**
+ * `modified-framework` is a host edit of a framework-owned file: the host copy
+ * diverges from the recorded baseline, so overwriting it would lose work and
+ * there is no `--force` (ADR-056 D3). It is never auto-fixable.
+ */
+export type TemplateChangeKind = "create" | "update" | "missing-markers" | "scaffold-outdated" | "modified-framework";
 
 export interface TemplateChange {
   asset: TemplateAsset;
@@ -266,11 +425,20 @@ export interface TemplateChange {
   currentComparable: string | null;
   /** "Template" side of the diff (same normalization). */
   templateComparable: string | null;
+  /** Recorded baseline hash for a framework asset; null when none was recorded. */
+  baselineHash?: string | null;
 }
 
 /**
  * Compute the update plan. `projectFiles` / `templateFiles` map each asset path
  * to its content, or null when absent.
+ *
+ * `baseline` is the framework baseline manifest (`path -> sha256`) the project
+ * last received. It is optional so the older call shape keeps working, but
+ * omitting it disables conflict detection: a project without a manifest is
+ * treated as pre-manifest and upgraded like before. When it is provided, a
+ * framework file whose host copy no longer matches its baseline becomes a
+ * `modified-framework` conflict instead of an update (ADR-056 D3).
  *
  * Throws when the template itself is malformed (a mixed file lacks markers):
  * that is a template defect, not a project state.
@@ -279,6 +447,7 @@ export function planTemplateUpdate(
   projectFiles: ReadonlyMap<string, string | null>,
   templateFiles: ReadonlyMap<string, string | null>,
   assets: readonly TemplateAsset[] = SYNCABLE_ASSETS,
+  baseline?: Readonly<Record<string, string>>,
 ): TemplateChange[] {
   const changes: TemplateChange[] = [];
 
@@ -346,15 +515,36 @@ export function planTemplateUpdate(
       continue;
     }
 
-    if (projectContent !== templateContent) {
-      changes.push({
-        asset,
-        kind: "update",
-        nextContent: templateContent,
-        currentComparable: projectContent,
-        templateComparable: templateContent,
-      });
+    if (projectContent === templateContent) continue;
+
+    // ADR-056 D3: a framework file is upgraded silently only while the host
+    // copy still matches the baseline it received. A project with no manifest
+    // at all is pre-manifest (legacy host) and keeps the old update behavior;
+    // once a manifest exists, any other divergence is a conflict. The manifest
+    // itself is metadata about other files, never compared against itself.
+    if (baseline !== undefined && asset.path !== FRAMEWORK_MANIFEST_PATH) {
+      const projectHash = hashContent(projectContent);
+      const recorded = baseline[asset.path];
+      if (recorded !== projectHash) {
+        changes.push({
+          asset,
+          kind: "modified-framework",
+          nextContent: null,
+          currentComparable: projectContent,
+          templateComparable: templateContent,
+          baselineHash: recorded ?? null,
+        });
+        continue;
+      }
     }
+
+    changes.push({
+      asset,
+      kind: "update",
+      nextContent: templateContent,
+      currentComparable: projectContent,
+      templateComparable: templateContent,
+    });
   }
 
   return changes;
