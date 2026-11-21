@@ -77,6 +77,12 @@ export interface TemplateAsset {
    * One substring check decides adoption, so no TypeScript is parsed.
    */
   requiredSnippet?: string;
+  /**
+   * Binary asset (ADR-061): read and written as bytes and hashed over those
+   * bytes, never decoded as UTF-8. Only framework assets may declare it; a
+   * text asset that is not valid UTF-8 fails closed and asks for this flag.
+   */
+  binary?: boolean;
 }
 
 /** Marker pair of an asset: the explicit override or the default CSS markers. */
@@ -153,6 +159,7 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   {
     path: "src/app/fonts/**",
     ownership: "framework",
+    binary: true,
     note: "self-hosted font faces keep the first paint and metrics identical across hosts",
   },
   {
@@ -305,9 +312,13 @@ export function findAmbiguousTemplatePaths(assets: readonly TemplateAsset[] = TE
     .sort((a, b) => a.path.localeCompare(b.path));
 }
 
-/** sha256 of a file's text content, hex-encoded (ADR-056 D3 baseline). */
-export function hashContent(content: string): string {
-  return createHash("sha256").update(content, "utf8").digest("hex");
+/**
+ * sha256 of a file's content, hex-encoded (ADR-056 D3 baseline). A string is
+ * hashed as UTF-8, which equals the byte hash for valid text; a Buffer is
+ * hashed over its raw bytes (ADR-061).
+ */
+export function hashContent(content: string | Buffer): string {
+  return createHash("sha256").update(content).digest("hex");
 }
 
 /** Baseline manifest shipped as `.fewbie/framework.json` (ADR-056 D3). */
@@ -339,7 +350,7 @@ export function manifestDigest(files: Readonly<Record<string, string>>): string 
  * are recorded file by file; the manifest itself is never listed.
  */
 export function buildFrameworkManifest(
-  templateFiles: ReadonlyMap<string, string | null>,
+  templateFiles: ReadonlyMap<string, string | Buffer | null>,
   assets: readonly TemplateAsset[] = TEMPLATE_ASSETS,
 ): FrameworkManifest {
   const files: Record<string, string> = {};
@@ -475,7 +486,7 @@ export interface TemplateChange {
   asset: TemplateAsset;
   kind: TemplateChangeKind;
   /** Content the project file should have afterwards; null when not auto-fixable. */
-  nextContent: string | null;
+  nextContent: string | Buffer | null;
   /** "Current" side of the diff (normalized to the compared region). */
   currentComparable: string | null;
   /** "Template" side of the diff (same normalization). */
@@ -485,8 +496,33 @@ export interface TemplateChange {
 }
 
 /**
+ * True when two asset contents are identical. Strings compare as text and
+ * Buffers as bytes; a mixed pair compares byte-wise, which is the same thing
+ * for valid UTF-8 (ADR-061).
+ */
+function contentEquals(a: string | Buffer, b: string | Buffer): boolean {
+  if (typeof a === "string" && typeof b === "string") return a === b;
+  return Buffer.from(a).equals(Buffer.from(b));
+}
+
+/**
+ * Text-only asset content. Scaffold and mixed assets are always text, so a
+ * Buffer reaching them means the ownership declaration is wrong.
+ */
+function textOnly(asset: TemplateAsset, content: string | Buffer): string {
+  if (typeof content === "string") return content;
+  throw new Error(`Template ${asset.path} is ${asset.ownership}-owned and must be text, but was read as bytes.`);
+}
+
+/** Diff side of a framework asset; binary assets have no line diff (ADR-061). */
+function frameworkComparable(asset: TemplateAsset, content: string | Buffer): string | null {
+  return asset.binary ? null : textOnly(asset, content);
+}
+
+/**
  * Compute the update plan. `projectFiles` / `templateFiles` map each asset path
- * to its content, or null when absent.
+ * to its content, or null when absent. Binary framework assets hold Buffers
+ * (ADR-061); every other asset holds text.
  *
  * `baseline` is the framework baseline manifest (`path -> sha256`) the project
  * last received. It is optional so the older call shape keeps working, but
@@ -499,8 +535,8 @@ export interface TemplateChange {
  * that is a template defect, not a project state.
  */
 export function planTemplateUpdate(
-  projectFiles: ReadonlyMap<string, string | null>,
-  templateFiles: ReadonlyMap<string, string | null>,
+  projectFiles: ReadonlyMap<string, string | Buffer | null>,
+  templateFiles: ReadonlyMap<string, string | Buffer | null>,
   assets: readonly TemplateAsset[] = SYNCABLE_ASSETS,
   baseline?: Readonly<Record<string, string>>,
 ): TemplateChange[] {
@@ -518,7 +554,7 @@ export function planTemplateUpdate(
         kind: "create",
         nextContent: templateContent,
         currentComparable: null,
-        templateComparable: comparable(asset, templateContent),
+        templateComparable: asset.binary ? null : comparable(asset, textOnly(asset, templateContent)),
       });
       continue;
     }
@@ -527,13 +563,13 @@ export function planTemplateUpdate(
     // snippet is reported, and it is never rewritten for the host.
     if (asset.ownership === "scaffold") {
       const snippet = asset.requiredSnippet;
-      if (snippet && !withoutComments(projectContent).includes(snippet)) {
+      if (snippet && !withoutComments(textOnly(asset, projectContent)).includes(snippet)) {
         changes.push({
           asset,
           kind: "scaffold-outdated",
           nextContent: null,
           currentComparable: null,
-          templateComparable: templateContent,
+          templateComparable: textOnly(asset, templateContent),
         });
       }
       continue;
@@ -541,13 +577,13 @@ export function planTemplateUpdate(
 
     if (asset.ownership === "mixed") {
       const markers = assetMarkers(asset);
-      const templateBlock = extractMarkerBlock(templateContent, markers);
+      const templateBlock = extractMarkerBlock(textOnly(asset, templateContent), markers);
       if (templateBlock === null) {
         throw new Error(
           `Template ${asset.path} is missing the framework markers ` + `(${markers.start} / ${markers.end}).`,
         );
       }
-      const projectBlock = extractMarkerBlock(projectContent, markers);
+      const projectBlock = extractMarkerBlock(textOnly(asset, projectContent), markers);
       if (projectBlock === null) {
         changes.push({
           asset,
@@ -562,7 +598,7 @@ export function planTemplateUpdate(
         changes.push({
           asset,
           kind: "update",
-          nextContent: replaceMarkerBlock(projectContent, templateBlock, markers),
+          nextContent: replaceMarkerBlock(textOnly(asset, projectContent), templateBlock, markers),
           currentComparable: projectBlock,
           templateComparable: templateBlock,
         });
@@ -570,7 +606,7 @@ export function planTemplateUpdate(
       continue;
     }
 
-    if (projectContent === templateContent) continue;
+    if (contentEquals(projectContent, templateContent)) continue;
 
     // ADR-056 D3: a framework file is upgraded silently only while the host
     // copy still matches the baseline it received. A project with no manifest
@@ -585,8 +621,8 @@ export function planTemplateUpdate(
           asset,
           kind: "modified-framework",
           nextContent: null,
-          currentComparable: projectContent,
-          templateComparable: templateContent,
+          currentComparable: frameworkComparable(asset, projectContent),
+          templateComparable: frameworkComparable(asset, templateContent),
           baselineHash: recorded ?? null,
         });
         continue;
@@ -597,8 +633,8 @@ export function planTemplateUpdate(
       asset,
       kind: "update",
       nextContent: templateContent,
-      currentComparable: projectContent,
-      templateComparable: templateContent,
+      currentComparable: frameworkComparable(asset, projectContent),
+      templateComparable: frameworkComparable(asset, templateContent),
     });
   }
 

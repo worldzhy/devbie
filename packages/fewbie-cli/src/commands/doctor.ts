@@ -10,6 +10,7 @@ import {
   FRAMEWORK_MANIFEST_PATH,
   hashContent,
   parseFrameworkManifest,
+  resolveTemplateAsset,
   TEMPLATE_ASSETS,
 } from "../lib/template-ownership";
 import { loadItem, listRegistryItemNames } from "../registry/store";
@@ -58,6 +59,19 @@ const REQUIRED_CSS_VARS = [
   "--ring",
   "--radius",
 ];
+
+/**
+ * Read a framework file with the channel its declaration requires (ADR-061):
+ * binary assets stay bytes, text assets decode as UTF-8.
+ */
+async function readFrameworkFile(root: string, filePath: string, binary: boolean): Promise<string | Buffer | null> {
+  try {
+    const bytes = await fs.readFile(path.join(root, filePath));
+    return binary ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
 
 /** Read a JSON file, returning null when it does not exist. */
 async function readJsonSafe<T>(filePath: string): Promise<T | null> {
@@ -254,7 +268,9 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       const modified: string[] = [];
       const missing: string[] = [];
       for (const [filePath, recorded] of Object.entries(manifest.files)) {
-        const content = await readTextIfExists(path.join(projectRoot, filePath));
+        // Binary assets are hashed over bytes, so decoding them as text here
+        // would report a permanent false modification (ADR-061).
+        const content = await readFrameworkFile(projectRoot, filePath, Boolean(resolveTemplateAsset(filePath)?.binary));
         if (content === null) missing.push(filePath);
         else if (hashContent(content) !== recorded) modified.push(filePath);
       }

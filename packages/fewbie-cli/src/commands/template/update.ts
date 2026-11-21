@@ -229,16 +229,43 @@ async function syncTemplateBaseline(templateRoot: string, check: boolean): Promi
 }
 
 /**
+ * Read one asset's content with the channel its declaration requires
+ * (ADR-061): binary assets stay raw bytes, text assets are decoded as strict
+ * UTF-8. A text asset holding non-UTF-8 bytes is a registry defect, not a host
+ * problem, so it fails closed instead of being silently replaced with U+FFFD.
+ */
+async function readAssetContent(root: string, assetPath: string, binary: boolean): Promise<string | Buffer | null> {
+  let bytes: Buffer;
+  try {
+    bytes = await fs.readFile(path.join(root, assetPath));
+  } catch {
+    return null;
+  }
+  if (binary) return bytes;
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new CliError(
+      `${assetPath} is a text framework asset but is not valid UTF-8. ` +
+        "Declare it with `binary: true` in TEMPLATE_ASSETS " +
+        "(packages/fewbie-cli/src/lib/template-ownership.ts) so template update copies its bytes.",
+    );
+  }
+}
+
+/**
  * Framework asset contents the template ships, keyed by asset path. Every
  * baseline is derived from these bytes, never from a host tree: a host scan
  * records host edits as the baseline, so the next update treats them as
- * unmodified and overwrites them silently (R83-01).
+ * unmodified and overwrites them silently (R83-01). Binary assets are read as
+ * bytes so the baseline hashes the real file (ADR-061).
  */
-async function readTemplateFrameworkFiles(templateRoot: string): Promise<Map<string, string | null>> {
-  const files = new Map<string, string | null>();
+async function readTemplateFrameworkFiles(templateRoot: string): Promise<Map<string, string | Buffer | null>> {
+  const files = new Map<string, string | Buffer | null>();
   for (const filePath of await listTemplateFiles(templateRoot)) {
-    if (resolveTemplateAsset(filePath)?.ownership !== "framework") continue;
-    files.set(filePath, await readTextIfExists(path.join(templateRoot, filePath)));
+    const asset = resolveTemplateAsset(filePath);
+    if (asset?.ownership !== "framework") continue;
+    files.set(filePath, await readAssetContent(templateRoot, filePath, Boolean(asset.binary)));
   }
   return files;
 }
@@ -297,11 +324,19 @@ function printChange(change: TemplateChange): void {
           "`fewbie template update --template-path .`) or by restoring the framework copy by hand, then re-run.",
       ),
     );
-    if (change.templateComparable !== null) {
+    if (!change.asset.binary && change.templateComparable !== null) {
       process.stdout.write(
         unifiedDiff(change.currentComparable ?? "", change.templateComparable, `a/${label}`, `b/${label}`),
       );
     }
+    return;
+  }
+
+  // ADR-061: bytes have no line diff, so binary assets are reported by name.
+  if (change.asset.binary) {
+    const kindLabel = change.kind === "create" ? "missing in project" : "differs from template";
+    console.info(bold(`\n# ${change.asset.path} (${kindLabel}, binary asset)`));
+    console.info(yellow("  Binary asset: template update writes the template bytes; no line diff is shown."));
     return;
   }
 
@@ -387,11 +422,12 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
 
     const templateFileList = await listTemplateFiles(template.root);
     const syncAssets = expandGlobAssets(assets, templateFileList);
-    const projectFiles = new Map<string, string | null>();
-    const templateFiles = new Map<string, string | null>();
+    const projectFiles = new Map<string, string | Buffer | null>();
+    const templateFiles = new Map<string, string | Buffer | null>();
     for (const asset of syncAssets) {
-      projectFiles.set(asset.path, await readTextIfExists(path.join(projectRoot, asset.path)));
-      templateFiles.set(asset.path, await readTextIfExists(path.join(template.root, asset.path)));
+      const binary = Boolean(asset.binary);
+      projectFiles.set(asset.path, await readAssetContent(projectRoot, asset.path, binary));
+      templateFiles.set(asset.path, await readAssetContent(template.root, asset.path, binary));
     }
 
     let baseline = await readProjectBaseline(projectRoot);

@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { after, describe, it } from "node:test";
 
-import { runTemplateUpdate } from "../src/commands/template/update";
+import { listTemplateFiles, runTemplateUpdate } from "../src/commands/template/update";
 import {
   buildFrameworkManifest,
   FRAMEWORK_DEPENDENCIES,
@@ -12,6 +13,7 @@ import {
   FRAMEWORK_MARKER_END,
   FRAMEWORK_MARKER_START,
   hashContent,
+  resolveTemplateAsset,
   serializeFrameworkManifest,
   SYNCABLE_ASSETS,
 } from "../src/lib/template-ownership";
@@ -50,10 +52,15 @@ async function writeFile(root: string, relativePath: string, content: string): P
  * fixture needs the same artifact after every framework change.
  */
 async function writeTemplateBaseline(root: string): Promise<void> {
-  const files = new Map<string, string | null>();
-  for (const asset of SYNCABLE_ASSETS) {
-    if (asset.ownership !== "framework" || asset.path === FRAMEWORK_MANIFEST_PATH) continue;
-    files.set(asset.path, await fs.readFile(path.join(root, asset.path), "utf8").catch(() => null));
+  const files = new Map<string, string | Buffer | null>();
+  for (const filePath of await listTemplateFiles(root)) {
+    const asset = resolveTemplateAsset(filePath);
+    if (asset?.ownership !== "framework") continue;
+    const absolute = path.join(root, filePath);
+    files.set(
+      filePath,
+      await (asset.binary ? fs.readFile(absolute).catch(() => null) : fs.readFile(absolute, "utf8").catch(() => null)),
+    );
   }
   const manifest = buildFrameworkManifest(files, SYNCABLE_ASSETS);
   await writeFile(root, FRAMEWORK_MANIFEST_PATH, serializeFrameworkManifest(manifest));
@@ -377,5 +384,86 @@ describe("fewbie template update", () => {
     );
     await runTemplateUpdate({ cwd: project, templatePath: template });
     assert.equal(await fs.readFile(path.join(project, "src/lib/utils.ts"), "utf8"), hostCopy);
+  });
+
+  it("copies binary framework assets byte for byte and hashes their bytes (R83-02)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+
+    // Invalid UTF-8, so a text channel would replace bytes with U+FFFD.
+    const fontBytes = Buffer.from([0x77, 0x4f, 0x46, 0x32, 0xff, 0xfe, 0x00, 0x80, 0xc3, 0x28]);
+    await fs.mkdir(path.join(template, "src/app/fonts"), { recursive: true });
+    await fs.writeFile(path.join(template, "src/app/fonts/inter-latin.woff2"), fontBytes);
+    await writeTemplateBaseline(template);
+
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+
+    const copied = await fs.readFile(path.join(project, "src/app/fonts/inter-latin.woff2"));
+    assert.deepEqual(copied, fontBytes);
+    const manifest = JSON.parse(await fs.readFile(path.join(project, FRAMEWORK_MANIFEST_PATH), "utf8")) as {
+      files: Record<string, string>;
+    };
+    const byteHash = createHash("sha256").update(fontBytes).digest("hex");
+    assert.equal(manifest.files["src/app/fonts/inter-latin.woff2"], byteHash);
+  });
+
+  it("upgrades a changed binary asset and keeps host edits as a conflict (R83-02)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+
+    const fontPath = "src/app/fonts/inter-latin.woff2";
+    const v1 = Buffer.from([0x00, 0xff, 0x10, 0x80]);
+    const v2 = Buffer.from([0x00, 0xff, 0x20, 0x81, 0xfe]);
+    await fs.mkdir(path.join(template, "src/app/fonts"), { recursive: true });
+    await fs.writeFile(path.join(template, fontPath), v1);
+    await writeTemplateBaseline(template);
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    assert.deepEqual(await fs.readFile(path.join(project, fontPath)), v1);
+
+    // Host copy still matches the baseline: the template bytes replace it.
+    await fs.writeFile(path.join(template, fontPath), v2);
+    await writeTemplateBaseline(template);
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    assert.deepEqual(await fs.readFile(path.join(project, fontPath)), v2);
+    const manifestAfterUpgrade = JSON.parse(await fs.readFile(path.join(project, FRAMEWORK_MANIFEST_PATH), "utf8")) as {
+      files: Record<string, string>;
+    };
+    assert.equal(manifestAfterUpgrade.files[fontPath], createHash("sha256").update(v2).digest("hex"));
+
+    // Host edit plus a template change: a conflict, never an overwrite.
+    const hostBytes = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+    await fs.writeFile(path.join(project, fontPath), hostBytes);
+    await fs.writeFile(path.join(template, fontPath), Buffer.from([0x00, 0x01, 0x02]));
+    await writeTemplateBaseline(template);
+    await assert.rejects(
+      runTemplateUpdate({ cwd: project, check: true, templatePath: template }),
+      /modified-framework conflict/,
+    );
+    await runTemplateUpdate({ cwd: project, templatePath: template });
+    assert.deepEqual(await fs.readFile(path.join(project, fontPath)), hostBytes);
+  });
+
+  it("fails closed when a text-declared asset is not valid UTF-8 (R83-02)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+
+    // A text-declared framework asset holding non-UTF-8 bytes: fail closed.
+    await fs.writeFile(path.join(template, "src/lib/utils.ts"), Buffer.from([0xff, 0xfe, 0x00, 0x80]));
+    await writeTemplateBaseline(template);
+
+    await assert.rejects(runTemplateUpdate({ cwd: project, templatePath: template }), /not valid UTF-8/);
+    await assert.rejects(fs.readFile(path.join(project, "src/lib/utils.ts")));
   });
 });
