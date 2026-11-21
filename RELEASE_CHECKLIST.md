@@ -142,6 +142,9 @@ backfill that the new runtime code depends on, the backfill runs against the
   `typescript-eslint`, which the dependency-major policy defers to a dedicated
   upgrade milestone. Recorded 2026-11-06 while releasing
   `@devbie/frontend-monitor-sdk@1.5.1`; revisit when upstream ships a non-major fix.
+  Re-verified 2026-11-22 while releasing `@devbie/fewbie-cli@1.13.1`: 9 moderate
+  findings, all from this same `glob`/`minimatch`/`typescript-eslint`/
+  `@darraghor/eslint-plugin-nestjs-typed` chain, none high or critical.
 
 - Glob/picomatch chain — re-verified 2026-11-18 while releasing
   `@devbie/health-sdk@1.2.3`: the audit now reports 18 findings (8 moderate,
