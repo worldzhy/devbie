@@ -718,3 +718,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 本轮为 plan scope、只读；报告冻结于 devbie `7b5aff59` / starter `269641e` / newbie-modules `5ab1ccc` / host `659b805` / crewbie `f135c4f`。
 - 反驳轮推翻的 4 条初判表述见报告 §6；`assertNoRegistryOverlap` 仅注释命名过期，实际守卫在 `template/update.ts` 内联存在，未记为 finding。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-21-round73.md`。
+
+## Round 74（2026-11-22，claim scope：fewbie-modules 目录结构）
+
+判定摘要：主张成立，但问题不在镜像布局（5 个 item 全部 `OK (3 files)`）；根因是两个 registry 根互斥与结构不变量未被门禁覆盖。1 P1 / 2 P2（R74-04 复核后撤销）。
+
+| ID    | 仓                              | 标题                                                                             | 严重度 | 暴露面 | 可达性     | 状态                                                                                     |
+| ----- | ------------------------------- | -------------------------------------------------------------------------------- | ------ | ------ | ---------- | ---------------------------------------------------------------------------------------- |
+| R74-01 | devbie (fewbie-cli) + fewbie-modules | 双 registry 根互斥：声明外部仓后内置 9 个 item 不可达，`--with-login-form` 必失败 | P1     | live   | 宿主开发者 | open（`source.ts:93-118` 单根返回；`add.ts:31`；探针 `login-form not found`）            |
+| R74-02 | fewbie-modules                  | `check:contract` 不校验目录名=清单名、files 前缀、声明集合=磁盘载荷              | P2     | source | 模块作者   | open（`check-contract.mjs:104-128`；探针：目录改名后门禁绿而 CLI 安装失败）              |
+| R74-03 | fewbie-modules                  | registry 载荷与 `test/`/`harness/`/`scripts/` 混居，AGENTS/README 未描述          | P2     | docs   | 模块作者   | open（`AGENTS.md:6-7,19`；`README.md:34-45`；CLI 只复制 manifest files，不泄漏）          |
+| R74-04 | fewbie-modules                  | ~~AGENTS backlog 约定指向不存在的 `.trae/documents/backlog.md`~~                 | —      | docs   | 维护者     | revoked（2026-11-22 复核：AGENTS 无此约定，跨仓规则误记；不建文件）                      |
+
+### Round 74 备注
+
+- 本轮为 claim scope、只读；报告冻结于 devbie `8a819a0f` / fewbie-modules `23522c4` / nwf `da4229e` / starter `d6f12c1`。
+- 反驳轮 1 个独立代理：R74-01 的 3 条子主张全部 CONFIRMED，无误报剔除。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round74.md`。
