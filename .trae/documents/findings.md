@@ -796,10 +796,12 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID    | 仓     | 标题                                    | 严重度 | 暴露面 | 可达性   | 状态                                                                                             |
 | ----- | ------ | --------------------------------------- | ------ | ------ | -------- | ------------------------------------------------------------------------------------------------ |
-| R78-01 | devbie | 清单名 `item.json` 不自描述，应改 `registry-item.json` | P2     | source | 模块作者 | open（26 处 / 12 代码文件 + registry 侧 3 文件 + 14 清单；宿主 0 引用；随 1.12.0 发布） |
+| R78-01 | devbie | 清单名 `item.json` 不自描述 | P2     | source | 模块作者 | fixed（改名 `fewbie.module.json`；fewbie-modules `8ec5fbc` + devbie `a10a0ce1`；随 1.12.0 发布） |
 
 ### Round 78 备注
 
+- 定名偏离报告建议：用户否决 `registry` 词（Web 语境默认指 npm registry），最终定为 `fewbie.module.json`——产品词 + 与后端 `newbie.module.json` 对称。报告正文保留原建议，作为时点快照不改写。
+- 落地：fewbie-modules 14 份清单 `git mv`（`8ec5fbc`）；devbie CLI 以 `REGISTRY_MANIFEST_FILE` 常量收口，build 逐 item 重建目录防旧名残留（`a10a0ce1`）。
 - 计数：代码引用 26 处 / 12 文件、registry 侧 3 文件、清单 14 个、清单自装宿主 0 个、宿主引用 0 处（命令见报告 §2）。
 - 修正关系：R76-01 的 withdrawn 状态保留，但其"命名恰当"结论被本轮 C1 推翻；"无需命名空间前缀"部分维持（清单不进入宿主，前缀无收益）。
 - 无 P0/P1，未启动反驳轮。

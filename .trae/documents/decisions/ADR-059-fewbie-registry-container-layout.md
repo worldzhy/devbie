@@ -51,3 +51,7 @@
 - [ADR-058](ADR-058-fewbie-registry-single-source-of-truth.md)：不取代。其决策对象是「谁是唯一 authored 源」，本条只细化仓内层级；在 ADR-058 末尾追加更新记录。
 - [ADR-056](ADR-056-fewbie-frontend-framework-ownership.md)：不变，框架资产仍走模板。
 - 无 ADR 被取代。
+
+## 更新记录
+
+- 2026-11-22：item 清单文件名由 `item.json` 改为 `fewbie.module.json`（本文正文中的旧称按此读），容器布局 `packages/modules/<item>/` 不变。见 findings R78-01。

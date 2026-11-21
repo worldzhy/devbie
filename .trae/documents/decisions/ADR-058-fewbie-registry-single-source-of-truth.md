@@ -82,3 +82,4 @@ error Registry item 'login-page' not found.
 ## 更新记录
 
 - 2026-11-22：仓内层级由 [ADR-059](ADR-059-fewbie-registry-container-layout.md) 细化——authored item 移入 `packages/modules/`，devbie 快照保持扁平。本文 D1/D3 的「唯一 authored 源 + 生成快照」不变。
+- 2026-11-22：清单文件名 `item.json` 改为 `fewbie.module.json`（本文正文中的旧称按此读）。单源与生成快照机制不变；CLI 以 `REGISTRY_MANIFEST_FILE` 常量统一读写，`@devbie/fewbie-cli@1.12.0` 起生效。见 findings R78-01。
