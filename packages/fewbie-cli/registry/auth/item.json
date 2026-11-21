@@ -2,9 +2,8 @@
   "name": "auth",
   "type": "registry:lib",
   "title": "Auth utilities",
-  "description": "login/logout helpers and session-expired redirect binding built on the api-client.",
+  "description": "login/logout helpers and session-expired redirect binding built on the template-provided api client.",
   "dependencies": [],
-  "registryDependencies": ["api-client"],
   "files": ["src/lib/auth.ts"],
   "postInstall": "Adjust LOGIN_PATH/LOGOUT_PATH and the login response fields in src/lib/auth.ts; call initAuth() once in your authenticated client layout."
 }

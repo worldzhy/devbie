@@ -133,6 +133,11 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: "src/framework/**", ownership: "framework" },
   { path: "src/lib/api-client/**", ownership: "framework" },
   {
+    path: "src/app/fonts/**",
+    ownership: "framework",
+    note: "self-hosted font faces keep the first paint and metrics identical across hosts",
+  },
+  {
     path: "src/i18n/config.ts",
     ownership: "framework",
     note: "locale list and message loading are framework policy",
@@ -159,6 +164,7 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   // skip (see the file header).
   { path: ".trae/**", ownership: "host", note: "workspace ledger and skill mount; symlinks are never copied" },
   { path: "src/app/page.tsx", ownership: "host" },
+  { path: "src/app/host-providers.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
   { path: "src/components/**", ownership: "host" },
   { path: "src/i18n/**", ownership: "host" },
@@ -209,6 +215,11 @@ export const FRAMEWORK_DEPENDENCIES: readonly FrameworkDependency[] = [
   { name: "tailwindcss", importedBy: "src/app/globals.css" },
   { name: "tw-animate-css", importedBy: "src/app/globals.css" },
   { name: "shadcn", importedBy: "src/app/globals.css (shadcn/tailwind.css)" },
+  { name: "axios", importedBy: "src/lib/api-client/client.ts" },
+  { name: "dayjs", importedBy: "src/components/ui/date-picker.tsx" },
+  { name: "cmdk", importedBy: "src/components/ui/command.tsx" },
+  { name: "echarts", importedBy: "src/framework/chart/echarts.ts" },
+  { name: "react-day-picker", importedBy: "src/components/ui/calendar.tsx, src/components/ui/date-picker.tsx" },
 ];
 
 /**

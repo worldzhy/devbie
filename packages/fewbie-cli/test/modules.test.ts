@@ -36,29 +36,29 @@ describe("fewbie modules", () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
 
-    await runAdd({ cwd: root, names: ["auth"], yes: true, skipInstall: true });
+    await runAdd({ cwd: root, names: ["login-form"], yes: true, skipInstall: true });
 
-    assert.deepEqual(await readModulesFile(root), ["api-client", "auth"]);
+    assert.deepEqual(await readModulesFile(root), ["auth", "login-form"]);
     assert.ok(await exists(root, "src/lib/auth.ts"));
-    assert.ok(await exists(root, "src/lib/api-client/index.ts"));
+    assert.ok(await exists(root, "src/components/login-form.tsx"));
   });
 
   it("repairs missing files from the declaration without naming modules", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
-    await fs.rm(path.join(root, "src/components/page-header.tsx"));
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
+    await fs.rm(path.join(root, "src/components/data-table.tsx"));
 
     await runApply({ cwd: root, yes: true, skipInstall: true });
 
-    assert.ok(await exists(root, "src/components/page-header.tsx"));
+    assert.ok(await exists(root, "src/components/data-table.tsx"));
   });
 
   it("fails --check when a declared file is missing", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
-    await fs.rm(path.join(root, "src/components/page-header.tsx"));
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
+    await fs.rm(path.join(root, "src/components/data-table.tsx"));
 
     await assert.rejects(runApply({ cwd: root, check: true }), /file missing/);
   });
@@ -66,8 +66,8 @@ describe("fewbie modules", () => {
   it("fails --check when the declaration lacks a required dependency", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["auth"], yes: true, skipInstall: true });
-    await fs.writeFile(path.join(root, MODULES_FILE), `${JSON.stringify({ modules: ["auth"] }, null, 2)}\n`);
+    await runAdd({ cwd: root, names: ["login-form"], yes: true, skipInstall: true });
+    await fs.writeFile(path.join(root, MODULES_FILE), `${JSON.stringify({ modules: ["login-form"] }, null, 2)}\n`);
 
     await assert.rejects(runApply({ cwd: root, check: true }), /required by the declared set/);
   });
@@ -75,58 +75,58 @@ describe("fewbie modules", () => {
   it("refuses to remove a module another declared module still requires", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["auth"], yes: true, skipInstall: true });
+    await runAdd({ cwd: root, names: ["login-form"], yes: true, skipInstall: true });
 
-    await assert.rejects(runRemove({ cwd: root, names: ["api-client"], yes: true }), /still required/);
-    assert.deepEqual(await readModulesFile(root), ["api-client", "auth"]);
+    await assert.rejects(runRemove({ cwd: root, names: ["auth"], yes: true }), /still required/);
+    assert.deepEqual(await readModulesFile(root), ["auth", "login-form"]);
   });
 
   it("removes an unmodified module file and its declaration", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
 
-    await runRemove({ cwd: root, names: ["page-header"], yes: true });
+    await runRemove({ cwd: root, names: ["data-table"], yes: true });
 
     assert.deepEqual(await readModulesFile(root), []);
-    assert.ok(!(await exists(root, "src/components/page-header.tsx")));
+    assert.ok(!(await exists(root, "src/components/data-table.tsx")));
   });
 
   it("keeps a locally modified file when its module is removed", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
-    await fs.writeFile(path.join(root, "src/components/page-header.tsx"), "// customized\n");
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
+    await fs.writeFile(path.join(root, "src/components/data-table.tsx"), "// customized\n");
 
-    await runRemove({ cwd: root, names: ["page-header"], yes: true });
+    await runRemove({ cwd: root, names: ["data-table"], yes: true });
 
-    assert.equal(await read(root, "src/components/page-header.tsx"), "// customized\n");
+    assert.equal(await read(root, "src/components/data-table.tsx"), "// customized\n");
   });
 
   it("update --check gates drift and update writes the registry version", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
-    const original = await read(root, "src/components/page-header.tsx");
-    await fs.writeFile(path.join(root, "src/components/page-header.tsx"), "// drift\n");
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
+    const original = await read(root, "src/components/data-table.tsx");
+    await fs.writeFile(path.join(root, "src/components/data-table.tsx"), "// drift\n");
 
     await assert.rejects(runUpdate({ cwd: root, check: true }), /drift from the registry/);
 
     await runUpdate({ cwd: root, yes: true });
-    assert.equal(await read(root, "src/components/page-header.tsx"), original);
+    assert.equal(await read(root, "src/components/data-table.tsx"), original);
   });
 
   it("conflicts on files that exist but belong to no declared module unless forced", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
     await fs.mkdir(path.join(root, "src/components"), { recursive: true });
-    await fs.writeFile(path.join(root, "src/components/page-header.tsx"), "// template copy\n");
+    await fs.writeFile(path.join(root, "src/components/data-table.tsx"), "// template copy\n");
 
-    await assert.rejects(runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true }), /already exist/);
-    assert.equal(await read(root, "src/components/page-header.tsx"), "// template copy\n");
+    await assert.rejects(runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true }), /already exist/);
+    assert.equal(await read(root, "src/components/data-table.tsx"), "// template copy\n");
 
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true, force: true });
-    assert.notEqual(await read(root, "src/components/page-header.tsx"), "// template copy\n");
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true, force: true });
+    assert.notEqual(await read(root, "src/components/data-table.tsx"), "// template copy\n");
   });
 
   it("retries an interrupted install instead of conflicting on identical files (R20-28)", async () => {
@@ -135,17 +135,17 @@ describe("fewbie modules", () => {
 
     // Simulate a run that wrote the registry bytes, then died before
     // fewbie.json recorded the declaration.
-    const item = await loadItem(await resolveRegistryRoot(), "page-header");
+    const item = await loadItem(await resolveRegistryRoot(), "data-table");
     for (const file of item.files) {
       const target = path.join(root, file.target);
       await fs.mkdir(path.dirname(target), { recursive: true });
       await fs.writeFile(target, await readItemFileContent(file));
     }
 
-    await runAdd({ cwd: root, names: ["page-header"], yes: true, skipInstall: true });
+    await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
 
-    assert.deepEqual(await readModulesFile(root), ["page-header"]);
-    assert.ok(await exists(root, "src/components/page-header.tsx"));
+    assert.deepEqual(await readModulesFile(root), ["data-table"]);
+    assert.ok(await exists(root, "src/components/data-table.tsx"));
   });
 });
 

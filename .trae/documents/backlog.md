@@ -87,5 +87,11 @@
 
 ## ADR-056 M1 收尾（2026-11-21）
 
-- [ ] **registry `api-client` 与模板 `src/lib/api-client/**` 双通道归属（M2 前必须解决）**：ADR-056 D1 把 `src/lib/api-client/**` 划为 framework，但 fewbie-cli registry 仍有 `api-client` 项（`files` 覆盖同一子树）。当前 `assertNoRegistryOverlap` 只做精确路径字符串比较，glob 资产不会触发，故暂无报错；一旦 M2 让模板真正携带这些文件，两条通道会各自装配同一批文件。处置：M2 落文件前删除 registry `api-client` 项（或改为仅提供宿主适配层），并把重叠检测改成按最长前缀/glob 判定。
+- [x] **registry `api-client` 与模板 `src/lib/api-client/**` 双通道归属** — **fixed（M2，2026-11-21）**：删除 registry `api-client` 项，`auth` 的 `registryDependencies` 同步移除；`template update` 的重叠检测改为 `assetCoversPath` 最长前缀/glob 判定，registry 具体文件落在 framework 子树即报错。顺带退场与框架重复的 `app-shell` / `chart` / `page-header`。
 - [ ] **基线新鲜度门禁随发布生效**：`syncTemplateBaseline` 已让模板仓 `template update --check` 校验 `.fewbie/framework.json` 是否过期，但 fewbie-starter 的 `check:template` 跑的是已发布 CLI；新版发布后需确认 fewbie-starter CI 真正拦截过期基线（现状只验证 registry 完备）。
+
+## ADR-056 M2 遗留（2026-11-21）
+
+- [ ] **api-client 测试未随框架进模板**：`src/lib/api-client/*.test.ts` 基于 vitest + axios-mock-adapter，而 starter 的 `npm test` 是 node:test；为避免模板同时背两套 runner，M2 只复制运行时文件。M3 统一测试栈后再决定回填；M4 迁移时测试留在宿主 `src/tests/api-client/**`（不能用 `src/lib/api-client/**`，该路径是 framework 所有权）。
+- [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
+- [ ] **发布后才能被宿主消费**：M2 的框架代码目前只在本地 `fewbie-starter` 工作树；`@devbie/fewbie-cli` 与模板需按发布清单各发一个 minor，nightwatch 与客户项目才能通过 `template update` 拉到（否则跑的仍是 1.6.2 + 旧模板）。

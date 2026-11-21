@@ -84,7 +84,10 @@ export async function runApits(options: ApitsOptions): Promise<void> {
 
   // The generated adapter imports the fewbie api client.
   if (!(await exists(path.join(projectRoot, API_CLIENT_PROJECT_PATH)))) {
-    throw new CliError(`'fewbie apits' requires the api-client item. Run 'fewbie modules add api-client' first.`);
+    throw new CliError(
+      `'fewbie apits' requires ${API_CLIENT_PROJECT_PATH}. The template ships it; run ` +
+        `'fewbie template update' to restore the framework copy.`,
+    );
   }
 
   // First run: scaffold apits.config.ts from the positional input. The

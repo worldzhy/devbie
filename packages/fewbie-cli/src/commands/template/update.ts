@@ -13,6 +13,7 @@ import {
   FRAMEWORK_DEPENDENCIES,
   FRAMEWORK_MANIFEST_PATH,
   isTemplateScanIgnored,
+  normalizeAssetPath,
   parseFrameworkManifest,
   planTemplateUpdate,
   resolveTemplateAsset,
@@ -286,7 +287,12 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
     if (options.registryComplete) await assertTemplateRegistryComplete(template.root);
 
     const registryTargets = await collectRegistryTargets();
-    const overlap = assets.filter((asset) => registryTargets.has(asset.path));
+    // Registry targets are concrete files while template assets may be
+    // subtrees (`src/lib/api-client/**`), so exact-path comparison misses a
+    // real overlap (ADR-056 D2).
+    const overlap = assets.filter((asset) =>
+      [...registryTargets].some((target) => assetCoversPath(asset, normalizeAssetPath(target))),
+    );
     if (overlap.length > 0) {
       throw new CliError(
         `Template update and the registry both own: ${overlap.map((asset) => asset.path).join(", ")}. ` +
