@@ -770,3 +770,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 无 P0/P1，未启动反驳轮。
 - 可选后续（P2，文档）：在 ADR-058 更新记录补一行命名理由，避免重复质疑；不改清单名。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round76.md`。
+
+## Round 77
+
+判决对象：round76 结论所依赖的「item 目录」是否存在（claim scope，只读）。
+
+判定摘要：**不存在字面 `item/` 目录，也不需要存在**。实际结构是 `packages/modules/<item-key>/item.json`；round76 报告使用占位符写法，前提无误，命名判决不变。
+
+| ID    | 仓     | 标题                                                  | 严重度 | 暴露面 | 可达性 | 状态                                                                           |
+| ----- | ------ | ----------------------------------------------------- | ------ | ------ | ------ | ------------------------------------------------------------------------------ |
+| R77-01 | devbie | round76 前提依赖不存在的 item 目录，结论作废（候选） | P2     | docs   | 模块作者 | withdrawn（`find -type d -name item` = 0；报告 0 处"item 目录"；被推翻的只是口语简写） |
+
+### Round 77 备注
+
+- 计数：字面 `item` 目录 0 个、item 目录 14 个、`item.json` 14 个、本地 `package.json` 同构样本 14 例（命令见报告 §2）。
+- 无 P0/P1，未启动反驳轮。
+- 表述规范（仅对话层）：写 `<item>/item.json`，不写"item 目录"。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round77.md`。
