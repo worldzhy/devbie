@@ -41,6 +41,11 @@
  * baseline; any other divergence is reported as a `modified-framework` conflict
  * that can only be resolved by porting the host change into the template or
  * restoring the framework copy. There is deliberately no `--force`.
+ *
+ * The manifest also carries a digest over its own `files` map (ADR-002 in
+ * fewbie-starter). A manifest whose hashes were rewritten by hand no longer
+ * verifies, so the CLI refuses it instead of trusting edited hashes; manifests
+ * written before the digest existed stay readable and gain one on next update.
  */
 import { createHash } from "node:crypto";
 
@@ -305,8 +310,23 @@ export function hashContent(content: string): string {
 export interface FrameworkManifest {
   version: number;
   algorithm: "sha256";
+  /**
+   * sha256 over the canonical `files` map (ADR-002). Absent in manifests written
+   * before the field existed; those are accepted and gain a digest when the CLI
+   * next writes one.
+   */
+  digest?: string;
   /** Asset path -> sha256 of the framework copy the host last received. */
   files: Record<string, string>;
+}
+
+/** Canonical digest of the `files` map: sorted entries, independent of formatting. */
+export function manifestDigest(files: Readonly<Record<string, string>>): string {
+  const canonical = Object.keys(files)
+    .sort((a, b) => a.localeCompare(b))
+    .map((filePath) => `${filePath}:${files[filePath]}`)
+    .join("\n");
+  return hashContent(canonical);
 }
 
 /**
@@ -324,13 +344,15 @@ export function buildFrameworkManifest(
     if (resolveTemplateAsset(filePath, assets)?.ownership !== "framework") continue;
     files[filePath] = hashContent(content);
   }
-  return { version: FRAMEWORK_MANIFEST_VERSION, algorithm: "sha256", files };
+  return { version: FRAMEWORK_MANIFEST_VERSION, algorithm: "sha256", digest: manifestDigest(files), files };
 }
 
 /** Deterministic serialization: sorted keys, two-space indent, trailing newline. */
 export function serializeFrameworkManifest(manifest: FrameworkManifest): string {
   const files = Object.fromEntries(Object.entries(manifest.files).sort(([a], [b]) => a.localeCompare(b)));
-  return `${JSON.stringify({ ...manifest, files }, null, 2)}\n`;
+  // The digest is recomputed rather than copied, so a stale field cannot be
+  // written back and every manifest the CLI emits verifies.
+  return `${JSON.stringify({ ...manifest, digest: manifestDigest(files), files }, null, 2)}\n`;
 }
 
 /**
@@ -345,7 +367,7 @@ export function parseFrameworkManifest(raw: string): FrameworkManifest | null {
     return null;
   }
   if (typeof parsed !== "object" || parsed === null) return null;
-  const candidate = parsed as { version?: unknown; algorithm?: unknown; files?: unknown };
+  const candidate = parsed as { version?: unknown; algorithm?: unknown; digest?: unknown; files?: unknown };
   if (candidate.version !== FRAMEWORK_MANIFEST_VERSION || candidate.algorithm !== "sha256") return null;
   if (typeof candidate.files !== "object" || candidate.files === null || Array.isArray(candidate.files)) return null;
   const files: Record<string, string> = {};
@@ -353,7 +375,12 @@ export function parseFrameworkManifest(raw: string): FrameworkManifest | null {
     if (typeof hash !== "string" || hash.length === 0) return null;
     files[filePath] = hash;
   }
-  return { version: FRAMEWORK_MANIFEST_VERSION, algorithm: "sha256", files };
+  // ADR-002: a digest that no longer covers the recorded hashes means the
+  // manifest was rewritten outside the CLI, so its hashes cannot be trusted.
+  if (candidate.digest !== undefined && candidate.digest !== manifestDigest(files)) return null;
+  const manifest: FrameworkManifest = { version: FRAMEWORK_MANIFEST_VERSION, algorithm: "sha256", files };
+  if (candidate.digest !== undefined) manifest.digest = candidate.digest as string;
+  return manifest;
 }
 
 /**

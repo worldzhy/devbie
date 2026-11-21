@@ -14,6 +14,7 @@ import {
   FRAMEWORK_MARKER_START,
   hashContent,
   isTemplateScanIgnored,
+  manifestDigest,
   parseFrameworkManifest,
   planTemplateUpdate,
   replaceMarkerBlock,
@@ -126,6 +127,32 @@ describe("baseline manifest (ADR-056 D3)", () => {
     assert.equal(parseFrameworkManifest(JSON.stringify({ version: 2, algorithm: "sha256", files: {} })), null);
     assert.equal(parseFrameworkManifest(JSON.stringify({ version: 1, algorithm: "md5", files: {} })), null);
     assert.equal(parseFrameworkManifest(JSON.stringify({ version: 1, algorithm: "sha256", files: { a: 1 } })), null);
+  });
+
+  it("refuses a manifest whose hashes were rewritten outside the CLI", () => {
+    const files = { "src/app/layout.tsx": hashContent("<main />") };
+    const tampered = JSON.stringify({
+      version: 1,
+      algorithm: "sha256",
+      digest: manifestDigest({ "src/app/layout.tsx": hashContent("something else") }),
+      files,
+    });
+    assert.equal(parseFrameworkManifest(tampered), null);
+    const intact = JSON.stringify({ version: 1, algorithm: "sha256", digest: manifestDigest(files), files });
+    assert.deepEqual(parseFrameworkManifest(intact)?.files, files);
+  });
+
+  it("accepts a pre-digest manifest and stamps a digest on the next write", () => {
+    const legacy = JSON.stringify({
+      version: 1,
+      algorithm: "sha256",
+      files: { "src/app/layout.tsx": hashContent("x") },
+    });
+    const parsed = parseFrameworkManifest(legacy);
+    assert.notEqual(parsed, null);
+    assert.ok(parsed?.digest === undefined);
+    const rewritten = JSON.parse(serializeFrameworkManifest(parsed!)) as { digest?: string };
+    assert.equal(rewritten.digest, manifestDigest(parsed!.files));
   });
 
   it("upgrades silently while the host copy still matches the baseline", () => {

@@ -245,7 +245,9 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       findings.push({
         severity: "error",
         category: "framework",
-        message: `${FRAMEWORK_MANIFEST_PATH} is malformed — restore the template copy before running template update.`,
+        message:
+          `${FRAMEWORK_MANIFEST_PATH} is malformed or was edited outside the CLI (its digest does not match) — ` +
+          "restore the template copy before running template update.",
       });
     } else {
       const modified: string[] = [];

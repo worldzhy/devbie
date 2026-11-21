@@ -173,8 +173,9 @@ async function readProjectBaseline(projectRoot: string): Promise<Record<string, 
   const manifest = parseFrameworkManifest(raw);
   if (manifest === null) {
     throw new CliError(
-      `${FRAMEWORK_MANIFEST_PATH} is malformed. Restore the template copy, or delete it to re-adopt the ` +
-        "framework files and lose the ability to detect host edits.",
+      `${FRAMEWORK_MANIFEST_PATH} is malformed or was edited outside the CLI (its digest does not match). ` +
+        "Restore the template copy, or delete it to re-adopt the framework files and lose the ability to " +
+        "detect host edits.",
     );
   }
   return manifest.files;
