@@ -942,8 +942,8 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R83-20 | fewbie-starter                 | 框架托管的 layout 硬编码 `title: "fewbie"`，宿主无法覆盖                  | P2     | template | 模板使用者   | fixed 5c28f0a |
 | R83-21 | fewbie-starter                 | `/auth/*` 豁免匹配原始 url，同源绝对 URL 被当业务请求                    | P2     | template | 模板使用者   | fixed 5c28f0a |
 | R83-22 | fewbie-starter                 | 图表 aria-label 硬编码英文                                               | P2     | template | 非英文用户   | fixed 5c28f0a |
-| R83-23 | nightwatch-frontend            | page/shell/chart/feedback 仍用影子第二实现                               | P2     | host     | 宿主维护者   | open |
-| R83-24 | nightwatch-frontend + starter  | `AGENTS.md` 托管清单落后（host 7 项；starter main 7 项 / dev 17 项）     | P2     | docs     | 两仓 agent   | open |
+| R83-23 | nightwatch-frontend            | page/shell/chart/feedback 仍用影子第二实现                               | P2     | host     | 宿主维护者   | deferred（布局迁移，入宿主 backlog） |
+| R83-24 | nightwatch-frontend + starter  | `AGENTS.md` 托管清单落后（host 7 项；starter main 7 项 / dev 17 项）     | P2     | docs     | 两仓 agent   | fixed（dev 已 17 项；main 随下个 PR） |
 | R83-25 | devbie                         | 快照门禁只验祖先，不要求与 registry main 同步                            | P2     | ops      | 维护者       | fixed e0138740 |
 
 ### Round 83 备注
@@ -952,5 +952,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 反驳轮：4 条拟 P1（R83-01…04）由独立代理逐条尝试推翻，全部维持；误报剔除 6 条见报告 §7（含 R2-01/R2-03/R2-05 关闭、绝对 URL 跨源泄漏不成立、字体损坏仅限模板字体变更、宿主 dev 无 CI 属已记录取舍）。
 - carry-over：fewbie-starter R2-01/R2-03/R2-05 关闭；R2-02/R2-04/R2-06/R2-07/R2-08、R79-01、R80-01、R81-05 仍 open（明细见报告 §11 与 fewbie-starter 台账）。
 - R83-15 残留：R3 已覆盖任意色值（`bg-[#ff0000]`）与未定义 palette（`bg-night-900`），R6 已覆盖 `rounded-[7px]`；`text-[13px]` 类任意字号未纳入门禁，因为 nightwatch 宿主有 40 处亚刻度字号依赖，需先补 typography token 再收紧（已入 devbie backlog）。
-- R83-18 影响：`date-picker.tsx` 从 `src/components/ui/` 移到 `src/framework/forms/`；宿主导入路径需同步（nightwatch 10 处），否则 template update 后旧文件成为孤儿。
+- R83-18 影响：`date-picker.tsx` 从 `src/components/ui/` 移到 `src/framework/forms/`；nightwatch 已在 d833221 同步 10 处导入并删除旧文件。
+- R83-23 延期：影子实现（`@/components/page-shell` 35 文件、page-header、sidebar-chrome、chart、feedback）的 API 已与 `@/framework` 分叉（`variant` vs `width/inset`），属于整站布局迁移，需独立分支 + 视觉回归；已入 nightwatch backlog，不在本轮 P2 内硬改。
+- R83-24：dev 分支两边 AGENTS.md 均已列 17 项 framework 托管文件；`main` 仍为 7 项，待下一次 dev→main PR 自动带出，无需额外改动。
 - 环境限制：宿主 PATH 无 Node；CLI / registry / starter 测试由子代理在 Docker `devbie-work` 内执行（executed），P2 未逐条重跑者标 static。
