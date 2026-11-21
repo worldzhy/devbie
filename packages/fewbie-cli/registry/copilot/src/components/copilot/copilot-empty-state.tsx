@@ -18,6 +18,7 @@ export function CopilotEmptyState({ catalog, isLoading, extra }: CopilotEmptySta
   const { labels } = useCopilotRuntime();
   const relevant = catalog?.skills.filter((skill) => skill.relevant) ?? [];
   const others = catalog?.skills.filter((skill) => !skill.relevant) ?? [];
+  const showHint = isLoading;
 
   return (
     <div className="flex flex-col gap-4">
@@ -25,7 +26,7 @@ export function CopilotEmptyState({ catalog, isLoading, extra }: CopilotEmptySta
       <div className="rounded-md border border-border bg-muted/30 px-3 py-2.5">
         <p className="text-xs text-muted-foreground">{labels.emptyIntro}</p>
       </div>
-      {isLoading ? <p className="text-xs text-muted-foreground">{labels.loadingCapabilities}</p> : null}
+      {showHint ? <p className="text-xs text-muted-foreground">{labels.loadingCapabilities}</p> : null}
 
       <SkillSection title={labels.availableOnPage} skills={relevant} collapsible defaultOpen />
       <SkillSection title={labels.otherCapabilities} skills={others} collapsible />

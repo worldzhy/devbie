@@ -40,7 +40,10 @@ export function usePolled<T>(load: () => Promise<T>, intervalMs: number, enabled
   const [nonce, setNonce] = useState(0);
   const loaded = useRef(false);
   const loadRef = useRef(load);
-  loadRef.current = load;
+
+  useEffect(() => {
+    loadRef.current = load;
+  });
 
   useEffect(() => {
     if (!enabled) return;

@@ -246,42 +246,29 @@ function DeliveryReasonBlock({ notificationId }: { notificationId: string }) {
   const { labels, port, locale } = useNotificationCenter();
   const [open, setOpen] = useState(false);
   const [attempt, setAttempt] = useState<NotificationDeliveryAttempt | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const load = port.fetchDeliveryAttempt;
 
-  useEffect(() => {
-    if (!open || !port.fetchDeliveryAttempt) return;
-    let alive = true;
-    setLoading(true);
-    port
-      .fetchDeliveryAttempt(notificationId)
-      .then((result) => {
-        if (alive) setAttempt(result);
-      })
-      .catch(() => {
-        if (alive) setAttempt(null);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [open, notificationId, port]);
+  if (!load) return null;
 
-  if (!port.fetchDeliveryAttempt) return null;
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (!next) return;
+    setBusy(true);
+    load(notificationId)
+      .then((result) => setAttempt(result))
+      .catch(() => setAttempt(null))
+      .finally(() => setBusy(false));
+  };
 
   return (
     <div className="space-y-2">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className="text-xs font-medium text-muted-foreground"
-      >
+      <button type="button" aria-expanded={open} onClick={toggle} className="text-xs font-medium text-muted-foreground">
         {labels.deliveryReasonLabel}
       </button>
       {open ? (
-        loading ? (
+        busy ? (
           <div className="flex justify-center py-2">
             <LoaderCircle className="size-4 animate-spin text-muted-foreground" />
           </div>

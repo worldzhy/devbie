@@ -54,7 +54,7 @@ export function NotificationBell({ className }: { className?: string }) {
               >
                 <Bell className="size-5" />
                 {unreadCount > 0 ? (
-                  <span className="absolute -end-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-4 font-semibold text-white tabular-nums">
+                  <span className="absolute -end-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-4 font-semibold text-destructive-foreground tabular-nums">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 ) : null}
