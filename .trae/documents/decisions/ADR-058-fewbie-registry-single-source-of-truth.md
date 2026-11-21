@@ -78,3 +78,7 @@ error Registry item 'login-page' not found.
 - [ADR-056](ADR-056-fewbie-frontend-framework-ownership.md)：不变。框架资产仍走模板，不做 registry item。
 - [ADR-014](ADR-014-chart-capability-echarts-registry-item.md)：图表引擎选型仍生效；`chart` item 已在 2026-11-21 删除，属 item 清单变化，不推翻引擎决策。
 - 无 ADR 被本决策取代。
+
+## 更新记录
+
+- 2026-11-22：仓内层级由 [ADR-059](ADR-059-fewbie-registry-container-layout.md) 细化——authored item 移入 `packages/modules/`，devbie 快照保持扁平。本文 D1/D3 的「唯一 authored 源 + 生成快照」不变。
