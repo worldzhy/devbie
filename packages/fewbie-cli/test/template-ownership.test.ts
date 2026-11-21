@@ -53,6 +53,19 @@ describe("ownership registry completeness (ADR-025)", () => {
     assert.deepEqual(findUnclassifiedTemplateFiles(["docs/new.md", "src/orphan.ts"]), ["docs/new.md", "src/orphan.ts"]);
   });
 
+  it("ships framework message files as framework assets so existing hosts receive them", () => {
+    // A host adopted before the framework namespace existed has no
+    // `src/i18n/messages/framework.<locale>.json`; classifying the files as
+    // framework makes `template update` create them instead of leaving the
+    // host to rebuild the namespace by hand.
+    for (const locale of ["en", "zh"]) {
+      const asset = TEMPLATE_ASSETS.find(
+        (candidate) => candidate.path === `src/i18n/messages/framework.${locale}.json`,
+      );
+      assert.equal(asset?.ownership, "framework", `framework.${locale}.json must be framework-owned`);
+    }
+  });
+
   it("classifies workspace metadata under .trae as host-owned", () => {
     assert.deepEqual(findUnclassifiedTemplateFiles([".trae/documents/backlog.md", ".trae/skills"]), []);
   });
