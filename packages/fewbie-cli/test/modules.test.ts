@@ -9,7 +9,8 @@ import { runApply } from "../src/commands/modules/apply";
 import { runRemove } from "../src/commands/modules/remove";
 import { runUpdate } from "../src/commands/modules/update";
 import { MODULES_FILE, readModulesFile } from "../src/lib/modules-file";
-import { loadItem, readItemFileContent, resolveRegistryRoot } from "../src/registry/store";
+import { loadItem, readItemFileContent } from "../src/registry/store";
+import { resolveRegistryRoot } from "../src/registry/source";
 
 async function makeProject(): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-modules-"));

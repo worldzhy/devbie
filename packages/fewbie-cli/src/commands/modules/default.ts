@@ -2,7 +2,8 @@ import path from "node:path";
 import { checkbox } from "@inquirer/prompts";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../registry/store";
+import { listRegistryItemNames, loadItem } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
 import { confirm, isInteractive } from "../../lib/confirm";
 import { pathExists } from "@devbie/cli-kit";
 import { readModulesFile } from "../../lib/modules-file";
@@ -26,7 +27,7 @@ interface ModuleEntry {
 
 async function collectInventory(projectRoot: string): Promise<{ declared: string[]; modules: ModuleEntry[] }> {
   const declared = (await readModulesFile(projectRoot)) ?? [];
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const names = await listRegistryItemNames(registryRoot);
   const modules: ModuleEntry[] = [];
 

@@ -2,13 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
-import {
-  LoadedItem,
-  listRegistryItemNames,
-  readItemFileContent,
-  resolveInstallSet,
-  resolveRegistryRoot,
-} from "../../registry/store";
+import { LoadedItem, listRegistryItemNames, readItemFileContent, resolveInstallSet } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
 import { requireModulesFile, writeModulesFile } from "../../lib/modules-file";
@@ -43,7 +38,7 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
   }
 
   const declared = await requireModulesFile(projectRoot);
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const items = await resolveInstallSet(registryRoot, declared);
   const declaredClosure = new Set(declared);
   const additions = items.map((item) => item.manifest.name).filter((name) => !declaredClosure.has(name));
@@ -78,7 +73,7 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
 /** CI gate: the declared set is complete, its files exist, its dependencies are installed. */
 async function runApplyCheck(projectRoot: string): Promise<void> {
   const declared = await requireModulesFile(projectRoot);
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const items = await resolveInstallSet(registryRoot, declared);
 
   const closure = items.map((item) => item.manifest.name);
@@ -157,7 +152,7 @@ export interface ApplySelectionResult {
  */
 export async function applyModuleSelection(options: ApplySelectionOptions): Promise<ApplySelectionResult> {
   const { projectRoot, dryRun } = options;
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const currentItems = await resolveInstallSet(registryRoot, options.current);
   const nextItems = await resolveInstallSet(registryRoot, options.next);
 

@@ -12,7 +12,8 @@ import {
   parseFrameworkManifest,
   TEMPLATE_ASSETS,
 } from "../lib/template-ownership";
-import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
+import { loadItem, listRegistryItemNames } from "../registry/store";
+import { resolveRegistryRoot } from "../registry/source";
 
 export interface DoctorOptions {
   /** Project root (global --cwd). */
@@ -113,7 +114,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   // --- 2. Declared registry modules ---
   // The declaration is the only criterion (ADR-024 F10): files that merely
   // exist (the template ships some registry files) do not imply installation.
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const declaration = await readModulesFile(projectRoot);
   const declaredModules = declaration ?? [];
   if (declaration === null) {

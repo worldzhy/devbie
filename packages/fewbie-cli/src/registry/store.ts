@@ -11,49 +11,6 @@ export interface LoadedItem {
   files: Array<{ target: string; source?: string; content?: string }>;
 }
 
-/**
- * A candidate directory is only a valid registry root if it contains at
- * least one `<name>/item.json`. Merely existing is not enough: when this
- * module runs uncompiled via tsx, the first candidate resolves to the
- * src/registry directory itself (which holds code, not items).
- */
-async function isRegistryRoot(candidate: string): Promise<boolean> {
-  let entries: import("node:fs").Dirent[];
-  try {
-    entries = await fs.readdir(candidate, { withFileTypes: true });
-  } catch {
-    return false;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const hasItem = await fs
-      .access(path.join(candidate, entry.name, "item.json"))
-      .then(() => true)
-      .catch(() => false);
-    if (hasItem) return true;
-  }
-  return false;
-}
-
-/**
- * Locate the registry root.
- *
- * - Published package: built manifests live in dist/registry.
- * - Monorepo checkout / tsx runs: fall back to the authored registry/ folder.
- */
-export async function resolveRegistryRoot(): Promise<string> {
-  const candidates = [
-    path.resolve(__dirname, "..", "registry"), // dist/registry (compiled)
-    path.resolve(__dirname, "..", "..", "registry"), // packages/fewbie-cli/registry (authored)
-  ];
-  for (const candidate of candidates) {
-    if (await isRegistryRoot(candidate)) {
-      return candidate;
-    }
-  }
-  throw new CliError("Registry not found (expected dist/registry or registry/).");
-}
-
 async function readItemFile(root: string, name: string): Promise<RegistryManifest | BuiltRegistryItem> {
   const raw = await fs.readFile(path.join(root, name, "item.json"), "utf8");
   return JSON.parse(raw) as RegistryManifest | BuiltRegistryItem;

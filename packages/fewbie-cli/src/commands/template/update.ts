@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { listRegistryItemNames, loadItem, resolveRegistryRoot } from "../../registry/store";
+import { listRegistryItemNames, loadItem } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
   assetCoversPath,
@@ -64,8 +65,8 @@ function filterAssets(paths: string[] | undefined): readonly TemplateAsset[] {
  * Every file a registry item owns. Template update must never manage one of
  * these (ADR-025 clause 4); an overlap is a classification defect.
  */
-async function collectRegistryTargets(): Promise<Set<string>> {
-  const registryRoot = await resolveRegistryRoot();
+async function collectRegistryTargets(projectRoot: string): Promise<Set<string>> {
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const names = await listRegistryItemNames(registryRoot);
   const targets = new Set<string>();
   for (const name of names) {
@@ -287,7 +288,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
 
     if (options.registryComplete) await assertTemplateRegistryComplete(template.root);
 
-    const registryTargets = await collectRegistryTargets();
+    const registryTargets = await collectRegistryTargets(projectRoot);
     // Registry targets are concrete files while template assets may be
     // subtrees (`src/lib/api-client/**`), so exact-path comparison misses a
     // real overlap (ADR-056 D2).

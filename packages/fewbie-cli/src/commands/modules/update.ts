@@ -2,7 +2,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { LoadedItem, readItemFileContent, resolveInstallSet, resolveRegistryRoot } from "../../registry/store";
+import { LoadedItem, readItemFileContent, resolveInstallSet } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { requireModulesFile } from "../../lib/modules-file";
@@ -96,7 +97,7 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
 
 /** Load the requested declared items (validated against the declaration). */
 async function selectItems(projectRoot: string, declared: string[], names: string[]): Promise<LoadedItem[]> {
-  if (names.length === 0) return resolveInstallSet(await resolveRegistryRoot(), declared);
+  if (names.length === 0) return resolveInstallSet(await resolveRegistryRoot(projectRoot), declared);
 
   const unknown = names.filter((name) => !declared.includes(name));
   if (unknown.length > 0) {
@@ -104,5 +105,5 @@ async function selectItems(projectRoot: string, declared: string[], names: strin
       `Module(s) not declared in fewbie.json: ${unknown.join(", ")}. Declared: ${declared.join(", ") || "(none)"}.`,
     );
   }
-  return resolveInstallSet(await resolveRegistryRoot(), names);
+  return resolveInstallSet(await resolveRegistryRoot(projectRoot), names);
 }

@@ -1,7 +1,8 @@
 import path from "node:path";
 import { bold, green } from "colorette";
 
-import { resolveInstallSet, resolveRegistryRoot } from "../../registry/store";
+import { resolveInstallSet } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError } from "@devbie/cli-kit";
 import { requireModulesFile } from "../../lib/modules-file";
@@ -34,7 +35,7 @@ export async function runRemove(options: ModulesRemoveOptions): Promise<void> {
 
   // A remaining item may still pull a removed module through its
   // registryDependencies; expanding the remaining set exposes that.
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const closure = await resolveInstallSet(registryRoot, remaining);
   const revived = removing.filter((name) => closure.some((item) => item.manifest.name === name));
   if (revived.length > 0) {
