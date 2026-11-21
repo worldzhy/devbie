@@ -875,10 +875,10 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID     | 仓             | 标题                                                                                             | 严重度 | 暴露面   | 可达性       | 状态 |
 | ------ | -------------- | ------------------------------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
-| R82-01 | devbie         | `modules apply` 无条件前移锁基线，制造假 `host-modified`，唯一出路 `--force` 会覆盖宿主真实改动 | P1     | live     | 宿主维护者   | open |
-| R82-02 | devbie+starter | 发布默认分支无 `.fewbie/framework.json`，`create` 产物首轮 `template update` 静默覆盖宿主改动  | P1     | template | 新宿主/旧宿主 | open |
-| R82-03 | devbie         | `modules remove` 遗留生成的标签 adapter，宿主构建必坏而三条模块门禁全绿                         | P1     | live     | 宿主维护者   | open |
-| R82-04 | fewbie-starter | 模板 Dockerfile 无法在 build 期注入 `NEXT_PUBLIC_*`，且运行阶段不复制 `public/`                  | P1     | template | 模板使用者   | open |
+| R82-01 | devbie         | `modules apply` 无条件前移锁基线，制造假 `host-modified`，唯一出路 `--force` 会覆盖宿主真实改动 | P1     | live     | 宿主维护者   | fixed c4b3104e |
+| R82-02 | devbie+starter | 发布默认分支无 `.fewbie/framework.json`，`create` 产物首轮 `template update` 静默覆盖宿主改动  | P1     | template | 新宿主/旧宿主 | fixed c4b3104e（ADR-060；dev→main PR 待合并） |
+| R82-03 | devbie         | `modules remove` 遗留生成的标签 adapter，宿主构建必坏而三条模块门禁全绿                         | P1     | live     | 宿主维护者   | fixed c4b3104e |
+| R82-04 | fewbie-starter | 模板 Dockerfile 无法在 build 期注入 `NEXT_PUBLIC_*`，且运行阶段不复制 `public/`                  | P1     | template | 模板使用者   | fixed feb3fe8 |
 | R82-05 | devbie         | `update --check` 把「文件缺失」当成功；`--check` 的补救指令在普通 `update` 上不可达              | P2     | live     | 宿主维护者   | open |
 | R82-06 | devbie         | 锁文件只校验顶层形状，`modules[*].files` 损坏会降级为 `legacy` 并被并入可写集合                  | P2     | live     | 宿主维护者   | open |
 | R82-07 | devbie         | `contract.framework` 只过 `validRange`，全仓无 `satisfies`，旧 CLI 可静默装更高框架范围的 item  | P2     | artifact | 模块作者     | open |
@@ -909,3 +909,4 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 反驳轮：4 条拟 P1 被撤销/降级（ADR-055 retry 单飞、snapshot ref 不符、auth 安装即失败、交互式 default 恢复依赖），见报告 §7。
 - carry-over：R2-05 已修复；R2-01/02/03/04/06/07/08、R79-01、R80-01、R81-05 仍开放或部分修复（R82-02 即 R2-02 未修复的现网表现）。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round82.md`。
+- 修复（2026-11-22，仅 P1）：R82-01/03 在 `c4b3104e`（锁基线取安装字节并新增回归测试；remove/adapters 清理孤儿 adapter），R82-02 在 `c4b3104e`（ADR-060：`create` 自生成基线、无基线拒绝覆盖、`--adopt` 显式采纳、release gate 断言默认分支含基线；fewbie-starter dev→main PR 待合并），R82-04 在 `feb3fe8`。R82-05…R82-25 仍开放。
