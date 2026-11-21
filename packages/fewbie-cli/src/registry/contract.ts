@@ -1,6 +1,8 @@
 import semver from "semver";
 
 import { CliError } from "@devbie/cli-kit";
+// Published package version; the contract's framework range must admit it.
+import pkg from "../../package.json";
 import type { ModuleContract, ModuleState, RegistryManifest } from "./types";
 
 /**
@@ -90,6 +92,12 @@ export function parseModuleContract(value: unknown, itemName: string): ModuleCon
   const framework = assertNonEmptyString(itemName, "framework", raw.framework);
   if (semver.validRange(framework) === null) {
     fail(itemName, `framework '${framework}' is not a valid semver range.`);
+  }
+  // A range alone only proves the declaration is well-formed. An older CLI must
+  // refuse an item that expects a newer framework instead of installing it into
+  // a host whose runtime surface it does not have (R82-07).
+  if (!semver.satisfies(pkg.version, framework)) {
+    fail(itemName, `requires framework '${framework}' but this CLI is ${pkg.version}. Upgrade @devbie/fewbie-cli.`);
   }
 
   const entry = assertNonEmptyString(itemName, "entry", raw.entry);

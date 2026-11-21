@@ -8,6 +8,7 @@ import { confirm } from "../../lib/confirm";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { hashContent } from "../../lib/hashes";
 import { LOCKFILE_VERSION, Lockfile, readLockfile, writeLockfile } from "../../lib/lockfile";
+import { findStaleTargets } from "../../lib/stale-targets";
 import { readRegistryDeclaration, requireModulesFile } from "../../lib/modules-file";
 import { assertProjectRoot } from "../../lib/project";
 import { unifiedDiff } from "../../lib/diff";
@@ -77,17 +78,14 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     }
   }
 
-  if (drifted.length === 0) {
-    console.info(green(bold("✓ Declared module files are up to date.")));
-    if (missing.length > 0) {
-      console.info(yellow(`Missing file(s); run 'fewbie modules apply' to restore them:\n  ${missing.join("\n  ")}`));
-    }
-    return;
-  }
-
   const pristine = drifted.filter((file) => file.kind === "pristine" || file.kind === "legacy");
   const modified = drifted.filter((file) => file.kind === "host-modified");
   const conflicts = drifted.filter((file) => file.kind === "conflict");
+  const stale = await findStaleTargets(
+    projectRoot,
+    selected.map((item) => ({ name: item.manifest.name, targets: item.files.map((file) => file.target) })),
+    lockfile,
+  );
 
   for (const file of pristine) {
     console.info(bold(`# ${file.item} → ${file.target} (${describe(file.kind)})`));
@@ -102,33 +100,65 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   for (const file of modified) {
     console.info(yellow(`kept ${file.target} (modified locally; --force overwrites)`));
   }
+  for (const file of stale) {
+    console.info(
+      file.pristine
+        ? yellow(`${file.target} is no longer shipped by ${file.module}; update removes it`)
+        : yellow(`kept ${file.target} (no longer shipped by ${file.module}; modified locally)`),
+    );
+  }
 
   if (options.check) {
     // The gate stays strict: module files are registry-owned, so every kind of
-    // drift fails CI. The classification only explains how to fix it.
+    // drift fails CI. The classification only explains how to fix it, and the
+    // remedy must be reachable from the plain command (R82-05).
     const reasons: string[] = [];
+    if (missing.length > 0) reasons.push(`${missing.length} file(s) are missing`);
     if (pristine.length > 0) reasons.push(`${pristine.length} file(s) are behind the registry`);
     if (modified.length > 0) reasons.push(`${modified.length} file(s) were modified locally`);
     if (conflicts.length > 0) reasons.push(`${conflicts.length} file(s) conflict with local changes`);
-    throw new CliError(`${reasons.join("; ")}. Run \`fewbie modules update\` to adopt the registry version.`);
+    const cleanable = stale.filter((file) => file.pristine).length;
+    const staleModified = stale.length - cleanable;
+    if (cleanable > 0) reasons.push(`${cleanable} obsolete file(s) are no longer shipped by their module`);
+    if (staleModified > 0) reasons.push(`${staleModified} obsolete file(s) were modified locally`);
+    if (reasons.length > 0) {
+      throw new CliError(
+        `${reasons.join("; ")}. Run \`fewbie modules apply\` to restore missing files and ` +
+          "`fewbie modules update` to adopt registry changes (`--force` overwrites local edits).",
+      );
+    }
+    console.info(green(bold("✓ Declared module files are up to date.")));
+    return;
   }
 
+  if (drifted.length === 0 && stale.length === 0) {
+    console.info(green(bold("✓ Declared module files are up to date.")));
+    if (missing.length > 0) {
+      console.info(yellow(`Missing file(s); run 'fewbie modules apply' to restore them:\n  ${missing.join("\n  ")}`));
+    }
+    return;
+  }
+
+  const obsolete = stale.filter((file) => file.pristine).map((file) => file.target);
   if (options.preview || options.dryRun) {
     console.info(
       options.preview
-        ? `[preview] ${pristine.length} update(s), ${modified.length} host-modified, ${conflicts.length} conflict(s)`
+        ? `[preview] ${pristine.length} update(s), ${modified.length} host-modified, ${conflicts.length} conflict(s), ${obsolete.length} obsolete`
         : "[dry-run] no files were modified",
     );
     return;
   }
 
   const writable = [...pristine, ...(options.force ? [...modified, ...conflicts] : [])];
-  if (writable.length === 0) {
+  if (writable.length === 0 && obsolete.length === 0) {
     console.info(yellow("Nothing to write: every drifted file is host-owned or conflicting (use --force)."));
     return;
   }
 
-  const confirmed = await confirm(`Do you want to UPDATE ${writable.length} file(s)?`, options);
+  const confirmed = await confirm(
+    `Do you want to UPDATE ${writable.length} file(s) and REMOVE ${obsolete.length} obsolete file(s)?`,
+    options,
+  );
   if (!confirmed) {
     console.info("[info] Update cancelled.");
     return;
@@ -139,6 +169,10 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, file.latest);
     console.info(`${green("updated")} ${file.target}`);
+  }
+  for (const target of obsolete) {
+    await fs.rm(path.join(projectRoot, target), { force: true });
+    console.info(`${green("removed")} ${target}`);
   }
   await writeUpdatedLockfile(projectRoot, context, selected, writable, lockfile);
   console.info(green(bold(`\n✓ Updated ${writable.length} file(s). Review with git diff.`)));
@@ -177,10 +211,25 @@ async function writeUpdatedLockfile(
     const writtenTargets = new Set(
       written.filter((file) => file.item === item.manifest.name).map((file) => file.target),
     );
-    const files: Record<string, string> = { ...(modules[item.manifest.name]?.files ?? {}) };
+    const previousFiles = modules[item.manifest.name]?.files ?? {};
+    // Rebuild the entry from the current manifest, so a target the registry
+    // renamed or deleted does not linger in the baseline (R82-08).
+    const files: Record<string, string> = {};
     for (const file of item.files) {
-      if (writtenTargets.has(file.target)) files[file.target] = hashContent(await readItemFileContent(file));
-      else if (files[file.target] === undefined) files[file.target] = hashContent(await readItemFileContent(file));
+      if (writtenTargets.has(file.target)) {
+        files[file.target] = hashContent(await readItemFileContent(file));
+        continue;
+      }
+      // A file this run did not write keeps its installed baseline. Recording
+      // the registry or on-disk bytes would turn a host edit into a false
+      // `pristine` on the next check (R82-06).
+      const recorded = previousFiles[file.target];
+      if (recorded !== undefined) {
+        files[file.target] = recorded;
+        continue;
+      }
+      const onDisk = await readTextIfExists(path.join(projectRoot, file.target));
+      files[file.target] = hashContent(onDisk ?? (await readItemFileContent(file)));
     }
     modules[item.manifest.name] = {
       version: item.manifest.contract?.version ?? "0.0.0",

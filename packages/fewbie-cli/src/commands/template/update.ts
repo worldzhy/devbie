@@ -51,10 +51,22 @@ export interface TemplateUpdateOptions {
   templateRef?: string;
 }
 
-/** True when an asset path is equal to or nested under a filter prefix. */
+/**
+ * True when an asset matches a filter prefix.
+ *
+ * `filePath` is the asset path from the ownership registry, which may be a
+ * `<dir>/**` glob; `filter` is a concrete path (or directory) the user passed.
+ * The filter is applied before assets are expanded, so a concrete file inside a
+ * glob asset (`src/components/ui/button.tsx`) must match `src/components/ui/**`
+ * (R82-11).
+ */
 function matchesPathFilter(filePath: string, filter: string): boolean {
   const normalized = filter.replace(/^\.\//, "").replace(/\/+$/, "");
   if (normalized === "") return true;
+  if (filePath.endsWith("/**")) {
+    const prefix = filePath.slice(0, -3);
+    return normalized === prefix || normalized.startsWith(`${prefix}/`);
+  }
   return filePath === normalized || filePath.startsWith(`${normalized}/`);
 }
 

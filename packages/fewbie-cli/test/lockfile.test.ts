@@ -182,6 +182,90 @@ test("update writes a pristine file and refreshes the lockfile baseline", async 
   }
 });
 
+test("update --check fails when a declared file is missing (R82-05)", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    await fs.rm(fixture.target);
+    await assert.rejects(
+      quiet(() => runUpdate({ cwd: fixture.project, check: true })),
+      /file\(s\) are missing/,
+    );
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("apply removes a pristine target the registry renamed away (R82-08)", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    const renamed = "src/modules/fixture/next.ts";
+    await fs.mkdir(path.join(fixture.registry, "fixture", "src/modules/fixture"), { recursive: true });
+    await fs.writeFile(path.join(fixture.registry, "fixture", renamed), "export const next = 1;\n");
+    await fs.writeFile(
+      path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE),
+      JSON.stringify({
+        name: "fixture",
+        type: "registry:block",
+        title: "Fixture",
+        files: [renamed],
+        contract: {
+          version: "1.2.3",
+          framework: "^1.9.0",
+          entry: renamed,
+          labels: ["title"],
+          ports: ["save"],
+          ui: ["button"],
+          states: ["ready"],
+        },
+      }),
+    );
+
+    await quiet(() =>
+      applyModuleSelection({
+        projectRoot: fixture.project,
+        current: ["fixture"],
+        next: ["fixture"],
+        skipInstall: true,
+      }),
+    );
+    await assert.rejects(fs.access(fixture.target));
+    assert.equal(await fs.readFile(path.join(fixture.project, renamed), "utf8"), "export const next = 1;\n");
+    const lock = await readLockfile(fixture.project);
+    assert.deepEqual(Object.keys(lock!.modules.fixture.files), [renamed]);
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("update rejects a lockfile entry whose files field is not a hash map (R82-06)", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    await fs.writeFile(
+      path.join(fixture.project, "fewbie.lock.json"),
+      JSON.stringify({
+        lockfileVersion: 1,
+        registry: { url: "", ref: "", commit: "dev" },
+        modules: { fixture: { version: "1.2.3", commit: "dev", files: "nope" } },
+      }),
+    );
+    await assert.rejects(
+      quiet(() => runUpdate({ cwd: fixture.project, check: true })),
+      /files must be/,
+    );
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("update without a lockfile keeps the 1.8 drift behavior", async () => {
   const fixture = await setup();
   try {

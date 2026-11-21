@@ -72,6 +72,26 @@ export async function readLockfile(projectRoot: string): Promise<Lockfile | null
   if (lockfile.modules === null || typeof lockfile.modules !== "object" || Array.isArray(lockfile.modules)) {
     throw new CliError(`${LOCKFILE}: "modules" must be an object.`);
   }
+  // Reject a malformed entry instead of letting it fall through to the `legacy`
+  // drift kind: legacy files are writable, so a corrupt baseline would turn a
+  // conflict into a silent overwrite (R82-06).
+  for (const [name, entry] of Object.entries(lockfile.modules as Record<string, unknown>)) {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      throw new CliError(`${LOCKFILE}: modules.${name} must be an object.`);
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.version !== "string" || typeof record.commit !== "string") {
+      throw new CliError(`${LOCKFILE}: modules.${name} must record a string version and commit.`);
+    }
+    if (record.files === null || typeof record.files !== "object" || Array.isArray(record.files)) {
+      throw new CliError(`${LOCKFILE}: modules.${name}.files must be a target -> hash object.`);
+    }
+    for (const [target, hash] of Object.entries(record.files as Record<string, unknown>)) {
+      if (typeof hash !== "string" || hash.length === 0) {
+        throw new CliError(`${LOCKFILE}: modules.${name}.files['${target}'] must be a non-empty hash string.`);
+      }
+    }
+  }
   return lockfile as Lockfile;
 }
 

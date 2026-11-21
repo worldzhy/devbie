@@ -9,6 +9,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { CliError } from "@devbie/cli-kit";
+
 import { SNAPSHOT_FILE, SOURCE_REF, SOURCE_URL, gitDirty, gitHead, writeSnapshot } from "./registry-snapshot";
 
 const packageRoot = path.resolve(__dirname, "..");
@@ -18,10 +20,13 @@ const sourceRoot = path.resolve(
 );
 
 async function main(): Promise<void> {
-  const commit = await gitHead(sourceRoot);
+  // A snapshot of a dirty tree records a commit whose contents it does not
+  // carry, so the release gate would compare the snapshot against bytes the
+  // commit never had. Refuse instead of warning (R82-10).
   if (await gitDirty(sourceRoot)) {
-    console.warn(`Warning: '${sourceRoot}' has uncommitted changes; the snapshot will not match commit ${commit}.`);
+    throw new CliError(`'${sourceRoot}' has uncommitted changes; commit them before syncing the registry snapshot.`);
   }
+  const commit = await gitHead(sourceRoot);
 
   const names = await writeSnapshot(sourceRoot, targetRoot);
   const meta = { source: SOURCE_URL, ref: SOURCE_REF, commit };

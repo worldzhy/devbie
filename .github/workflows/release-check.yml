@@ -1,4 +1,4 @@
-# Release gate for main.
+# Release gate for main and early pre-check for dev.
 #
 # Verification runs once, on dev (see ci.yml): every commit merged into main is
 # a dev commit that already carries a green run, so main re-runs no checks.
@@ -6,11 +6,14 @@
 # template-drift gate checks that every template file is classified (ADR-025)
 # and that overlapping registry items match fewbie-starter's default branch,
 # which is the source `fewbie create` clones.
+#
+# The same gates also run on dev pushes so release-only failures surface before
+# the merge request instead of after it (R82-12).
 name: Release check
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
 
 # Cancel superseded runs for the same ref.
 concurrency:

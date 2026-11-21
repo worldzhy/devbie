@@ -74,6 +74,47 @@ function registryCacheDir(url: string): string {
   return path.join(base, digest);
 }
 
+/** Wait this long for another process to release the cache before giving up. */
+const CACHE_LOCK_TIMEOUT_MS = 60_000;
+/** A lock older than this belongs to a crashed process and may be broken. */
+const CACHE_LOCK_STALE_MS = 5 * 60_000;
+
+/**
+ * Serialize work on one shared registry checkout.
+ *
+ * The cache is a single mutable working tree: two concurrent commands (two CI
+ * jobs, two terminals) both fetch and hard-checkout it, and the loser can read
+ * a tree that no longer matches the commit it recorded (R82-09). A directory
+ * lock is enough — the operations inside are short and already idempotent.
+ */
+async function withCacheLock<T>(cacheDir: string, run: () => Promise<T>): Promise<T> {
+  const lockDir = `${cacheDir}.lock`;
+  await fs.mkdir(path.dirname(lockDir), { recursive: true });
+  const deadline = Date.now() + CACHE_LOCK_TIMEOUT_MS;
+  for (;;) {
+    try {
+      await fs.mkdir(lockDir);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const stat = await fs.stat(lockDir).catch(() => null);
+      if (stat !== null && Date.now() - stat.mtimeMs > CACHE_LOCK_STALE_MS) {
+        await fs.rm(lockDir, { recursive: true, force: true });
+        continue;
+      }
+      if (Date.now() > deadline) {
+        throw new CliError(`Timed out waiting for the registry cache lock at ${lockDir}.`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  try {
+    return await run();
+  } finally {
+    await fs.rm(lockDir, { recursive: true, force: true });
+  }
+}
+
 /**
  * Materialize a registry repository at `ref` into a per-URL cache directory.
  * A fresh clone is shallow; later runs fetch and hard-checkout the ref so the
@@ -84,15 +125,16 @@ async function syncGitRegistry(url: string, ref: string | undefined): Promise<st
   const cacheDir = registryCacheDir(url);
 
   try {
-    if (!(await pathExists(path.join(cacheDir, ".git")))) {
-      if (await pathExists(cacheDir)) await fs.rm(cacheDir, { recursive: true, force: true });
-      await fs.mkdir(path.dirname(cacheDir), { recursive: true });
-      await execCapture("git", ["clone", "--quiet", "--depth", "1", url, cacheDir]);
-    }
-    // Fetching a branch, tag or reachable commit all land in FETCH_HEAD.
-    const revision = ref ?? "HEAD";
-    await execCapture("git", ["-C", cacheDir, "fetch", "--quiet", "--depth", "1", "origin", revision]);
-    await execCapture("git", ["-C", cacheDir, "checkout", "--quiet", "--force", "FETCH_HEAD"]);
+    await withCacheLock(cacheDir, async () => {
+      if (!(await pathExists(path.join(cacheDir, ".git")))) {
+        if (await pathExists(cacheDir)) await fs.rm(cacheDir, { recursive: true, force: true });
+        await execCapture("git", ["clone", "--quiet", "--depth", "1", url, cacheDir]);
+      }
+      // Fetching a branch, tag or reachable commit all land in FETCH_HEAD.
+      const revision = ref ?? "HEAD";
+      await execCapture("git", ["-C", cacheDir, "fetch", "--quiet", "--depth", "1", "origin", revision]);
+      await execCapture("git", ["-C", cacheDir, "checkout", "--quiet", "--force", "FETCH_HEAD"]);
+    });
   } catch (error) {
     throw new CliError(`Failed to fetch registry ${url}${ref ? `#${ref}` : ""}: ${(error as Error).message}`);
   }

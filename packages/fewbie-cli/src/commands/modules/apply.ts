@@ -8,6 +8,7 @@ import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
 import { hashContent } from "../../lib/hashes";
 import { LOCKFILE_VERSION, Lockfile, LockfileModule, readLockfile, writeLockfile } from "../../lib/lockfile";
+import { findStaleTargets } from "../../lib/stale-targets";
 import { readRegistryDeclaration, requireModulesFile, writeModulesFile } from "../../lib/modules-file";
 import { missingPackages } from "../../lib/npm-spec";
 import { assertProjectRoot } from "../../lib/project";
@@ -215,6 +216,19 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
       if (pristine) deletions.push(file.target);
       else kept.push(file.target);
     }
+  }
+
+  // A registry rename or deletion leaves the old target behind even though its
+  // module is still declared; the manifest no longer names it, so the loops
+  // above never see it (R82-08).
+  const staleTargets = await findStaleTargets(
+    projectRoot,
+    nextItems.map((item) => ({ name: item.manifest.name, targets: item.files.map((file) => file.target) })),
+    lockfile,
+  );
+  for (const file of staleTargets) {
+    if (file.pristine) deletions.push(file.target);
+    else kept.push(file.target);
   }
 
   if (dryRun) {
