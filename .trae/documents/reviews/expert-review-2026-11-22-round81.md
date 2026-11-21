@@ -70,6 +70,12 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 - `host-providers.tsx` 在模板所有权表中登记为 scaffold 且要求 `HostProviders` 片段（[template-ownership.ts](file:///Users/worldzhy/src/devbie/packages/fewbie-cli/src/lib/template-ownership.ts#L87-L106)），starter 同路径存在该文件（[host-providers.tsx](file:///Users/worldzhy/src/fewbie-starter/src/app/host-providers.tsx#L1-L16)）；nwf 无任何 `HostProviders` 引用（grep 0），说明是 scaffold 缺失而非运行时报错。
 - 该仓 `.github` 与 `package.json` 中 `doctor` 引用 0 处 → 这道门在唯一消费宿主上从未执行（反驳轮未推翻，[ci.yml](file:///Users/worldzhy/src/nightwatch-frontend/.github/workflows/ci.yml#L33-L41)）。
 - 影响：`template update` 无法识别宿主编改的 framework 文件；升级时存在被覆盖或整体拒绝的不确定性。修复方向：跑 `fewbie template update` 补齐 scaffold 与基线，按 diff 审阅后提交；CI 加一步 `npx fewbie doctor`。
+- **状态：fixed（`1d5978c`，2026-11-22）**。`npx fewbie template update --template-ref dev` 同步 46 个框架文件（`.fewbie/framework.json`、`eslint.config.mjs`、`globals.css`、`layout.tsx`、8 个 ui 原语、i18n framework 命名空间、`scripts/`、`src/framework/**`），补齐 `src/app/host-providers.tsx`；随后按用户决策完成完整 M4 迁移（不豁免门禁）：
+  - 全仓 lint error 1076 → 0（R11 275、R7 260、R2 250、R3 222、R6 69）。
+  - 模板带入的 `chart-tokens.test.ts` 用 `node:test`，与宿主 vitest+jsdom 不兼容；新增 `tsx` devDependency，`test` 脚本改为 `vitest run && node --import tsx --test "src/framework/**/*.test.ts"`，与 starter 契约一致。
+  - CI 在 `template update --check` 之后新增 `npx fewbie doctor`（本项的直接门禁）。
+  - 复核全绿：`lint:error`、`tsc --noEmit`、`npm test`（18 个 vitest 文件 + 3 个框架 node:test）、`npm run build`、`format:check`、`template update --check`、`doctor`（0 error / 0 warning）、`modules apply|update|adapters --check`。
+  - 迁移中暴露的模板侧缺口另记 R81-05。
 
 ### R81-03（nightwatch-frontend）模块生命周期无 CI 门禁
 
@@ -83,6 +89,14 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 - findings 事实过期：R73-01 称「nightwatch 无 `fewbie.json`」（现已存在）；R73-02 的路径仍写 `registry/auth/item.json`（已改名 `fewbie.module.json`）（[findings.md](file:///Users/worldzhy/src/devbie/.trae/documents/findings.md#L711-L713)）。
 - nwf backlog 第 72 行称「fewbie doctor 该门禁恢复绿」，与 R81-02 的实测红灯矛盾（[backlog.md](file:///Users/worldzhy/src/nightwatch-frontend/.trae/documents/backlog.md#L72)）。
 - 影响：下一轮排期会按旧版本/旧路径做决策；属治理项，不阻塞发布。
+
+### R81-05（fewbie-starter）M4 门禁与模板契约的四处缺口（R81-02 迁移中实测）
+
+- 根 metadata 品牌丢失：[layout.tsx](file:///Users/worldzhy/src/fewbie-starter/src/app/layout.tsx#L39-L42) 是框架所有文件，却把 `title` 硬编码为 `"fewbie"`；宿主同步后浏览器标题变成模板名（nwf 原为 `NightWatch`），宿主无法在不改框架文件的前提下覆写根 metadata。
+- 框架测试无法被宿主运行器执行：[chart-tokens.test.ts](file:///Users/worldzhy/src/fewbie-starter/src/framework/chart/chart-tokens.test.ts) 用 `node:test` 且以 `new URL(..., import.meta.url)` 读模板文件；宿主用 vitest+jsdom 时必报 `The URL must be of scheme file`。starter 的 `npm test` 脚本（`node --import tsx --test`）与 `tsx` 依赖都不在模板管理面内，宿主只能自行重造（nwf 为此新增 `tsx` 与第二段 test 脚本）。
+- R2 提示指向不存在的入口：规则文案要求改用 `@/framework/states`，模板却没有 `states/index.ts` barrel，宿主照做即 TS2307。
+- R2 可被变量名绕过且缺 inline 原语：选择器按名字匹配 `isLoading|loading|...`，改名即消错；`Loader2` 换成 lucide 的 `LoaderCircle` 不被拦截；框架也没有按钮/表格行内可用的 spinner 原语，这正是宿主绕过门禁的动因。
+- 影响：宿主每次 `template update` 都要重新发现并绕开同样四处缺口；建议在模板侧一次性修复（可配置品牌、可运行的框架测试入口、barrel、结构性 R2 选择器 + inline spinner 原语）。
 
 ## 7. 误报剔除
 
@@ -106,12 +120,13 @@ error .fewbie/framework.json is stale (80 framework file(s) in the template). Re
 
 ## 10. 修复优先级
 
-1. R81-01：重新生成 starter 的 framework 基线（先审两个被改动的 framework 文件），提交后验 `check:template` 绿。
-2. R81-02：nwf `template update` 补 scaffold 与基线；CI 加 `fewbie doctor`。
+1. ~~R81-01：重新生成 starter 的 framework 基线~~（已 fixed，`13ed56e`）。
+2. ~~R81-02：nwf `template update` 补 scaffold 与基线；CI 加 `fewbie doctor`~~（已 fixed，`1d5978c`）。
 3. R81-03：nwf CI 加三条模块门禁（同时消掉 R80-01 的宿主侧暴露）。
-4. R79-01：补 `login-form` / `password-checklist` / `theme` 的 contract。
-5. R81-04：清理 backlog 与两条过期 findings 引用。
+4. R81-05：模板侧修四处缺口（可配置品牌、框架测试入口、states barrel、结构性 R2 + inline spinner）。
+5. R79-01：补 `login-form` / `password-checklist` / `theme` 的 contract。
+6. R81-04：清理 backlog 与两条过期 findings 引用。
 
 ## 11. 台账指针
 
-`.trae/documents/findings.md` Round 81（R81-01 … R81-04）。
+`.trae/documents/findings.md` Round 81（R81-01 … R81-05）。

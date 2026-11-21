@@ -850,12 +850,19 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | ID    | 仓                            | 标题                                                                                             | 严重度 | 暴露面   | 可达性       | 状态 |
 | ----- | ----------------------------- | ------------------------------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
 | R81-01 | fewbie-starter                | 框架基线过期（80 文件），`check:template` 红；verify job 只在 PR 运行，下一次 dev→main 必红 | P1     | template | 模板维护者   | fixed（`13ed56e`；仅 `eslint.config.mjs`、`scripts/eslint-rules.test.mjs` 与聚合 digest 变化；`check:template` 绿） |
-| R81-02 | nightwatch-frontend           | `fewbie doctor` 红（缺 `src/app/host-providers.tsx`、无 `.fewbie/framework.json`），CI 不跑 doctor | P2     | source   | 宿主维护者   | open |
+| R81-02 | nightwatch-frontend           | `fewbie doctor` 红（缺 `src/app/host-providers.tsx`、无 `.fewbie/framework.json`），CI 不跑 doctor | P2     | source   | 宿主维护者   | fixed（`1d5978c`；template update 同步 46 文件，宿主完成完整 M4 迁移，doctor 0 error / 0 warning，CI 加 doctor 步骤） |
 | R81-03 | nightwatch-frontend           | 模块生命周期无 CI 门禁（`modules apply/update/adapters --check` 均未挂载）                     | P2     | source   | 宿主维护者   | open |
 | R81-04 | devbie + starter + nwf        | 台账与 backlog 失真：1.6.x/1.7.0 仍写作下一步；R73-01 称 nwf 无 `fewbie.json`；R73-02 路径仍写 `item.json` | P2     | docs     | 宿主维护者   | open |
+| R81-05 | fewbie-starter                | M4 门禁与模板契约的四处缺口（见备注）                                                           | P2     | template | 模板维护者   | open |
 
 ### Round 81 备注
 
 - 计数（命令见报告 §2）：nwf doctor 引用 0；nwf `modules adapters` 引用 0；nwf `HostProviders` 引用 0；starter 基线 files=80；无 contract 9/14。
 - 反驳轮：R81-01 未推翻；「starter 无法通过 doctor」被部分推翻（模板走 `check:template`），已剔除并按 R81-01 记账。
+- R81-02 收口（`1d5978c`）：nwf 从 1076 条 lint error 清到 0（R11 275、R7 260、R2 250、R3 222、R6 69 全部清零）；`tsc`、`build`、`npm test`（18 vitest 文件 + 3 个框架 node:test）、`format:check`、`template update --check`、`doctor`、三条 modules 门禁全绿。
+- R81-05（模板侧缺口，迁移中实测）：
+  1. 框架所有的 `src/app/layout.tsx` 把 `metadata.title` 硬编码成 `"fewbie"`；宿主同步后浏览器标题丢失宿主品牌（nwf 原为 `NightWatch`），而宿主无法在不改框架文件的前提下覆写根 metadata。
+  2. `src/framework/chart/chart-tokens.test.ts` 用 `node:test` + `new URL(..., import.meta.url)` 读模板文件，宿主用 vitest+jsdom 时必然报 `The URL must be of scheme file`；starter 的 `npm test` 脚本（`node --import tsx --test`）不在模板管理文件里，宿主只能自行重造（nwf 为此新增 `tsx` devDependency 与第二段 test 脚本）。
+  3. R2 的提示文案让宿主改用 `@/framework/states`，但模板没有 `states/index.ts` barrel，照做即 TS2307。
+  4. R2 的选择器按变量名匹配（`isLoading|loading|...`），改个变量名就能消除违规而不使用共享状态组件；`Loader2` 换成 lucide 的 `LoaderCircle` 也不被拦截；同时框架没有按钮/表格行内可用的 inline spinner 原语，这正是宿主绕过的动因。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round81.md`。
