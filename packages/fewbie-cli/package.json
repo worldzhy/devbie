@@ -1,6 +1,6 @@
 {
   "name": "@devbie/fewbie-cli",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "fewbie frontend framework CLI",
   "license": "MIT",
   "author": "worldzhy",
@@ -31,10 +31,12 @@
     "@devbie/cli-kit": "^1.0.0",
     "@inquirer/prompts": "^7.5.0",
     "colorette": "^2.0.20",
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "semver": "^7.8.6"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/semver": "^7.8.0",
     "rimraf": "^6.1.4",
     "tsx": "^4.19.0",
     "typescript": "^5.9.3"

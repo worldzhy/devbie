@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { yellow } from "colorette";
 
 import { CliError } from "@devbie/cli-kit";
-import type { BuiltRegistryItem, RegistryManifest } from "./types";
+import { parseModuleContract, validateManifestContract } from "./contract";
+import type { BuiltRegistryItem, ModuleContract, RegistryManifest } from "./types";
 
 /** A loaded item plus the absolute paths its files should be copied from. */
 export interface LoadedItem {
@@ -14,6 +16,30 @@ export interface LoadedItem {
 async function readItemFile(root: string, name: string): Promise<RegistryManifest | BuiltRegistryItem> {
   const raw = await fs.readFile(path.join(root, name, "item.json"), "utf8");
   return JSON.parse(raw) as RegistryManifest | BuiltRegistryItem;
+}
+
+/** Warn once per item that predates the executable contract (ADR-057). */
+function warnMissingContract(name: string): void {
+  console.warn(yellow(`Registry item '${name}' has no contract; pinning is unavailable until the module ships one.`));
+}
+
+/**
+ * Built items carry the contract inline; the sidecar is the fallback for
+ * consumers whose tooling strips unknown manifest keys.
+ */
+async function readBuiltContract(
+  root: string,
+  name: string,
+  item: BuiltRegistryItem,
+): Promise<ModuleContract | undefined> {
+  if (item["x-fewbie.contract"] !== undefined) return item["x-fewbie.contract"];
+  const sidecar = path.join(root, name, "contract.json");
+  const raw = await fs.readFile(sidecar, "utf8").catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  });
+  if (raw === undefined) return undefined;
+  return parseModuleContract(JSON.parse(raw), name);
 }
 
 /** Names of every authored item in the registry, sorted. */
@@ -59,6 +85,9 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
 
   if (isBuilt(item)) {
     for (const file of item.files) assertProjectRelativeTarget(name, file.path);
+    const targets = item.files.map((f) => f.path);
+    const declared = await readBuiltContract(root, name, item);
+    if (declared === undefined) warnMissingContract(name);
     return {
       manifest: {
         name: item.name,
@@ -68,7 +97,9 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
         dependencies: item.dependencies,
         registryDependencies: item.registryDependencies,
         postInstall: item.postInstall,
-        files: item.files.map((f) => f.path),
+        files: targets,
+        contract:
+          declared === undefined ? undefined : validateManifestContract({ name, files: targets, contract: declared }),
       },
       files: item.files.map((f) => ({
         target: f.path,
@@ -79,11 +110,12 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
 
   const manifest = item;
   for (const relative of manifest.files) assertProjectRelativeTarget(name, relative);
+  if (manifest.contract === undefined) warnMissingContract(name);
   const files = manifest.files.map((relative) => ({
     target: relative,
     source: path.join(root, name, relative),
   }));
-  return { manifest, files };
+  return { manifest: { ...manifest, contract: validateManifestContract(manifest) }, files };
 }
 
 /**

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { validateManifestContract } from "./contract";
 import type { BuiltRegistryItem, RegistryManifest } from "./types";
 
 const SHADCN_ITEM_SCHEMA = "https://ui.shadcn.com/r/registry-item.json";
@@ -31,6 +32,9 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
       throw new Error(`Registry folder '${entry.name}' does not match item name '${manifest.name}'.`);
     }
 
+    // A broken contract must fail the build, not ship and surprise a host.
+    const contract = validateManifestContract(manifest);
+
     const files = await Promise.all(
       manifest.files.map(async (relative) => {
         const resolved = path.resolve(itemDir, relative);
@@ -57,12 +61,20 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
       ...(manifest.dependencies?.length ? { dependencies: manifest.dependencies } : {}),
       ...(manifest.registryDependencies?.length ? { registryDependencies: manifest.registryDependencies } : {}),
       ...(manifest.postInstall ? { postInstall: manifest.postInstall } : {}),
+      ...(contract ? { "x-fewbie.contract": contract } : {}),
       files,
     };
 
     const outDir = path.join(outputRoot, entry.name);
     await fs.mkdir(outDir, { recursive: true });
     await fs.writeFile(path.join(outDir, "item.json"), `${JSON.stringify(builtItem, null, 2)}\n`);
+    // Sidecar fallback: a shadcn consumer that strips unknown manifest keys
+    // still gets the contract from this file.
+    if (contract) {
+      await fs.writeFile(path.join(outDir, "contract.json"), `${JSON.stringify(contract, null, 2)}\n`);
+    } else {
+      await fs.rm(path.join(outDir, "contract.json"), { force: true });
+    }
     built.push(entry.name);
   }
 

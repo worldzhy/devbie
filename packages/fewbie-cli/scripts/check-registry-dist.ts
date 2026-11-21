@@ -43,6 +43,25 @@ async function readItemManifests(root: string): Promise<Map<string, string>> {
   return manifests;
 }
 
+/** Item name -> sidecar contract.json content; absent files are omitted. */
+async function readContractSidecars(root: string): Promise<Map<string, string>> {
+  const sidecars = new Map<string, string>();
+  let entries: Dirent[];
+  try {
+    entries = await fs.readdir(root, { withFileTypes: true });
+  } catch {
+    return sidecars;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const content = await fs.readFile(path.join(root, entry.name, "contract.json"), "utf8").catch(() => undefined);
+    if (content !== undefined) sidecars.set(entry.name, content);
+  }
+
+  return sidecars;
+}
+
 async function main(): Promise<void> {
   const builtExists = await fs
     .stat(outputRoot)
@@ -59,6 +78,8 @@ async function main(): Promise<void> {
     const built = await buildRegistry(sourceRoot, tmpRoot);
     const expected = await readItemManifests(tmpRoot);
     const actual = await readItemManifests(outputRoot);
+    const expectedSidecars = await readContractSidecars(tmpRoot);
+    const actualSidecars = await readContractSidecars(outputRoot);
 
     const problems: string[] = [];
     for (const name of expected.keys()) {
@@ -73,6 +94,14 @@ async function main(): Promise<void> {
     }
     for (const name of actual.keys()) {
       if (!expected.has(name)) problems.push(`${name}: stale item in dist/registry (no authored source)`);
+    }
+    for (const name of expectedSidecars.keys()) {
+      if (actualSidecars.get(name) !== expectedSidecars.get(name)) {
+        problems.push(`${name}: contract.json sidecar differs from the source build`);
+      }
+    }
+    for (const name of actualSidecars.keys()) {
+      if (!expectedSidecars.has(name)) problems.push(`${name}: stale contract.json sidecar in dist/registry`);
     }
 
     if (problems.length > 0) {

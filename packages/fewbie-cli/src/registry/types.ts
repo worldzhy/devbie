@@ -24,6 +24,32 @@ export interface RegistryFileEntry {
   type: RegistryItemType;
 }
 
+/** UI states a module must be able to render, declared in its contract. */
+export type ModuleState = "loading" | "error" | "empty" | "success" | "ready";
+
+/**
+ * Executable module contract (ADR-057). The `types.ts` interface of an item is
+ * the type truth; this object restates the parts the CLI can verify without a
+ * TypeScript build: version, framework range, entry point, and the label,
+ * port, ui and state surfaces the module exposes.
+ */
+export interface ModuleContract {
+  /** Module version, semver. */
+  version: string;
+  /** Compatible framework range, e.g. "^1.7.0". */
+  framework: string;
+  /** Project-relative entry file; must also appear in `files`. */
+  entry: string;
+  /** Label keys the host must supply, unique and non-empty. */
+  labels: string[];
+  /** Port method names the host must implement, unique and non-empty. */
+  ports: string[];
+  /** shadcn/ui primitives the module renders with. */
+  ui: string[];
+  /** States the module implements. */
+  states: ModuleState[];
+}
+
 /** Authored item.json (files are plain path strings). */
 export interface RegistryManifest {
   name: string;
@@ -37,6 +63,8 @@ export interface RegistryManifest {
   files: string[];
   /** Hint printed after installation (manual wiring steps). */
   postInstall?: string;
+  /** Executable contract; validated by the CLI and the registry gate. */
+  contract?: ModuleContract;
 }
 
 /** Built shadcn-compatible registry-item.json. */
@@ -51,4 +79,6 @@ export interface BuiltRegistryItem {
   files: RegistryFileEntry[];
   /** fewbie-specific hint (ignored by the official shadcn CLI). */
   postInstall?: string;
+  /** fewbie-specific contract; also emitted as a `contract.json` sidecar. */
+  "x-fewbie.contract"?: ModuleContract;
 }
