@@ -796,7 +796,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID    | 仓     | 标题                                    | 严重度 | 暴露面 | 可达性   | 状态                                                                                             |
 | ----- | ------ | --------------------------------------- | ------ | ------ | -------- | ------------------------------------------------------------------------------------------------ |
-| R78-01 | devbie | 清单名 `item.json` 不自描述 | P2     | source | 模块作者 | fixed（改名 `fewbie.module.json`；fewbie-modules `8ec5fbc` + devbie `a10a0ce1`；随 1.12.0 发布） |
+| R78-01 | devbie | 清单名 `item.json` 不自描述 | P2     | source | 模块作者 | fixed（改名 `fewbie.module.json`；fewbie-modules `8ec5fbc`、devbie `a10a0ce1`；`@devbie/fewbie-cli@1.12.0` 已发布；宿主 nwf `3cc8a0a`、fewbie-starter `30f9948`） |
 
 ### Round 78 备注
 
