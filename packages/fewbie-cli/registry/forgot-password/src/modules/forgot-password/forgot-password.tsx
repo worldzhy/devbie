@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { checkPasswordPolicy, isStrongPassword } from "@/modules/password-checklist";
 import type { ForgotPasswordLabels, ForgotPasswordProps } from "./types";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE_LENGTH = 6;
 const DEFAULT_RESEND_SECONDS = 60;
-const PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{8,}$/;
 
 function Spinner() {
   return (
@@ -97,12 +97,13 @@ function PasswordChecklist({ password, labels }: { password: string; labels: For
   // Show nothing until the user starts typing, to keep the form calm.
   if (!password) return null;
 
+  const checks = checkPasswordPolicy(password);
   const rules = [
-    { key: "length", label: labels.passwordRuleLength, met: password.length >= 8 },
-    { key: "lowercase", label: labels.passwordRuleLowercase, met: /[a-z]/.test(password) },
-    { key: "uppercase", label: labels.passwordRuleUppercase, met: /[A-Z]/.test(password) },
-    { key: "number", label: labels.passwordRuleNumber, met: /\d/.test(password) },
-    { key: "symbol", label: labels.passwordRuleSymbol, met: /[^\w\s]/.test(password) },
+    { key: "length", label: labels.passwordRuleLength, met: checks.length },
+    { key: "lowercase", label: labels.passwordRuleLowercase, met: checks.lowercase },
+    { key: "uppercase", label: labels.passwordRuleUppercase, met: checks.uppercase },
+    { key: "number", label: labels.passwordRuleNumber, met: checks.number },
+    { key: "symbol", label: labels.passwordRuleSymbol, met: checks.symbol },
   ];
 
   return (
@@ -191,7 +192,7 @@ export function ForgotPasswordPage({
       code: !code ? labels.codeRequired : code.length !== CODE_LENGTH ? labels.codeDigits : undefined,
       newPassword: !newPassword
         ? labels.passwordRequired
-        : PASSWORD_PATTERN.test(newPassword)
+        : isStrongPassword(newPassword)
           ? undefined
           : labels.passwordRule,
     };

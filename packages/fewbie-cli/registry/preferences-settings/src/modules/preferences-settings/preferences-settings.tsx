@@ -161,7 +161,7 @@ export function PreferencesSettings({
 
   // Read the browser zone only inside the click handler: resolving it during
   // render would differ between the server and the browser.
-  function useBrowserTimezone(): void {
+  function fillBrowserTimezone(): void {
     setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
   }
 
@@ -250,7 +250,7 @@ export function PreferencesSettings({
                 {timezonePending ? <Spinner /> : <SaveIcon />}
                 {labels.saveTimezone}
               </Button>
-              <Button type="button" variant="outline" onClick={useBrowserTimezone} disabled={timezonePending}>
+              <Button type="button" variant="outline" onClick={fillBrowserTimezone} disabled={timezonePending}>
                 {labels.useBrowserTimezone}
               </Button>
             </div>

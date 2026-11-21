@@ -4,38 +4,60 @@ import { Check, X } from "lucide-react";
 
 import type { PasswordChecklistLabels, PasswordChecklistProps } from "./types";
 
+/** Rule keys in display order; each is also a field of `PasswordPolicyChecks`. */
+export type PasswordRuleKey = "length" | "lowercase" | "uppercase" | "number" | "symbol";
+
+export type PasswordPolicyChecks = Record<PasswordRuleKey, boolean>;
+
 /**
- * Live password rule checklist. Rules mirror the backend IsStrongPassword
- * validator (validator.isStrongPassword defaults), so what the user sees is
- * exactly what the API enforces.
- *
- * NOTE: this is a manual mirror of the newbie account module's password
- * policy. When the backend strategy changes, update the rules array here.
+ * validator.isStrongPassword's symbol set, copied verbatim from
+ * `validator/lib/isStrongPassword.js`. It includes `_`, space and `£`, and
+ * excludes non-ASCII symbols such as `€` and `§` (R84-01).
  */
-const rules: ReadonlyArray<{
-  key: string;
-  labelKey: keyof PasswordChecklistLabels;
-  test: (password: string) => boolean;
-}> = [
-  { key: "length", labelKey: "ruleLength", test: (password) => password.length >= 8 },
-  { key: "lowercase", labelKey: "ruleLowercase", test: (password) => /[a-z]/.test(password) },
-  { key: "uppercase", labelKey: "ruleUppercase", test: (password) => /[A-Z]/.test(password) },
-  { key: "number", labelKey: "ruleNumber", test: (password) => /\d/.test(password) },
-  { key: "symbol", labelKey: "ruleSymbol", test: (password) => /[^\w\s]/.test(password) },
-];
+const SYMBOL_PATTERN = /^[-#!$@£%^&*()_+|~=`{}\[\]:";'<>?,.\/\\ ]$/;
+
+/**
+ * The backend password policy, mirrored exactly (R84-01): the newbie account
+ * module calls `validator.isStrongPassword` with its default options — at
+ * least 8 UTF-16 code units, one lowercase, one uppercase, one digit and one
+ * symbol from the set above. Keep this in sync with
+ * `newbie-modules/packages/modules/account/helpers/validator.ts`.
+ */
+export function checkPasswordPolicy(password: string): PasswordPolicyChecks {
+  return {
+    length: password.length >= 8,
+    lowercase: /[a-z]/.test(password),
+    uppercase: /[A-Z]/.test(password),
+    number: /[0-9]/.test(password),
+    // validator classifies characters one code point at a time, so emoji and
+    // other surrogate pairs never count as a symbol.
+    symbol: Array.from(password).some((char) => SYMBOL_PATTERN.test(char)),
+  };
+}
 
 export function isStrongPassword(password: string): boolean {
-  return rules.every((rule) => rule.test(password));
+  const checks = checkPasswordPolicy(password);
+  return checks.length && checks.lowercase && checks.uppercase && checks.number && checks.symbol;
 }
+
+const RULES: ReadonlyArray<{ key: PasswordRuleKey; labelKey: keyof PasswordChecklistLabels }> = [
+  { key: "length", labelKey: "ruleLength" },
+  { key: "lowercase", labelKey: "ruleLowercase" },
+  { key: "uppercase", labelKey: "ruleUppercase" },
+  { key: "number", labelKey: "ruleNumber" },
+  { key: "symbol", labelKey: "ruleSymbol" },
+];
 
 export function PasswordChecklist({ labels, password }: PasswordChecklistProps) {
   // Show nothing until the user starts typing, to keep the form calm.
   if (!password) return null;
 
+  const checks = checkPasswordPolicy(password);
+
   return (
     <ul className="space-y-1.5 rounded-md border bg-muted/40 p-3" aria-label={labels.requirements}>
-      {rules.map((rule) => {
-        const met = rule.test(password);
+      {RULES.map((rule) => {
+        const met = checks[rule.key];
         return (
           <li
             key={rule.key}

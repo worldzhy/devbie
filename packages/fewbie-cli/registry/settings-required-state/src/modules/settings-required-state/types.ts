@@ -14,10 +14,14 @@ export interface SettingsRequiredStateProps {
   title: string;
   /** Explanation of which setting is missing and why it is needed. */
   description?: ReactNode;
-  /** Destination of the settings call-to-action, usually the project settings page. */
-  settingsHref: string;
+  /** Destination of the settings call-to-action. Required unless `onAction` is provided. */
+  settingsHref?: string;
   /** Called with settingsHref; the host performs the client-side navigation. */
-  onOpenSettings: (href: string) => void;
+  onOpenSettings?: (href: string) => void;
+  /** In-place action (e.g. one-click initialization); takes precedence over the settings link. */
+  onAction?: () => void;
+  /** Shows a spinner and disables the action while the in-place action runs. */
+  actionPending?: boolean;
   /** Optional custom icon rendered inside the tinted badge. */
   icon?: ReactNode;
   /** Stretch the state to fill the parent height (used by full-screen panels). */

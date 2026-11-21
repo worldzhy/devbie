@@ -11,6 +11,13 @@ import type { SecuritySession, SecuritySettingsProps, SecurityTwoFactorSetup } f
 
 const CODE_LENGTH = 6;
 
+/** SSR-safe date fallback: fixed locale and zone, so both renders agree. */
+const DEFAULT_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "UTC",
+});
+
 function Spinner() {
   return (
     <span
@@ -48,7 +55,7 @@ function ShieldCheckIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-4 w-4 text-green-600"
+      className="h-4 w-4 text-green-600 dark:text-green-500"
     >
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
       <path d="m9 12 2 2 4-4" />
@@ -153,7 +160,10 @@ export function SecuritySettings({
     void loadSessions();
   }
 
-  const formatDate = formatDateTime ?? ((iso: string) => new Date(iso).toLocaleString());
+  // Deterministic fallback: a locale/timezone-sensitive formatter would render
+  // differently on the server and in the browser (R84-10). Hosts pass
+  // `formatDateTime` to localize.
+  const formatDate = formatDateTime ?? ((iso: string) => DEFAULT_DATE_FORMATTER.format(new Date(iso)));
 
   async function handleRevoke(id: number): Promise<void> {
     if (revokingId !== null) return;
@@ -250,7 +260,10 @@ export function SecuritySettings({
                         {[session.browser, session.operatingSystem].filter(Boolean).join(" · ") || labels.unknownDevice}
                       </p>
                       {session.isCurrentSession && (
-                        <Badge variant="outline" className="border-green-200 bg-green-50 text-green-700">
+                        <Badge
+                          variant="outline"
+                          className="border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400"
+                        >
                           {labels.thisDevice}
                         </Badge>
                       )}

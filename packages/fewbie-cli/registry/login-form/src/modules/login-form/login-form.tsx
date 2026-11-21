@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 
 import type { LoginFormProps } from "./types";
 
-export function LoginForm({ labels, redirectPath = "/", onLoggedIn }: LoginFormProps) {
+export function LoginForm({ labels, redirectPath = "/", onLoggedIn, formatError }: LoginFormProps) {
   const [account, setAccount] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +25,7 @@ export function LoginForm({ labels, redirectPath = "/", onLoggedIn }: LoginFormP
       await login({ account, password });
       onLoggedIn(redirectPath);
     } catch (err) {
-      setError(err instanceof Error ? err.message : labels.loginFailed);
+      setError(formatError ? formatError(err) : labels.loginFailed);
     } finally {
       setSubmitting(false);
     }

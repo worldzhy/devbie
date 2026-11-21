@@ -25,7 +25,28 @@ interface DataTableProps<T> {
   /** Number of rows per page. Defaults to 10. */
   pageSize?: number;
   className?: string;
+  /** Host-supplied copy; English defaults keep the component usable as-is. */
+  labels?: Partial<DataTableLabels>;
 }
+
+/** Every string the table renders or announces. */
+export interface DataTableLabels {
+  /** Shown when the current page has no rows. */
+  empty: string;
+  /** Accessible name of the previous-page button. */
+  previousPage: string;
+  /** Accessible name of the next-page button. */
+  nextPage: string;
+  /** Page summary; `from` and `to` are 1-based and inclusive. */
+  range: (from: number, to: number, total: number) => string;
+}
+
+const DEFAULT_LABELS: DataTableLabels = {
+  empty: "No results.",
+  previousPage: "Previous page",
+  nextPage: "Next page",
+  range: (from, to, total) => `${from}–${to} of ${total}`,
+};
 
 type SortDir = "asc" | "desc";
 
@@ -40,7 +61,9 @@ export function DataTable<T extends Record<string, unknown>>({
   data,
   pageSize = 10,
   className,
+  labels,
 }: DataTableProps<T>) {
+  const copy = { ...DEFAULT_LABELS, ...labels };
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(0);
@@ -107,7 +130,7 @@ export function DataTable<T extends Record<string, unknown>>({
             {pageData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                  No results.
+                  {copy.empty}
                 </TableCell>
               </TableRow>
             ) : (
@@ -128,12 +151,13 @@ export function DataTable<T extends Record<string, unknown>>({
       {pageCount > 1 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, sorted.length)} of {sorted.length}
+            {copy.range(safePage * pageSize + 1, Math.min((safePage + 1) * pageSize, sorted.length), sorted.length)}
           </span>
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
+              aria-label={copy.previousPage}
               disabled={safePage === 0}
               onClick={() => setPage((p) => Math.max(0, p - 1))}
             >
@@ -145,6 +169,7 @@ export function DataTable<T extends Record<string, unknown>>({
             <Button
               variant="outline"
               size="sm"
+              aria-label={copy.nextPage}
               disabled={safePage >= pageCount - 1}
               onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
             >

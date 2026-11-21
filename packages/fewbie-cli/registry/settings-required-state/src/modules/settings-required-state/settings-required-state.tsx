@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Settings2 } from "lucide-react";
+import { ArrowRight, LoaderCircle, Settings2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +19,8 @@ export function SettingsRequiredState({
   description,
   settingsHref,
   onOpenSettings,
+  onAction,
+  actionPending = false,
   icon,
   fullHeight = false,
   className,
@@ -36,10 +38,17 @@ export function SettingsRequiredState({
 
           {description ? <p className="mt-2 max-w-md text-sm leading-7 text-muted-foreground">{description}</p> : null}
 
-          <Button className="mt-6" onClick={() => onOpenSettings(settingsHref)}>
-            {labels.actionLabel}
-            <ArrowRight className="size-4" />
-          </Button>
+          {onAction ? (
+            <Button className="mt-6" onClick={onAction} disabled={actionPending}>
+              {actionPending ? <LoaderCircle className="size-4 animate-spin" /> : null}
+              {labels.actionLabel}
+            </Button>
+          ) : settingsHref && onOpenSettings ? (
+            <Button className="mt-6" onClick={() => onOpenSettings(settingsHref)}>
+              {labels.actionLabel}
+              <ArrowRight className="size-4" />
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
     </div>

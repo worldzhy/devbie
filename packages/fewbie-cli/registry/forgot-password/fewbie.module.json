@@ -4,7 +4,7 @@
   "title": "Forgot password page",
   "description": "Page-level password reset block: email and verification code plus a new password with a live strength checklist. Transport and navigation come from the host through props.",
   "dependencies": [],
-  "registryDependencies": [],
+  "registryDependencies": ["password-checklist"],
   "files": [
     "src/modules/forgot-password/index.ts",
     "src/modules/forgot-password/types.ts",

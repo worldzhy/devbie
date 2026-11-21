@@ -18,4 +18,9 @@ export interface LoginFormProps {
   redirectPath?: string;
   /** Called after sign-in succeeds; the host performs the navigation. */
   onLoggedIn: (path: string) => void;
+  /**
+   * Maps a sign-in failure to user-facing copy. Defaults to
+   * `labels.loginFailed` so a host error message never leaks into the form.
+   */
+  formatError?: (error: unknown) => string;
 }

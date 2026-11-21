@@ -11,13 +11,13 @@
     "src/modules/settings-required-state/settings-required-state.tsx"
   ],
   "contract": {
-    "version": "1.0.0",
+    "version": "1.1.0",
     "framework": "^1.7.0",
     "entry": "src/modules/settings-required-state/index.ts",
     "labels": ["actionLabel"],
-    "ports": ["onOpenSettings"],
+    "ports": [],
     "ui": ["button", "card"],
-    "states": ["ready"]
+    "states": ["loading", "ready"]
   },
-  "postInstall": "Render <SettingsRequiredState labels={...} title={...} settingsHref={...} onOpenSettings={...} /> wherever a feature needs its configuration first. The host supplies the translated action label, the in-app settings path and the navigation callback. Requires the shadcn ui primitives button and card."
+  "postInstall": "Render <SettingsRequiredState labels={...} title={...} settingsHref={...} onOpenSettings={...} /> for the navigate-to-settings variant, or pass onAction (plus actionPending) for an in-place action. The host supplies the translated action label, the in-app settings path and either callback. Requires the shadcn ui primitives button and card."
 }
