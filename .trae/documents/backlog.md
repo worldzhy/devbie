@@ -49,6 +49,8 @@
 
 ## 其他
 
+- [ ] `[2026-11-21 fewbie 外部 registry 验证]` **发布 `@devbie/fewbie-cli` 1.7.0 并升级 crewbie pin**：dev `1534e5c5` 已支持 `fewbie.json` 的 `registry: { url, ref }`（按 ref 克隆/热更、写入时保留未知键，含单测），验证仓为 `worldzhy/fewbie-modules`（`login-page` 页级模块）。crewbie-console-frontend 现 pin `@devbie/fewbie-cli@^1.6.3`，该版本写入 `fewbie.json` 会丢掉 `registry` 键。下一步：按 `RELEASE_CHECKLIST.md` 发布 1.7.0，把 crewbie 的 devDependency 与锁文件升到 `^1.7.0`，再跑 `modules apply --check` / `modules update --check`。
+
 - [ ] `[2026-11-12 ADR-044 遗留]` **frontend-monitor 手机号读路径清尾（P3）**：写入链路已删除，`phone` 列恒为空但读侧仍在——DTO 的 `phone` 查询参数、`ilike(phone, …)`（`error.service.ts`）、analysis `$match.phone`、前端错误页「按手机号搜索」输入框与详情页手机号展示。下一步：确认无人依赖后一次性移除，或改为展示层明确标注「已停止采集」。
 
 - [ ] **严格 CSP（nonce 化）**（R23-01 后续，2026-11-08）：`deploy/Caddyfile.tmpl` 已落地基线安全头，但 `script-src/style-src` 仍为 `'unsafe-inline'`（Next.js bootstrap 与 theme 内联脚本所需）。后续方向：proxy.ts（Next 16 proxy 约定）生成 per-request nonce 注入 CSP 头与内联脚本，或 theme 脚本外部化 + Next nonce 支持就绪后收紧为 `script-src 'self' 'nonce-…'`。涉及 newbie-starter（Caddyfile）与 fewbie-starter（layout/proxy 模板）。
