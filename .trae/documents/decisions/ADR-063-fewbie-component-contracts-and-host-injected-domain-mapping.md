@@ -58,3 +58,7 @@
 - 新增 item：`notification-center`、`copilot`，均声明 `contract` 与 `postInstall` 装配说明。
 - `devbie/packages/fewbie-cli/registry` 快照由 `npm run registry:sync -w @devbie/fewbie-cli` 重新生成，禁止手改。
 - 宿主侧适配层属于消费仓改动，按各仓 `AGENTS.md` 的交付流程另行验证；本 ADR 不改变后端同名模块，二者只在协议层对应，不共享代码。
+
+## 更新记录
+
+- 2026-11-22：第 5 节所述 `fewbie-modules/harness/components/ui/*` 现位于 `harness/framework/components/ui/*`；`harness/` 已按框架面与测试工装分层，见 [ADR-064](ADR-064-fewbie-harness-framework-testing-split.md)。
