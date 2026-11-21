@@ -929,8 +929,8 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R83-07 | devbie                         | manifest digest 无密钥，注释声称的抗篡改不成立                           | P2     | source   | 宿主维护者   | fixed e0138740 |
 | R83-08 | devbie                         | `create --template-ref` 未做参数校验                                     | P2     | source   | 宿主维护者   | fixed e0138740 |
 | R83-09 | devbie                         | `create` 把 ENOTDIR/EACCES 当不存在，回滚会删同名用户文件                | P2     | source   | 宿主维护者   | fixed e0138740 |
-| R83-10 | fewbie-modules                 | `next` 被当框架包放行，模块可 import 宿主 router                         | P2     | artifact | 模块作者     | open |
-| R83-11 | fewbie-modules                 | 3 个 `registry:block` 无 contract 且硬编码英文                           | P2     | artifact | 模块作者     | open |
+| R83-10 | fewbie-modules                 | `next` 被当框架包放行，模块可 import 宿主 router                         | P2     | artifact | 模块作者     | fixed dff0134 |
+| R83-11 | fewbie-modules                 | 3 个 `registry:block` 无 contract 且硬编码英文                           | P2     | artifact | 模块作者     | fixed dff0134,1988bc7 |
 | R83-12 | devbie                         | registry 删除 item 会锁死宿主；手改声明的孤儿文件永不清                  | P2     | live     | 宿主维护者   | fixed e0138740 |
 | R83-13 | devbie                         | 删一条 lock 条目即降级 legacy 并并入可写集合                             | P2     | live     | 宿主维护者   | fixed e0138740 |
 | R83-14 | devbie                         | registry 缓存锁不覆盖读取，异 ref 并发可读到错 commit                    | P2     | source   | 宿主维护者   | fixed e0138740 |
@@ -955,4 +955,6 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - R83-18 影响：`date-picker.tsx` 从 `src/components/ui/` 移到 `src/framework/forms/`；nightwatch 已在 d833221 同步 10 处导入并删除旧文件。
 - R83-23 延期：影子实现（`@/components/page-shell` 35 文件、page-header、sidebar-chrome、chart、feedback）的 API 已与 `@/framework` 分叉（`variant` vs `width/inset`），属于整站布局迁移，需独立分支 + 视觉回归；已入 nightwatch backlog，不在本轮 P2 内硬改。
 - R83-24：dev 分支两边 AGENTS.md 均已列 17 项 framework 托管文件；`main` 仍为 7 项，待下一次 dev→main PR 自动带出，无需额外改动。
+- R83-10 修复：`FRAMEWORK_PACKAGES` 删除 `next`；`login-form` 的跳转改由 `onLoggedIn(path)` 宿主回调完成，`settings-required-state` 用 `onOpenSettings(href)` 取代 `next/link`；随之删除仅为其服务的 `harness/next-*` 桩与别名。
+- R83-11 修复：三个 block 迁到 `src/modules/<name>/`（`index.ts` + `types.ts` + 组件），文案全部走 `labels`，补 contract；`password-checklist` 无 host port / 无 shadcn primitive，CLI 契约校验因此允许 `ports`、`ui` 为空数组（`labels`、`states` 仍非空，见 ADR-057 更新记录）。宿主未声明这三个模块，`@/components/password-checklist`、`src/components/settings-required-state/` 是宿主自有影子实现，归 R83-23 处理。
 - 环境限制：宿主 PATH 无 Node；CLI / registry / starter 测试由子代理在 Docker `devbie-work` 内执行（executed），P2 未逐条重跑者标 static。

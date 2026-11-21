@@ -85,3 +85,7 @@
 - registry 作者必须维护 `contract`；新增/改模块要同步 `types.ts` 与 `item.json`，CI 会拦截不一致。
 - 宿主首次 `modules apply` 生成锁文件，此后升级语义由三分法决定，宿主改动不会被静默覆盖。
 - `src/adapters/**` 与 `src/modules/**` 归宿主所有，`template update` 不触碰。
+
+## 更新记录
+
+- 2026-11-22：`contract.ports` 与 `contract.ui` 允许空数组——纯展示 item 可以没有宿主端口、也不依赖任何 shadcn primitive，空列表比虚构一个假端口更诚实；`labels` 与 `states` 仍要求非空。见 findings R83-11。
