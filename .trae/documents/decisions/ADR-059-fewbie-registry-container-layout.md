@@ -55,3 +55,4 @@
 ## 更新记录
 
 - 2026-11-22：item 清单文件名由 `item.json` 改为 `fewbie.module.json`（本文正文中的旧称按此读），容器布局 `packages/modules/<item>/` 不变。见 findings R78-01。
+- 2026-11-22：D1 所述 `harness/` 的根级位置不变，其内部按「框架面 / 测试工装」分层并调整别名，见 [ADR-064](ADR-064-fewbie-harness-framework-testing-split.md)。
