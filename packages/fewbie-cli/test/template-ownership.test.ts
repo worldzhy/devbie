@@ -76,6 +76,8 @@ describe("longest-prefix ownership (ADR-056 D2)", () => {
     assert.equal(resolveTemplateAsset("src/i18n/messages/nightwatch.en.json")?.ownership, "host");
     assert.equal(resolveTemplateAsset("src/app/layout.tsx")?.ownership, "framework");
     assert.equal(resolveTemplateAsset("src/app/page.tsx")?.ownership, "host");
+    assert.equal(resolveTemplateAsset("scripts/check-page-contract.mjs")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("scripts/lib/walk.mjs")?.ownership, "framework");
     assert.equal(resolveTemplateAsset("src/orphan.ts"), null);
   });
 

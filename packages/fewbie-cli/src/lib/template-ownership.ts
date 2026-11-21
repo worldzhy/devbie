@@ -133,6 +133,11 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: "src/framework/**", ownership: "framework" },
   { path: "src/lib/api-client/**", ownership: "framework" },
   {
+    path: "scripts/**",
+    ownership: "framework",
+    note: "gate scripts (page contract, shell, primitives, routes, framework ADR) and their fixtures ship with the template",
+  },
+  {
     path: "src/app/fonts/**",
     ownership: "framework",
     note: "self-hosted font faces keep the first paint and metrics identical across hosts",

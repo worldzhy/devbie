@@ -95,3 +95,10 @@
 - [ ] **api-client 测试未随框架进模板**：`src/lib/api-client/*.test.ts` 基于 vitest + axios-mock-adapter，而 starter 的 `npm test` 是 node:test；为避免模板同时背两套 runner，M2 只复制运行时文件。M3 统一测试栈后再决定回填；M4 迁移时测试留在宿主 `src/tests/api-client/**`（不能用 `src/lib/api-client/**`，该路径是 framework 所有权）。
 - [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
 - [ ] **发布后才能被宿主消费**：M2 的框架代码目前只在本地 `fewbie-starter` 工作树；`@devbie/fewbie-cli` 与模板需按发布清单各发一个 minor，nightwatch 与客户项目才能通过 `template update` 拉到（否则跑的仍是 1.6.2 + 旧模板）。
+
+## ADR-056 M3 遗留（2026-11-21）
+
+- [ ] **`check:template` 需等 CLI 发布**：`fewbie-starter` 的 `check:template` 仍调用已发布 `@devbie/fewbie-cli@1.6.2`，该版本没有 ADR-056 的 framework 所有权表，会把 `src/framework/**`、`src/lib/api-client/**`、`src/app/fonts/**`、`scripts/**` 等 79 个文件报成「未分类」。发布携带 ADR-056 所有权表的 CLI minor 后，同步升 starter 依赖并确认 `check:template` 绿。
+- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。M4 迁移时决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。
+- [ ] **R12 的「版本号/changelog」未自动化**：当前只校验框架路径变更必须带 `.trae/documents/decisions/` 下的 ADR；版本递增仍靠发布清单人工执行。
+- [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发，但 `package.json` 是 host 所有权，`check:structure` / `check:framework-adr` / `check:*` 别名需在 M4 迁移时手工补入宿主脚本。
