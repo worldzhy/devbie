@@ -41,23 +41,22 @@ async function main(): Promise<void> {
   const expected = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-snapshot-"));
 
   try {
-    // A full clone keeps the history the ancestry assertion below needs.
+    // A full clone keeps the history the freshness assertion below needs.
     await execCapture("git", ["clone", "--quiet", SOURCE_URL, checkout]);
     await execCapture("git", ["-C", checkout, "fetch", "--quiet", "origin", SOURCE_REF]);
-    const ancestor = await execCapture("git", [
-      "-C",
-      checkout,
-      "merge-base",
-      "--is-ancestor",
-      meta.commit,
-      `origin/${SOURCE_REF}`,
-    ])
+    // Membership in history is not freshness: the recorded commit stays an
+    // ancestor after the registry advances, so the gate went green on a stale
+    // snapshot (R83-25). Compare trees instead of commit ids: a release merge
+    // that changes no file is not drift, but any content change is.
+    const fresh = await execCapture("git", ["-C", checkout, "diff", "--quiet", meta.commit, `origin/${SOURCE_REF}`])
       .then(() => true)
       .catch(() => false);
-    if (!ancestor) {
+    if (!fresh) {
+      const head = (await execCapture("git", ["-C", checkout, "rev-parse", `origin/${SOURCE_REF}`])).stdout.trim();
       throw new CliError(
-        `${SNAPSHOT_FILE} commit ${meta.commit.slice(0, 7)} is not an ancestor of ${SOURCE_REF}; ` +
-          "the snapshot was not built from the published registry history.",
+        `${SNAPSHOT_FILE} records ${meta.commit.slice(0, 7)} but ${SOURCE_REF} is at ${head.slice(0, 7)} with ` +
+          "different content; the snapshot is stale. " +
+          "Run `npm run registry:sync -w @devbie/fewbie-cli` and commit the result.",
       );
     }
     await execCapture("git", ["-C", checkout, "checkout", "--quiet", "--force", meta.commit]);

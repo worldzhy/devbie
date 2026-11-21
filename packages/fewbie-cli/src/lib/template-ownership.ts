@@ -42,9 +42,11 @@
  * restoring the framework copy. There is deliberately no `--force`.
  *
  * The manifest also carries a digest over its own `files` map (ADR-002 in
- * fewbie-starter). A manifest whose hashes were rewritten by hand no longer
- * verifies, so the CLI refuses it instead of trusting edited hashes; manifests
- * written before the digest existed stay readable and gain one on next update.
+ * fewbie-starter). The digest is an unkeyed sha256, so it catches accidental
+ * hand edits, not a deliberate rewrite: anyone who recomputes it produces a
+ * manifest that verifies. The real tamper gate is the host's CI (R83-07).
+ * Manifests written before the digest existed stay readable and gain one on
+ * next update.
  */
 import { createHash } from "node:crypto";
 
@@ -328,7 +330,7 @@ export interface FrameworkManifest {
   /**
    * sha256 over the canonical `files` map (ADR-002). Absent in manifests written
    * before the field existed; those are accepted and gain a digest when the CLI
-   * next writes one.
+   * next writes one. Unkeyed, so it detects accidental edits only (R83-07).
    */
   digest?: string;
   /** Asset path -> sha256 of the framework copy the host last received. */

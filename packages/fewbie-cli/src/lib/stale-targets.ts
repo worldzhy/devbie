@@ -26,22 +26,34 @@ export interface StaleTarget {
  * Locked targets that no declared module claims any more. Files missing from
  * disk are not reported: there is nothing to clean up. A target claimed by any
  * declared module is live, even when a different module used to own it.
+ *
+ * `declaredNames` covers the case where `items` is a subset (a scoped
+ * `modules update`): lockfile modules outside it are orphans from a declaration
+ * that was edited by hand, and their files would otherwise never be reported
+ * (R83-12). Omitting it treats every lockfile module as declared.
  */
 export async function findStaleTargets(
   projectRoot: string,
   items: ReadonlyArray<{ name: string; targets: readonly string[] }>,
   lockfile: Lockfile | null,
+  declaredNames?: readonly string[],
 ): Promise<StaleTarget[]> {
   if (lockfile === null) return [];
   const live = new Set(items.flatMap((item) => item.targets));
+  const declared = new Set(declaredNames ?? items.map((item) => item.name));
+  const entries = [
+    ...items.map((item) => ({ name: item.name, locked: lockfile.modules[item.name]?.files ?? {} })),
+    ...Object.entries(lockfile.modules)
+      .filter(([name]) => !declared.has(name))
+      .map(([name, entry]) => ({ name, locked: entry.files })),
+  ];
   const stale: StaleTarget[] = [];
-  for (const item of items) {
-    const locked = lockfile.modules[item.name]?.files ?? {};
-    for (const [target, lockedHash] of Object.entries(locked)) {
+  for (const entry of entries) {
+    for (const [target, lockedHash] of Object.entries(entry.locked)) {
       if (live.has(target)) continue;
       const current = await readTextIfExists(path.join(projectRoot, target));
       if (current === null) continue;
-      stale.push({ module: item.name, target, pristine: hashContent(current) === lockedHash });
+      stale.push({ module: entry.name, target, pristine: hashContent(current) === lockedHash });
     }
   }
   return stale;

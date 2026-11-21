@@ -31,9 +31,11 @@ export interface ModulesUpdateOptions {
  * `pristine`: the host still has the installed bytes, the registry moved.
  * `host-modified`: the host edited the file, the registry did not move.
  * `conflict`: both moved — only `--force` may resolve it.
+ * `unlocked`: a lockfile exists but has no baseline for this file, so
+ * ownership cannot be proven; only `--force` may overwrite it (R83-13).
  * `legacy`: the project has no lockfile yet; 1.8 behavior applies.
  */
-type DriftKind = "pristine" | "host-modified" | "conflict" | "legacy";
+type DriftKind = "pristine" | "host-modified" | "conflict" | "unlocked" | "legacy";
 
 interface DriftedFile {
   item: string;
@@ -81,10 +83,12 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   const pristine = drifted.filter((file) => file.kind === "pristine" || file.kind === "legacy");
   const modified = drifted.filter((file) => file.kind === "host-modified");
   const conflicts = drifted.filter((file) => file.kind === "conflict");
+  const unlocked = drifted.filter((file) => file.kind === "unlocked");
   const stale = await findStaleTargets(
     projectRoot,
     selected.map((item) => ({ name: item.manifest.name, targets: item.files.map((file) => file.target) })),
     lockfile,
+    declared,
   );
 
   for (const file of pristine) {
@@ -96,6 +100,9 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     console.info(bold(yellow(`# ${file.item} → ${file.target} (conflict: registry and host both changed)`)));
     process.stdout.write(unifiedDiff(file.current, file.latest, `a/${file.target}`, `b/${file.target}`));
     console.info("");
+  }
+  for (const file of unlocked) {
+    console.info(yellow(`kept ${file.target} (the lockfile has no baseline for it; restore the entry or use --force)`));
   }
   for (const file of modified) {
     console.info(yellow(`kept ${file.target} (modified locally; --force overwrites)`));
@@ -117,6 +124,7 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     if (pristine.length > 0) reasons.push(`${pristine.length} file(s) are behind the registry`);
     if (modified.length > 0) reasons.push(`${modified.length} file(s) were modified locally`);
     if (conflicts.length > 0) reasons.push(`${conflicts.length} file(s) conflict with local changes`);
+    if (unlocked.length > 0) reasons.push(`${unlocked.length} file(s) have no lockfile baseline`);
     const cleanable = stale.filter((file) => file.pristine).length;
     const staleModified = stale.length - cleanable;
     if (cleanable > 0) reasons.push(`${cleanable} obsolete file(s) are no longer shipped by their module`);
@@ -149,7 +157,7 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
     return;
   }
 
-  const writable = [...pristine, ...(options.force ? [...modified, ...conflicts] : [])];
+  const writable = [...pristine, ...(options.force ? [...modified, ...conflicts, ...unlocked] : [])];
   if (writable.length === 0 && obsolete.length === 0) {
     console.info(yellow("Nothing to write: every drifted file is host-owned or conflicting (use --force)."));
     return;
@@ -186,15 +194,21 @@ function classify(
   latest: string,
   lockfile: Lockfile | null,
 ): DriftKind {
-  const lockedHash = lockfile?.modules[item.manifest.name]?.files[target];
-  if (lockedHash === undefined) return "legacy";
+  // A missing lockfile is the documented legacy path; a missing entry in an
+  // existing lockfile is not. Treating it as legacy let one deleted line make
+  // any host-modified file auto-writable without --force (R83-13).
+  if (lockfile === null) return "legacy";
+  const lockedHash = lockfile.modules[item.manifest.name]?.files[target];
+  if (lockedHash === undefined) return "unlocked";
   if (hashContent(current) === lockedHash) return "pristine";
   if (hashContent(latest) === lockedHash) return "host-modified";
   return "conflict";
 }
 
 function describe(kind: DriftKind): string {
-  return kind === "legacy" ? "no lockfile baseline" : "registry moved";
+  if (kind === "legacy") return "no lockfile baseline";
+  if (kind === "unlocked") return "no lockfile baseline for this file";
+  return "registry moved";
 }
 
 /** Refresh the lockfile baseline for every file this run wrote. */

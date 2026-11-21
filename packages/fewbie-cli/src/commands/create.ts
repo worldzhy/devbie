@@ -5,6 +5,7 @@ import { bold, cyan, green } from "colorette";
 
 import { CliError, execCapture } from "@devbie/cli-kit";
 import { MODULES_FILE, modulesFileContent } from "../lib/modules-file";
+import { assertSafeRef } from "../registry/source";
 import { recordFrameworkBaseline } from "./template/update";
 
 /** Repository that ships the starter template at its root. */
@@ -60,6 +61,7 @@ export async function resolveTemplate(
   }
 
   const ref = options.templateRef;
+  if (ref !== undefined) assertSafeRef(ref);
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-template-"));
   // `git clone --branch` accepts only branches and tags, so a commit SHA in
   // --template-ref failed. Clone the default branch shallow, then fetch the
@@ -98,7 +100,17 @@ export async function runCreate(options: CreateOptions): Promise<void> {
   }
 
   const targetDir = path.resolve(options.cwd ?? process.cwd(), name);
-  const existing = await fs.readdir(targetDir).catch(() => null);
+  // Only ENOENT means "absent". Treating ENOTDIR/EACCES as absent would create
+  // into a path that is not a directory, and the failure rollback below deletes
+  // `targetDir` recursively — i.e. a user file with that name (R83-09).
+  let existing: string[] | null = null;
+  try {
+    existing = await fs.readdir(targetDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new CliError(`Cannot inspect target directory ${targetDir}: ${(error as Error).message}`);
+    }
+  }
   if (existing && existing.length > 0) {
     throw new CliError(`Target directory ${targetDir} is not empty.`);
   }

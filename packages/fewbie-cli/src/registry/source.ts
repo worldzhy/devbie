@@ -5,7 +5,7 @@ import path from "node:path";
 
 import { CliError, execCapture, pathExists } from "@devbie/cli-kit";
 import { readRegistryDeclaration } from "../lib/modules-file";
-import { registryCommit } from "../lib/git-commit";
+import { registryCommit, LOCAL_REGISTRY_COMMIT } from "../lib/git-commit";
 import { REGISTRY_MANIFEST_FILE } from "./types";
 
 /** Local registry checkout, overriding any declaration (development override). */
@@ -60,9 +60,10 @@ function expectedRegistryShape(): string {
 /**
  * Reject refs that could be read as git options or that smuggle whitespace:
  * `execCapture` already avoids a shell, but an argument such as `--upload-pack`
- * would still change git's behavior.
+ * would still change git's behavior. Shared with `create --template-ref`, which
+ * passes its ref to `git fetch` the same way (R83-08).
  */
-function assertSafeRef(ref: string): void {
+export function assertSafeRef(ref: string): void {
   if (ref.startsWith("-") || /\s/.test(ref)) {
     throw new CliError(`Invalid registry ref '${ref}': pass a branch, tag or commit without whitespace.`);
   }
@@ -116,16 +117,43 @@ async function withCacheLock<T>(cacheDir: string, run: () => Promise<T>): Promis
 }
 
 /**
+ * Freeze the checked-out items of one commit so reads cannot race a concurrent
+ * fetch/checkout of the shared cache (R83-14). A snapshot is materialized once
+ * per commit and never rewritten; `unknown` commits (git unavailable) keep the
+ * old behavior because there is no stable name to key on.
+ */
+async function materializeSnapshot(cacheDir: string, itemsDir: string, commit: string): Promise<string> {
+  if (commit === "unknown") return itemsDir;
+  const base = `${cacheDir}.snapshots`;
+  const target = path.join(base, commit);
+  if (await pathExists(target)) return target;
+  await fs.mkdir(base, { recursive: true });
+  const temp = `${target}.tmp-${process.pid}`;
+  await fs.rm(temp, { recursive: true, force: true });
+  await fs.cp(itemsDir, temp, { recursive: true });
+  try {
+    await fs.rename(temp, target);
+  } catch (error) {
+    await fs.rm(temp, { recursive: true, force: true });
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code !== "EEXIST" && code !== "ENOTEMPTY") throw error;
+  }
+  return target;
+}
+
+/**
  * Materialize a registry repository at `ref` into a per-URL cache directory.
  * A fresh clone is shallow; later runs fetch and hard-checkout the ref so the
- * working tree always matches the declared revision.
+ * working tree always matches the declared revision. The returned items come
+ * from a per-commit snapshot taken inside the lock, so they stay stable while
+ * another process checks out a different ref (R83-14).
  */
-async function syncGitRegistry(url: string, ref: string | undefined): Promise<string> {
+async function syncGitRegistry(url: string, ref: string | undefined): Promise<RegistryContext> {
   if (ref) assertSafeRef(ref);
   const cacheDir = registryCacheDir(url);
 
   try {
-    await withCacheLock(cacheDir, async () => {
+    return await withCacheLock(cacheDir, async () => {
       if (!(await pathExists(path.join(cacheDir, ".git")))) {
         if (await pathExists(cacheDir)) await fs.rm(cacheDir, { recursive: true, force: true });
         await execCapture("git", ["clone", "--quiet", "--depth", "1", url, cacheDir]);
@@ -134,27 +162,27 @@ async function syncGitRegistry(url: string, ref: string | undefined): Promise<st
       const revision = ref ?? "HEAD";
       await execCapture("git", ["-C", cacheDir, "fetch", "--quiet", "--depth", "1", "origin", revision]);
       await execCapture("git", ["-C", cacheDir, "checkout", "--quiet", "--force", "FETCH_HEAD"]);
+
+      const itemsDir = await locateItemsDir(cacheDir);
+      if (itemsDir === null) {
+        throw new CliError(
+          `Registry ${url}${ref ? `#${ref}` : ""} has no items (expected ${expectedRegistryShape()}).`,
+        );
+      }
+      const { stdout } = await execCapture("git", ["-C", cacheDir, "rev-parse", "HEAD"]);
+      const commit = stdout.trim() || "unknown";
+      return { root: await materializeSnapshot(cacheDir, itemsDir, commit), commit };
     });
   } catch (error) {
+    // A registry-shaped or missing-items error already names the problem;
+    // only git failures need the fetch context.
+    if (error instanceof CliError) throw error;
     throw new CliError(`Failed to fetch registry ${url}${ref ? `#${ref}` : ""}: ${(error as Error).message}`);
   }
-
-  const itemsDir = await locateItemsDir(cacheDir);
-  if (itemsDir === null) {
-    throw new CliError(`Registry ${url}${ref ? `#${ref}` : ""} has no items (expected ${expectedRegistryShape()}).`);
-  }
-  return itemsDir;
 }
 
-/**
- * Locate the registry root.
- *
- * - `FEWBIE_REGISTRY_PATH` points at a local checkout and wins over everything.
- * - A project's `fewbie.json` `registry` declaration is cloned and checked out.
- * - Published package: built manifests live in dist/registry.
- * - Monorepo checkout / tsx runs: fall back to the authored registry/ folder.
- */
-export async function resolveRegistryRoot(projectRoot?: string): Promise<string> {
+/** Registry root plus the revision its files came from (ADR-057 D4). */
+async function resolveRegistry(projectRoot?: string): Promise<RegistryContext> {
   const override = process.env[REGISTRY_PATH_ENV];
   if (override) {
     const candidate = path.resolve(override);
@@ -162,7 +190,7 @@ export async function resolveRegistryRoot(projectRoot?: string): Promise<string>
     if (itemsDir === null) {
       throw new CliError(`${REGISTRY_PATH_ENV} '${candidate}' is not a registry root (no ${expectedRegistryShape()}).`);
     }
-    return itemsDir;
+    return { root: itemsDir, commit: LOCAL_REGISTRY_COMMIT };
   }
 
   if (projectRoot) {
@@ -176,10 +204,22 @@ export async function resolveRegistryRoot(projectRoot?: string): Promise<string>
   ];
   for (const candidate of candidates) {
     if (await isRegistryRoot(candidate)) {
-      return candidate;
+      return { root: candidate, commit: await registryCommit(candidate, false) };
     }
   }
   throw new CliError("Registry not found (expected dist/registry or registry/).");
+}
+
+/**
+ * Locate the registry root.
+ *
+ * - `FEWBIE_REGISTRY_PATH` points at a local checkout and wins over everything.
+ * - A project's `fewbie.json` `registry` declaration is cloned and checked out.
+ * - Published package: built manifests live in dist/registry.
+ * - Monorepo checkout / tsx runs: fall back to the authored registry/ folder.
+ */
+export async function resolveRegistryRoot(projectRoot?: string): Promise<string> {
+  return (await resolveRegistry(projectRoot)).root;
 }
 
 /** Registry root plus the revision the lockfile should record (ADR-057 D4). */
@@ -191,6 +231,5 @@ export interface RegistryContext {
 
 /** Resolve the registry root and the commit its files came from. */
 export async function resolveRegistryContext(projectRoot?: string): Promise<RegistryContext> {
-  const root = await resolveRegistryRoot(projectRoot);
-  return { root, commit: await registryCommit(root, Boolean(process.env[REGISTRY_PATH_ENV])) };
+  return resolveRegistry(projectRoot);
 }

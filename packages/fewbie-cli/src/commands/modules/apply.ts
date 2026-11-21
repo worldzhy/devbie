@@ -2,7 +2,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { LoadedItem, listRegistryItemNames, readItemFileContent, resolveInstallSet } from "../../registry/store";
+import {
+  LoadedItem,
+  listRegistryItemNames,
+  loadItem,
+  readItemFileContent,
+  resolveInstallSet,
+} from "../../registry/store";
 import { resolveRegistryContext, resolveRegistryRoot, RegistryContext } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
@@ -143,6 +149,20 @@ export interface ApplySelectionResult {
 }
 
 /**
+ * Load the previously declared set. An item the registry has since deleted
+ * cannot be resolved, but its installed files still need cleanup; skipping the
+ * name here lets the pass below clean them from the lockfile (R83-12).
+ */
+async function loadDeclaredItems(root: string, names: readonly string[]): Promise<LoadedItem[]> {
+  const available = new Set(await listRegistryItemNames(root));
+  const items: LoadedItem[] = [];
+  for (const name of names) {
+    if (available.has(name)) items.push(await loadItem(root, name));
+  }
+  return items;
+}
+
+/**
  * Converge a project to a declared module set (ADR-024 clause 10: the
  * declaration file is the only automation entry point).
  *
@@ -156,7 +176,9 @@ export interface ApplySelectionResult {
 export async function applyModuleSelection(options: ApplySelectionOptions): Promise<ApplySelectionResult> {
   const { projectRoot, dryRun } = options;
   const context = await resolveRegistryContext(projectRoot);
-  const currentItems = await resolveInstallSet(context.root, options.current);
+  // Removal must keep working after the item leaves the registry: resolve what
+  // is still there and let the lockfile drive the rest (R83-12).
+  const currentItems = await loadDeclaredItems(context.root, options.current);
   const nextItems = await resolveInstallSet(context.root, options.next);
   const lockfile = await readLockfile(projectRoot);
 
@@ -218,6 +240,23 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
     }
   }
 
+  // A module the registry no longer ships cannot be resolved above, so its
+  // files come from the lockfile; only the recorded hash can prove a copy is
+  // untouched (R83-12).
+  const resolvedNames = new Set(currentItems.map((item) => item.manifest.name));
+  for (const name of options.current) {
+    if (nextClosure.includes(name) || resolvedNames.has(name)) continue;
+    const entry = lockfile?.modules[name];
+    if (!entry) continue;
+    for (const [target, lockedHash] of Object.entries(entry.files)) {
+      if (nextTargets.has(target) || deletions.includes(target)) continue;
+      const current = await readTextIfExists(path.join(projectRoot, target));
+      if (current === null) continue;
+      if (hashContent(current) === lockedHash) deletions.push(target);
+      else kept.push(target);
+    }
+  }
+
   // A registry rename or deletion leaves the old target behind even though its
   // module is still declared; the manifest no longer names it, so the loops
   // above never see it (R82-08).
@@ -227,6 +266,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
     lockfile,
   );
   for (const file of staleTargets) {
+    if (deletions.includes(file.target) || kept.includes(file.target)) continue;
     if (file.pristine) deletions.push(file.target);
     else kept.push(file.target);
   }

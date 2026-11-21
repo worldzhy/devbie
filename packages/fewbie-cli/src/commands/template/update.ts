@@ -80,6 +80,23 @@ function filterAssets(paths: string[] | undefined): readonly TemplateAsset[] {
 }
 
 /**
+ * Narrow expanded assets to the concrete paths the user asked for (R83-06).
+ * A filter such as `src/components/ui/button.tsx` selects that glob entry, but
+ * expanding `src/components/ui/**` would otherwise act on every sibling: the
+ * command reports one file and writes many.
+ */
+function filterExpandedAssets(assets: readonly TemplateAsset[], paths: string[] | undefined): readonly TemplateAsset[] {
+  if (!paths || paths.length === 0) return assets;
+  return assets.filter((asset) =>
+    paths.some((filter) => {
+      const normalized = filter.replace(/^\.\//, "").replace(/\/+$/, "");
+      if (normalized === "") return true;
+      return asset.path === normalized || asset.path.startsWith(`${normalized}/`);
+    }),
+  );
+}
+
+/**
  * Every file a registry item owns. Template update must never manage one of
  * these (ADR-025 clause 4); an overlap is a classification defect.
  */
@@ -421,7 +438,7 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
     }
 
     const templateFileList = await listTemplateFiles(template.root);
-    const syncAssets = expandGlobAssets(assets, templateFileList);
+    const syncAssets = filterExpandedAssets(expandGlobAssets(assets, templateFileList), options.paths);
     const projectFiles = new Map<string, string | Buffer | null>();
     const templateFiles = new Map<string, string | Buffer | null>();
     for (const asset of syncAssets) {
@@ -489,13 +506,28 @@ export async function runTemplateUpdate(options: TemplateUpdateOptions): Promise
 
     if (options.check) {
       const command = scope ? `fewbie template update ${scope}` : "fewbie template update";
-      const conflicts = changes.filter((change) => change.kind === "modified-framework").length;
-      const resolution =
-        conflicts > 0
-          ? `${conflicts} modified-framework conflict(s) must be resolved by hand (no --force).`
-          : `Run \`${command}\` to apply the template version.`;
+      // Only create/update are auto-fixable. Telling a red CI to "run update"
+      // for a missing marker pair or a scaffold that lost its entry point would
+      // loop: the apply run warns, writes nothing and exits 0 (R83-05).
+      const countOf = (kind: TemplateChange["kind"]): number => changes.filter((change) => change.kind === kind).length;
+      const manual: string[] = [];
+      const conflicts = countOf("modified-framework");
+      if (conflicts > 0) {
+        manual.push(`${conflicts} modified-framework conflict(s) must be resolved by hand (no --force).`);
+      }
+      const missingMarkers = countOf("missing-markers");
+      if (missingMarkers > 0) {
+        manual.push(`${missingMarkers} file(s) lost the framework marker pair; restore it by hand.`);
+      }
+      const scaffoldOutdated = countOf("scaffold-outdated");
+      if (scaffoldOutdated > 0) {
+        manual.push(`${scaffoldOutdated} scaffold file(s) lost the required framework snippet; add it by hand.`);
+      }
+      const apply =
+        actionable.length > 0 ? `Run \`${command}\` to apply the ${actionable.length} auto-fixable file(s).` : "";
+      const resolution = [apply, ...manual].filter((part) => part !== "").join(" ");
       throw new CliError(
-        `${changes.length} template file(s) drift from the template (${actionable.length} auto-fixable). ` + resolution,
+        `${changes.length} template file(s) drift from the template (${actionable.length} auto-fixable). ${resolution}`,
       );
     }
 

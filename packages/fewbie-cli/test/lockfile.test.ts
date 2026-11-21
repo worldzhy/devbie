@@ -243,6 +243,80 @@ test("apply removes a pristine target the registry renamed away (R82-08)", async
   }
 });
 
+test("remove still cleans up an item the registry has deleted (R83-12)", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    // The registry dropped the item before the host ran `modules remove`, so
+    // resolving the old declaration set would throw (R83-12). Another item
+    // keeps the registry root recognizable after the deletion.
+    await fs.mkdir(path.join(fixture.registry, "keep"), { recursive: true });
+    await fs.writeFile(
+      path.join(fixture.registry, "keep", REGISTRY_MANIFEST_FILE),
+      JSON.stringify({ name: "keep", type: "registry:block", title: "Keep", files: ["src/keep.ts"] }),
+    );
+    await fs.mkdir(path.join(fixture.registry, "keep", "src"), { recursive: true });
+    await fs.writeFile(path.join(fixture.registry, "keep", "src/keep.ts"), "export {};\n");
+    await fs.rm(path.join(fixture.registry, "fixture"), { recursive: true, force: true });
+    await fs.writeFile(path.join(fixture.project, "fewbie.json"), `${JSON.stringify({ modules: [] }, null, 2)}\n`);
+
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: ["fixture"], next: [], skipInstall: true }),
+    );
+
+    await assert.rejects(fs.access(fixture.target));
+    const lock = await readLockfile(fixture.project);
+    assert.deepEqual(Object.keys(lock!.modules), []);
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("update cleans up files whose module left the declaration by hand (R83-12)", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    // Hand-edited declaration: no `modules remove` ran, so apply never saw the
+    // removal; the lockfile is the only record that the file was installed.
+    await fs.writeFile(path.join(fixture.project, "fewbie.json"), `${JSON.stringify({ modules: [] }, null, 2)}\n`);
+
+    await quiet(() => runUpdate({ cwd: fixture.project, yes: true }));
+
+    await assert.rejects(fs.access(fixture.target));
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("update fails closed when a declared file has no lockfile baseline (R83-13)", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    const latest = "export const fixture = 9;\n";
+    await fs.writeFile(path.join(fixture.registry, "fixture", TARGET), latest);
+    // Deleting one lockfile line used to downgrade the file to legacy, which is
+    // auto-writable; a corrupt baseline must not silently overwrite the host.
+    const lock = JSON.parse(await fs.readFile(path.join(fixture.project, "fewbie.lock.json"), "utf8"));
+    delete lock.modules.fixture.files[TARGET];
+    await fs.writeFile(path.join(fixture.project, "fewbie.lock.json"), JSON.stringify(lock));
+
+    await assert.rejects(
+      quiet(() => runUpdate({ cwd: fixture.project, check: true })),
+      /no lockfile baseline/,
+    );
+    await quiet(() => runUpdate({ cwd: fixture.project, yes: true }));
+    assert.equal(await fs.readFile(fixture.target, "utf8"), ORIGINAL);
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("update rejects a lockfile entry whose files field is not a hash map (R82-06)", async () => {
   const fixture = await setup();
   try {

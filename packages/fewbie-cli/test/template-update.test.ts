@@ -466,4 +466,54 @@ describe("fewbie template update", () => {
     await assert.rejects(runTemplateUpdate({ cwd: project, templatePath: template }), /not valid UTF-8/);
     await assert.rejects(fs.readFile(path.join(project, "src/lib/utils.ts")));
   });
+
+  it("points --check at manual fixes for missing markers and scaffold regressions (R83-05)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    // Neither kind is auto-fixable: update warns and writes nothing, so the
+    // remediation must say "by hand" instead of "run update" (R83-05).
+    await writeFile(project, "src/app/globals.css", ":root { --host: 42; }\n");
+    await writeFile(project, "next.config.ts", "export default {};\n");
+
+    await assert.rejects(runTemplateUpdate({ cwd: project, check: true, templatePath: template }), (error: Error) => {
+      assert.match(error.message, /lost the framework marker pair; restore it by hand/);
+      assert.match(error.message, /lost the required framework snippet; add it by hand/);
+      return true;
+    });
+  });
+
+  it("applies a concrete file filter without touching glob siblings (R83-06)", async () => {
+    const project = await makeProject();
+    const template = await makeTemplate();
+    after(async () => {
+      await fs.rm(project, { recursive: true, force: true });
+      await fs.rm(template, { recursive: true, force: true });
+    });
+    await writeFile(template, "src/components/ui/button.tsx", "export const Button = () => null;\n");
+    await writeFile(template, "src/components/ui/card.tsx", "export const Card = () => null;\n");
+    await writeTemplateBaseline(template);
+
+    await runTemplateUpdate({
+      cwd: project,
+      templatePath: template,
+      paths: ["src/components/ui/button.tsx"],
+    });
+
+    assert.equal(
+      await fs.readFile(path.join(project, "src/components/ui/button.tsx"), "utf8"),
+      "export const Button = () => null;\n",
+    );
+    await assert.rejects(fs.readFile(path.join(project, "src/components/ui/card.tsx")));
+    // The sibling cannot make the filtered check red either.
+    await runTemplateUpdate({
+      cwd: project,
+      check: true,
+      templatePath: template,
+      paths: ["src/components/ui/button.tsx"],
+    });
+  });
 });
