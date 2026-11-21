@@ -19,6 +19,7 @@ import {
   replaceMarkerBlock,
   resolveTemplateAsset,
   serializeFrameworkManifest,
+  SYNCABLE_ASSETS,
   TEMPLATE_ASSETS,
   TemplateAsset,
 } from "../src/lib/template-ownership";
@@ -377,6 +378,55 @@ describe("scaffold assets (ADR-035)", () => {
       [scaffoldAsset],
     );
     assert.deepEqual(changes, []);
+  });
+});
+
+describe("host extension point (ADR-056 D5)", () => {
+  const HOST_PROVIDERS_PATH = "src/app/host-providers.tsx";
+  const TEMPLATE_HOST_PROVIDERS =
+    "export function HostProviders({ children }: { children: React.ReactNode }) {\n  return <>{children}</>;\n}\n";
+  const hostProviders = TEMPLATE_ASSETS.find((asset) => asset.path === HOST_PROVIDERS_PATH) as TemplateAsset;
+
+  it("is a scaffold asset the framework layout can rely on", () => {
+    // The framework-owned layout imports this file, so update must create it for
+    // a host that predates the extension point instead of leaving the build broken.
+    assert.equal(hostProviders?.ownership, "scaffold");
+    assert.equal(hostProviders.requiredSnippet, "HostProviders");
+    assert.ok(SYNCABLE_ASSETS.includes(hostProviders));
+  });
+
+  it("creates the extension point for a host that does not have it", () => {
+    const changes = planTemplateUpdate(
+      new Map([[HOST_PROVIDERS_PATH, null]]),
+      new Map([[HOST_PROVIDERS_PATH, TEMPLATE_HOST_PROVIDERS]]),
+      [hostProviders],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "create");
+    assert.equal(changes[0].nextContent, TEMPLATE_HOST_PROVIDERS);
+  });
+
+  it("keeps the host's own providers without rewriting them", () => {
+    const host =
+      "export function HostProviders({ children }: { children: React.ReactNode }) {\n" +
+      "  return <QueryClientProvider>{children}</QueryClientProvider>;\n}\n";
+    const changes = planTemplateUpdate(
+      new Map([[HOST_PROVIDERS_PATH, host]]),
+      new Map([[HOST_PROVIDERS_PATH, TEMPLATE_HOST_PROVIDERS]]),
+      [hostProviders],
+    );
+    assert.deepEqual(changes, []);
+  });
+
+  it("reports a copy that no longer exports the component the layout imports", () => {
+    const changes = planTemplateUpdate(
+      new Map([[HOST_PROVIDERS_PATH, "export function Providers() { return null; }\n"]]),
+      new Map([[HOST_PROVIDERS_PATH, TEMPLATE_HOST_PROVIDERS]]),
+      [hostProviders],
+    );
+    assert.equal(changes.length, 1);
+    assert.equal(changes[0].kind, "scaffold-outdated");
+    assert.equal(changes[0].nextContent, null);
   });
 });
 

@@ -91,6 +91,15 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
     requiredSnippet: 'from "./next.config.framework"',
     note: "host config calls withFewbie(); defaults and invariants live in next.config.framework.ts",
   },
+  {
+    // The framework-owned layout imports this extension point (ADR-056 D5), so
+    // an existing host without it would fail to build after update. Created
+    // when missing, then owned by the host; an adopted copy is never rewritten.
+    path: "src/app/host-providers.tsx",
+    ownership: "scaffold",
+    requiredSnippet: "HostProviders",
+    note: "providers the framework layout wraps the tree in; created when missing, never rewritten once adopted",
+  },
 
   // Framework-owned: the template version wins.
   { path: "next.config.framework.ts", ownership: "framework" },
@@ -169,7 +178,6 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   // skip (see the file header).
   { path: ".trae/**", ownership: "host", note: "workspace ledger and skill mount; symlinks are never copied" },
   { path: "src/app/page.tsx", ownership: "host" },
-  { path: "src/app/host-providers.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
   { path: "src/components/**", ownership: "host" },
   { path: "src/i18n/**", ownership: "host" },
