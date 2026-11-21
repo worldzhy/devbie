@@ -104,3 +104,8 @@
 - [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。M4 迁移时决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。
 - [ ] **R12 的「版本号/changelog」未自动化**：当前只校验框架路径变更必须带 `.trae/documents/decisions/` 下的 ADR；版本递增仍靠发布清单人工执行。
 - [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发，但 `package.json` 是 host 所有权，`check:structure` / `check:framework-adr` / `check:*` 别名需在 M4 迁移时手工补入宿主脚本。
+
+## fewbie 终极状态落地（2026-11-21）
+
+- [ ] **crewbie-console-frontend 的 `@devbie/fewbie-cli` pin 待升级**：该宿主不在当前工作区，1.7.0 发布后其 `package.json` / 锁文件仍指向旧版本；工作区可用时升到 `^1.7.0` 并跑 `modules apply --check` / `modules update --check`。
+- [ ] **fewbie-starter 的 `check:template-deps` 需等 dev→main**：模板锁文件已在 dev 更新到 1.7.0，但校验脚本克隆默认分支，合并前仍会报陈旧。
