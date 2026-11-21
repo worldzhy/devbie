@@ -112,7 +112,7 @@ error Registry item 'preferences-settings' not found.
 
 ## 6. 误报剔除
 
-驳回轮对 R74-01 的三条子主张均 CONFIRMED。复核阶段自行撤销 1 条：R74-04（backlog 约定）属跨仓规则误记，`fewbie-modules/AGENTS.md` 无此约定。
+反驳轮对 R74-01 的三条子主张均 CONFIRMED。复核阶段自行撤销 1 条：R74-04（backlog 约定）属跨仓规则误记，`fewbie-modules/AGENTS.md` 无此约定。
 
 ## 7. 已核验通过的不变量
 
