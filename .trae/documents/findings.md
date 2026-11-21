@@ -924,16 +924,16 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R83-02 | devbie                         | framework 二进制资产走 UTF-8 文本通道，字体更新会写入损坏内容            | P1     | template | 宿主维护者   | fixed bf40890f |
 | R83-03 | nightwatch-frontend            | 托管树落后模板 12 项，门禁必红且含认证/日期缺陷                          | P1     | host     | 任意宿主用户 | fixed b0a44a9 |
 | R83-04 | devbie                         | npm latest 1.12.0 不含 ADR-060 与 R82 修复，`^1.12.0` 拿到旧语义          | P1     | artifact | 所有宿主     | fixed 6ffff873 |
-| R83-05 | devbie                         | `--check` 的补救指令对缺 marker / 脚手架过期不可达（R82-05 残留）        | P2     | live     | 宿主维护者   | open |
-| R83-06 | devbie                         | 路径过滤对 glob 资产失效，指定单文件会改整个目录                         | P2     | live     | 宿主维护者   | open |
-| R83-07 | devbie                         | manifest digest 无密钥，注释声称的抗篡改不成立                           | P2     | source   | 宿主维护者   | open |
-| R83-08 | devbie                         | `create --template-ref` 未做参数校验                                     | P2     | source   | 宿主维护者   | open |
-| R83-09 | devbie                         | `create` 把 ENOTDIR/EACCES 当不存在，回滚会删同名用户文件                | P2     | source   | 宿主维护者   | open |
+| R83-05 | devbie                         | `--check` 的补救指令对缺 marker / 脚手架过期不可达（R82-05 残留）        | P2     | live     | 宿主维护者   | fixed e0138740 |
+| R83-06 | devbie                         | 路径过滤对 glob 资产失效，指定单文件会改整个目录                         | P2     | live     | 宿主维护者   | fixed e0138740 |
+| R83-07 | devbie                         | manifest digest 无密钥，注释声称的抗篡改不成立                           | P2     | source   | 宿主维护者   | fixed e0138740 |
+| R83-08 | devbie                         | `create --template-ref` 未做参数校验                                     | P2     | source   | 宿主维护者   | fixed e0138740 |
+| R83-09 | devbie                         | `create` 把 ENOTDIR/EACCES 当不存在，回滚会删同名用户文件                | P2     | source   | 宿主维护者   | fixed e0138740 |
 | R83-10 | fewbie-modules                 | `next` 被当框架包放行，模块可 import 宿主 router                         | P2     | artifact | 模块作者     | open |
 | R83-11 | fewbie-modules                 | 3 个 `registry:block` 无 contract 且硬编码英文                           | P2     | artifact | 模块作者     | open |
-| R83-12 | devbie                         | registry 删除 item 会锁死宿主；手改声明的孤儿文件永不清                  | P2     | live     | 宿主维护者   | open |
-| R83-13 | devbie                         | 删一条 lock 条目即降级 legacy 并并入可写集合                             | P2     | live     | 宿主维护者   | open |
-| R83-14 | devbie                         | registry 缓存锁不覆盖读取，异 ref 并发可读到错 commit                    | P2     | source   | 宿主维护者   | open |
+| R83-12 | devbie                         | registry 删除 item 会锁死宿主；手改声明的孤儿文件永不清                  | P2     | live     | 宿主维护者   | fixed e0138740 |
+| R83-13 | devbie                         | 删一条 lock 条目即降级 legacy 并并入可写集合                             | P2     | live     | 宿主维护者   | fixed e0138740 |
+| R83-14 | devbie                         | registry 缓存锁不覆盖读取，异 ref 并发可读到错 commit                    | P2     | source   | 宿主维护者   | fixed e0138740 |
 | R83-15 | fewbie-starter                 | R3/R6 对任意值与未定义 token 全部放行                                    | P2     | template | 模板使用者   | open |
 | R83-16 | fewbie-starter                 | R1/R5 仍有影子通过路径（嵌套 PageShell、仅 import SidebarShell）         | P2     | template | 模板使用者   | open |
 | R83-17 | fewbie-starter                 | 模块边界未覆盖 `@/components/*`                                          | P2     | template | 模板使用者   | open |
@@ -944,7 +944,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R83-22 | fewbie-starter                 | 图表 aria-label 硬编码英文                                               | P2     | template | 非英文用户   | open |
 | R83-23 | nightwatch-frontend            | page/shell/chart/feedback 仍用影子第二实现                               | P2     | host     | 宿主维护者   | open |
 | R83-24 | nightwatch-frontend + starter  | `AGENTS.md` 托管清单落后（host 7 项；starter main 7 项 / dev 17 项）     | P2     | docs     | 两仓 agent   | open |
-| R83-25 | devbie                         | 快照门禁只验祖先，不要求与 registry main 同步                            | P2     | ops      | 维护者       | open |
+| R83-25 | devbie                         | 快照门禁只验祖先，不要求与 registry main 同步                            | P2     | ops      | 维护者       | fixed e0138740 |
 
 ### Round 83 备注
 
