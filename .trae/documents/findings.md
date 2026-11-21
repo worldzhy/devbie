@@ -806,3 +806,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 修正关系：R76-01 的 withdrawn 状态保留，但其"命名恰当"结论被本轮 C1 推翻；"无需命名空间前缀"部分维持（清单不进入宿主，前缀无收益）。
 - 无 P0/P1，未启动反驳轮。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round78.md`。
+
+## Round 79
+
+判决对象：fewbie 的 i18n 是否应该拆到各个 registry module 内部（claim scope，只读）。
+
+判定摘要：**拆分成立但只到「键与接线」层**——键（`contract.labels`）与适配器生成已在 module 内；**译文本体留在宿主**，不应搬进 module。缺口在覆盖：9 个无 contract 的 item 中 4 个带用户可见文案。
+
+| ID    | 仓             | 标题                                                                                     | 严重度 | 暴露面 | 可达性   | 状态 |
+| ----- | -------------- | ---------------------------------------------------------------------------------------- | ------ | ------ | -------- | ---- |
+| R79-01 | fewbie-modules | 9/14 item 无 contract，其中 4 个带用户可见文案（`login-form`/`password-checklist`/`theme` 硬编码英文与 aria-label），`modules adapters` 无法覆盖，宿主不可本地化 | P2     | source | 模块作者 | open |
+
+### Round 79 备注
+
+- 计数（命令见报告 §2）：item 14、有 contract 5、无 contract 9；已声明模块 labels 101；nwf `modules.*` 141 叶，其中模块子树 74 叶、宿主自有 67 叶；registry 内消息文件 0 个。
+- 判定表：C1/C2/C5 成立（C5 未达成），C3 不成立，C4 部分成立。报告保留完整主张表与依据。
+- 无 P0/P1，未启动反驳轮。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round79.md`。
