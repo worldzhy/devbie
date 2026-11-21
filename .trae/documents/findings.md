@@ -736,3 +736,20 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 反驳轮 1 个独立代理：R74-01 的 3 条子主张全部 CONFIRMED，无误报剔除。
 - 报告：`.trae/documents/reviews/expert-review-2026-11-22-round74.md`。
 - 落地（2026-11-22）：fewbie-modules `b5685e3`（9 项迁入 + 结构门禁，dev 与 main 同步）、devbie `aee68625`（快照 + `registry:sync` / `check:registry-snapshot` + 发布门禁）。
+
+## Round 75（2026-11-22，claim scope：fewbie-modules 目录结构 / 容器目录）
+
+判定摘要：主张成立，但属于布局决策而非功能缺陷。平铺根安装正常；问题在载荷与工具链混居、且与 newbie-modules 的 `packages/modules` 约定相反。2 P2。
+
+| ID    | 仓             | 标题                                                       | 严重度 | 暴露面 | 可达性     | 状态                                                                                         |
+| ----- | -------------- | ---------------------------------------------------------- | ------ | ------ | ---------- | -------------------------------------------------------------------------------------------- |
+| R75-01 | fewbie-modules | 14 个 item 与 9 项基础设施平铺根目录，与 newbie-modules 布局相反 | P2     | source | 模块作者   | closed（fewbie-modules `780b713`：14 item 迁入 `packages/modules/`，`check-contract` 扫描根下移） |
+| R75-02 | devbie (fewbie-cli) | 外部 registry 根硬编码为 clone 根，无法承载子目录容器      | P2     | source | 模块作者   | closed（devbie `dd2c07f1`：`REGISTRY_ITEMS_DIR` 容器优先、根兼容；1.11.0 已发布；三形态探针通过）  |
+
+### Round 75 备注
+
+- 落地：fewbie-modules `780b713`（dev 与 main 同步）、devbie `3a95876d`（ADR-059）、`dd2c07f1`（CLI 容器解析 + 快照生成器 + 1.11.0）、nwf `a09ebd9` / fewbie-starter `2bb91fa`（CLI 升级）。
+- 回归：`apply --check` / `update --check` / `adapters --check` 在 nwf 全绿；`FEWBIE_REGISTRY_PATH` 指向仓库根、`packages/modules` 与扁平快照三种形态安装探针均通过。
+- 本轮为 claim scope、只读；报告冻结于 devbie `89bd3b0d` / fewbie-modules `b5685e3` / nwf `da4229e` / starter `d6f12c1`。
+- 无 P0/P1，未启动反驳轮；已剔除「当前结构导致安装失败」与「宿主目标统一到 `src/modules/`」两种读法。
+- 报告：`.trae/documents/reviews/expert-review-2026-11-22-round75.md`。
