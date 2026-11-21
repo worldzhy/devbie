@@ -86,6 +86,12 @@ describe("fewbie CLI surface", () => {
               options: ["--check", "--preview", "-f, --force", "-y, --yes"],
               commands: [],
             },
+            {
+              name: "adapters",
+              arguments: [{ name: "names", required: false, variadic: true }],
+              options: ["--check", "--dry-run"],
+              commands: [],
+            },
           ],
         },
         {
@@ -132,7 +138,7 @@ describe("fewbie CLI surface", () => {
     assert.ok(rootNames.includes("template"));
     assert.deepEqual(
       program.commands.find((command) => command.name() === "modules")?.commands.map((command) => command.name()),
-      ["add", "apply", "remove", "update"],
+      ["add", "apply", "remove", "update", "adapters"],
     );
     assert.deepEqual(
       program.commands.find((command) => command.name() === "template")?.commands.map((command) => command.name()),

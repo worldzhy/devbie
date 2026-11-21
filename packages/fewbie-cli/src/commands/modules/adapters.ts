@@ -1,0 +1,150 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+import { bold, cyan, green, yellow } from "colorette";
+
+import { CliError, pathExists, readTextIfExists } from "@devbie/cli-kit";
+import { loadItem } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
+import {
+  AdapterPlan,
+  adapterMatches,
+  messageKeyProblems,
+  planAdapter,
+  readI18nDeclaration,
+} from "../../lib/i18n-contract";
+import { MODULES_FILE, requireModulesFile } from "../../lib/modules-file";
+import { assertProjectRoot } from "../../lib/project";
+
+export interface ModulesAdaptersOptions {
+  /** Project root (global --cwd). */
+  cwd: string;
+  /** Specific declared module names; empty means every declared module. */
+  names?: string[];
+  /** CI gate: fail on missing or drifted adapters and incomplete dictionaries; write nothing. */
+  check?: boolean;
+  dryRun?: boolean;
+}
+
+const I18N_EXAMPLE = `{
+  "modules": ["..."],
+  "i18n": {
+    "library": "next-intl",
+    "messages": ["src/i18n/messages/en.json", "src/i18n/messages/zh.json"],
+    "namespace": "modules"
+  }
+}`;
+
+/**
+ * Generate the host label adapters for declared modules (ADR-057 D7).
+ *
+ * The adapter is a mechanical projection of `contract.labels`: it binds the
+ * `modules.<item>` i18n namespace to the module's labels type and injects
+ * nothing else. Ports and callbacks stay page-supplied, so the module keeps no
+ * host transport or navigation knowledge.
+ */
+export async function runAdapters(options: ModulesAdaptersOptions): Promise<void> {
+  const projectRoot = path.resolve(options.cwd);
+  await assertProjectRoot(projectRoot);
+
+  const declared = await requireModulesFile(projectRoot);
+  const declaration = await readI18nDeclaration(projectRoot);
+  if (declaration === null) {
+    throw new CliError(
+      `${MODULES_FILE} has no "i18n" declaration, so adapters cannot be generated. Add:\n${I18N_EXAMPLE}`,
+    );
+  }
+
+  const selected = selectDeclared(declared, options.names ?? []);
+  const registryRoot = await resolveRegistryRoot(projectRoot);
+
+  const plans: AdapterPlan[] = [];
+  const problems: string[] = [];
+  for (const name of selected) {
+    const item = await loadItem(registryRoot, name);
+    const plan = await planAdapter(item, declaration.namespace);
+    plans.push(plan);
+    problems.push(...(await messageKeyProblems(projectRoot, declaration, name, item.manifest.contract?.labels ?? [])));
+  }
+
+  if (options.check) {
+    await runAdapterCheck(projectRoot, plans, problems);
+    return;
+  }
+
+  if (problems.length > 0) {
+    throw new CliError(`Cannot generate adapters: their label keys are incomplete.\n${formatProblems(problems)}`);
+  }
+
+  const written: string[] = [];
+  const unchanged: string[] = [];
+  for (const plan of plans) {
+    const target = path.join(projectRoot, plan.target);
+    const disk = await readTextIfExists(target);
+    if (disk !== null && (await adapterMatches(projectRoot, plan, disk))) {
+      unchanged.push(plan.target);
+      continue;
+    }
+    if (!options.dryRun) {
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, plan.content);
+    }
+    written.push(plan.target);
+  }
+
+  if (options.dryRun) {
+    for (const target of written) console.info(`${cyan("would write")} ${target}`);
+    console.info("[dry-run] no files were modified");
+    return;
+  }
+  for (const target of written) console.info(`${green("wrote")} ${target}`);
+  if (written.length === 0) {
+    console.info(green(bold("✓ Label adapters are up to date.")));
+  } else {
+    console.info(bold(green(`\n✓ Generated ${written.length} label adapter(s).`)));
+  }
+  if (unchanged.length > 0) console.info(yellow(`Up to date: ${unchanged.join(", ")}`));
+}
+
+/** CI gate: every adapter exists and matches, every locale defines exactly the contract keys. */
+async function runAdapterCheck(projectRoot: string, plans: AdapterPlan[], problems: string[]): Promise<void> {
+  const drift: string[] = [];
+  for (const plan of plans) {
+    if (!(await pathExists(path.join(projectRoot, plan.target)))) {
+      drift.push(`${plan.target}: adapter missing`);
+      continue;
+    }
+    const disk = await readTextIfExists(path.join(projectRoot, plan.target));
+    if (disk === null || !(await adapterMatches(projectRoot, plan, disk))) {
+      drift.push(`${plan.target}: adapter differs from the generated output`);
+    }
+  }
+
+  if (problems.length > 0 || drift.length > 0) {
+    throw new CliError(
+      [
+        problems.length > 0 ? formatProblems(problems) : null,
+        drift.length > 0 ? `Adapter drift:\n${drift.map((line) => `  - ${line}`).join("\n")}` : null,
+        "Run `fewbie modules adapters` to regenerate them.",
+      ]
+        .filter((part): part is string => part !== null)
+        .join("\n"),
+    );
+  }
+
+  console.info(green(bold("✓ Label adapters and dictionaries match the module contracts.")));
+}
+
+function formatProblems(problems: string[]): string {
+  return problems.map((problem) => `  - ${problem}`).join("\n");
+}
+
+function selectDeclared(declared: string[], names: string[]): string[] {
+  if (names.length === 0) return declared;
+  const unknown = names.filter((name) => !declared.includes(name));
+  if (unknown.length > 0) {
+    throw new CliError(
+      `Module(s) not declared in ${MODULES_FILE}: ${unknown.join(", ")}. Declared: ${declared.join(", ") || "(none)"}.`,
+    );
+  }
+  return names;
+}

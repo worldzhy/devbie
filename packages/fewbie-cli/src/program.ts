@@ -9,6 +9,7 @@ import { runApits } from "./commands/apits";
 import { runCreate } from "./commands/create";
 import { doctorCommand } from "./commands/doctor";
 import { runModules } from "./commands/modules/default";
+import { runAdapters } from "./commands/modules/adapters";
 import { runAdd } from "./commands/modules/add";
 import { runApply } from "./commands/modules/apply";
 import { runRemove } from "./commands/modules/remove";
@@ -174,6 +175,23 @@ export function buildProgram(): Command {
         preview: Boolean(flags.preview),
         force: Boolean(flags.force),
         yes: Boolean(flags.yes),
+      });
+    });
+
+  modules
+    .command("adapters [names...]")
+    .description(
+      "generate host label adapters for declared modules from their contracts (i18n declaration in fewbie.json); --check is the drift gate",
+    )
+    .option("--check", "CI gate: fail on missing or drifted adapters and incomplete dictionaries; write nothing", false)
+    .option("--dry-run", "print planned adapter writes without touching files", false)
+    .action(function (this: Command, names: string[]) {
+      const flags = this.opts();
+      return runAdapters({
+        ...globals(this),
+        names,
+        check: Boolean(flags.check),
+        dryRun: Boolean(flags.dryRun),
       });
     });
 
