@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": [],
   "files": [
-    "src/modules/security-settings/index.ts",
-    "src/modules/security-settings/types.ts",
-    "src/modules/security-settings/security-settings.tsx"
+    "src/features/security-settings/index.ts",
+    "src/features/security-settings/types.ts",
+    "src/features/security-settings/security-settings.tsx"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/security-settings/index.ts",
+    "entry": "src/features/security-settings/index.ts",
     "labels": [
       "activeSessions",
       "loadingSessions",

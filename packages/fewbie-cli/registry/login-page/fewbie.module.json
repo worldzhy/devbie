@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": [],
   "files": [
-    "src/modules/login-page/index.ts",
-    "src/modules/login-page/types.ts",
-    "src/modules/login-page/login-page.tsx"
+    "src/features/login-page/index.ts",
+    "src/features/login-page/types.ts",
+    "src/features/login-page/login-page.tsx"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/login-page/index.ts",
+    "entry": "src/features/login-page/index.ts",
     "labels": [
       "title",
       "description",

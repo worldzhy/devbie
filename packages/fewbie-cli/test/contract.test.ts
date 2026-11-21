@@ -11,7 +11,7 @@ import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 const VALID = {
   version: "1.0.0",
   framework: "^1.7.0",
-  entry: "src/modules/fixture/index.ts",
+  entry: "src/features/fixture/index.ts",
   labels: ["title", "description"],
   ports: ["save"],
   ui: ["button", "card"],
@@ -21,7 +21,7 @@ const VALID = {
 async function writeItem(contract: unknown): Promise<{ root: string; name: string }> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-contract-"));
   const name = "fixture";
-  await fs.mkdir(path.join(root, name, "src/modules/fixture"), { recursive: true });
+  await fs.mkdir(path.join(root, name, "src/features/fixture"), { recursive: true });
   await fs.writeFile(path.join(root, name, VALID.entry), "export {};\n");
   await fs.writeFile(
     path.join(root, name, REGISTRY_MANIFEST_FILE),
@@ -99,7 +99,7 @@ test("loadItem warns and still loads an item without a contract", async () => {
 });
 
 test("loadItem validates a contract that ships with the item", async () => {
-  const { root, name } = await writeItem({ ...VALID, entry: "src/modules/other/index.ts" });
+  const { root, name } = await writeItem({ ...VALID, entry: "src/features/other/index.ts" });
   try {
     await assert.rejects(loadItem(root, name), /must be one of the item's files/);
   } finally {

@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": [],
   "files": [
-    "src/modules/profile-settings/index.ts",
-    "src/modules/profile-settings/types.ts",
-    "src/modules/profile-settings/profile-settings.tsx"
+    "src/features/profile-settings/index.ts",
+    "src/features/profile-settings/types.ts",
+    "src/features/profile-settings/profile-settings.tsx"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/profile-settings/index.ts",
+    "entry": "src/features/profile-settings/index.ts",
     "labels": [
       "personalInfo",
       "firstName",

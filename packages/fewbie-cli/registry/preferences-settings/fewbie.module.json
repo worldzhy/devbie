@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": [],
   "files": [
-    "src/modules/preferences-settings/index.ts",
-    "src/modules/preferences-settings/types.ts",
-    "src/modules/preferences-settings/preferences-settings.tsx"
+    "src/features/preferences-settings/index.ts",
+    "src/features/preferences-settings/types.ts",
+    "src/features/preferences-settings/preferences-settings.tsx"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/preferences-settings/index.ts",
+    "entry": "src/features/preferences-settings/index.ts",
     "labels": [
       "languageTitle",
       "languageDesc",

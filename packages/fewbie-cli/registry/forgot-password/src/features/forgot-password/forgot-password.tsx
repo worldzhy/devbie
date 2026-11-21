@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { checkPasswordPolicy, isStrongPassword } from "@/modules/password-checklist";
+import { checkPasswordPolicy, isStrongPassword } from "@/features/password-checklist";
 import type { ForgotPasswordLabels, ForgotPasswordProps } from "./types";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

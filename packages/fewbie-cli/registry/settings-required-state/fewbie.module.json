@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": [],
   "files": [
-    "src/modules/settings-required-state/index.ts",
-    "src/modules/settings-required-state/types.ts",
-    "src/modules/settings-required-state/settings-required-state.tsx"
+    "src/features/settings-required-state/index.ts",
+    "src/features/settings-required-state/types.ts",
+    "src/features/settings-required-state/settings-required-state.tsx"
   ],
   "contract": {
     "version": "1.1.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/settings-required-state/index.ts",
+    "entry": "src/features/settings-required-state/index.ts",
     "labels": ["actionLabel"],
     "ports": [],
     "ui": ["button", "card"],

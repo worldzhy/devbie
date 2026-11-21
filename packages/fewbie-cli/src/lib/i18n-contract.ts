@@ -99,7 +99,7 @@ export function pascalCase(name: string): string {
     .join("");
 }
 
-/** Host import specifier of a module entry, e.g. `@/modules/preferences-settings`. */
+/** Host import specifier of a module entry, e.g. `@/features/preferences-settings`. */
 export function moduleSpecifier(entry: string, itemName: string): string {
   if (!entry.startsWith("src/")) {
     throw new CliError(

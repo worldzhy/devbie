@@ -34,18 +34,18 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   const labelsType = options.labelsType ?? "FixtureLabels";
   const labels = ["title", "description", ...(options.extraLabels ?? [])];
 
-  await fs.mkdir(path.join(item, "src/modules/fixture"), { recursive: true });
+  await fs.mkdir(path.join(item, "src/features/fixture"), { recursive: true });
   await fs.writeFile(
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
       type: "registry:block",
       title: "Fixture",
-      files: ["src/modules/fixture/index.ts", "src/modules/fixture/types.ts", "src/modules/fixture/fixture.tsx"],
+      files: ["src/features/fixture/index.ts", "src/features/fixture/types.ts", "src/features/fixture/fixture.tsx"],
       contract: {
         version: "1.0.0",
         framework: "^1.10.0",
-        entry: "src/modules/fixture/index.ts",
+        entry: "src/features/fixture/index.ts",
         labels,
         ports: ["save"],
         ui: ["button"],
@@ -54,15 +54,15 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
     }),
   );
   await fs.writeFile(
-    path.join(item, "src/modules/fixture/index.ts"),
+    path.join(item, "src/features/fixture/index.ts"),
     `export { Fixture } from "./fixture";\nexport type { ${labelsType} } from "./types";\n`,
   );
   await fs.writeFile(
-    path.join(item, "src/modules/fixture/types.ts"),
+    path.join(item, "src/features/fixture/types.ts"),
     `export interface ${labelsType} {\n${labels.map((key) => `  ${key}: string;`).join("\n")}\n}\n`,
   );
   await fs.writeFile(
-    path.join(item, "src/modules/fixture/fixture.tsx"),
+    path.join(item, "src/features/fixture/fixture.tsx"),
     `export function Fixture(): null {\n  return null;\n}\n`,
   );
 
@@ -135,7 +135,7 @@ describe("fewbie modules adapters", () => {
 
 import { useTranslations } from "next-intl";
 
-import type { FixtureLabels } from "@/modules/fixture";
+import type { FixtureLabels } from "@/features/fixture";
 
 /** Labels for the \`fixture\` module, resolved from the \`modules.fixture\` namespace. */
 export function useFixtureLabels(): FixtureLabels {
@@ -155,7 +155,7 @@ export function useFixtureLabels(): FixtureLabels {
 
     await runAdapters({ cwd: fixture.project });
 
-    assert.match(await readAdapter(fixture.project), /import type \{ LoginLabels \} from "@\/modules\/fixture"/);
+    assert.match(await readAdapter(fixture.project), /import type \{ LoginLabels \} from "@\/features\/fixture"/);
   });
 
   it("honours a custom namespace", async () => {

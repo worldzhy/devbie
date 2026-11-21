@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": [],
   "files": [
-    "src/modules/password-checklist/index.ts",
-    "src/modules/password-checklist/types.ts",
-    "src/modules/password-checklist/password-checklist.tsx"
+    "src/features/password-checklist/index.ts",
+    "src/features/password-checklist/types.ts",
+    "src/features/password-checklist/password-checklist.tsx"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/password-checklist/index.ts",
+    "entry": "src/features/password-checklist/index.ts",
     "labels": ["requirements", "ruleLength", "ruleLowercase", "ruleUppercase", "ruleNumber", "ruleSymbol"],
     "ports": [],
     "ui": [],

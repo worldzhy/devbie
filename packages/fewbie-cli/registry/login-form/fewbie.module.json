@@ -6,14 +6,14 @@
   "dependencies": [],
   "registryDependencies": ["auth"],
   "files": [
-    "src/modules/login-form/index.ts",
-    "src/modules/login-form/types.ts",
-    "src/modules/login-form/login-form.tsx"
+    "src/features/login-form/index.ts",
+    "src/features/login-form/types.ts",
+    "src/features/login-form/login-form.tsx"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/modules/login-form/index.ts",
+    "entry": "src/features/login-form/index.ts",
     "labels": ["title", "description", "account", "accountPlaceholder", "password", "submit", "loginFailed"],
     "ports": ["onLoggedIn"],
     "ui": ["button", "card", "input", "label"],
