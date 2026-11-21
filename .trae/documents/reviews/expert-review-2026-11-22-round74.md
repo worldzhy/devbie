@@ -138,4 +138,4 @@ error Registry item 'preferences-settings' not found.
 
 ## 10. 台账指针
 
-本轮 3 条 finding（R74-01 P1、R74-02..03 P2）已追加到 `devbie/.trae/documents/findings.md` 的「Round 74」小节；R74-04 复核后撤销。评审阶段只读，未创建修复 commit。
+本轮 3 条 finding（R74-01 P1、R74-02..03 P2）已追加到 `devbie/.trae/documents/findings.md` 的「Round 74」小节；R74-04 复核后撤销。评审阶段只读；修复按 ADR-058 在评审后独立落地（fewbie-modules `b5685e3`、devbie `aee68625`），报告本身不回填修复结论。
