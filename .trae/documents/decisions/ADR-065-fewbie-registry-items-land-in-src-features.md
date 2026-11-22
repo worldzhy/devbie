@@ -57,7 +57,7 @@ packages/modules/login-page/
 
 目录前缀失去区分能力后，边界规则的输入改为 `fewbie.lock.json`：
 
-- `eslint.config.mjs` 在加载时读取 lockfile，把 `modules[*].files` 的并集作为 registry item 文件集。
+- `eslint.config.mjs` 在加载时读取 lockfile，把 `modules[*].files` 中位于 `src/features/**` 的文件并集作为 registry item 文件集。该子集恰好是 `registry:block` 的落位；`registry:component` 仍在 `src/components/**`，继续按宿主组件规则校验，因为它们本来就是与宿主耦合的壳层（会直接使用 next-intl、router、query 等）。
 - 宿主规则（R1-R12）的 `ignores` 加入该文件集，避免 registry item 被套用「文案必须走宿主 i18n」等宿主专属规则。
 - 模块边界规则（ADR-057）的 `files` 改为该文件集，不再写 `src/modules/**`。
 - 同级 item 导入（ADR-062）按「目标是否也是 lockfile 中的模块」判定：允许 `@/features/<其他已安装 item>`，拒绝 `@/features/<宿主自建 feature>`。该判定用从 lockfile 模块名生成的正则表达，不读取 item 的 `registryDependencies`。
