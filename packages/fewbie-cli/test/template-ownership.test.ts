@@ -225,6 +225,13 @@ describe("marker blocks", () => {
     assert.equal(extractMarkerBlock(`${FRAMEWORK_MARKER_START}\n--primary: red;`), null);
   });
 
+  it("fails closed on duplicated or nested marker blocks", () => {
+    const duplicated = `${globalsCss("--primary: one;")}\n${FRAMEWORK_MARKER_START}\n--primary: two;\n${FRAMEWORK_MARKER_END}\n`;
+    assert.throws(() => extractMarkerBlock(duplicated), /2 start and 2 end markers/);
+    const nested = `${FRAMEWORK_MARKER_START}\n${FRAMEWORK_MARKER_START}\n--primary: red;\n${FRAMEWORK_MARKER_END}\n`;
+    assert.throws(() => extractMarkerBlock(nested), /Remove the duplicate or nested block/);
+  });
+
   it("replaces only the marked block", () => {
     const content = globalsCss("--primary: old;", ":root { --host: 42; }");
     const replaced = replaceMarkerBlock(content, `${FRAMEWORK_MARKER_START}\n--primary: new;\n${FRAMEWORK_MARKER_END}`);

@@ -11,8 +11,10 @@ import { collectMissingRegistrySources } from "../../assemble/modules-copy";
 import { diffModuleSources, printSourceDrift } from "../../assemble/module-source-drift";
 import { runSteps } from "../../assemble/pipeline";
 import { diffSnapshots, driftPatchIds } from "../../core/drift";
-import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
+import { snapshotInstalledModule } from "../../lib/drift";
 import { CliError, fileExists } from "@devbie/cli-kit";
+import { filesToSnapshot, lockEntryFor } from "../../core/module-lock";
+import { readModuleLock } from "../../lib/module-lock";
 import { writeModulesState } from "../../lib/modules-state";
 import { assertInteractive, isInteractive } from "../../lib/interactive";
 
@@ -66,12 +68,13 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   }
 
   const targetCommit = registry.sourceCommit;
+  const lock = await readModuleLock(cwd);
   const inspections: UpdateInspection[] = [];
 
   for (const key of keys) {
     process.stdout.write(`Checking ${key}...\r`);
-    const record = state.modules.find((entry) => entry.key === key);
-    const fromCommit = record?.sourceCommit ?? null;
+    const locked = lockEntryFor(lock, key);
+    const fromCommit = locked?.sourceCommit ?? null;
     const base: UpdateInspection = {
       key,
       status: "up-to-date",
@@ -89,23 +92,18 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
       continue;
     }
 
-    // Guard local customisation: compare the copy with its pinned pristine tree.
-    // Without a pin (or with a pin the local clone cannot serve) the guard has
-    // no baseline, so the update must not silently overwrite host edits: treat
+    // Guard local customisation: compare the copy with its locked manifest,
+    // which answers offline (ADR-041 §4). Without a lock entry there is no
+    // baseline, so the update must not silently overwrite host edits: treat
     // that as drift and require an explicit --force.
     if (!options.force) {
-      if (!fromCommit) {
-        inspections.push({ ...base, status: "unpinned" });
-        continue;
-      }
-      const pristine = await snapshotPristineModule(registry, key, fromCommit);
-      if (!pristine) {
+      if (!locked) {
         inspections.push({ ...base, status: "unpinned" });
         continue;
       }
       const installed = await snapshotInstalledModule(cwd, key);
       if (installed) {
-        const drift = diffSnapshots(installed, pristine);
+        const drift = diffSnapshots(installed, filesToSnapshot(locked.files));
         if (!drift.clean) {
           inspections.push({
             ...base,
@@ -280,9 +278,9 @@ export async function backupInstalledModules(cwd: string, keys: string[]): Promi
 
 /**
  * CI gate (ADR-024 F7): every installed module copy must stay byte-identical to
- * the registry tree pinned in newbie-modules.json (ADR-019/ADR-021). Runs offline:
- * CI points NEWBIE_MODULES_PATH at a local checkout, so no fetch. A copy
- * without a usable pin is reported instead of skipped (R5-06/N-2).
+ * its provenance lock (ADR-019/ADR-021/ADR-041). Runs offline: the lock
+ * manifest answers without a registry fetch on the happy path. A copy without
+ * a lock entry is reported instead of skipped (R5-06/N-2).
  */
 async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
   const { ctx } = await createContext(options, { fetch: false });
@@ -295,7 +293,6 @@ async function runUpdateCheck(options: ModulesUpdateOptions): Promise<void> {
   const drifts = await diffModuleSources({
     cwd: ctx.cwd,
     registry: ctx.registry,
-    state: ctx.state,
     enabledKeys,
     requireInstalled: true,
   });

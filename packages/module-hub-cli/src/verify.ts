@@ -1,5 +1,3 @@
-import type { ModuleRecord } from "@devbie/modules-state";
-
 import type { RemoteModule } from "./client";
 
 /**
@@ -7,8 +5,8 @@ import type { RemoteModule } from "./client";
  * the hub recorded for this installation.
  *
  * This is the remote counterpart of `newbie status`: it answers "does the
- * hub's view of this deployment match the newbie-modules.json I have on disk?", not
- * "did the host's target spec land?" — the latter is the hub's own
+ * hub's view of this deployment match the enabled keys and locks I have on
+ * disk?", not "did the host's target spec land?" — the latter is the hub's own
  * target-vs-actual view and is already rendered by the UI.
  */
 
@@ -27,6 +25,15 @@ export interface ModuleMismatch {
   remoteSourceCommit?: string | null;
 }
 
+/**
+ * An enabled key plus the commit its copy is locked to (ADR-041: the lock,
+ * not the declaration file, carries per-module provenance).
+ */
+export interface LocalModule {
+  key: string;
+  sourceCommit: string | null;
+}
+
 function readRecord(module: RemoteModule): { key: string; sourceCommit: string | null } | null {
   const key = module.key;
   if (typeof key !== "string" || key.length === 0) return null;
@@ -41,7 +48,7 @@ function readRecord(module: RemoteModule): { key: string; sourceCommit: string |
  * a null on either side means the snapshot predates the field, which is not
  * evidence of drift and would otherwise fail verify for old deployments.
  */
-export function compareModules(local: ModuleRecord[], remote: RemoteModule[]): ModuleMismatch[] {
+export function compareModules(local: LocalModule[], remote: RemoteModule[]): ModuleMismatch[] {
   const localByKey = new Map(local.map((record) => [record.key, record]));
   const remoteByKey = new Map<string, { key: string; sourceCommit: string | null }>();
   for (const entry of remote) {

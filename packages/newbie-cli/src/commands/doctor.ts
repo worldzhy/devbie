@@ -6,11 +6,13 @@ import { MODULES_DIR, MODULES_JSON, moduleKeys } from "@devbie/modules-state";
 
 import { MODULES_CONFIG_TS, MODULES_MODULE_TS, PRISMA_SCHEMA_MAIN, PRISMA_SCHEMA_MODELS_DIR } from "../constants/paths";
 import { diffSnapshots } from "../core/drift";
+import { filesToSnapshot, lockEntryFor } from "../core/module-lock";
 import { findMissingEnabledModules } from "../core/module-closure";
 import { moduleSchemaNamespace, readDatasourceSchemas } from "../core/prisma-schema";
 import { collectMissingEnv } from "../lib/check";
 import { CliError, fileExists } from "@devbie/cli-kit";
-import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
+import { snapshotInstalledModule } from "../lib/drift";
+import { readModuleLock } from "../lib/module-lock";
 import { formatRegistryLocation, listRegistryKeys, readRegistryModule, resolveRegistry } from "../lib/registry";
 import { readInstalledManifest } from "../lib/module-install";
 import { readModulesState, stateExists } from "../lib/modules-state";
@@ -52,6 +54,7 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
     throw new CliError(`${MODULES_JSON} not found. Run 'newbie modules' to declare modules first.`);
   }
   const state = await readModulesState(cwd);
+  const lock = await readModuleLock(cwd);
   const keys = moduleKeys(state);
 
   // [check 2] registry
@@ -123,10 +126,11 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
       error(`${label}: missing env ${missingEnv[key].join(", ")}`);
     }
 
-    const record = state.modules.find((entry) => entry.key === key);
-    if (registry?.sourceCommit && record?.sourceCommit && record.sourceCommit !== registry.sourceCommit) {
+    const locked = lockEntryFor(lock, key);
+    const pinnedCommit = locked?.sourceCommit ?? null;
+    if (registry?.sourceCommit && pinnedCommit && pinnedCommit !== registry.sourceCommit) {
       notice(
-        `${label}: update available (${record.sourceCommit.slice(0, 7)} -> ${registry.sourceCommit.slice(0, 7)}); run 'newbie modules update'.`,
+        `${label}: update available (${pinnedCommit.slice(0, 7)} -> ${registry.sourceCommit.slice(0, 7)}); run 'newbie modules update'.`,
       );
     }
 
@@ -135,13 +139,11 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
       notice(`${label}: deprecated — ${manifest.deprecated}`);
     }
 
-    // Content drift against the pristine registry tree at the pinned commit.
-    if (registry && record?.sourceCommit) {
-      const pristine = await snapshotPristineModule(registry, key, record.sourceCommit);
-      if (pristine) {
-        const installed = await snapshotInstalledModule(cwd, key);
-        if (!installed) continue;
-        const drift = diffSnapshots(installed, pristine);
+    // Local customisation: the lock manifest answers offline (ADR-041).
+    if (locked) {
+      const installed = await snapshotInstalledModule(cwd, key);
+      if (installed) {
+        const drift = diffSnapshots(installed, filesToSnapshot(locked.files));
         if (!drift.clean) {
           const details = [
             ...drift.changed.map((file) => `changed: ${file}`),

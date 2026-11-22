@@ -16,7 +16,7 @@ import { runWatch } from "./commands/modules/watch";
 import { runStatus } from "./commands/status";
 import { runTemplateUpdate } from "./commands/template/update";
 import { GlobalOptions } from "./commands/shared";
-import { run } from "./lib/cli-runner";
+import { run } from "@devbie/cli-kit";
 import { parseModuleSelector } from "./lib/module-selector";
 
 export const VERSION: string = pkg.version;

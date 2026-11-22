@@ -10,11 +10,10 @@
  *
  * Consumed via the package export `@devbie/newbie-cli/lib`.
  */
-export { CliError, execCapture, execLive, isUserCancellation } from "@devbie/cli-kit";
+export { CliError, execCapture, execLive, isUserCancellation, run } from "@devbie/cli-kit";
 export type { ExecResult } from "@devbie/cli-kit";
 export { IssueBag } from "./lib/issues";
 export type { EnvLine } from "./core/env-file";
 export { envValues, parseEnv, serializeEnv } from "./core/env-file";
 export { ENV_PATH, ENV_EXAMPLE_PATH, ENV_TOOL_CONFIG_CANDIDATES } from "./constants/paths";
 export type { GlobalOptions } from "./commands/shared";
-export { run } from "./lib/cli-runner";

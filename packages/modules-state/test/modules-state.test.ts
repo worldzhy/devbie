@@ -18,7 +18,7 @@ describe("normalizeModulesState", () => {
     assert.deepEqual(moduleKeys(normalizeModulesState("nope")), []);
   });
 
-  it("keeps valid records and drops/normalises junk fields", () => {
+  it("keeps valid keys and drops legacy provenance fields", () => {
     const state = normalizeModulesState({
       registry: { url: "https://example.invalid/r.git", sourceCommit: "abc" },
       modules: [
@@ -28,10 +28,7 @@ describe("normalizeModulesState", () => {
         { key: "b", version: "1.2.3" },
       ],
     });
-    assert.deepEqual(state.modules, [
-      { key: "a", version: null, sourceCommit: "aaa", localPatches: ["x"] },
-      { key: "b", version: "1.2.3", sourceCommit: null, localPatches: [] },
-    ]);
+    assert.deepEqual(state.modules, [{ key: "a" }, { key: "b" }]);
   });
 
   it("de-duplicates repeated module keys", () => {
@@ -67,7 +64,7 @@ describe("readModulesState", () => {
       "utf8",
     );
     const state = await readModulesState(root);
-    assert.deepEqual(state.modules, [{ key: "account", version: null, sourceCommit: "aaa", localPatches: ["p"] }]);
+    assert.deepEqual(state.modules, [{ key: "account" }]);
     assert.equal(state.registry?.sourceCommit, "abc");
   });
 

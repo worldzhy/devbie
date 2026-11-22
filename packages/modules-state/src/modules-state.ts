@@ -4,23 +4,18 @@
  * Shape (registry-copy model):
  * {
  *   "registry": { "url": "...", "sourceCommit": "<sha>" },
- *   "modules": [
- *     { "key": "account", "version": null, "sourceCommit": "<sha>",
- *       "localPatches": [] }
- *   ]
+ *   "modules": [{ "key": "account" }]
  * }
+ *
+ * Per-module provenance lives in `newbie-modules.lock.json` (ADR-041); the
+ * declaration only lists the enabled keys, so a host can never pin a module to
+ * a commit its copy does not match.
  *
  * This module never touches the disk; see read-modules-state.ts for file IO.
  */
 
 export interface ModuleRecord {
   key: string;
-  /** Per-module version (changeset/directory tag); null until tags exist. */
-  version: string | null;
-  /** Registry commit the module files were copied from. */
-  sourceCommit: string | null;
-  /** Recorded drift (patch-ids); managed by `newbie doctor`. */
-  localPatches: string[];
 }
 
 /**
@@ -52,12 +47,9 @@ function normalizeRecord(raw: unknown): ModuleRecord | null {
   if (!raw || typeof raw !== "object") return null;
   const record = raw as Record<string, unknown>;
   if (typeof record.key !== "string" || record.key.length === 0) return null;
-  const sourceCommit = typeof record.sourceCommit === "string" ? record.sourceCommit : null;
-  const version = typeof record.version === "string" ? record.version : null;
-  const localPatches = Array.isArray(record.localPatches)
-    ? record.localPatches.filter((patch): patch is string => typeof patch === "string")
-    : [];
-  return { key: record.key, version, sourceCommit, localPatches };
+  // Legacy `version` / `sourceCommit` / `localPatches` fields are dropped on the
+  // next write: provenance belongs to the lock (ADR-041 §2).
+  return { key: record.key };
 }
 
 function normalizeManagedDependencies(raw: unknown): ManagedDependencies | undefined {

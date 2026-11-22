@@ -4,9 +4,11 @@ import { MODULES_DIR, moduleKeys } from "@devbie/modules-state";
 
 import { DriftReport } from "../core/drift";
 import { diffSnapshots } from "../core/drift";
+import { filesToSnapshot, lockEntryFor } from "../core/module-lock";
 import { collectMissingEnv } from "../lib/check";
-import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
+import { snapshotInstalledModule } from "../lib/drift";
 import { fileExists } from "@devbie/cli-kit";
+import { readModuleLock } from "../lib/module-lock";
 import { readInstalledManifest } from "../lib/module-install";
 import { readModulesState } from "../lib/modules-state";
 import { resolveRegistry } from "../lib/registry";
@@ -17,7 +19,6 @@ export interface StatusModuleEntry {
   key: string;
   version: string | null;
   sourceCommit: string | null;
-  localPatches: string[];
   installed: boolean;
   hasSchema: boolean;
   missingEnv: string[];
@@ -39,6 +40,7 @@ export interface StatusReport {
 export async function collectStatus(cwd: string, options?: { drift?: boolean }): Promise<StatusReport> {
   const state = await readModulesState(cwd);
   const registry = await resolveRegistry({ fetch: false, cwd });
+  const lock = await readModuleLock(cwd);
   const keys = moduleKeys(state);
   const missingEnv = await collectMissingEnv(cwd, keys);
   const modules: StatusModuleEntry[] = [];
@@ -46,28 +48,22 @@ export async function collectStatus(cwd: string, options?: { drift?: boolean }):
     const key = record.key;
     const installed = await fileExists(cwd, `${MODULES_DIR}/${key}`);
     const manifest = installed ? await readInstalledManifest(cwd, key) : null;
+    const locked = lockEntryFor(lock, key);
+    const sourceCommit = locked?.sourceCommit ?? null;
 
     const entry: StatusModuleEntry = {
       key,
-      version: record.version,
-      sourceCommit: record.sourceCommit,
-      localPatches: record.localPatches,
+      version: locked?.version ?? null,
+      sourceCommit,
       installed,
       hasSchema: Boolean(manifest?.wiring?.prismaSchema),
       missingEnv: missingEnv[key] ?? [],
-      updateAvailable: Boolean(
-        registry?.sourceCommit && record.sourceCommit && registry.sourceCommit !== record.sourceCommit,
-      ),
+      updateAvailable: Boolean(registry?.sourceCommit && sourceCommit && registry.sourceCommit !== sourceCommit),
     };
 
-    if (options?.drift && installed && registry && record.sourceCommit) {
-      const pristine = await snapshotPristineModule(registry, key, record.sourceCommit);
-      if (pristine) {
-        const installedSnap = await snapshotInstalledModule(cwd, key);
-        if (installedSnap) {
-          entry.drift = diffSnapshots(installedSnap, pristine);
-        }
-      }
+    if (options?.drift && installed && locked) {
+      const installedSnap = await snapshotInstalledModule(cwd, key);
+      if (installedSnap) entry.drift = diffSnapshots(installedSnap, filesToSnapshot(locked.files));
     }
 
     modules.push(entry);

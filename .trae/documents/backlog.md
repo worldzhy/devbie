@@ -107,3 +107,7 @@
 ## fewbie 终极状态落地（2026-11-21）
 
 - [ ] **crewbie-console-frontend 的 `@devbie/fewbie-cli` pin 待升级**：该宿主不在当前工作区，其 `package.json` / 锁文件仍指向旧版本；工作区可用时升到 `^1.12.0` 并跑 `modules apply --check` / `modules update --check`。
+
+## round 87 遗留（2026-11-22）
+
+- [ ] **R87-23 残余 / R87-11**：两栈 help 首句语气（大写 vs 小写）统一；`fewbie-modules` 英文默认文案与「copy 经 labels 传入」准入标准的处理政策定稿（注释已说明默认值仅供 demo）。

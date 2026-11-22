@@ -1,12 +1,47 @@
+import fs from "node:fs/promises";
+import path from "node:path";
+
 import { bold, gray, red } from "colorette";
 import { CliError } from "@devbie/newbie-cli/lib";
-import { readModulesState } from "@devbie/modules-state";
+import { MODULE_LOCK_FILE, readModulesState } from "@devbie/modules-state";
 
 import { fetchInstallationInspection } from "../client";
 import { resolveCredentials, resolveExpectedLabel } from "../env";
 import type { HubCommandOptions } from "../options";
-import { compareModules } from "../verify";
+import { compareModules, type LocalModule } from "../verify";
 import { assertExpectedLabel, formatTimestamp, renderMismatch, renderVerificationOk } from "./render";
+
+/**
+ * Tolerant `key -> sourceCommit` read of the lock. The CLI validates the
+ * schema; verify only needs the locked commits, and a missing/unreadable lock
+ * leaves every commit null (the comparison then skips commit mismatches).
+ */
+async function readLockedCommits(cwd: string): Promise<Map<string, string>> {
+  const commits = new Map<string, string>();
+  let raw: string;
+  try {
+    raw = await fs.readFile(path.resolve(cwd, MODULE_LOCK_FILE), "utf8");
+  } catch {
+    return commits;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return commits;
+  }
+  const modules = (parsed as { modules?: unknown } | null)?.modules;
+  if (!Array.isArray(modules)) return commits;
+  for (const entry of modules) {
+    if (!entry || typeof entry !== "object") continue;
+    const key = (entry as { key?: unknown }).key;
+    const commit = (entry as { sourceCommit?: unknown }).sourceCommit;
+    if (typeof key === "string" && key.length > 0 && typeof commit === "string" && commit.length > 0) {
+      commits.set(key, commit);
+    }
+  }
+  return commits;
+}
 
 /**
  * `newbie module-hub verify` — fail when the hub's snapshot of this
@@ -36,8 +71,13 @@ export async function runVerify(options: HubCommandOptions): Promise<void> {
     );
   }
 
-  const local = await readModulesState(options.cwd);
-  const mismatches = compareModules(local.modules, inspection.actual);
+  const state = await readModulesState(options.cwd);
+  const lockedCommits = await readLockedCommits(options.cwd);
+  const local: LocalModule[] = state.modules.map((record) => ({
+    key: record.key,
+    sourceCommit: lockedCommits.get(record.key) ?? null,
+  }));
+  const mismatches = compareModules(local, inspection.actual);
 
   console.log(bold(`Hub: ${credentials.modulesUrl}`));
   console.log(
@@ -49,7 +89,7 @@ export async function runVerify(options: HubCommandOptions): Promise<void> {
 
   if (mismatches.length === 0) {
     console.log();
-    renderVerificationOk(local.modules.length);
+    renderVerificationOk(local.length);
     return;
   }
 

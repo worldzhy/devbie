@@ -1,6 +1,6 @@
 # ADR-041: 模块来源改为锁文件自证，副本完整性不再依赖 registry 对象可用性
 
-状态：提议中
+状态：已采纳（2026-11-22 落地第一阶段，见文末「实施记录」）
 日期：2026-11-12
 Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —— 该 ADR 明确否决了以 pinned `sourceCommit` 为基线，而当前实现（`R5-06/N-2`）实际采用了 pin 基线且无决策记录；本 ADR 用「锁文件 + 内容清单」取代这条基线。门禁放置（ADR-021 → ADR-024 F7）不变。
 
@@ -77,7 +77,7 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 
 6. **首次落地（迁移）**：消费仓在 CLI 升级后首次运行 `modules apply`，对每个已装配模块先按 pin 校验副本；只把校验干净的模块写入锁文件；任何一个不干净就整体拒绝并点名该 key，禁止用「把现状算成正确」的方式给既有漂移盖章。
 
-7. **`localPatches` 不进入门禁**：ADR-019 规定宿主在 `src/modules/<key>` 内不拥有任何文件（扩展点只有 `prisma-additions/` 与 `src/application/`），因此不存在合法的本地补丁；该字段保持预留，移除是独立清理，不并入本决策。
+7. **`localPatches` 不进入门禁**：ADR-019 规定宿主在 `src/modules/<key>` 内不拥有任何文件（扩展点只有 `prisma-additions/` 与 `src/application/`），因此不存在合法的本地补丁；第二阶段随 `version` / `sourceCommit` 一并从 `ModuleRecord` 移除，不保留空字段。
 
 8. **back-port 流程同步收紧**：registry 提交在先，消费仓一律 `npx newbie modules update <key>`（唯一同时写代码与来源的通道），禁止手工复制后再提交。手工复制现在会被 `copy-modified` 精确指认，而不是伪装成「与 pin 不同」。
 
@@ -95,3 +95,18 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 - 测试：需要覆盖四个信号各自的判定路径，以及「副本干净但上游已推进时门禁为绿」这条反向断言（这是本次误报的核心回归点）。
 - 文档：`AGENTS.md` 的 back-port 段落改为强制走 `modules update <key>`；`environment-runbook.md` 的门禁说明同步。
 - ADR-021 在本 ADR 被采纳时改状态为「已采纳（基线选择章节由 ADR-041 取代）」，正文不动。
+
+## 实施记录
+
+2026-11-22 第一阶段落地（round 87 R87-06）：
+
+- 新增 `newbie-modules.lock.json`（`lockVersion: 1`），条目为 `key` / `version` / `sourceCommit` / `files`（POSIX 相对路径 → sha256）。
+- `modules apply` 在复制后写入/刷新条目；已存在条目保持不动，让 `--check` 仍能报 `copy-modified`。既有副本无条目时按 pin 校验，干净才采纳，脏副本点名拒绝；pin 不可读则跳过该 key（门禁继续报 `unverifiable-lock`，不写入未经校验的锁）。
+- 门禁改为「副本 = 清单，清单 = registry @ sourceCommit」，信号为 `lock-missing` / `copy-modified` / `lock-tampered` / `unverifiable-lock`；缺对象时先按需 fetch 一次。项目没有锁文件时仍走旧 pin 路径，作为迁移窗口。
+- `update.ts` 的 `fromCommit`、`doctor` 与 `status` 的基线优先读锁文件；`status --drift` 与 `doctor` 的本地漂移判定可离线完成。
+
+2026-11-22 第二阶段落地：
+
+- `newbie-modules.json` 不再写入每条记录的 `version` / `sourceCommit` / `localPatches`；`ModuleRecord` 收敛为纯 `{ key }`（`@devbie/modules-state`、newbie hub 快照、module-hub-cli 校验同步调整）。锁文件成为来源信息的唯一真源。
+- legacy pin 分支删除：`module-source-drift.ts` 的 `missing-pin` / `unavailable-pin` 并入 `lock-missing` / `unverifiable-lock`；无锁文件时从声明文件读一次旧 pin 作为迁移基线，读到即校验，读不到即点名拒绝整体写入——不再把 pin 抹掉后留下无法验证的副本。
+- 迁移窗口收口：`modules apply` 在无锁文件且旧 pin 不可读时直接失败（含 7 位 commit 与刷新/换 registry 指引）；有锁文件时保持 `unverifiable-lock`，交由 `--check` 报告。

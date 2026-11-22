@@ -111,11 +111,6 @@ export function buildProgram(): Command {
     .option("-y, --yes", "skip confirmation prompts", false)
     .option("-f, --force", "overwrite files that already exist but belong to no declared module", false)
     .option("--skip-install", "do not run npm install for missing dependencies", false)
-    .option(
-      "--with-login-form",
-      "also install the login-form block (e.g. `fewbie modules add auth --with-login-form`)",
-      false,
-    )
     .action(function (this: Command, names: string[]) {
       const flags = this.opts();
       return runAdd({
@@ -124,7 +119,6 @@ export function buildProgram(): Command {
         yes: Boolean(flags.yes),
         force: Boolean(flags.force),
         skipInstall: Boolean(flags.skipInstall),
-        withLoginForm: Boolean(flags.withLoginForm),
       });
     });
 

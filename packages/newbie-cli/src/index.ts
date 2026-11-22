@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { red } from "colorette";
+import { DEBUG_ENV } from "@devbie/cli-kit";
 
 import { buildProgram, VERSION } from "./program";
 import { registerModuleCommands } from "./lib/module-cli";
@@ -42,7 +43,7 @@ void (async () => {
     });
   } catch (error) {
     console.error(red(`\nFailed to load module CLIs: ${(error as Error).message}\n`));
-    if (process.env.NEWBIE_DEBUG && (error as Error).stack) {
+    if (process.env[DEBUG_ENV] && (error as Error).stack) {
       console.error((error as Error).stack);
     }
     process.exit(1);

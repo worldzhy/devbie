@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { MODULES_JSON } from "@devbie/modules-state";
+import { MODULE_LOCK_FILE, MODULES_JSON } from "@devbie/modules-state";
 
 import { readModuleSnapshot } from "../src/module-hub/snapshot";
 
@@ -40,14 +40,16 @@ describe("readModuleSnapshot", () => {
     assert.deepEqual(entries, []);
   });
 
-  it("reads module records and detects installed + hasSchema", async () => {
+  it("reads enabled keys, pairs them with lock identities and detects installed + hasSchema", async () => {
+    await writeFile(root, MODULES_JSON, JSON.stringify({ modules: [{ key: "account" }, { key: "heartbeat" }] }));
     await writeFile(
       root,
-      MODULES_JSON,
+      MODULE_LOCK_FILE,
       JSON.stringify({
+        lockVersion: 1,
         modules: [
-          { key: "account", version: "1.0.0", sourceCommit: "abc123", localPatches: ["patch-1"] },
-          { key: "heartbeat", version: null, sourceCommit: null, localPatches: [] },
+          { key: "account", version: "1.0.0", sourceCommit: "abc123", files: [] },
+          { key: "heartbeat", version: null, sourceCommit: null, files: [] },
         ],
       }),
     );
@@ -73,14 +75,12 @@ describe("readModuleSnapshot", () => {
     const account = entries.find((e) => e.key === "account")!;
     assert.equal(account.version, "1.0.0");
     assert.equal(account.sourceCommit, "abc123");
-    assert.deepEqual(account.localPatches, ["patch-1"]);
     assert.equal(account.installed, true);
     assert.equal(account.hasSchema, true);
 
     const heartbeat = entries.find((e) => e.key === "heartbeat")!;
     assert.equal(heartbeat.version, null);
     assert.equal(heartbeat.sourceCommit, null);
-    assert.deepEqual(heartbeat.localPatches, []);
     assert.equal(heartbeat.installed, true);
     assert.equal(heartbeat.hasSchema, false);
   });
@@ -90,7 +90,7 @@ describe("readModuleSnapshot", () => {
       root,
       MODULES_JSON,
       JSON.stringify({
-        modules: [{ key: "ghost", version: null, sourceCommit: "sha", localPatches: [] }],
+        modules: [{ key: "ghost" }],
       }),
     );
 
@@ -106,12 +106,7 @@ describe("readModuleSnapshot", () => {
       root,
       MODULES_JSON,
       JSON.stringify({
-        modules: [
-          { key: "valid", version: null, sourceCommit: null, localPatches: [] },
-          { key: "", version: null, sourceCommit: null, localPatches: [] },
-          { version: null, sourceCommit: null, localPatches: [] },
-          { key: 123, version: null, sourceCommit: null, localPatches: [] },
-        ],
+        modules: [{ key: "valid" }, { key: "" }, { version: null }, { key: 123 }],
       }),
     );
 

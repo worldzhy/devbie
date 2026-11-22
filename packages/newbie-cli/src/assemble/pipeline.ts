@@ -2,14 +2,25 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { cyan } from "colorette";
-import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON, ModulesState, moduleKeys } from "@devbie/modules-state";
+import {
+  MODULE_LOCK_FILE,
+  MODULES_DIR,
+  MODULE_MANIFEST_FILE,
+  MODULES_JSON,
+  ModulesState,
+  moduleKeys,
+} from "@devbie/modules-state";
 import type { ManagedDependencies } from "@devbie/modules-state";
 
 import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
+import { diffSnapshots } from "../core/drift";
+import { LOCK_VERSION, lockEntryFor, snapshotToFiles } from "../core/module-lock";
 import { CliError } from "@devbie/cli-kit";
 import { readRegistryModule, type RegistryLocation } from "../lib/registry";
-import { writeModulesState } from "../lib/modules-state";
+import { readModuleLock, readModuleLockOrDefault, writeModuleLock } from "../lib/module-lock";
+import { readLegacyModulePins, writeModulesState } from "../lib/modules-state";
+import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
 
 import { assembleDependencies } from "./dependencies";
 import { applyDeployRenders, planDeployRenders } from "./deploy";
@@ -92,28 +103,22 @@ export async function readProjectModuleDirs(cwd: string): Promise<string[]> {
   }
 }
 
-/** Stamp freshly copied module records with the registry sourceCommit. */
-function stampCopiedModules(
+/**
+ * Record freshly copied keys (closure-expanded dependencies included) and the
+ * registry the copy came from. Per-module provenance is not written here: it
+ * lives in the lock, which `syncModuleLock` seeds right after (ADR-041).
+ */
+function recordCopiedModules(
   state: ModulesState,
   addedKeys: string[],
   registry: { url: string; sourceCommit: string | null },
 ): ModulesState {
-  const added = new Set(addedKeys);
-  const stamped = state.modules.map((record) =>
-    added.has(record.key)
-      ? {
-          ...record,
-          version: null,
-          sourceCommit: registry.sourceCommit,
-          localPatches: [],
-        }
-      : record,
-  );
-  // Closure-expanded dependencies may have no newbie-modules.json record yet.
-  const known = new Set(stamped.map((record) => record.key));
+  const known = new Set(state.modules.map((record) => record.key));
+  const modules = state.modules.map((record) => ({ key: record.key }));
   for (const key of addedKeys) {
     if (!known.has(key)) {
-      stamped.push({ key, version: null, sourceCommit: registry.sourceCommit, localPatches: [] });
+      known.add(key);
+      modules.push({ key });
     }
   }
   return {
@@ -123,8 +128,87 @@ function stampCopiedModules(
       url: registry.url,
       sourceCommit: registry.sourceCommit,
     },
-    modules: stamped,
+    modules,
   };
+}
+
+/**
+ * Seed or refresh the provenance lock (ADR-041). Freshly copied keys are
+ * re-hashed from the installed tree; keys that already have an entry are left
+ * untouched so a later `--check` can still report `copy-modified`.
+ *
+ * Migration rule (ADR-041 §6): an existing copy without a lock entry is only
+ * adopted when it matches its recorded registry tree. A dirty copy is named
+ * and refused — seeding the current state would launder real drift.
+ */
+async function syncModuleLock(ctx: PipelineContext, enabledKeys: string[], copied: ReadonlySet<string>): Promise<void> {
+  const { cwd, registry, sink } = ctx;
+  const lockExists = (await readModuleLock(cwd)) !== null;
+  const existing = await readModuleLockOrDefault(cwd);
+  const entries = new Map(existing.modules.map((entry) => [entry.key, entry]));
+  // Migration window (ADR-041 §6): a project assembled by an older CLI has no
+  // lock, only the pins those versions stamped into newbie-modules.json.
+  const pins = await readLegacyModulePins(cwd);
+  let changed = false;
+
+  for (const key of enabledKeys) {
+    if (entries.has(key) && !copied.has(key)) continue;
+    const installed = await snapshotInstalledModule(cwd, key);
+    if (installed === null) {
+      if (copied.has(key)) {
+        throw new CliError(`Module '${key}' has no copy after installation; cannot write ${MODULE_LOCK_FILE}.`);
+      }
+      continue;
+    }
+    const commit = copied.has(key) ? registry.sourceCommit : (pins.get(key) ?? null);
+    if (!commit) {
+      throw new CliError(
+        `Cannot record provenance for '${key}': no registry source commit. Use a git-backed registry ` +
+          "(NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+      );
+    }
+    if (!copied.has(key)) {
+      const pristine = await snapshotPristineModule(registry, key, commit);
+      if (pristine === null) {
+        // Without a lock the legacy pin is the only baseline, and this checkout
+        // cannot read it. Refuse instead of rewriting the declaration into a
+        // state no later gate can verify (ADR-041 §6).
+        if (!lockExists) {
+          const hint = registry.local
+            ? `a local registry (${registry.root}) cannot fetch them; point the project at a git-backed registry or check that commit out`
+            : `fetch them with \`git -C ${registry.root} fetch origin\`, then re-run \`newbie modules apply\``;
+          throw new CliError(
+            `the registry checkout at ${registry.root} cannot read the locked commit(s) ${commit.slice(0, 7)}; ${hint}.`,
+          );
+        }
+        // Unverifiable is not dirty: leave the entry out so the gate keeps
+        // reporting `unverifiable-lock` instead of blessing an unchecked copy.
+        continue;
+      }
+      const report = diffSnapshots(installed, pristine);
+      if (!report.clean) {
+        throw new CliError(
+          `Refusing to write ${MODULE_LOCK_FILE} for '${key}': the installed copy does not match the registry ` +
+            `tree at ${commit.slice(0, 7)}. Back-port it to the registry and run \`newbie modules update ${key}\`, ` +
+            `or remove the copy and run \`newbie modules apply\`.`,
+        );
+      }
+    }
+    entries.set(key, { key, version: null, sourceCommit: commit, files: snapshotToFiles(installed) });
+    changed = true;
+  }
+
+  const enabled = new Set(enabledKeys);
+  for (const key of [...entries.keys()]) {
+    if (!enabled.has(key)) {
+      entries.delete(key);
+      changed = true;
+    }
+  }
+
+  if (!changed && lockExists) return;
+  if (!lockExists && entries.size === 0) return;
+  await writeModuleLock(cwd, sink, { lockVersion: LOCK_VERSION, modules: [...entries.values()] });
 }
 
 /**
@@ -135,7 +219,8 @@ function stampCopiedModules(
 function assertRegistryCommitForCopy(registry: RegistryLocation, added: readonly string[]): void {
   if (added.length === 0 || registry.sourceCommit) return;
   throw new CliError(
-    "Refusing to copy modules without a registry commit: newbie-modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+    `Refusing to copy modules without a registry commit: ${MODULE_LOCK_FILE} needs a \`sourceCommit\` to record provenance. ` +
+      "Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
   );
 }
 
@@ -147,10 +232,19 @@ export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Pr
     assertRegistryCommitForCopy(registry, added);
     step("Copy modules from the registry");
     await addModules({ cwd, sink, registry, keys: added });
-    if (!sink.dryRun) {
-      ctx.state = stampCopiedModules(ctx.state, added, registry);
-      await writeModulesState(cwd, sink, ctx.state);
-    }
+    if (!sink.dryRun) ctx.state = recordCopiedModules(ctx.state, added, registry);
+  }
+
+  if (!sink.dryRun) {
+    // Order matters during migration: the lock seeding reads the legacy pins
+    // from newbie-modules.json, so it must run before that file is rewritten
+    // without them.
+    const hadLegacyPins = (await readLegacyModulePins(cwd)).size > 0;
+    step(`Update ${MODULE_LOCK_FILE}`);
+    await syncModuleLock(ctx, enabledKeys, new Set(added));
+    // Rewrite the declaration so a pre-lock project drops its legacy pins;
+    // callers persist their own enabled-set changes after this returns.
+    if (hadLegacyPins) await writeModulesState(cwd, sink, ctx.state);
   }
 
   step("Update environment variables");
@@ -202,15 +296,14 @@ export async function applyPlanned(ctx: PipelineContext, changes: PlannedChange)
   // be copied (R6-04).
   assertRegistryCommitForCopy(ctx.registry, changes.added);
 
-  // Planning stays read-only: adopt the closure-expanded enabled set into
-  // newbie-modules.json only when the plan is actually applied.
-  if (changes.enabledKeys) {
-    ctx.state = withModuleKeys(ctx.state, changes.enabledKeys);
-    if (!ctx.sink.dryRun) {
-      await writeModulesState(ctx.cwd, ctx.sink, ctx.state);
-    }
-  }
+  // Planning stays read-only: adopt the closure-expanded enabled set in memory
+  // and persist it only after the pipeline has consumed the file, because the
+  // lock seeding reads the legacy pins from it during migration (ADR-041 §6).
+  if (changes.enabledKeys) ctx.state = withModuleKeys(ctx.state, changes.enabledKeys);
   await runSteps(ctx, changes);
+  if (changes.enabledKeys && !ctx.sink.dryRun) {
+    await writeModulesState(ctx.cwd, ctx.sink, ctx.state);
+  }
 }
 
 /**
@@ -245,7 +338,6 @@ export async function applyModuleKeys(
   assertRegistryCommitForCopy(ctx.registry, diff.added);
 
   ctx.state = withModuleKeys(ctx.state, expandedKeys);
-  await writeModulesState(cwd, sink, ctx.state);
 
   await runSteps(ctx, {
     added: diff.added,
@@ -253,6 +345,8 @@ export async function applyModuleKeys(
     enabledKeys: expandedKeys,
     closureAdded: describeClosureAdditions(closure.added, closure.graph, expandedKeys),
   });
+  // Persist after the pipeline: the lock seeding still needs the legacy pins.
+  if (!sink.dryRun) await writeModulesState(cwd, sink, ctx.state);
   return diff;
 }
 
@@ -270,16 +364,23 @@ export async function planReconcile(
 ): Promise<PlannedChange & { installed: string[]; uninstalled: string[] }> {
   const inProject = new Set(await readProjectModuleDirs(ctx.cwd));
   const declared = moduleKeys(ctx.state);
+  const lock = await readModuleLock(ctx.cwd);
 
   const closure = await assertClosureResolvable(ctx.registry.root, declared);
   const enabled = closure.keys;
   const enabledSet = new Set(enabled);
   const closureAdded = describeClosureAdditions(closure.added, closure.graph, enabled);
 
+  // Migration window: a project without a lock may still carry the pins older
+  // CLIs stamped into newbie-modules.json. A pinned copy is adopted by the lock
+  // instead of being recopied, so `apply` verifies it before writing provenance.
+  const legacyPins = lock === null ? await readLegacyModulePins(ctx.cwd) : new Map<string, string>();
   const installed = enabled.filter((key) => {
     if (!inProject.has(key)) return true;
-    const record = ctx.state.modules.find((entry) => entry.key === key);
-    return !record?.sourceCommit;
+    // A copy that predates the lock (or lost its entry) is reinstalled: the
+    // copy step writes code and provenance together (ADR-041 §3).
+    if (lock === null) return !legacyPins.has(key);
+    return lockEntryFor(lock, key) === undefined;
   });
   const uninstalled = [...inProject].filter((key) => !enabledSet.has(key));
 

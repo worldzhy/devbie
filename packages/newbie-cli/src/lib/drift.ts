@@ -147,6 +147,26 @@ function extractArchive(registryRoot: string, sourceCommit: string, subpath: str
 }
 
 /**
+ * Fetch one missing commit into the cached registry clone (ADR-041).
+ *
+ * The lock proves the copy locally; the registry tree is only needed to prove
+ * the lock itself was not hand-edited. Fetching a single object keeps the gate
+ * usable on shallow clones without turning it into a full clone. A local
+ * checkout (`NEWBIE_MODULES_PATH`) never touches the network: the caller
+ * reports `unverifiable-lock` instead.
+ */
+export function fetchRegistryCommit(registry: RegistryLocation, commit: string): Promise<boolean> {
+  if (registry.local) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const proc = spawn("git", ["-C", registry.root, "fetch", "--depth", "1", "origin", commit], {
+      stdio: "ignore",
+    });
+    proc.on("error", () => resolve(false));
+    proc.on("close", (code) => resolve(code === 0));
+  });
+}
+
+/**
  * Snapshot the pristine registry copy of a module at `sourceCommit`.
  * Returns null when the pinned commit (or the module at that commit) is not
  * available in the local registry clone.

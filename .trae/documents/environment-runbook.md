@@ -65,8 +65,8 @@ git add AGENTS.md .trae/documents/environment-runbook.md
 
 # Step 2: staged 清单核对——发现无关路径立即剔除
 git diff --cached --name-status
-# → 核对输出只含本轮任务涉及的路径；看到 src/modules/、newbie-modules.json 等
-#   本轮不碰的路径，立即 git restore --staged <path> 剔除后再 commit
+# → 核对输出只含本轮任务涉及的路径；看到 src/modules/、newbie-modules.json、
+#   newbie-modules.lock.json 等本轮不碰的路径，立即 git restore --staged <path> 剔除后再 commit
 
 # Step 3: commit + push（模板见"Git 推送"节；commit 是本地操作，不需要 credential helper）
 git commit -m "..."

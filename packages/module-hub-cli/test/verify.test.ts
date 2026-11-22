@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { ModuleRecord } from "@devbie/modules-state";
-
 import { deriveModulesUrl } from "../src/env";
-import { compareModules } from "../src/verify";
+import { compareModules, type LocalModule } from "../src/verify";
 
-function record(key: string, sourceCommit: string | null = "abc"): ModuleRecord {
-  return { key, version: null, sourceCommit, localPatches: [] };
+function record(key: string, sourceCommit: string | null = "abc"): LocalModule {
+  return { key, sourceCommit };
 }
 
 describe("deriveModulesUrl", () => {

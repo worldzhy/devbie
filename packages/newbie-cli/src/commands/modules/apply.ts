@@ -72,30 +72,31 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
     );
   }
 
-  // Source drift: newbie-modules.json agreeing with src/modules does not prove the
-  // copies are unmodified; only the pinned registry tree can (R5-06/N-2).
+  // Source integrity: newbie-modules.json agreeing with src/modules does not
+  // prove the copies are unmodified; the provenance lock does (ADR-041).
   const drifts = await diffModuleSources({
     cwd: ctx.cwd,
     registry: ctx.registry,
-    state: ctx.state,
     enabledKeys: declared,
   });
   if (drifts.length > 0) {
     for (const drift of drifts) printSourceDrift(drift);
-    const unreadable = drifts.filter((drift) => drift.reason === "unavailable-pin");
+    const unreadable = drifts.filter((drift) => drift.reason === "unverifiable-lock");
     // A stale registry cache is not drift: claiming it is sends the reader to
     // back-port against a commit this checkout cannot even read.
     if (unreadable.length === drifts.length) {
       const pins = [...new Set(unreadable.map((drift) => drift.baselineCommit?.slice(0, 7) ?? "unknown"))].join(", ");
+      const hint = ctx.registry.local
+        ? `a local registry (${ctx.registry.root}) cannot fetch them; point the project at a git-backed registry or check that commit out`
+        : `fetch them with \`git -C ${ctx.registry.root} fetch origin\`, then re-run \`newbie modules apply --check\``;
       throw new CliError(
-        `the registry checkout at ${ctx.registry.root} cannot read the pinned commit(s) ${pins}; ` +
-          `refresh it with \`git -C ${ctx.registry.root} fetch\`, then re-run \`newbie modules apply --check\`.`,
+        `the registry checkout at ${ctx.registry.root} cannot read the locked commit(s) ${pins}; ${hint}.`,
       );
     }
     const keys = drifts.map((drift) => drift.key).join(", ");
     throw new CliError(
-      `${drifts.length} installed module(s) do not match the registry pin in newbie-modules.json (${keys}); ` +
-        "back-port the host changes to newbie-modules, or run `newbie modules update` to adopt the registry version.",
+      `${drifts.length} installed module(s) do not match their provenance lock (${keys}); ` +
+        "restore the copy with `newbie modules apply`, or run `newbie modules update` to adopt the registry version.",
     );
   }
 
