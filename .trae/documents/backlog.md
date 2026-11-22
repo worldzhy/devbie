@@ -15,6 +15,19 @@
 
 > 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
 
+## 发布收尾遗留（2026-11-23）
+
+> 2026-11-23 发布：`@devbie/cli-kit` 1.1.0、`@devbie/modules-state` 1.3.0、`@devbie/newbie-cli` 1.21.1、`@devbie/newbie` 1.20.0、`@devbie/module-hub-cli` 1.2.0、`@devbie/fewbie-cli` 1.15.2。newbie-starter / fewbie-starter / nightwatch-backend / nightwatch-frontend / crewbie-console-frontend / crewbie-console-backend 已升 pin；两个 starter 的 dev→main PR 已合并，`check:template-deps` 双栈均无漂移。
+
+- [ ] **nightwatch-frontend 模板漂移**：`fewbie template update --check` 报 12 个框架文件落后（框架测试与门禁），需运行 `npx fewbie template update` 并单独提交。
+- [ ] **crewbie-console-frontend 模板门禁被依赖挡住**：`fewbie template update --check` 要求先声明 axios / dayjs / cmdk / echarts / react-day-picker，补齐后再拉模板。
+- [ ] **crewbie-console-backend 模块锁迁移受阻**：`task-management` 安装副本与 pin `bcbed31`、registry head 均不一致；需回灌 registry 或 `newbie modules update task-management` 后再 `newbie modules apply`，迁移完成前不得提交锁文件。
+- [ ] **宿主 dev→main PR**：nightwatch-backend、nightwatch-frontend、crewbie-console-frontend、crewbie-console-backend 不在自动合并白名单，需人工确认后建 PR。
+- [ ] **fewbie-modules 分支收口**：dev 落后 main 两个纯合并提交（无内容差异），可选同步。
+- [ ] **nightwatch-world 依赖滞后**：`@devbie/style-guide` 仍为 `^1.6.0`（latest 1.8.0），与本次发布无关，待后续统一。
+
+> 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
+
 ## 安全评审 round5 复核后（devbie 自身条目，2026-11-03 入账）
 
 > 真源：`.trae/documents/reviews/expert-review-2026-11-03-round5.md` §12（复核裁决）与 §13（逐项处理方案）。宿主/registry/frontend 条目登记在各自仓库；本文件只列 devbie 仓库自身条目。W1（R5-01/R5-02 及随附 clickhouse 装配）已于 2026-11-03 完成，取证见 `findings.md` 的「W1 落地」节；W3 的 devbie 自身条目（R5-06/N-2/R5-08、前端 P2、治理 P2）已于 2026-11-03 完成，取证见「W3 落地」节。
