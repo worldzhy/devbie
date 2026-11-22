@@ -5,6 +5,8 @@ import { bold, cyan, green } from "colorette";
 
 import { CliError, execCapture } from "@devbie/cli-kit";
 import { MODULES_FILE, modulesFileContent } from "../lib/modules-file";
+import { assertSafeRef } from "../registry/source";
+import { recordFrameworkBaseline } from "./template/update";
 
 /** Repository that ships the starter template at its root. */
 export const TEMPLATE_REPOSITORY_URL = "https://github.com/worldzhy/fewbie-starter.git";
@@ -16,6 +18,16 @@ const PACKAGE_NAME_RE = /^(?:@[a-z0-9][a-z0-9-._]*\/)?[a-z0-9][a-z0-9-._]*$/;
 
 /** Directories/files never copied out of the template. */
 const COPY_IGNORE = new Set(["node_modules", ".next", "dist", ".git", ".env"]);
+
+/**
+ * Host-local environment files must never ship into a new project; only
+ * `.env.example` is template documentation. A plain Set cannot express the
+ * `.env.*` family, so the check is a predicate (R82-11).
+ */
+function isCopyIgnored(name: string): boolean {
+  if (COPY_IGNORE.has(name)) return true;
+  return name.startsWith(".env.") && name !== ".env.example";
+}
 
 export interface CreateOptions {
   name: string;
@@ -49,12 +61,16 @@ export async function resolveTemplate(
   }
 
   const ref = options.templateRef;
+  if (ref !== undefined) assertSafeRef(ref);
   const temp = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-template-"));
-  const cloneArgs = ["clone", "--quiet"];
-  if (!ref) cloneArgs.push("--depth", "1");
-  if (ref) cloneArgs.push("--branch", ref);
-  cloneArgs.push(TEMPLATE_REPOSITORY_URL, temp);
-  await execCapture("git", cloneArgs);
+  // `git clone --branch` accepts only branches and tags, so a commit SHA in
+  // --template-ref failed. Clone the default branch shallow, then fetch the
+  // requested ref (branch, tag or reachable commit) and check it out (R82-11).
+  await execCapture("git", ["clone", "--quiet", "--depth", "1", TEMPLATE_REPOSITORY_URL, temp]);
+  if (ref) {
+    await execCapture("git", ["-C", temp, "fetch", "--quiet", "--depth", "1", "origin", ref]);
+    await execCapture("git", ["-C", temp, "checkout", "--quiet", "--force", "FETCH_HEAD"]);
+  }
   return {
     root: temp,
     source: `${TEMPLATE_REPOSITORY_URL}#${ref ?? "HEAD"}`,
@@ -70,7 +86,7 @@ async function copyTemplate(from: string, to: string): Promise<void> {
       // A symlink is a workspace mount (e.g. `.trae/skills` → a sibling repo);
       // copying it would ship a dangling link into the new project (R34-08).
       if ((await fs.lstat(src)).isSymbolicLink()) return false;
-      return !COPY_IGNORE.has(path.basename(src));
+      return !isCopyIgnored(path.basename(src));
     },
   });
 }
@@ -84,7 +100,17 @@ export async function runCreate(options: CreateOptions): Promise<void> {
   }
 
   const targetDir = path.resolve(options.cwd ?? process.cwd(), name);
-  const existing = await fs.readdir(targetDir).catch(() => null);
+  // Only ENOENT means "absent". Treating ENOTDIR/EACCES as absent would create
+  // into a path that is not a directory, and the failure rollback below deletes
+  // `targetDir` recursively — i.e. a user file with that name (R83-09).
+  let existing: string[] | null = null;
+  try {
+    existing = await fs.readdir(targetDir);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw new CliError(`Cannot inspect target directory ${targetDir}: ${(error as Error).message}`);
+    }
+  }
   if (existing && existing.length > 0) {
     throw new CliError(`Target directory ${targetDir} is not empty.`);
   }
@@ -93,35 +119,42 @@ export async function runCreate(options: CreateOptions): Promise<void> {
   const template = await resolveTemplate(options);
   try {
     await copyTemplate(template.root, targetDir);
+
+    // The declaration file is the single entry point for every later module
+    // operation (ADR-024 clause 10); a fresh project declares nothing.
+    await fs.writeFile(path.join(targetDir, MODULES_FILE), modulesFileContent([]));
+    await recordFrameworkBaseline(targetDir, template.root);
+
+    const packageJsonPath = path.join(targetDir, "package.json");
+    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8")) as {
+      name?: string;
+      [key: string]: unknown;
+    };
+    packageJson.name = name;
+    // The template repository gates its own CI with
+    // FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1. A created project owns business files
+    // that are not template assets, so the copied gate must not demand that
+    // those be classified (R5-11).
+    const scripts = packageJson.scripts as Record<string, string> | undefined;
+    if (scripts && typeof scripts["check:template"] === "string") {
+      scripts["check:template"] = scripts["check:template"]
+        .replace(/\b(?:NEWBIE|FEWBIE)_TEMPLATE_REGISTRY_COMPLETE=1\s+/g, "")
+        .replace(/\s--registry-complete(?=\s|$)/g, "")
+        .trim();
+    }
+    await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+
+    if (options.gitInit !== false) {
+      await execCapture("git", ["init", "--quiet"], { cwd: targetDir });
+    }
+  } catch (error) {
+    // A half-created project is worse than none: the next attempt would refuse
+    // the non-empty target. Roll back the whole directory on any failure
+    // (R82-11).
+    await fs.rm(targetDir, { recursive: true, force: true });
+    throw error;
   } finally {
     await template.cleanup?.();
-  }
-
-  // The declaration file is the single entry point for every later module
-  // operation (ADR-024 clause 10); a fresh project declares nothing.
-  await fs.writeFile(path.join(targetDir, MODULES_FILE), modulesFileContent([]));
-
-  const packageJsonPath = path.join(targetDir, "package.json");
-  const packageJson = JSON.parse(await fs.readFile(packageJsonPath, "utf8")) as {
-    name?: string;
-    [key: string]: unknown;
-  };
-  packageJson.name = name;
-  // The template repository gates its own CI with
-  // FEWBIE_TEMPLATE_REGISTRY_COMPLETE=1. A created project owns business files
-  // that are not template assets, so the copied gate must not demand that
-  // those be classified (R5-11).
-  const scripts = packageJson.scripts as Record<string, string> | undefined;
-  if (scripts && typeof scripts["check:template"] === "string") {
-    scripts["check:template"] = scripts["check:template"]
-      .replace(/\b(?:NEWBIE|FEWBIE)_TEMPLATE_REGISTRY_COMPLETE=1\s+/g, "")
-      .replace(/\s--registry-complete(?=\s|$)/g, "")
-      .trim();
-  }
-  await fs.writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
-
-  if (options.gitInit !== false) {
-    await execCapture("git", ["init", "--quiet"], { cwd: targetDir });
   }
 
   console.info(green(bold("\n✓ Project created.\n")));

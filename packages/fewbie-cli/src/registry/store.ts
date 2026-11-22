@@ -1,8 +1,10 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { yellow } from "colorette";
 
 import { CliError } from "@devbie/cli-kit";
-import type { BuiltRegistryItem, RegistryManifest } from "./types";
+import { parseModuleContract, validateManifestContract } from "./contract";
+import { REGISTRY_MANIFEST_FILE, type BuiltRegistryItem, type ModuleContract, type RegistryManifest } from "./types";
 
 /** A loaded item plus the absolute paths its files should be copied from. */
 export interface LoadedItem {
@@ -11,52 +13,33 @@ export interface LoadedItem {
   files: Array<{ target: string; source?: string; content?: string }>;
 }
 
-/**
- * A candidate directory is only a valid registry root if it contains at
- * least one `<name>/item.json`. Merely existing is not enough: when this
- * module runs uncompiled via tsx, the first candidate resolves to the
- * src/registry directory itself (which holds code, not items).
- */
-async function isRegistryRoot(candidate: string): Promise<boolean> {
-  let entries: import("node:fs").Dirent[];
-  try {
-    entries = await fs.readdir(candidate, { withFileTypes: true });
-  } catch {
-    return false;
-  }
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const hasItem = await fs
-      .access(path.join(candidate, entry.name, "item.json"))
-      .then(() => true)
-      .catch(() => false);
-    if (hasItem) return true;
-  }
-  return false;
-}
-
-/**
- * Locate the registry root.
- *
- * - Published package: built manifests live in dist/registry.
- * - Monorepo checkout / tsx runs: fall back to the authored registry/ folder.
- */
-export async function resolveRegistryRoot(): Promise<string> {
-  const candidates = [
-    path.resolve(__dirname, "..", "registry"), // dist/registry (compiled)
-    path.resolve(__dirname, "..", "..", "registry"), // packages/fewbie-cli/registry (authored)
-  ];
-  for (const candidate of candidates) {
-    if (await isRegistryRoot(candidate)) {
-      return candidate;
-    }
-  }
-  throw new CliError("Registry not found (expected dist/registry or registry/).");
-}
-
 async function readItemFile(root: string, name: string): Promise<RegistryManifest | BuiltRegistryItem> {
-  const raw = await fs.readFile(path.join(root, name, "item.json"), "utf8");
+  const raw = await fs.readFile(path.join(root, name, REGISTRY_MANIFEST_FILE), "utf8");
   return JSON.parse(raw) as RegistryManifest | BuiltRegistryItem;
+}
+
+/** Warn once per item that predates the executable contract (ADR-057). */
+function warnMissingContract(name: string): void {
+  console.warn(yellow(`Registry item '${name}' has no contract; pinning is unavailable until the module ships one.`));
+}
+
+/**
+ * Built items carry the contract inline; the sidecar is the fallback for
+ * consumers whose tooling strips unknown manifest keys.
+ */
+async function readBuiltContract(
+  root: string,
+  name: string,
+  item: BuiltRegistryItem,
+): Promise<ModuleContract | undefined> {
+  if (item["x-fewbie.contract"] !== undefined) return item["x-fewbie.contract"];
+  const sidecar = path.join(root, name, "contract.json");
+  const raw = await fs.readFile(sidecar, "utf8").catch((error: unknown) => {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  });
+  if (raw === undefined) return undefined;
+  return parseModuleContract(JSON.parse(raw), name);
 }
 
 /** Names of every authored item in the registry, sorted. */
@@ -66,7 +49,7 @@ export async function listRegistryItemNames(root: string): Promise<string[]> {
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const hasItem = await fs
-      .access(path.join(root, entry.name, "item.json"))
+      .access(path.join(root, entry.name, REGISTRY_MANIFEST_FILE))
       .then(() => true)
       .catch(() => false);
     if (hasItem) names.push(entry.name);
@@ -102,6 +85,9 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
 
   if (isBuilt(item)) {
     for (const file of item.files) assertProjectRelativeTarget(name, file.path);
+    const targets = item.files.map((f) => f.path);
+    const declared = await readBuiltContract(root, name, item);
+    if (declared === undefined) warnMissingContract(name);
     return {
       manifest: {
         name: item.name,
@@ -111,7 +97,9 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
         dependencies: item.dependencies,
         registryDependencies: item.registryDependencies,
         postInstall: item.postInstall,
-        files: item.files.map((f) => f.path),
+        files: targets,
+        contract:
+          declared === undefined ? undefined : validateManifestContract({ name, files: targets, contract: declared }),
       },
       files: item.files.map((f) => ({
         target: f.path,
@@ -122,11 +110,12 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
 
   const manifest = item;
   for (const relative of manifest.files) assertProjectRelativeTarget(name, relative);
+  if (manifest.contract === undefined) warnMissingContract(name);
   const files = manifest.files.map((relative) => ({
     target: relative,
     source: path.join(root, name, relative),
   }));
-  return { manifest, files };
+  return { manifest: { ...manifest, contract: validateManifestContract(manifest) }, files };
 }
 
 /**

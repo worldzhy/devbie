@@ -5,8 +5,16 @@ import { bold, green, red, yellow } from "colorette";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { readModulesFile } from "../lib/modules-file";
 import { packageNameOf } from "../lib/npm-spec";
-import { FRAMEWORK_DEPENDENCIES, TEMPLATE_ASSETS } from "../lib/template-ownership";
-import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
+import {
+  FRAMEWORK_DEPENDENCIES,
+  FRAMEWORK_MANIFEST_PATH,
+  hashContent,
+  parseFrameworkManifest,
+  resolveTemplateAsset,
+  TEMPLATE_ASSETS,
+} from "../lib/template-ownership";
+import { loadItem, listRegistryItemNames } from "../registry/store";
+import { resolveRegistryRoot } from "../registry/source";
 
 export interface DoctorOptions {
   /** Project root (global --cwd). */
@@ -51,6 +59,19 @@ const REQUIRED_CSS_VARS = [
   "--ring",
   "--radius",
 ];
+
+/**
+ * Read a framework file with the channel its declaration requires (ADR-061):
+ * binary assets stay bytes, text assets decode as UTF-8.
+ */
+async function readFrameworkFile(root: string, filePath: string, binary: boolean): Promise<string | Buffer | null> {
+  try {
+    const bytes = await fs.readFile(path.join(root, filePath));
+    return binary ? bytes : new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return null;
+  }
+}
 
 /** Read a JSON file, returning null when it does not exist. */
 async function readJsonSafe<T>(filePath: string): Promise<T | null> {
@@ -107,7 +128,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   // --- 2. Declared registry modules ---
   // The declaration is the only criterion (ADR-024 F10): files that merely
   // exist (the template ships some registry files) do not imply installation.
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const declaration = await readModulesFile(projectRoot);
   const declaredModules = declaration ?? [];
   if (declaration === null) {
@@ -217,6 +238,66 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
           `${asset.path} does not use the framework entry point (${asset.requiredSnippet}). ` +
           "Template update never rewrites it; adopt the shape printed by 'fewbie template update --check'.",
       });
+    }
+  }
+
+  // --- 3d. Framework baseline (ADR-056 D3) ---
+  // Framework files are upgraded silently only while they still match the
+  // baseline the project received, so a mismatch here is the early warning that
+  // `template update` will refuse those files.
+  const frameworkManifestRaw = await readTextIfExists(path.join(projectRoot, FRAMEWORK_MANIFEST_PATH));
+  if (frameworkManifestRaw === null) {
+    findings.push({
+      severity: "warn",
+      category: "framework",
+      message:
+        `No ${FRAMEWORK_MANIFEST_PATH} — host edits of framework files cannot be detected. ` +
+        "Run 'fewbie template update' to receive the baseline.",
+    });
+  } else {
+    const manifest = parseFrameworkManifest(frameworkManifestRaw);
+    if (manifest === null) {
+      findings.push({
+        severity: "error",
+        category: "framework",
+        message:
+          `${FRAMEWORK_MANIFEST_PATH} is malformed or was edited outside the CLI (its digest does not match) — ` +
+          "restore the template copy before running template update.",
+      });
+    } else {
+      const modified: string[] = [];
+      const missing: string[] = [];
+      for (const [filePath, recorded] of Object.entries(manifest.files)) {
+        // Binary assets are hashed over bytes, so decoding them as text here
+        // would report a permanent false modification (ADR-061).
+        const content = await readFrameworkFile(projectRoot, filePath, Boolean(resolveTemplateAsset(filePath)?.binary));
+        if (content === null) missing.push(filePath);
+        else if (hashContent(content) !== recorded) modified.push(filePath);
+      }
+      if (modified.length > 0) {
+        findings.push({
+          severity: "warn",
+          category: "framework",
+          message:
+            `Framework file(s) modified by the host: ${modified.join(", ")}. ` +
+            "Template update refuses to overwrite them (no --force): port the change into fewbie-starter or " +
+            "restore the framework copy.",
+        });
+      }
+      if (missing.length > 0) {
+        findings.push({
+          severity: "warn",
+          category: "framework",
+          message: `Framework file(s) missing: ${missing.join(", ")}. Run 'fewbie template update'.`,
+        });
+      }
+      if (modified.length === 0 && missing.length === 0) {
+        findings.push({
+          severity: "info",
+          category: "framework",
+          message: `Framework baseline intact (${Object.keys(manifest.files).length} file(s)).`,
+        });
+      }
     }
   }
 

@@ -41,8 +41,7 @@ cd my-app
 npm install
 npm run dev
 
-# Declare and install registry modules (dependencies installed automatically)
-npx fewbie modules add api-client auth
+# Declare and install optional registry modules (dependencies installed automatically)
 npx fewbie modules add login-form
 
 # Inspect project state
@@ -57,7 +56,7 @@ the project enables:
 
 ```json
 {
-  "modules": ["api-client", "auth", "login-form"]
+  "modules": ["auth", "login-form"]
 }
 ```
 
@@ -187,30 +186,44 @@ Print machine-readable project state as JSON (always JSON, no flag). Reports
 
 ## Registry items
 
-The built-in registry follows the shadcn item conventions
-(`registry:lib`, `registry:component`, `registry:block`):
+The registry is authored in
+[fewbie-modules](https://github.com/worldzhy/fewbie-modules); this package ships
+a generated snapshot of it (`.snapshot.json` records the source commit), so a
+host that declares `registry` and one that declares nothing see the same item
+set (ADR-058). Never edit `registry/` by hand: change the item in
+fewbie-modules, then run `npm run registry:sync -w @devbie/fewbie-cli`.
+`npm run check:registry-snapshot -w @devbie/fewbie-cli` compares the snapshot
+against the recorded commit and gates a release.
 
-| Item                      | Type        | Description                                                                                                                                         |
-| ------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `api-client`              | `lib`       | Axios instance with bearer-token auth, httpOnly refresh-cookie rotation, a request gate that renews an expiring token, and single-flight 401 retry. |
-| `app-shell`               | `block`     | Collapsible sidebar primitives plus a minimal nav-array-driven AppShell skeleton.                                                                   |
-| `auth`                    | `lib`       | Login/logout helpers and session-expired redirect binding built on the api-client.                                                                  |
-| `chart`                   | `component` | Tree-shaken echarts registry, React adapter, structured-data chart and the shared color palette.                                                    |
-| `data-table`              | `component` | Generic data table with client-side sorting and pagination.                                                                                         |
-| `login-form`              | `block`     | Account/password login card; submits through the auth util and honors `?redirect=`.                                                                 |
-| `page-header`             | `component` | Standard page header with title, description and a right-aligned actions slot.                                                                      |
-| `password-checklist`      | `block`     | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                             |
-| `query-client`            | `lib`       | TanStack Query singleton plus the provider component, wired for the App Router.                                                                     |
-| `settings-required-state` | `block`     | Empty state shown when required configuration is missing, with a setup call-to-action.                                                              |
-| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                                 |
-| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                                 |
-| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout.             |
+A registry checkout is resolved to its item directory: `packages/modules/`
+wins, and a flat checkout with `<item>/fewbie.module.json` at its root stays supported
+(ADR-059). `FEWBIE_REGISTRY_PATH` accepts either shape.
 
-An item whose target path also ships in the starter template must stay
-byte-identical to that template copy — `fewbie create` copies the whole template
-while `fewbie modules add` copies the item (and `fewbie modules apply` restores
-it on reconcile), so the same file has two
-delivery channels that fork if edited apart.
+Items follow the shadcn conventions (`registry:lib`, `registry:component`,
+`registry:block`):
+
+| Item                      | Type        | Description                                                                                                                             |
+| ------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`                    | `lib`       | Login/logout helpers and session-expired redirect binding built on the template-provided api client.                                    |
+| `data-table`              | `component` | Generic data table with client-side sorting and pagination.                                                                             |
+| `login-form`              | `block`     | Account/password login card; submits through the auth util and honors `?redirect=`.                                                     |
+| `password-checklist`      | `block`     | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                 |
+| `query-client`            | `lib`       | TanStack Query singleton plus the provider component, wired for the App Router.                                                         |
+| `settings-required-state` | `block`     | Empty state shown when required configuration is missing, with a setup call-to-action.                                                  |
+| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                     |
+| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                     |
+| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout. |
+| `login-page`              | `block`     | Page-level password/code login with inline TOTP and third-party provider entries.                                                       |
+| `forgot-password`         | `block`     | Email plus verification code password reset with a live strength checklist.                                                             |
+| `profile-settings`        | `block`     | Account profile card: names and display name, persisted by the host.                                                                    |
+| `security-settings`       | `block`     | Active sessions with per-row sign-out, and authenticator-app enrollment.                                                                |
+| `preferences-settings`    | `block`     | Interface language, theme and timezone, with host-side cache and cookie updates.                                                        |
+
+Framework assets (`src/components/ui/**`, `src/framework/**`,
+`src/lib/api-client/**`, the root layout and i18n config) ship only through the
+template and are never registry items (ADR-056). Registry items cover optional
+capabilities at host paths; `template update` refuses to run if a registry
+target falls inside a framework asset.
 `npm run check:template-drift -w @devbie/fewbie-cli` asserts this in CI and
 before publishing. `npm run check:template-deps -w @devbie/fewbie-cli`
 additionally compares the template's locked `@devbie/*` versions against npm

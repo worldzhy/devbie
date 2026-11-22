@@ -1,0 +1,23 @@
+{
+  "name": "password-checklist",
+  "type": "registry:feature",
+  "title": "Password checklist",
+  "description": "Live password rule checklist with a reusable isStrongPassword predicate. Labels come from the host; the rules mirror the newbie account module's password policy (validator.isStrongPassword defaults: 8+ chars, lower/upper/number/symbol) and must be updated manually when the backend policy changes.",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    "src/features/password-checklist/index.ts",
+    "src/features/password-checklist/types.ts",
+    "src/features/password-checklist/password-checklist.tsx"
+  ],
+  "contract": {
+    "version": "1.0.0",
+    "framework": "^1.7.0",
+    "entry": "src/features/password-checklist/index.ts",
+    "labels": ["requirements", "ruleLength", "ruleLowercase", "ruleUppercase", "ruleNumber", "ruleSymbol"],
+    "ports": [],
+    "ui": [],
+    "states": ["ready"]
+  },
+  "postInstall": "Render <PasswordChecklist labels={...} password={...}> under password inputs (pairs with the login-form item in sign-up/change-password screens). The host supplies translated labels; the rules array is a manual mirror of the newbie account password policy, so sync it here when the backend strategy changes."
+}

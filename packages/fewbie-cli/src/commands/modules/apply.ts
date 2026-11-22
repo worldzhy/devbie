@@ -5,13 +5,17 @@ import { bold, cyan, green, yellow } from "colorette";
 import {
   LoadedItem,
   listRegistryItemNames,
+  loadItem,
   readItemFileContent,
   resolveInstallSet,
-  resolveRegistryRoot,
 } from "../../registry/store";
+import { resolveRegistryContext, resolveRegistryRoot, RegistryContext } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
-import { requireModulesFile, writeModulesFile } from "../../lib/modules-file";
+import { hashContent } from "../../lib/hashes";
+import { LOCKFILE_VERSION, Lockfile, LockfileModule, readLockfile, writeLockfile } from "../../lib/lockfile";
+import { findStaleTargets } from "../../lib/stale-targets";
+import { readRegistryDeclaration, requireModulesFile, writeModulesFile } from "../../lib/modules-file";
 import { missingPackages } from "../../lib/npm-spec";
 import { assertProjectRoot } from "../../lib/project";
 
@@ -43,7 +47,7 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
   }
 
   const declared = await requireModulesFile(projectRoot);
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const items = await resolveInstallSet(registryRoot, declared);
   const declaredClosure = new Set(declared);
   const additions = items.map((item) => item.manifest.name).filter((name) => !declaredClosure.has(name));
@@ -78,7 +82,7 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
 /** CI gate: the declared set is complete, its files exist, its dependencies are installed. */
 async function runApplyCheck(projectRoot: string): Promise<void> {
   const declared = await requireModulesFile(projectRoot);
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const items = await resolveInstallSet(registryRoot, declared);
 
   const closure = items.map((item) => item.manifest.name);
@@ -145,6 +149,20 @@ export interface ApplySelectionResult {
 }
 
 /**
+ * Load the previously declared set. An item the registry has since deleted
+ * cannot be resolved, but its installed files still need cleanup; skipping the
+ * name here lets the pass below clean them from the lockfile (R83-12).
+ */
+async function loadDeclaredItems(root: string, names: readonly string[]): Promise<LoadedItem[]> {
+  const available = new Set(await listRegistryItemNames(root));
+  const items: LoadedItem[] = [];
+  for (const name of names) {
+    if (available.has(name)) items.push(await loadItem(root, name));
+  }
+  return items;
+}
+
+/**
  * Converge a project to a declared module set (ADR-024 clause 10: the
  * declaration file is the only automation entry point).
  *
@@ -157,9 +175,12 @@ export interface ApplySelectionResult {
  */
 export async function applyModuleSelection(options: ApplySelectionOptions): Promise<ApplySelectionResult> {
   const { projectRoot, dryRun } = options;
-  const registryRoot = await resolveRegistryRoot();
-  const currentItems = await resolveInstallSet(registryRoot, options.current);
-  const nextItems = await resolveInstallSet(registryRoot, options.next);
+  const context = await resolveRegistryContext(projectRoot);
+  // Removal must keep working after the item leaves the registry: resolve what
+  // is still there and let the lockfile drive the rest (R83-12).
+  const currentItems = await loadDeclaredItems(context.root, options.current);
+  const nextItems = await resolveInstallSet(context.root, options.next);
+  const lockfile = await readLockfile(projectRoot);
 
   const currentClosure = currentItems.map((item) => item.manifest.name);
   const nextClosure = nextItems.map((item) => item.manifest.name);
@@ -208,10 +229,46 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
       const target = path.join(projectRoot, file.target);
       const current = await readTextIfExists(target);
       if (current === null) continue;
-      // Never destroy host customization silently; report it instead.
-      if (current === (await readItemFileContent(file))) deletions.push(file.target);
+      // Never destroy host customization silently; report it instead. With a
+      // lockfile the baseline is the installed bytes, without one fall back to
+      // comparing against the registry copy (1.8 behavior).
+      const lockedHash = lockfile?.modules[item.manifest.name]?.files[file.target];
+      const pristine =
+        lockedHash === undefined ? current === (await readItemFileContent(file)) : hashContent(current) === lockedHash;
+      if (pristine) deletions.push(file.target);
       else kept.push(file.target);
     }
+  }
+
+  // A module the registry no longer ships cannot be resolved above, so its
+  // files come from the lockfile; only the recorded hash can prove a copy is
+  // untouched (R83-12).
+  const resolvedNames = new Set(currentItems.map((item) => item.manifest.name));
+  for (const name of options.current) {
+    if (nextClosure.includes(name) || resolvedNames.has(name)) continue;
+    const entry = lockfile?.modules[name];
+    if (!entry) continue;
+    for (const [target, lockedHash] of Object.entries(entry.files)) {
+      if (nextTargets.has(target) || deletions.includes(target)) continue;
+      const current = await readTextIfExists(path.join(projectRoot, target));
+      if (current === null) continue;
+      if (hashContent(current) === lockedHash) deletions.push(target);
+      else kept.push(target);
+    }
+  }
+
+  // A registry rename or deletion leaves the old target behind even though its
+  // module is still declared; the manifest no longer names it, so the loops
+  // above never see it (R82-08).
+  const staleTargets = await findStaleTargets(
+    projectRoot,
+    nextItems.map((item) => ({ name: item.manifest.name, targets: item.files.map((file) => file.target) })),
+    lockfile,
+  );
+  for (const file of staleTargets) {
+    if (deletions.includes(file.target) || kept.includes(file.target)) continue;
+    if (file.pristine) deletions.push(file.target);
+    else kept.push(file.target);
   }
 
   if (dryRun) {
@@ -231,6 +288,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
   }
 
   await writeModulesFile(projectRoot, nextClosure);
+  await writeModuleLockfile(projectRoot, context, nextItems, new Set(writes.map((write) => write.target)), lockfile);
 
   for (const target of writes) console.info(`  ${green("added")} ${target.target}`);
   for (const target of deletions) console.info(`  ${green("removed")} ${target}`);
@@ -263,4 +321,52 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
     deleted: deletions,
     kept,
   };
+}
+
+/**
+ * Record what was installed: the registry revision and the hash of every
+ * installed file. These hashes are the baseline `modules update` compares
+ * against once the registry moves (ADR-057 D4).
+ *
+ * The baseline is the bytes the host received, never the registry's current
+ * bytes: a file this run did not write keeps its previous hash even when the
+ * registry moved on (R82-01). Recording the registry copy for an untouched file
+ * would make the next `modules update --check` call it host-modified and push
+ * the host toward `--force`, which overwrites real edits.
+ */
+async function writeModuleLockfile(
+  projectRoot: string,
+  context: RegistryContext,
+  items: LoadedItem[],
+  writtenTargets: ReadonlySet<string>,
+  previous: Lockfile | null,
+): Promise<void> {
+  const declaration = await readRegistryDeclaration(projectRoot);
+  const modules: Record<string, LockfileModule> = {};
+  for (const item of items) {
+    const files: Record<string, string> = {};
+    for (const file of item.files) {
+      const recorded = previous?.modules[item.manifest.name]?.files[file.target];
+      if (recorded !== undefined && !writtenTargets.has(file.target)) {
+        files[file.target] = recorded;
+        continue;
+      }
+      // A file this run wrote gets the registry bytes; one that already existed
+      // without a lock entry keeps the bytes now on disk as its baseline.
+      const installed = writtenTargets.has(file.target)
+        ? null
+        : await readTextIfExists(path.join(projectRoot, file.target));
+      files[file.target] = hashContent(installed ?? (await readItemFileContent(file)));
+    }
+    modules[item.manifest.name] = {
+      version: item.manifest.contract?.version ?? "0.0.0",
+      commit: context.commit,
+      files,
+    };
+  }
+  await writeLockfile(projectRoot, {
+    lockfileVersion: LOCKFILE_VERSION,
+    registry: { url: declaration?.url ?? "", ref: declaration?.ref ?? "", commit: context.commit },
+    modules,
+  });
 }

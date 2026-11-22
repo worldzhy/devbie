@@ -29,7 +29,8 @@ import path from "node:path";
 
 import { resolveTemplate } from "../src/commands/create";
 import { listTemplateFiles } from "../src/commands/template/update";
-import { findUnclassifiedTemplateFiles } from "../src/lib/template-ownership";
+import { findAmbiguousTemplatePaths, findUnclassifiedTemplateFiles } from "../src/lib/template-ownership";
+import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const packageRoot = path.resolve(__dirname, "..");
 const registryRoot = path.join(packageRoot, "registry");
@@ -39,14 +40,16 @@ interface RegistryItemEntry {
   files: string[];
 }
 
-/** Authored registry items (registry/<name>/item.json) and their declared files. */
+/** Authored registry items (registry/<name>/fewbie.module.json) and their declared files. */
 async function readRegistryItems(): Promise<RegistryItemEntry[]> {
   const entries = await fs.readdir(registryRoot, { withFileTypes: true });
   const items: RegistryItemEntry[] = [];
 
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const raw = await fs.readFile(path.join(registryRoot, entry.name, "item.json"), "utf8").catch(() => undefined);
+    const raw = await fs
+      .readFile(path.join(registryRoot, entry.name, REGISTRY_MANIFEST_FILE), "utf8")
+      .catch(() => undefined);
     if (raw === undefined) continue;
     const manifest = JSON.parse(raw) as { name?: unknown; files?: unknown };
     const files = Array.isArray(manifest.files)
@@ -61,9 +64,11 @@ async function readRegistryItems(): Promise<RegistryItemEntry[]> {
 async function main(): Promise<void> {
   const template = await resolveTemplate({});
   try {
-    // ADR-025: every file the template ships must carry an ownership class.
+    // ADR-025/ADR-056: every file carries one owner and no two entries collide
+    // on the same normalized path, so longest-prefix resolution is decidable.
     const templateFiles = await listTemplateFiles(template.root);
     const unclassified = findUnclassifiedTemplateFiles(templateFiles);
+    const ambiguous = findAmbiguousTemplatePaths();
     const items = await readRegistryItems();
     const compared: string[] = [];
     const mismatches: string[] = [];
@@ -112,7 +117,14 @@ async function main(): Promise<void> {
       process.exitCode = 1;
     }
 
-    if (mismatches.length > 0 || unclassified.length > 0) return;
+    if (ambiguous.length > 0) {
+      console.error(`\nAmbiguous ownership entries (ADR-056):`);
+      for (const entry of ambiguous) console.error(`  ${entry.path} (${entry.ownerships.join(", ")})`);
+      console.error("Two entries share a normalized path root; longest-prefix resolution cannot decide.");
+      process.exitCode = 1;
+    }
+
+    if (mismatches.length > 0 || unclassified.length > 0 || ambiguous.length > 0) return;
 
     console.info("\nNo drift: every overlapping registry item file matches its template copy.");
   } finally {

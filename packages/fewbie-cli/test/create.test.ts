@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { resolveTemplate, runCreate } from "../src/commands/create";
+import { FRAMEWORK_MANIFEST_PATH } from "../src/lib/template-ownership";
 
 async function makeTempDir(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -50,6 +51,8 @@ async function writeTemplateFixture(root: string): Promise<void> {
     ),
   );
   await fs.writeFile(path.join(root, ".env.example"), "HEARTBEAT_ENDPOINT=\n");
+  await fs.mkdir(path.join(root, "src", "lib"), { recursive: true });
+  await fs.writeFile(path.join(root, "src", "lib", "utils.ts"), "export const cn = () => '';\n");
   await fs.writeFile(path.join(root, "src", "app", "page.tsx"), "export default function Page() { return null; }\n");
 }
 
@@ -93,6 +96,14 @@ describe("runCreate", () => {
     await assert.doesNotReject(() => fs.access(path.join(target, "src", "app", "page.tsx")));
     await assert.doesNotReject(() => fs.access(path.join(target, ".env.example")));
     await assert.rejects(() => fs.access(path.join(target, "node_modules")));
+
+    // R82-02: the project records what it received, so the first
+    // `template update` can tell host edits from template changes.
+    const baseline = JSON.parse(await fs.readFile(path.join(target, FRAMEWORK_MANIFEST_PATH), "utf8")) as {
+      files?: Record<string, string>;
+    };
+    assert.ok(baseline.files?.["src/lib/utils.ts"], "framework files are recorded in the baseline");
+    assert.equal(baseline.files?.["src/app/page.tsx"], undefined, "host-owned files are not baselined");
   });
 
   it("does not ship symlinked workspace mounts (R34-08)", async () => {

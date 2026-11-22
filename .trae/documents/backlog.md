@@ -49,6 +49,8 @@
 
 ## 其他
 
+- （已完成）外部 registry 验证：`@devbie/fewbie-cli` 1.12.0 已发布，nwf 升级后 `modules apply/update/adapters --check` 全绿并挂进 CI（`1d5978c` + `8584cbc`）。crewbie 不在工作区，其 pin 升级仍由下文条目跟踪。
+
 - [ ] `[2026-11-12 ADR-044 遗留]` **frontend-monitor 手机号读路径清尾（P3）**：写入链路已删除，`phone` 列恒为空但读侧仍在——DTO 的 `phone` 查询参数、`ilike(phone, …)`（`error.service.ts`）、analysis `$match.phone`、前端错误页「按手机号搜索」输入框与详情页手机号展示。下一步：确认无人依赖后一次性移除，或改为展示层明确标注「已停止采集」。
 
 - [ ] **严格 CSP（nonce 化）**（R23-01 后续，2026-11-08）：`deploy/Caddyfile.tmpl` 已落地基线安全头，但 `script-src/style-src` 仍为 `'unsafe-inline'`（Next.js bootstrap 与 theme 内联脚本所需）。后续方向：proxy.ts（Next 16 proxy 约定）生成 per-request nonce 注入 CSP 头与内联脚本，或 theme 脚本外部化 + Next nonce 支持就绪后收紧为 `script-src 'self' 'nonce-…'`。涉及 newbie-starter（Caddyfile）与 fewbie-starter（layout/proxy 模板）。
@@ -84,3 +86,24 @@
 - [ ] **P3 inhibition（暂缓，条件触发）**：抑制需要源告警可终止——`NotificationAlert` 目前只在 `notify()` 时改写 `state`，无 TTL / 自动 resolved，抑制会因源告警悬挂而永久生效。前置条件：alert 状态机补齐过期与自动 resolved 后再按 ADR-063 落地独立实体 `NotificationInhibition`（不复用 `NotificationDeliveryRule`，该表语义为「有序、priority、参与裁决」）。
 - [x] **github 模块漂移（非本轮引入）** — **fixed（2026-11-14 核验）**：registry `e976d46 feat(github): fail fast on foreign targets and surface 403 permissions` 已把 `GitHubPermissionError` / `probeProvisioningTarget` 等宿主改动回写（在 `origin/dev`），消费仓 `newbie-modules.json` 的 github `sourceCommit` 已 pin 到 `e976d46`；`diff -rq` 零差异，`newbie modules apply --check` 绿（registry `1ab63d8` 下复核）。
 - [ ] **staging 的 GitHub Actions 一键部署仍不可用（2026-11-20）**：`nightwatch-prod-github-ci` 的信任只含 `nightwatch-backend|frontend:ref:refs/heads/main`，`secrets-read` 只覆盖 `nightwatch/prod/*`；`deploy-staging.yml` 从 dev dispatch 会在 AssumeRoleWithWebIdentity 被拒。打通需在 `deploy/aws/stack.yml` 加 dev 分支与 `nightwatch/staging/*` 并更新 prod 栈——因 prod 栈更新会替换实例（AMI 参数动态解析），未经用户批准不动。当前 staging 走"本地 build → 推 `:staging` → SSM 手工 deploy.sh"。
+
+## ADR-056 M1 收尾（2026-11-21）
+
+- [x] **registry `api-client` 与模板 `src/lib/api-client/**` 双通道归属** — **fixed（M2，2026-11-21）**：删除 registry `api-client` 项，`auth` 的 `registryDependencies` 同步移除；`template update` 的重叠检测改为 `assetCoversPath` 最长前缀/glob 判定，registry 具体文件落在 framework 子树即报错。顺带退场与框架重复的 `app-shell` / `chart` / `page-header`。
+- [ ] **基线新鲜度门禁随发布生效**：`syncTemplateBaseline` 已让模板仓 `template update --check` 校验 `.fewbie/framework.json` 是否过期，但 fewbie-starter 的 `check:template` 跑的是已发布 CLI；新版发布后需确认 fewbie-starter CI 真正拦截过期基线（现状只验证 registry 完备）。
+
+## ADR-056 M2 遗留（2026-11-21）
+
+- [x] **api-client 测试回填模板（2026-11-22，R83-19）**：原决定因 vitest + axios-mock-adapter 与模板 node:test 双 runner 而搁置；改为直接用 node:test 写在 `src/framework/api-client/*.test.ts`（protocol / failure / session-store / refresh-exchange，axios 走 adapter 注入替身），与 `npm test` 同栈；放在 `src/framework/**` 是为了避开宿主对 `src/lib/api-client/*.test.ts` 的 vitest 扫描。
+- [ ] **`text-[13px]` 类任意字号门禁（R83-15 残留）**：R3 已拦任意色值与未定义 palette、R6 已拦任意 radius；nightwatch 仍有约 40 处亚刻度字号（`text-[10px]` / `text-[0.8125rem]` 等）依赖，需先在 framework theme 增补 micro-typography token（如 `text-2xs`）并迁移宿主，才能把 `text-\[` 纳入 OFF_SCALE。
+- [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
+
+## ADR-056 M3 遗留（2026-11-21）
+
+- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。nwf 已手工补 `doctor` 与三条 modules 门禁（`1d5978c`、`8584cbc`），但 `check:structure` / `check:framework-adr` 仍未进宿主 CI。需决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。
+- [ ] **R12 的「版本号/changelog」未自动化**：当前只校验框架路径变更必须带 `.trae/documents/decisions/` 下的 ADR；版本递增仍靠发布清单人工执行。
+- [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发（nwf 已有 6 个 mjs），但 `package.json` 是 host 所有权；M4 迁移已完成，`check:structure` / `check:framework-adr` 别名仍未补入宿主脚本，因此宿主 CI 实际不跑这两个门禁。
+
+## fewbie 终极状态落地（2026-11-21）
+
+- [ ] **crewbie-console-frontend 的 `@devbie/fewbie-cli` pin 待升级**：该宿主不在当前工作区，其 `package.json` / 锁文件仍指向旧版本；工作区可用时升到 `^1.12.0` 并跑 `modules apply --check` / `modules update --check`。

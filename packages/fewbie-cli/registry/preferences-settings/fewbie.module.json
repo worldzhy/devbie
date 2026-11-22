@@ -1,0 +1,37 @@
+{
+  "name": "preferences-settings",
+  "type": "registry:feature",
+  "title": "Preferences settings cards",
+  "description": "Account display preferences: interface language, theme and timezone. Persistence and the side effects of each change (locale cookie, theme class, cache refresh) stay in the host.",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    "src/features/preferences-settings/index.ts",
+    "src/features/preferences-settings/types.ts",
+    "src/features/preferences-settings/preferences-settings.tsx"
+  ],
+  "contract": {
+    "version": "1.0.0",
+    "framework": "^1.7.0",
+    "entry": "src/features/preferences-settings/index.ts",
+    "labels": [
+      "languageTitle",
+      "languageDesc",
+      "themeTitle",
+      "themeDesc",
+      "themeLight",
+      "themeDark",
+      "themeSystem",
+      "timezoneTitle",
+      "timezoneDesc",
+      "timezonePlaceholder",
+      "useBrowserTimezone",
+      "saveTimezone",
+      "updateFailed"
+    ],
+    "ports": ["saveLanguage", "saveTheme", "saveTimezone"],
+    "ui": ["button", "card", "input", "label", "select"],
+    "states": ["loading", "error", "ready"]
+  },
+  "postInstall": "Render <PreferencesSettings labels={...} values={...} languages={...} port={...} /> inside your settings shell. The host supplies translated labels and language options, a saveLanguage/saveTheme/saveTimezone port, and applies the changed preference from the on* callbacks. Requires the shadcn ui primitives button, card, input, label and select."
+}

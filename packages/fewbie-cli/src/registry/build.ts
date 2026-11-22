@@ -1,15 +1,17 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import type { BuiltRegistryItem, RegistryManifest } from "./types";
+import { validateManifestContract } from "./contract";
+import { REGISTRY_MANIFEST_FILE, type BuiltRegistryItem, type RegistryManifest } from "./types";
 
 const SHADCN_ITEM_SCHEMA = "https://ui.shadcn.com/r/registry-item.json";
 
 /**
- * Build the shadcn-compatible registry: each authored registry/<name>/item.json
- * plus its file contents is emitted as a self-contained
- * <outputRoot>/<name>/item.json (files carry inlined content), so both
- * `fewbie modules add` and `npx shadcn add <url>` install the exact same source.
+ * Build the shadcn-compatible registry: each authored
+ * registry/<name>/fewbie.module.json plus its file contents is emitted as a
+ * self-contained <outputRoot>/<name>/fewbie.module.json (files carry inlined
+ * content), so both `fewbie modules add` and `npx shadcn add <url>` install the
+ * exact same source.
  */
 export async function buildRegistry(sourceRoot: string, outputRoot: string): Promise<string[]> {
   const entries = await fs.readdir(sourceRoot, { withFileTypes: true });
@@ -18,7 +20,7 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
     const itemDir = path.join(sourceRoot, entry.name);
-    const manifestPath = path.join(itemDir, "item.json");
+    const manifestPath = path.join(itemDir, REGISTRY_MANIFEST_FILE);
     const manifestExists = await fs
       .access(manifestPath)
       .then(() => true)
@@ -30,6 +32,9 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
     if (manifest.name !== entry.name) {
       throw new Error(`Registry folder '${entry.name}' does not match item name '${manifest.name}'.`);
     }
+
+    // A broken contract must fail the build, not ship and surprise a host.
+    const contract = validateManifestContract(manifest);
 
     const files = await Promise.all(
       manifest.files.map(async (relative) => {
@@ -57,12 +62,23 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
       ...(manifest.dependencies?.length ? { dependencies: manifest.dependencies } : {}),
       ...(manifest.registryDependencies?.length ? { registryDependencies: manifest.registryDependencies } : {}),
       ...(manifest.postInstall ? { postInstall: manifest.postInstall } : {}),
+      ...(contract ? { "x-fewbie.contract": contract } : {}),
       files,
     };
 
     const outDir = path.join(outputRoot, entry.name);
+    // Recreate the directory so a manifest rename cannot leave a stale file
+    // (e.g. the old item.json) in the published artifact.
+    await fs.rm(outDir, { recursive: true, force: true });
     await fs.mkdir(outDir, { recursive: true });
-    await fs.writeFile(path.join(outDir, "item.json"), `${JSON.stringify(builtItem, null, 2)}\n`);
+    await fs.writeFile(path.join(outDir, REGISTRY_MANIFEST_FILE), `${JSON.stringify(builtItem, null, 2)}\n`);
+    // Sidecar fallback: a shadcn consumer that strips unknown manifest keys
+    // still gets the contract from this file.
+    if (contract) {
+      await fs.writeFile(path.join(outDir, "contract.json"), `${JSON.stringify(contract, null, 2)}\n`);
+    } else {
+      await fs.rm(path.join(outDir, "contract.json"), { force: true });
+    }
     built.push(entry.name);
   }
 

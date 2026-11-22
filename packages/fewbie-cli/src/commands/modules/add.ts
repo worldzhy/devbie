@@ -1,7 +1,8 @@
 import path from "node:path";
 import { bold, cyan, green } from "colorette";
 
-import { resolveInstallSet, resolveRegistryRoot } from "../../registry/store";
+import { resolveInstallSet } from "../../registry/store";
+import { resolveRegistryRoot } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError } from "@devbie/cli-kit";
 import { assertProjectRoot } from "../../lib/project";
@@ -35,7 +36,7 @@ export async function runAdd(options: ModulesAddOptions): Promise<void> {
   const declared = (await readModulesFile(projectRoot)) ?? [];
   const next = [...new Set([...declared, ...names])];
 
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const nextItems = await resolveInstallSet(registryRoot, next);
   const declaredItems = await resolveInstallSet(registryRoot, declared);
   const declaredClosure = new Set(declaredItems.map((item) => item.manifest.name));

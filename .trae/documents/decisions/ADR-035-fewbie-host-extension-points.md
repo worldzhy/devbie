@@ -139,7 +139,7 @@ nightwatch-frontend 已验证的规则中，通用的三条下沉进 `@devbie/st
 | `host` | 不创建 | 不触碰 | 不参与 |
 | `scaffold` | 创建 | 不覆盖内容；缺 `requiredSnippet` 时报漂移 | 存在漂移即失败 |
 
-- `scaffold` 资产声明 `requiredSnippet`（目前为 `from "./next.config.framework"`），用一次字符串包含判断完成采纳检测，不解析 TS。
+- `scaffold` 资产声明 `requiredSnippet`（`next.config.ts` 为 `from "./next.config.framework"`；`src/app/host-providers.tsx` 为 `HostProviders`，它是框架 layout 静态 import 的扩展点，缺失时必须创建否则升级后的宿主构建断裂，ADR-056 D5），用一次字符串包含判断完成采纳检测，不解析 TS。
 - 新增 change kind `scaffold-outdated`：`nextContent` 为 `null`（不自动改写），`--check` 非零退出并打印期望的最小形态，由宿主手工采纳——对应 Rails `app:update` 生成 `.new` 后由人合并，而不是替宿主改文件。
 - `SYNCABLE_ASSETS` 含 `scaffold`（缺失时需创建）；写入循环跳过 `nextContent === null` 的变更，既有实现已满足。
 - `doctor` 对 `scaffold` 资产只校验存在性与 `requiredSnippet`。

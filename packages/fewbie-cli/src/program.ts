@@ -9,6 +9,7 @@ import { runApits } from "./commands/apits";
 import { runCreate } from "./commands/create";
 import { doctorCommand } from "./commands/doctor";
 import { runModules } from "./commands/modules/default";
+import { runAdapters } from "./commands/modules/adapters";
 import { runAdd } from "./commands/modules/add";
 import { runApply } from "./commands/modules/apply";
 import { runRemove } from "./commands/modules/remove";
@@ -158,12 +159,40 @@ export function buildProgram(): Command {
 
   modules
     .command("update [names...]")
-    .description("update declared module files to the registry source; --check is the drift gate")
-    .option("--check", "CI gate: verify installed files against the registry without writing anything", false)
+    .description(
+      "update declared module files to the registry source using the lockfile baseline; --check is the drift gate, --preview classifies without writing",
+    )
+    .option("--check", "CI gate: fail on pristine drift or conflicts without writing anything", false)
+    .option("--preview", "show the three-way classification (pristine/host-modified/conflict) without writing", false)
+    .option("-f, --force", "also overwrite host-modified and conflicting files", false)
     .option("-y, --yes", "skip confirmation prompts", false)
     .action(function (this: Command, names: string[]) {
       const flags = this.opts();
-      return runUpdate({ ...globals(this), names, check: Boolean(flags.check), yes: Boolean(flags.yes) });
+      return runUpdate({
+        ...globals(this),
+        names,
+        check: Boolean(flags.check),
+        preview: Boolean(flags.preview),
+        force: Boolean(flags.force),
+        yes: Boolean(flags.yes),
+      });
+    });
+
+  modules
+    .command("adapters [names...]")
+    .description(
+      "generate host label adapters for declared modules from their contracts (i18n declaration in fewbie.json); --check is the drift gate",
+    )
+    .option("--check", "CI gate: fail on missing or drifted adapters and incomplete dictionaries; write nothing", false)
+    .option("--dry-run", "print planned adapter writes without touching files", false)
+    .action(function (this: Command, names: string[]) {
+      const flags = this.opts();
+      return runAdapters({
+        ...globals(this),
+        names,
+        check: Boolean(flags.check),
+        dryRun: Boolean(flags.dryRun),
+      });
     });
 
   const template = program.command("template").description("manage the framework-owned part of the project template");
@@ -180,12 +209,18 @@ export function buildProgram(): Command {
     .option("--template-path <dir>", "use a local template directory instead of cloning fewbie-starter")
     .option("--template-ref <ref>", "git ref of fewbie-starter to update the template from")
     .option("--check", "CI gate: print the diff and exit non-zero when template files drift", false)
+    .option(
+      "--adopt",
+      "record the template framework copy as the baseline for a project created before baselines existed; host-edited files stay untouched",
+      false,
+    )
     .action(function (this: Command, paths: string[]) {
       const flags = this.opts();
       return runTemplateUpdate({
         ...globals(this),
         paths,
         check: Boolean(flags.check),
+        adopt: Boolean(flags.adopt),
         // Template-repository CI opts in via env; a created project's copied
         // gate must not inherit it (see `create`).
         registryComplete: process.env.FEWBIE_TEMPLATE_REGISTRY_COMPLETE === "1",

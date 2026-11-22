@@ -32,8 +32,6 @@ export class SseStreamError extends Error {
   }
 }
 
-const DECODER = new TextDecoder();
-
 const NEVER_ABORTED = new AbortController().signal;
 
 export interface PostSseOptions {
@@ -92,6 +90,10 @@ export async function consumeSseStream(
   onFrame: (frame: SseFrame) => void,
 ): Promise<void> {
   const reader = body.getReader();
+  // A decoder per call: `{ stream: true }` keeps an incomplete multibyte
+  // sequence inside this instance, so a shared one would let concurrent
+  // streams steal each other's bytes (R84-02).
+  const decoder = new TextDecoder();
   let buffer = "";
 
   const onAbort = (): void => {
@@ -107,7 +109,7 @@ export async function consumeSseStream(
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buffer += DECODER.decode(value, { stream: true });
+      buffer += decoder.decode(value, { stream: true });
 
       let separatorIndex: number;
       // SSE dispatches on a blank line; tolerate CRLF.
@@ -118,6 +120,9 @@ export async function consumeSseStream(
         if (frame) onFrame(frame);
       }
     }
+
+    // Flush any complete sequence still buffered in the decoder.
+    buffer += decoder.decode();
 
     const tail = buffer.trim();
     if (tail) {

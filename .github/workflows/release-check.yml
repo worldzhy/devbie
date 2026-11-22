@@ -1,4 +1,4 @@
-# Release gate for main.
+# Release gate for main and early pre-check for dev.
 #
 # Verification runs once, on dev (see ci.yml): every commit merged into main is
 # a dev commit that already carries a green run, so main re-runs no checks.
@@ -6,11 +6,14 @@
 # template-drift gate checks that every template file is classified (ADR-025)
 # and that overlapping registry items match fewbie-starter's default branch,
 # which is the source `fewbie create` clones.
+#
+# The same gates also run on dev pushes so release-only failures surface before
+# the merge request instead of after it (R82-12).
 name: Release check
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
 
 # Cancel superseded runs for the same ref.
 concurrency:
@@ -30,3 +33,13 @@ jobs:
       - run: npm ci
       - run: npm run build -w @devbie/cli-kit
       - run: npm run check:template-drift -w @devbie/fewbie-cli
+      # R82-02: `fewbie create` clones the default branch, so a release branch
+      # without the baseline manifest would hand every new project to a first
+      # `template update` that cannot detect host edits.
+      - name: Assert the starter default branch ships the template baseline
+        run: |
+          git clone --quiet --depth 1 https://github.com/worldzhy/fewbie-starter.git /tmp/fewbie-starter
+          test -f /tmp/fewbie-starter/.fewbie/framework.json
+      # ADR-058: registry/ is a generated snapshot of fewbie-modules; a stale
+      # copy would give undeclared hosts a different item set.
+      - run: npm run check:registry-snapshot -w @devbie/fewbie-cli

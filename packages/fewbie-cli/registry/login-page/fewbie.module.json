@@ -1,0 +1,51 @@
+{
+  "name": "login-page",
+  "type": "registry:feature",
+  "title": "Login page",
+  "description": "Page-level login block: password and verification-code tabs, inline TOTP challenge and third-party provider entries. Transport, navigation and copy come from the host through props.",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    "src/features/login-page/index.ts",
+    "src/features/login-page/types.ts",
+    "src/features/login-page/login-page.tsx"
+  ],
+  "contract": {
+    "version": "1.0.0",
+    "framework": "^1.7.0",
+    "entry": "src/features/login-page/index.ts",
+    "labels": [
+      "title",
+      "description",
+      "tabPassword",
+      "tabVerificationCode",
+      "email",
+      "password",
+      "submit",
+      "verificationCode",
+      "getCode",
+      "orContinueWith",
+      "back",
+      "clearEmail",
+      "clearPassword",
+      "hidePassword",
+      "showPassword",
+      "clearCode",
+      "invalidEmail",
+      "emailRequired",
+      "passwordMin",
+      "passwordRequired",
+      "codeDigits",
+      "codeRequired",
+      "invalidCredentials",
+      "loginFailed",
+      "totpLabel",
+      "totpHint",
+      "totpSubmit"
+    ],
+    "ports": ["signIn", "sendVerificationCode"],
+    "ui": ["button", "card", "input", "label", "tabs"],
+    "states": ["loading", "error", "ready"]
+  },
+  "postInstall": "Render <LoginPage labels={...} port={...} /> inside your auth shell. The host supplies translated labels, a signIn/sendVerificationCode port, optional notices and oauthProviders, and navigates from onSignedIn. Requires the shadcn ui primitives button, card, input, label and tabs."
+}

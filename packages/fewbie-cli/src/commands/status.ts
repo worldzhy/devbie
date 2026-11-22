@@ -1,6 +1,7 @@
 import path from "node:path";
 
-import { loadItem, listRegistryItemNames, resolveRegistryRoot } from "../registry/store";
+import { loadItem, listRegistryItemNames } from "../registry/store";
+import { resolveRegistryRoot } from "../registry/source";
 import { pathExists } from "@devbie/cli-kit";
 import { MODULES_FILE, readModulesFile } from "../lib/modules-file";
 import { assertProjectRoot } from "../lib/project";
@@ -22,7 +23,7 @@ export async function runStatus(options: StatusOptions): Promise<void> {
   const declared = declaration ?? [];
   const warnings: string[] = [];
 
-  const registryRoot = await resolveRegistryRoot();
+  const registryRoot = await resolveRegistryRoot(projectRoot);
   const available = new Set(await listRegistryItemNames(registryRoot));
   const missing: Array<{ name: string; files: string[] }> = [];
 

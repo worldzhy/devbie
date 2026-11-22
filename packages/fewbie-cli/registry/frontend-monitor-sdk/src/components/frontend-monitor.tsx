@@ -32,18 +32,24 @@ export function FrontendMonitor() {
 
     let disposed = false;
 
-    void import("@devbie/frontend-monitor-sdk").then(({ default: init }) => {
-      // StrictMode mounts effects twice in dev; guard against double init.
-      if (disposed) return;
-      init({
-        api,
-        token,
-        isPage: true,
-        isAjax: true,
-        isResource: true,
-        isError: true,
+    void import("@devbie/frontend-monitor-sdk")
+      .then(({ default: init }) => {
+        // StrictMode mounts effects twice in dev; guard against double init.
+        if (disposed) return;
+        init({
+          api,
+          token,
+          isPage: true,
+          isAjax: true,
+          isResource: true,
+          isError: true,
+        });
+      })
+      .catch((error: unknown) => {
+        // A failed chunk load is not fatal for the app, but monitoring is now
+        // off; surface it instead of leaving an unhandled rejection (R84-13).
+        console.error("[FrontendMonitor] failed to load the monitor SDK.", error);
       });
-    });
 
     return () => {
       disposed = true;
