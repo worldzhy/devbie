@@ -61,7 +61,7 @@ export function PasswordChecklist({ labels, password }: PasswordChecklistProps) 
         return (
           <li
             key={rule.key}
-            className={`flex items-center gap-2 text-xs ${met ? "text-green-600 dark:text-green-500" : "text-muted-foreground"}`}
+            className={`flex items-center gap-2 text-xs ${met ? "text-success" : "text-muted-foreground"}`}
           >
             {met ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
             {labels[rule.labelKey]}

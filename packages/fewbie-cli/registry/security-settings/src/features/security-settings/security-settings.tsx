@@ -55,7 +55,7 @@ function ShieldCheckIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="h-4 w-4 text-green-600 dark:text-green-500"
+      className="h-4 w-4 text-success"
     >
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z" />
       <path d="m9 12 2 2 4-4" />
@@ -260,10 +260,7 @@ export function SecuritySettings({
                         {[session.browser, session.operatingSystem].filter(Boolean).join(" · ") || labels.unknownDevice}
                       </p>
                       {session.isCurrentSession && (
-                        <Badge
-                          variant="outline"
-                          className="border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-400"
-                        >
+                        <Badge variant="outline" className="border-success/30 bg-success/10 text-success">
                           {labels.thisDevice}
                         </Badge>
                       )}
