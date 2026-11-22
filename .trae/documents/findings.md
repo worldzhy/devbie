@@ -995,7 +995,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R86-01 | devbie（fewbie-cli）      | README 仍写 `registry:block` 与 14 项旧表，未反映 widget/feature 与 6 个新 item                            | P2     | docs              | 宿主维护者 | open |
 | R86-02 | devbie + fewbie-starter   | findings 台账落后：R84-01..15 全部仍 open（13 条已修），R2-02 亦已随 1.15.0 发布修复但仍 open             | P2     | docs              | 维护者     | fixed（本会话）：R84-01..13/15 → fixed、R84-14 → partial；starter R2-02、R2-06 → fixed |
 | R86-03 | devbie                    | backlog 残留已完成条目：“禁止模块导入 next/\*”“3 个 block 补 contract + labels”                            | P2     | docs              | 维护者     | fixed（本会话）：两条已从 backlog 删除 |
-| R86-04 | devbie                    | main 落后 dev 68 个提交 / 159 个文件；main 的 CLI 无法消费已上 main 的 widget/feature registry             | P2     | template / ops    | 新宿主/发布 | open |
+| R86-04 | devbie                    | main 落后 dev 68 个提交 / 159 个文件；main 的 CLI 无法消费已上 main 的 widget/feature registry             | P2     | template / ops    | 新宿主/发布 | fixed（本会话）：#150（merge commit `83b86046`），CI 两项检查全绿后合并；已先 `Merge branch 'main' into dev` 消除 behind |
 | R86-05 | fewbie-modules            | `check-contract.mjs`（唯一完整性闸门）无夹具测试，负向路径无回归保护                                       | P2     | source            | 模块作者   | open |
 | R86-06 | fewbie-modules            | registry 侧无依赖环门禁、无“声明未使用”告警（R85-01/R85-02 仍未落地）                                     | P2     | source            | 模块作者   | open |
 | R86-07 | fewbie-modules            | 8/16 item 无行为测试，含 ADR-065 新增的 login-form、password-checklist、settings-required-state 全部 3 个 | P2     | artifact          | 模块作者   | open |
