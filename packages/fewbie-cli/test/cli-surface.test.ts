@@ -65,7 +65,7 @@ describe("fewbie CLI surface", () => {
             {
               name: "add",
               arguments: [{ name: "names", required: true, variadic: true }],
-              options: ["-y, --yes", "-f, --force", "--skip-install", "--with-login-form"],
+              options: ["-y, --yes", "-f, --force", "--skip-install"],
               commands: [],
             },
             {

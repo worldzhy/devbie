@@ -37,7 +37,7 @@ fewbie：
 
 | 命名空间 | 命令 |
 |---|---|
-| `modules` | `add <names...> [-y] [--with-login-form] [--force] [--skip-install]`（声明 + 落地）、`apply [--check] [-y] [--force] [--skip-install]`（按 fewbie.json 收敛，无参） |
+| `modules` | `add <names...> [-y] [--force] [--skip-install]`（声明 + 落地）、`apply [--check] [-y] [--force] [--skip-install]`（按 fewbie.json 收敛，无参）；`--with-login-form` 已于 2026-11-22 删除（R87-22，硬编码 registry item 名） |
 | `template` | `update [<paths...>] [--check]` |
 
 条款修正：

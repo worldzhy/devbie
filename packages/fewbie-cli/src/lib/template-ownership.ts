@@ -169,7 +169,6 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
     ownership: "framework",
     note: "locale list and message loading are framework policy",
   },
-  { path: "src/i18n/request.ts", ownership: "framework" },
   {
     path: "src/i18n/messages/framework.en.json",
     ownership: "framework",
@@ -449,11 +448,31 @@ export function findUnclassifiedTemplateFiles(filePaths: Iterable<string>): stri
   return [...filePaths].filter((filePath) => resolveTemplateAsset(filePath) === null).sort();
 }
 
-/** Extract the framework marker block (markers included); null when absent. */
+/**
+ * Extract the framework marker block (markers included); null when absent.
+ *
+ * Exactly one block is allowed: a duplicated or nested pair would leave a
+ * second block permanently stale while `--check` only compared the first, so
+ * an ambiguous file fails closed instead of being half-updated (R87-15).
+ */
 export function extractMarkerBlock(content: string, markers: TemplateMarkers = DEFAULT_MARKERS): string | null {
+  const starts = content.split(markers.start).length - 1;
+  const ends = content.split(markers.end).length - 1;
+  if (starts === 0 && ends === 0) return null;
+  if (starts > 1 || ends > 1) {
+    throw new Error(
+      `Expected at most one framework block (${markers.start} / ${markers.end}), ` +
+        `found ${starts} start and ${ends} end markers. Remove the duplicate or nested block.`,
+    );
+  }
+  // A single missing marker stays recoverable: the caller reports
+  // `missing-markers` and leaves the host file untouched.
+  if (starts === 0 || ends === 0) return null;
   const start = content.indexOf(markers.start);
   const end = content.indexOf(markers.end);
-  if (start === -1 || end === -1 || end < start) return null;
+  if (end < start) {
+    throw new Error(`The framework end marker (${markers.end}) precedes its start marker (${markers.start}).`);
+  }
   return content.slice(start, end + markers.end.length);
 }
 

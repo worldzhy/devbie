@@ -268,4 +268,40 @@ describe("registry manifest targets", () => {
       ["src/components/ok.tsx"],
     );
   });
+
+  async function loadManifest(manifest: unknown): Promise<void> {
+    const registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-"));
+    after(async () => fs.rm(registryRoot, { recursive: true, force: true }));
+    await fs.mkdir(path.join(registryRoot, "item"));
+    await fs.writeFile(path.join(registryRoot, "item", REGISTRY_MANIFEST_FILE), JSON.stringify(manifest));
+    await loadItem(registryRoot, "item");
+  }
+
+  it("rejects a manifest whose name does not match its directory (R87-24)", async () => {
+    await assert.rejects(
+      loadManifest({ name: "other", type: "registry:component", title: "T", files: ["src/components/a.tsx"] }),
+      /directory and manifest names must match/,
+    );
+  });
+
+  it("rejects an unknown item type", async () => {
+    await assert.rejects(
+      loadManifest({ name: "item", type: "registry:block", title: "T", files: ["src/components/a.tsx"] }),
+      /unknown type 'registry:block'/,
+    );
+  });
+
+  it("rejects files that do not land in a layer the type owns", async () => {
+    await assert.rejects(
+      loadManifest({ name: "item", type: "registry:lib", title: "T", files: ["src/features/a.tsx"] }),
+      /does not land under src\/lib\/ or src\/components\//,
+    );
+  });
+
+  it("rejects a manifest without a files array", async () => {
+    await assert.rejects(
+      loadManifest({ name: "item", type: "registry:component", title: "T", files: "src/components/a.tsx" }),
+      /'files' must be a non-empty array/,
+    );
+  });
 });

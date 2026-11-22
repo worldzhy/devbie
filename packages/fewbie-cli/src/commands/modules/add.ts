@@ -17,8 +17,6 @@ export interface ModulesAddOptions {
   yes?: boolean;
   force?: boolean;
   skipInstall?: boolean;
-  /** Also declare the login-form block (convenience modifier). */
-  withLoginForm?: boolean;
   dryRun?: boolean;
 }
 
@@ -28,7 +26,6 @@ export async function runAdd(options: ModulesAddOptions): Promise<void> {
   await assertProjectRoot(projectRoot);
 
   const names = [...options.names];
-  if (options.withLoginForm && !names.includes("login-form")) names.push("login-form");
   if (names.length === 0) {
     throw new CliError("`modules add` declares the named modules; pass at least one module name.");
   }

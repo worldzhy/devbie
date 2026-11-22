@@ -91,12 +91,11 @@ enable/disable picker; on a non-TTY (or with `--json`) it is read-only.
 npm-style add: declares the named modules in `fewbie.json` and lands their
 files (dependency closure included, npm dependencies installed automatically).
 
-| Option              | Description                                                                                         |
-| ------------------- | --------------------------------------------------------------------------------------------------- |
-| `-y, --yes`         | Skip confirmation prompts.                                                                          |
-| `-f, --force`       | Overwrite files that already exist but belong to no declared module (e.g. shipped by the template). |
-| `--skip-install`    | Do not run `npm install` for missing dependencies.                                                  |
-| `--with-login-form` | Also install the `login-form` feature, e.g. `fewbie modules add auth --with-login-form`.            |
+| Option           | Description                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------- |
+| `-y, --yes`      | Skip confirmation prompts.                                                                          |
+| `-f, --force`    | Overwrite files that already exist but belong to no declared module (e.g. shipped by the template). |
+| `--skip-install` | Do not run `npm install` for missing dependencies.                                                  |
 
 ### `fewbie modules apply`
 

@@ -1,7 +1,7 @@
 # ADR-024: CLI 命令面契约（newbie-cli / fewbie-cli）
 
 状态：已采纳（arity 分态、`template sync` 命名与 `modules install` 相关条款由 ADR-029 取代）
-日期：2026-10-23（2026-10-24 修订：两层裸调用、取消 `project`/`hub`/`registry` 命名空间、删除 `apply`/`assemble`/`agent`/`modules list`、`modules lint` 收紧作用域）
+日期：2026-10-23（2026-10-24 修订：两层裸调用、取消 `project`/`hub`/`registry` 命名空间、删除 `apply`/`assemble`/`agent`/`modules list`、`modules lint` 收紧作用域；2026-11-22 订正：`status` 恒 JSON 删去 `--json`、声明文件名为 `newbie-modules.json`、删除 `--with-login-form`（R87-23））
 Supersedes: 部分取代 ADR-021（门禁放置）、ADR-022（命令名形式）
 Superseded by: ADR-029 —— `modules install` 拆为 `modules add` + `modules apply`，`template sync` 改名 `template update`；其余条款不变。
 
@@ -48,7 +48,7 @@ ADR-022 已经证明单点改名（`update-template` → `sync-template`）不�
 7. **短选项不是契约**：只保证全局 `-C/--cwd` 与确认用的 `-y/--yes`，其余短选项可增删。
 8. **仓库脚本命名**：`check:<断言对象>[-<限定>]`；脚本名描述断言，不描述动作。动作名由命令承担。
 9. **模板仓命令只来自 CLI**：`newbie-starter` / `fewbie-starter` 中与框架相关的脚本只能是对应 CLI 的薄别名（脚本体仅一次 CLI 调用），禁止在模板仓实现检查或变更逻辑；模板仓必须在 `devDependencies` 声明对应 CLI，并钉住版本范围（用 `*` 需在 ADR 写明理由）。工具链命令（`build`、`lint`、`format`）不属于框架命令，不受本条约束。
-10. **声明文件是自动化的唯一写入口**：`modules.json` / 拟新增的 `fewbie.json` 是唯一的启用集声明；CI 与外部脚本只能写声明文件再调用 `modules install`，不得绕道组合命令（`apply --config` 由此删除）。运行时上报不属 CLI 职责，由 `@devbie/core` 启动钩子直接报 hub。
+10. **声明文件是自动化的唯一写入口**：`newbie-modules.json` / `fewbie.json` 是唯一的启用集声明；CI 与外部脚本只能写声明文件再调用 `modules install`，不得绕道组合命令（`apply --config` 由此删除）。运行时上报不属 CLI 职责，由 `@devbie/core` 启动钩子直接报 hub。
 
 ## 目标命令面
 
@@ -69,8 +69,8 @@ fewbie：
 | 命名空间 | 命令 |
 |---|---|
 | — | `fewbie`（help + 版本行，exit 0） |
-| — | `create <project-name>`、`doctor [--json]`、`status [--json]`（当前项目的生命周期动词，不设命名空间） |
-| `modules` | 裸调用（TUI / 只读清单）、`--json`、`install [<names...>] [--check] [-y]`（修饰 `--force` / `--skip-install` / `--with-login-form`）、`remove <names...> [-y]`、`update [<names...>] [--check] [-y]` |
+| — | `create <project-name>`、`doctor [--json]`、`status`（恒 JSON，无 flag）（当前项目的生命周期动词，不设命名空间） |
+| `modules` | 裸调用（TUI / 只读清单）、`--json`、`add <names...> [-y] [--force] [--skip-install]`、`apply [--check] [-y] [--force] [--skip-install]`（ADR-029 拆分）、`remove <names...> [-y]`、`update [<names...>] [--check] [-y]` |
 | `template` | `sync [<paths...>] [--check]`（依赖 ADR-025 的所有权分类） |
 | `apits` | `apits [input] [--name] [--watch] [--skip-install]` |
 
@@ -86,7 +86,7 @@ fewbie：
 | F6 | 删除 `newbie apply`（含 `--ci`）：spec 与 `modules.json` 同构，等价于「写清单 + `modules install`」 | breaking | newbie-cli |
 | F7 | 删除 `newbie assemble`：派生资产断言归 `modules install --check`（它本来就是这些文件的生成者）；已装配副本 ↔ registry checkout 断言归 `modules update --check`；CI 由一条 `assemble --check` 改为 `modules install --check` + `modules update --check`（两条均保持离线，`NEWBIE_MODULES_PATH` 指向本地 checkout，`--check` 模式不得 fetch） | breaking + 跨仓 CI | newbie-cli、nightwatch-backend |
 | F8 | newbie 新增 `modules remove <keys...>` | additive | newbie-cli |
-| F9 | fewbie 命名空间化与动词对齐：`add <names...>` → `modules install [names...]`（保留 `--force` / `--skip-install` / `--with-login-form`）、`update` → `modules update`；新增 `modules remove` 与裸 `modules` TUI；`create`/`doctor` 保留根层 | breaking | fewbie-cli |
+| F9 | fewbie 命名空间化与动词对齐：`add <names...>` → `modules install [names...]`（保留 `--force` / `--skip-install`；`--with-login-form` 已删除，R87-22）、`update` → `modules update`；新增 `modules remove` 与裸 `modules` TUI；`create`/`doctor` 保留根层 | breaking | fewbie-cli |
 | F10 | fewbie 引入声明文件 `fewbie.json`（`{ "modules": string[] }`）：`create` 写空清单；`modules install` 无参按其收敛、`--check` 做门禁；`doctor` 的已安装判定从文件存在性改为读清单 | additive + 内部 breaking | fewbie-cli、fewbie-starter |
 | F11 | `create` 参数占位统一为 `<project-name>`（两侧） | 非 breaking（帮助文本） | 两个 CLI |
 | F12 | `newbie doctor` 新增 `--json`；`newbie status` 保持恒 JSON | additive | newbie-cli |

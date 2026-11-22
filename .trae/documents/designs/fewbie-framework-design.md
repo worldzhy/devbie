@@ -146,7 +146,7 @@ fewbie 与 @devbie/newbie **根本分野**，不照抄后端的重 npm 包模式
 | `fewbie modules add data-table`              | 数据表格                                           |
 | `fewbie modules add settings-required-state` | 设置缺失状态                                       |
 
-`login-form`（UI）与 `auth`（逻辑）分开安装但配合使用：UI 组件 import `auth` 的 login util，逻辑解耦。支持 `fewbie modules add auth --with-login-form` 一并安装。
+`login-form`（UI）与 `auth`（逻辑）分开安装但配合使用：UI 组件 import `auth` 的 login util，逻辑解耦。两者用一条命令一并声明：`fewbie modules add auth login-form`。
 
 > 注：Class C 与 Class A 的件全部以 shadcn registry 兼容格式存放（决策 12），因此也可被官方 `npx shadcn add` 安装；标准 ui 基件不在此表，不重复维护。
 

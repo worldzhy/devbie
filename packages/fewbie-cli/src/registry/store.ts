@@ -66,6 +66,79 @@ function isBuilt(item: RegistryManifest | BuiltRegistryItem): item is BuiltRegis
   return Array.isArray(item.files) && item.files.length > 0 && typeof item.files[0] === "object";
 }
 
+const ITEM_TYPES: ReadonlySet<string> = new Set([
+  "registry:lib",
+  "registry:component",
+  "registry:widget",
+  "registry:feature",
+]);
+
+/**
+ * Layer each type may install into. A feature stays a feature so the host's
+ * layer lint sees it; a lib may ship a component payload beside its logic
+ * (ADR-066). The registry gate applies the same table (R87-02, R87-24).
+ */
+const TYPE_TARGET_ROOTS: Record<string, readonly string[]> = {
+  "registry:feature": ["features"],
+  "registry:widget": ["widgets"],
+  "registry:lib": ["lib", "components"],
+  "registry:component": ["components", "lib"],
+};
+
+function assertStringArray(itemName: string, field: string, value: unknown): void {
+  if (value === undefined) return;
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || entry === "")) {
+    throw new CliError(
+      `Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: '${field}' must be an array of non-empty strings.`,
+    );
+  }
+}
+
+/** Reject a manifest whose shape would only fail later with an obscure error. */
+function assertManifestShape(itemName: string, item: unknown): asserts item is RegistryManifest | BuiltRegistryItem {
+  if (item === null || typeof item !== "object" || Array.isArray(item)) {
+    throw new CliError(`Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: expected an object.`);
+  }
+  const raw = item as Record<string, unknown>;
+  if (raw.name !== itemName) {
+    throw new CliError(
+      `Registry item '${itemName}' declares name '${String(raw.name)}' in ${REGISTRY_MANIFEST_FILE}; the directory and manifest names must match.`,
+    );
+  }
+  if (typeof raw.type !== "string" || !ITEM_TYPES.has(raw.type)) {
+    throw new CliError(
+      `Registry item '${itemName}' declares unknown type '${String(raw.type)}'; expected one of ${[...ITEM_TYPES].join(", ")}.`,
+    );
+  }
+  for (const field of ["title", "description", "postInstall"]) {
+    if (raw[field] !== undefined && typeof raw[field] !== "string") {
+      throw new CliError(
+        `Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: '${field}' must be a string.`,
+      );
+    }
+  }
+  for (const field of ["dependencies", "registryDependencies"]) assertStringArray(itemName, field, raw[field]);
+  if (!Array.isArray(raw.files) || raw.files.length === 0) {
+    throw new CliError(
+      `Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: 'files' must be a non-empty array.`,
+    );
+  }
+}
+
+/** A declared target must land in a layer its type owns. */
+function assertTypeTargets(itemName: string, type: string, targets: string[]): void {
+  const roots = TYPE_TARGET_ROOTS[type] ?? [];
+  for (const target of targets) {
+    const segments = target.split("/");
+    if (segments[0] !== "src" || !roots.includes(segments[1]) || segments.length < 3) {
+      throw new CliError(
+        `Registry item '${itemName}' declares '${target}', which does not land under ` +
+          `${roots.map((root) => `src/${root}/`).join(" or ")} for type '${type}'.`,
+      );
+    }
+  }
+}
+
 /**
  * Manifest targets are project-relative by contract; an absolute path or a
  * `..` segment would let an item write outside the project root.
@@ -82,10 +155,17 @@ function assertProjectRelativeTarget(itemName: string, target: string): void {
 /** Load one registry item, normalizing authored and built forms. */
 export async function loadItem(root: string, name: string): Promise<LoadedItem> {
   const item = await readItemFile(root, name);
+  assertManifestShape(name, item);
 
   if (isBuilt(item)) {
-    for (const file of item.files) assertProjectRelativeTarget(name, file.path);
+    for (const file of item.files) {
+      if (typeof file.path !== "string" || typeof file.content !== "string") {
+        throw new CliError(`Registry item '${name}' has a built file entry without a path and content.`);
+      }
+      assertProjectRelativeTarget(name, file.path);
+    }
     const targets = item.files.map((f) => f.path);
+    assertTypeTargets(name, item.type, targets);
     const declared = await readBuiltContract(root, name, item);
     if (declared === undefined) warnMissingContract(name);
     return {
@@ -109,7 +189,13 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
   }
 
   const manifest = item;
-  for (const relative of manifest.files) assertProjectRelativeTarget(name, relative);
+  for (const relative of manifest.files) {
+    if (typeof relative !== "string" || relative === "") {
+      throw new CliError(`Registry item '${name}' has a malformed ${REGISTRY_MANIFEST_FILE}: 'files' must hold paths.`);
+    }
+    assertProjectRelativeTarget(name, relative);
+  }
+  assertTypeTargets(name, manifest.type, manifest.files);
   if (manifest.contract === undefined) warnMissingContract(name);
   const files = manifest.files.map((relative) => ({
     target: relative,
