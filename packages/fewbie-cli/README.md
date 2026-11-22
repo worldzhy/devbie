@@ -96,7 +96,7 @@ files (dependency closure included, npm dependencies installed automatically).
 | `-y, --yes`         | Skip confirmation prompts.                                                                          |
 | `-f, --force`       | Overwrite files that already exist but belong to no declared module (e.g. shipped by the template). |
 | `--skip-install`    | Do not run `npm install` for missing dependencies.                                                  |
-| `--with-login-form` | Also install the `login-form` block, e.g. `fewbie modules add auth --with-login-form`.              |
+| `--with-login-form` | Also install the `login-form` feature, e.g. `fewbie modules add auth --with-login-form`.            |
 
 ### `fewbie modules apply`
 
@@ -199,25 +199,32 @@ A registry checkout is resolved to its item directory: `packages/modules/`
 wins, and a flat checkout with `<item>/fewbie.module.json` at its root stays supported
 (ADR-059). `FEWBIE_REGISTRY_PATH` accepts either shape.
 
-Items follow the shadcn conventions (`registry:lib`, `registry:component`,
-`registry:block`):
+Items follow the shadcn conventions extended with two fewbie kinds; the four
+manifest types are `registry:lib`, `registry:component`, `registry:widget` and
+`registry:feature` (ADR-066). Each type maps to one install tree — `lib` →
+`src/lib`, `component` → `src/components`, `widget` → `src/widgets`, `feature`
+→ `src/features` — and the manifest's `files` carry the full target path. A
+widget may compose features and other widgets; a feature never imports a
+widget.
 
-| Item                      | Type        | Description                                                                                                                             |
-| ------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`                    | `lib`       | Login/logout helpers and session-expired redirect binding built on the template-provided api client.                                    |
-| `data-table`              | `component` | Generic data table with client-side sorting and pagination.                                                                             |
-| `login-form`              | `block`     | Account/password login card; submits through the auth util and honors `?redirect=`.                                                     |
-| `password-checklist`      | `block`     | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                 |
-| `query-client`            | `lib`       | TanStack Query singleton plus the provider component, wired for the App Router.                                                         |
-| `settings-required-state` | `block`     | Empty state shown when required configuration is missing, with a setup call-to-action.                                                  |
-| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                     |
-| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                     |
-| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout. |
-| `login-page`              | `block`     | Page-level password/code login with inline TOTP and third-party provider entries.                                                       |
-| `forgot-password`         | `block`     | Email plus verification code password reset with a live strength checklist.                                                             |
-| `profile-settings`        | `block`     | Account profile card: names and display name, persisted by the host.                                                                    |
-| `security-settings`       | `block`     | Active sessions with per-row sign-out, and authenticator-app enrollment.                                                                |
-| `preferences-settings`    | `block`     | Interface language, theme and timezone, with host-side cache and cookie updates.                                                        |
+| Item                      | Type        | Description                                                                                                                                 |
+| ------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`                    | `lib`       | Login/logout helpers and session-expired redirect binding built on the template-provided api client.                                        |
+| `query-client`            | `lib`       | TanStack Query singleton with App Router-safe wiring (fresh client per server request, one shared client in the browser) plus the provider. |
+| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                         |
+| `data-table`              | `component` | Generic data table with client-side sorting and pagination, built on shadcn/ui table primitives.                                            |
+| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout.     |
+| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                         |
+| `copilot`                 | `widget`    | Agent chat dock: capability catalog, run timeline, approval cards and result tables, with `send`/`confirm`/`fetchCatalog` ports.            |
+| `notification-center`     | `widget`    | Notification bell, ticker and detail sheet driven by host ports for recent, unread and push-failure data.                                   |
+| `forgot-password`         | `feature`   | Page-level password reset: email and verification code plus a new password with a live strength checklist.                                  |
+| `login-form`              | `feature`   | Account/password login card; submits through the auth util and hands post-sign-in navigation back to the host.                              |
+| `login-page`              | `feature`   | Page-level password/code login with inline TOTP and third-party provider entries.                                                           |
+| `password-checklist`      | `feature`   | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                     |
+| `preferences-settings`    | `feature`   | Interface language, theme and timezone, with host-side cache and cookie updates.                                                            |
+| `profile-settings`        | `feature`   | Account profile card: names and display name, persisted by the host.                                                                        |
+| `security-settings`       | `feature`   | Active sessions with per-row sign-out, and authenticator-app enrollment.                                                                    |
+| `settings-required-state` | `feature`   | Empty state shown when required configuration is missing, with a setup call-to-action.                                                      |
 
 Framework assets (`src/components/ui/**`, `src/framework/**`,
 `src/lib/api-client/**`, the root layout and i18n config) ship only through the
