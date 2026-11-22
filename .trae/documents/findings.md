@@ -1008,3 +1008,41 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 锚点：devbie `d94de338`（dirty=1，未跟踪 round85 报告）、fewbie-modules `b58f4c6`、fewbie-starter `a13abc1`。
 - 环境：宿主 PATH 无 Node；全部门禁在 Docker `devbie-work`（node v24）内实跑（CLI 140 例、registry 53 例、starter 51 例）。
 - 未执行：`next build`、`docker build`、浏览器 E2E，均由 CI 拥有。
+
+### Round 87（fewbie-cli / fewbie-modules / fewbie-starter + fewbie↔newbie 一致性，报告 `.trae/documents/reviews/expert-review-2026-11-22-round87.md`）
+
+| ID     | 仓                        | 标题                                                                                                       | 严重度 | 暴露面            | 可达性     | 状态 |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------- | ------ | ----------------- | ---------- | ---- |
+| R87-01 | fewbie-modules + devbie   | registry 门禁接受安装 CLI 拒绝的 contract（semver 前缀正则、labels 允许空、无 satisfies）                   | P1     | source            | 模块作者   | open |
+| R87-02 | fewbie-modules            | manifest `type` 不约束 `files[]` 安装落点，分层声明可失真                                                  | P1     | source            | 模块作者   | open |
+| R87-03 | fewbie-modules + starter  | import 扫描跳过相对说明符且只识别双引号，ADR-066 feature→widget 边界可绕过                                 | P1     | source / template | 模块作者   | open |
+| R87-04 | fewbie-starter            | `FrontendMonitor` 从未挂载，README/env/依赖三处谎报浏览器监控已启用                                        | P1     | template          | 全部宿主   | open |
+| R87-05 | fewbie-starter + devbie   | 框架渲染测试住在 host-owned `src/components/__tests__/`，`template update` 永不更新（R86-09 修复位置错误） | P1     | template          | 框架维护者 | open |
+| R87-06 | devbie（newbie-cli）      | newbie 漂移门禁依赖本地 git 对象，fewbie 已改为锁哈希；ADR-041 仍未落地                                     | P1     | ops / CLI         | 宿主维护者 | open |
+| R87-07 | fewbie-modules            | manifest 无 schema：未知键/重复 files/symlink 越界/空 states 均放行                                        | P2     | source            | 模块作者   | open |
+| R87-08 | fewbie-modules            | states 检查可被注释中的 token 满足，无法证明实现存在                                                       | P2     | source            | 模块作者   | open |
+| R87-09 | fewbie-modules            | notification-center 的 ariaRead/ariaUnread 契约声明但实现从不使用                                          | P2     | artifact          | 宿主       | open |
+| R87-10 | fewbie-modules            | 缺 `aria-sort`；loading 按钮失去可访问名；data-table 行索引 key                                            | P2     | artifact          | 任意使用者 | open |
+| R87-11 | fewbie-modules            | 英文默认文案与"copy 经 labels 传入"准入标准存在张力（默认值可覆盖）                                       | P2     | artifact          | 宿主       | open |
+| R87-12 | 三仓                      | CI 无 `permissions:`；actions 版本 v4/v7 分裂；fewbie-modules 无 concurrency/timeout                       | P2     | ops               | 维护者     | open |
+| R87-13 | fewbie-modules + devbie   | 无 version/engines/packageManager/CHANGELOG；6 个无 contract item 记 0.0.0                                 | P2     | ops               | 维护者     | open |
+| R87-14 | fewbie-starter + devbie   | 幽灵所有权路径 `src/i18n/request.ts`（ADR 门禁与 gates 测试同样引用不存在文件）                            | P2     | template          | 框架维护者 | open |
+| R87-15 | devbie（fewbie-cli）      | marker 块只替换首个匹配，重复/嵌套块永久陈旧且 `--check` 盲区                                              | P2     | template          | 宿主       | open |
+| R87-16 | fewbie-starter            | Dockerfile node 22 vs CI node 24、无 engines、容器 root 运行                                               | P2     | template / ops    | 维护者     | open |
+| R87-17 | fewbie-starter            | CI 注释自相矛盾（guards 是否跑 build），push 路径无镜像构建                                                | P2     | ops               | 维护者     | open |
+| R87-18 | fewbie-starter            | 宿主 language pack key 对齐无门禁（仅 framework.* 对齐）                                                    | P2     | template          | 宿主       | open |
+| R87-19 | fewbie-starter            | lockfile 缺失/畸形时 ESLint 边界规则静默变空，而 CLI 会拒绝同一形状                                        | P2     | template          | 宿主       | open |
+| R87-20 | fewbie-starter            | LocaleSwitcher 定义存在但无挂载点，语言切换不可达                                                          | P2     | template          | 宿主用户   | open |
+| R87-21 | fewbie-starter            | 暗色主题下滚动条硬编码浅色 `#c9cdd4`，违反 token 纪律                                                      | P2     | template          | 宿主用户   | open |
+| R87-22 | devbie（fewbie-cli）      | `--with-login-form` 硬编码 registry item 名；命令文案仍用退役词汇 "block"                                  | P2     | artifact          | 宿主维护者 | open |
+| R87-23 | devbie                    | ADR-024 列 `status --json` 但未实现；声明文件名表述不一；两栈 help 语气相反                                | P2     | docs              | 维护者     | open |
+| R87-24 | devbie（fewbie-cli）      | `loadItem` 无 name/type/files 形状断言，外部 registry 畸形 manifest 直落安装路径                          | P2     | artifact          | 宿主       | open |
+
+### Round 87 备注
+
+- 结论：无 P0/P1 级安全缺陷；6 条 P1 全部集中在"门禁承诺与实际检查不一致"，非数据面或凭证面问题。
+- 锚点：devbie `638b37b2`（dirty=1，未跟踪 round85 报告）、fewbie-modules `0731156`（比 origin/main `1bf4048` 多 1 个文档提交）、fewbie-starter `36558a4`（= origin/main）。
+- 环境：宿主无 Node，门禁在 Docker `devbie-work`（node 24.12）实跑：CLI 140 例、registry 15 文件/100 例、starter 80 例，全绿。
+- 反驳轮：7 条 P1 候选逐条独立反驳，全部成立；其中 A-03（重复 target）与 B-03（宿主语言包）由主会话降为 P2。
+- 未执行：`next build`、`docker build`、真实宿主端安装 E2E（需消费仓）。
+- 关联：R86-09 的修复位置错误衍化为 R87-05；R86-01 的命令文案残留并入 R87-22。starter `R2-08` 应随 R87-05 关闭。
