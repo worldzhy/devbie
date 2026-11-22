@@ -976,7 +976,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R84-11 | fewbie-modules（preferences-settings）| 普通事件处理函数命名为 `useBrowserTimezone`，占用 Hook 前缀                                                                    | P2     | artifact         | 模块作者     | fixed（R86 复核）：`useBrowserTimezone` 已降为 label key |
 | R84-12 | fewbie-modules（settings-required-state）| 契约只有 `onOpenSettings(settingsHref)`，接不住宿主影子件的 `onAction` / `actionPending`，唯一真实宿主无法采用                  | P2     | artifact         | 模块作者     | fixed（R86 复核）：contract 已补 `onAction` / `actionPending` |
 | R84-13 | fewbie-modules（frontend-monitor-sdk）| 动态 import 只有 `.then` 无 `.catch`，chunk 加载失败产生未捕获 rejection 且监控静默失效                                        | P2     | artifact         | 任意使用者   | fixed（R86 复核）：动态 import 已补 `.catch` |
-| R84-14 | fewbie-modules                        | 4 处硬编码 `green-*`，`security-settings` 的「本设备」徽标无 dark 变体；宿主 ESLint 未拦截                                      | P2     | live / artifact  | 任意使用者   | partial（R86 复核）：4 处均已有 dark 变体；硬编码 `green-*` 待 token 决策 → R86-08 |
+| R84-14 | fewbie-modules                        | 4 处硬编码 `green-*`，`security-settings` 的「本设备」徽标无 dark 变体；宿主 ESLint 未拦截                                      | P2     | live / artifact  | 任意使用者   | fixed（R86-08）：4 处改用 `success` 语义令牌，见 ADR-067 |
 | R84-15 | fewbie-modules                        | 缺 `.trae/`（无 skills symlink、无 backlog/findings）、缺 PR 模板、缺 dependabot 配置                                            | P2     | ops              | 维护者       | fixed（R86 复核）：`.trae/`、PR 模板、dependabot 均已存在 |
 
 ### Round 84 备注
@@ -992,15 +992,15 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID     | 仓                        | 标题                                                                                                       | 严重度 | 暴露面            | 可达性     | 状态 |
 | ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------- | ------ | ----------------- | ---------- | ---- |
-| R86-01 | devbie（fewbie-cli）      | README 仍写 `registry:block` 与 14 项旧表，未反映 widget/feature 与 6 个新 item                            | P2     | docs              | 宿主维护者 | open |
+| R86-01 | devbie（fewbie-cli）      | README 仍写 `registry:block` 与 14 项旧表，未反映 widget/feature 与 6 个新 item                            | P2     | docs              | 宿主维护者 | fixed（本会话）：类型表改为 lib/component/widget/feature 并写明四条安装落点，item 清单补齐至 16 项（含 copilot、notification-center），`--with-login-form` 文案改为 feature |
 | R86-02 | devbie + fewbie-starter   | findings 台账落后：R84-01..15 全部仍 open（13 条已修），R2-02 亦已随 1.15.0 发布修复但仍 open             | P2     | docs              | 维护者     | fixed（本会话）：R84-01..13/15 → fixed、R84-14 → partial；starter R2-02、R2-06 → fixed |
 | R86-03 | devbie                    | backlog 残留已完成条目：“禁止模块导入 next/\*”“3 个 block 补 contract + labels”                            | P2     | docs              | 维护者     | fixed（本会话）：两条已从 backlog 删除 |
-| R86-04 | devbie                    | main 落后 dev 68 个提交 / 159 个文件；main 的 CLI 无法消费已上 main 的 widget/feature registry             | P2     | template / ops    | 新宿主/发布 | open |
-| R86-05 | fewbie-modules            | `check-contract.mjs`（唯一完整性闸门）无夹具测试，负向路径无回归保护                                       | P2     | source            | 模块作者   | open |
-| R86-06 | fewbie-modules            | registry 侧无依赖环门禁、无“声明未使用”告警（R85-01/R85-02 仍未落地）                                     | P2     | source            | 模块作者   | open |
-| R86-07 | fewbie-modules            | 8/16 item 无行为测试，含 ADR-065 新增的 login-form、password-checklist、settings-required-state 全部 3 个 | P2     | artifact          | 模块作者   | open |
-| R86-08 | fewbie-modules            | 4 处硬编码 `green-*` 未收敛到设计令牌（R84-14 残余，需 token 决策）                                        | P2     | live / artifact   | 任意使用者 | open |
-| R86-09 | fewbie-starter            | framework 行为测试仍只覆盖传输层，page/shell/feedback/i18n request/health route 无测试（R2-08）             | P2     | template          | 框架维护者 | open |
+| R86-04 | devbie                    | main 落后 dev 68 个提交 / 159 个文件；main 的 CLI 无法消费已上 main 的 widget/feature registry             | P2     | template / ops    | 新宿主/发布 | fixed（本会话）：#150（merge commit `83b86046`），CI 两项检查全绿后合并；已先 `Merge branch 'main' into dev` 消除 behind |
+| R86-05 | fewbie-modules            | `check-contract.mjs`（唯一完整性闸门）无夹具测试，负向路径无回归保护                                       | P2     | source            | 模块作者   | fixed（本会话）：`test/check-contract.test.ts` 以 `FEWBIE_CONTRACT_ROOT` 驱动 14 组负向夹具（缺文件、越界、绝对路径、名称不符、多余文件、未知类型、feature 无 contract、widget types 位置、feature 导 widget、未声明依赖、宿主包、环、未用依赖） |
+| R86-06 | fewbie-modules            | registry 侧无依赖环门禁、无“声明未使用”告警（R85-01/R85-02 仍未落地）                                     | P2     | source            | 模块作者   | fixed（本会话）：`check-contract.mjs` 增 `registryDependencies` DFS 环检测（fail）与未用依赖告警（warn）；真实 16 item registry 零告警 |
+| R86-07 | fewbie-modules            | 8/16 item 无行为测试，含 ADR-065 新增的 login-form、password-checklist、settings-required-state 全部 3 个 | P2     | artifact          | 模块作者   | fixed（本会话）：补 login-form、password-checklist、settings-required-state、data-table、theme 共 5 个 conformance；auth/query-client/frontend-monitor-sdk 在 README「Test coverage」记录豁免理由 |
+| R86-08 | fewbie-modules            | 4 处硬编码 `green-*` 未收敛到设计令牌（R84-14 残余，需 token 决策）                                        | P2     | live / artifact   | 任意使用者 | fixed（registry 侧，本会话）：ADR-067 确立 `--success`/`--color-success` 为唯一成功语义；4 处改 `text-success` / `border-success/30 bg-success/10 text-success`。宿主重装与 devbie 快照重生成随 registry main 合并执行（见各仓 backlog） |
+| R86-09 | fewbie-starter            | framework 行为测试仍只覆盖传输层，page/shell/feedback/i18n request/health route 无测试（R2-08）             | P2     | template          | 框架维护者 | partial（本会话）：新增 jsdom + testing-library 渲染底座，覆盖 InlineResult/InlineErrorText、Loading/Empty/ErrorState、PageHeader/PageShell（70 pass）；starter 无 `src/i18n/request` 行为入口与 health route，剩余项记 backlog |
 
 ### Round 86 备注
 
