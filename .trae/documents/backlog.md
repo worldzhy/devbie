@@ -107,4 +107,3 @@
 ## fewbie 终极状态落地（2026-11-21）
 
 - [ ] **crewbie-console-frontend 的 `@devbie/fewbie-cli` pin 待升级**：该宿主不在当前工作区，其 `package.json` / 锁文件仍指向旧版本；工作区可用时升到 `^1.12.0` 并跑 `modules apply --check` / `modules update --check`。
-- [ ] **ADR-067 success 令牌的 registry 快照重生成（R86-08）**：fewbie-modules dev 已把 4 处 `green-*` 改为 `success` 语义类；其 `dev → main` 合并后执行 `FEWBIE_MODULES_PATH=<fewbie-modules> npm run registry:sync -w @devbie/fewbie-cli`，提交 `packages/fewbie-cli/registry/**` 与 `.snapshot.json`，否则 `check:registry-snapshot` 仍固定在 `b58f4c6` 的旧字节。
