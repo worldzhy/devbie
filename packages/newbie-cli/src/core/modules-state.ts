@@ -24,26 +24,17 @@ export function diffModuleKeys(current: string[], next: string[]): EnabledDiff {
 }
 
 /**
- * Produce the next state after changing the enabled module list.
- * Existing records of retained modules are preserved (pins/localPatches);
- * new keys get empty records that the assemble step fills with the registry
- * sourceCommit; removed modules drop their records entirely.
+ * Produce the next state after changing the enabled module list. A record is
+ * only its key; provenance is written to `newbie-modules.lock.json` by the
+ * assemble step (ADR-041), so retained and new keys look the same.
  */
 export function withModuleKeys(state: ModulesState, nextKeys: string[]): ModulesState {
-  const byKey = new Map(state.modules.map((record) => [record.key, record]));
   const seen = new Set<string>();
   const modules: ModuleRecord[] = [];
   for (const key of nextKeys) {
     if (seen.has(key)) continue;
     seen.add(key);
-    modules.push(
-      byKey.get(key) ?? {
-        key,
-        version: null,
-        sourceCommit: null,
-        localPatches: [],
-      },
-    );
+    modules.push({ key });
   }
   return { ...state, modules };
 }

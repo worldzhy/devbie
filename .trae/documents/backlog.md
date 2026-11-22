@@ -110,6 +110,4 @@
 
 ## round 87 遗留（2026-11-22）
 
-- [ ] **fewbie 注册表快照待同步**：`fewbie-modules` 的 round 87 修复只在 dev（`origin/dev`），devbie 的 `packages/fewbie-cli/registry` 仍对齐 `origin/main`。待 fewbie-modules dev 合入 main 后，在 devbie 执行 `npm run registry:sync --workspace @devbie/fewbie-cli && npm run build --workspace @devbie/fewbie-cli && npm run check:registry-dist --workspace @devbie/fewbie-cli`，并更新快照 `sourceCommit`。
-- [ ] **ADR-041 第二阶段**：停写 `newbie-modules.json` 每条记录的 `sourceCommit`，把 `ModuleRecord` 收敛为纯 `key`（含 newbie hub/status 消费方），删除 `module-source-drift.ts` 的 legacy pin 分支，并补迁移测试。
 - [ ] **R87-23 残余 / R87-11**：两栈 help 首句语气（大写 vs 小写）统一；`fewbie-modules` 英文默认文案与「copy 经 labels 传入」准入标准的处理政策定稿（注释已说明默认值仅供 demo）。

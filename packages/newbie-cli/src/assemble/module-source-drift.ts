@@ -1,18 +1,20 @@
 import { bold } from "colorette";
-import { MODULES_DIR, ModulesState } from "@devbie/modules-state";
+import { MODULES_DIR } from "@devbie/modules-state";
 
 import { REGISTRY_MODULES_DIR } from "../constants/paths";
 import { diffSnapshots, DriftReport } from "../core/drift";
 import { filesToSnapshot, lockEntryFor, ModuleLock } from "../core/module-lock";
 import { readModuleLock } from "../lib/module-lock";
+import { readLegacyModulePins } from "../lib/modules-state";
 import { fetchRegistryCommit, snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
 import { RegistryLocation } from "../lib/registry";
 
 /**
  * Why a module copy cannot be proven against its provenance lock (ADR-041).
  *
- * - `lock-missing`: the copy exists but the lock has no entry (installed
- *   without going through the CLI); `modules apply` seeds it after verifying.
+ * - `lock-missing`: the copy exists but the lock has no entry. A project with
+ *   no lock at all reports this for every enabled copy; `modules apply` seeds
+ *   the lock after verifying the copies against their legacy pins.
  * - `copy-modified`: the installed copy differs from the lock manifest.
  * - `lock-tampered`: the lock manifest differs from the registry tree at its
  *   `sourceCommit`.
@@ -20,19 +22,9 @@ import { RegistryLocation } from "../lib/registry";
  *   could not be fetched.
  * - `missing-copy`: the key is enabled but `src/modules/<key>` is gone; only
  *   reported when the caller asks for it (`modules update --check`).
- *
- * A project without `newbie-modules.lock.json` still uses the legacy pin in
- * `newbie-modules.json` (`missing-pin` / `unavailable-pin`) until the next
- * `modules apply` writes the lock.
  */
 export type ModuleDriftReason =
-  | "lock-missing"
-  | "copy-modified"
-  | "lock-tampered"
-  | "unverifiable-lock"
-  | "missing-copy"
-  | "missing-pin"
-  | "unavailable-pin";
+  "lock-missing" | "copy-modified" | "lock-tampered" | "unverifiable-lock" | "missing-copy";
 
 /**
  * One installed module whose sources do not match the provenance lock.
@@ -50,53 +42,12 @@ export interface ModuleSourceDrift {
   installedPath: string;
   /** Registry-relative directory the copy is compared against. */
   registryPath: string;
-  /** Commit recorded for the installed copy (lock, or legacy pin); null when absent. */
+  /** Commit recorded for the installed copy in the lock; null when absent. */
   baselineCommit: string | null;
   /** null when the comparison cannot run (see `reason`). */
   report: DriftReport | null;
   /** Set when `report` is null: why no comparison could run. */
   reason: ModuleDriftReason | null;
-}
-
-/** Legacy path: projects without a lock still compare against the pin. */
-async function legacyDrift(params: {
-  cwd: string;
-  registry: RegistryLocation;
-  state: ModulesState;
-  enabledKeys: string[];
-  requireInstalled: boolean;
-}): Promise<ModuleSourceDrift[]> {
-  const { cwd, registry, state, enabledKeys, requireInstalled } = params;
-  const drifts: ModuleSourceDrift[] = [];
-  for (const key of enabledKeys) {
-    const record = state.modules.find((entry) => entry.key === key);
-    const pin = record?.sourceCommit ?? null;
-    const base: ModuleSourceDrift = {
-      key,
-      installedPath: `${MODULES_DIR}/${key}`,
-      registryPath: `${REGISTRY_MODULES_DIR}/${key}`,
-      baselineCommit: pin,
-      report: null,
-      reason: null,
-    };
-    if (!pin) {
-      drifts.push({ ...base, reason: "missing-pin" });
-      continue;
-    }
-    const installed = await snapshotInstalledModule(cwd, key);
-    if (installed === null) {
-      if (requireInstalled) drifts.push({ ...base, reason: "missing-copy" });
-      continue;
-    }
-    const pristine = await snapshotPristineModule(registry, key, pin);
-    if (pristine === null) {
-      drifts.push({ ...base, reason: "unavailable-pin" });
-      continue;
-    }
-    const report = diffSnapshots(installed, pristine);
-    if (!report.clean) drifts.push({ ...base, report });
-  }
-  return drifts;
 }
 
 /** Lock path: copy = manifest, then manifest = registry tree at sourceCommit. */
@@ -160,7 +111,6 @@ async function lockDrift(params: {
 export async function diffModuleSources(params: {
   cwd: string;
   registry: RegistryLocation;
-  state: ModulesState;
   enabledKeys: string[];
   /**
    * Report enabled modules whose copy is absent. `modules apply --check`
@@ -169,10 +119,52 @@ export async function diffModuleSources(params: {
    */
   requireInstalled?: boolean;
 }): Promise<ModuleSourceDrift[]> {
-  const { cwd, registry, state, enabledKeys, requireInstalled = false } = params;
+  const { cwd, registry, enabledKeys, requireInstalled = false } = params;
   const lock = await readModuleLock(cwd);
+  // A project with no lock yet: every existing copy is unproven until the next
+  // `modules apply` verifies it (against its legacy pin) and seeds the lock.
   if (lock === null) {
-    return legacyDrift({ cwd, registry, state, enabledKeys, requireInstalled });
+    const pins = await readLegacyModulePins(cwd);
+    const drifts: ModuleSourceDrift[] = [];
+    for (const key of enabledKeys) {
+      const installed = await snapshotInstalledModule(cwd, key);
+      if (installed === null) {
+        if (requireInstalled) {
+          drifts.push({
+            key,
+            installedPath: `${MODULES_DIR}/${key}`,
+            registryPath: `${REGISTRY_MODULES_DIR}/${key}`,
+            baselineCommit: null,
+            report: null,
+            reason: "missing-copy",
+          });
+        }
+        continue;
+      }
+      const pin = pins.get(key) ?? null;
+      // A pin this checkout cannot read is a stale registry cache, not drift;
+      // keep the actionable `unverifiable-lock` signal for the migration pass.
+      if (pin && (await snapshotPristineModule(registry, key, pin)) === null) {
+        drifts.push({
+          key,
+          installedPath: `${MODULES_DIR}/${key}`,
+          registryPath: `${REGISTRY_MODULES_DIR}/${key}`,
+          baselineCommit: pin,
+          report: null,
+          reason: "unverifiable-lock",
+        });
+        continue;
+      }
+      drifts.push({
+        key,
+        installedPath: `${MODULES_DIR}/${key}`,
+        registryPath: `${REGISTRY_MODULES_DIR}/${key}`,
+        baselineCommit: pin,
+        report: null,
+        reason: "lock-missing",
+      });
+    }
+    return drifts;
   }
   return lockDrift({ cwd, registry, lock, enabledKeys, requireInstalled });
 }
@@ -181,22 +173,12 @@ const short = (commit: string | null): string => (commit ? commit.slice(0, 7) : 
 
 /** Print one drift entry; shared by `apply --check` and `update --check`. */
 export function printSourceDrift(drift: ModuleSourceDrift): void {
-  if (drift.reason === "missing-pin") {
-    console.info(bold(`\n# ${drift.installedPath} (no sourceCommit pin in newbie-modules.json)`));
-    return;
-  }
   if (drift.reason === "lock-missing") {
     console.info(bold(`\n# ${drift.installedPath} (installed copy has no entry in newbie-modules.lock.json)`));
     return;
   }
   if (drift.reason === "missing-copy") {
     console.info(bold(`\n# ${drift.installedPath} (enabled in newbie-modules.json but the copy is missing)`));
-    return;
-  }
-  if (drift.reason === "unavailable-pin") {
-    console.info(
-      bold(`\n# ${drift.installedPath} (cannot read ${drift.registryPath} at ${short(drift.baselineCommit)})`),
-    );
     return;
   }
   if (drift.reason === "unverifiable-lock") {

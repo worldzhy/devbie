@@ -11,7 +11,6 @@ import { MODULE_LOCK_FILE } from "@devbie/modules-state";
 import { diffModuleSources } from "../src/assemble/module-source-drift";
 import { normalizeModuleLock, sortModuleLock } from "../src/core/module-lock";
 import type { RegistryLocation } from "../src/lib/registry";
-import type { ModulesState } from "@devbie/modules-state";
 
 const directories: string[] = [];
 
@@ -56,13 +55,6 @@ function commitAll(root: string): string {
   git("add", "-A");
   git("-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-q", "-m", "seed", "--allow-empty");
   return git("rev-parse", "HEAD");
-}
-
-function stateWith(key: string, sourceCommit: string | null): ModulesState {
-  return {
-    registry: { url: "https://example.invalid/registry.git", sourceCommit },
-    modules: [{ key, version: null, sourceCommit, localPatches: [] }],
-  };
 }
 
 /** Project copy + committed registry tree, plus a lock manifest for the copy. */
@@ -140,35 +132,22 @@ describe("provenance lock", () => {
   });
 
   it("treats a copy matching its lock as clean", async () => {
-    const { cwd, registry, commit } = await makeLockedTrees();
-    assert.deepEqual(
-      await diffModuleSources({ cwd, registry, state: stateWith("account", commit), enabledKeys: ["account"] }),
-      [],
-    );
+    const { cwd, registry } = await makeLockedTrees();
+    assert.deepEqual(await diffModuleSources({ cwd, registry, enabledKeys: ["account"] }), []);
   });
 
   it("reports copy-modified without touching the registry", async () => {
-    const { cwd, registry, commit } = await makeLockedTrees();
+    const { cwd, registry } = await makeLockedTrees();
     await fs.writeFile(path.join(cwd, "src/modules/account/src/account.service.ts"), "export class B {}\n", "utf8");
-    const [drift] = await diffModuleSources({
-      cwd,
-      registry,
-      state: stateWith("account", commit),
-      enabledKeys: ["account"],
-    });
+    const [drift] = await diffModuleSources({ cwd, registry, enabledKeys: ["account"] });
     assert.equal(drift.reason, "copy-modified");
     assert.deepEqual(drift.report?.changed, ["src/account.service.ts"]);
   });
 
   it("reports lock-missing when the copy has no entry", async () => {
-    const { cwd, registry, commit } = await makeLockedTrees();
+    const { cwd, registry } = await makeLockedTrees();
     await fs.writeFile(path.join(cwd, MODULE_LOCK_FILE), JSON.stringify({ lockVersion: 1, modules: [] }), "utf8");
-    const [drift] = await diffModuleSources({
-      cwd,
-      registry,
-      state: stateWith("account", commit),
-      enabledKeys: ["account"],
-    });
+    const [drift] = await diffModuleSources({ cwd, registry, enabledKeys: ["account"] });
     assert.equal(drift.reason, "lock-missing");
   });
 
@@ -202,12 +181,7 @@ describe("provenance lock", () => {
       local: true,
       refreshed: false,
     };
-    const [drift] = await diffModuleSources({
-      cwd,
-      registry,
-      state: stateWith("account", commit),
-      enabledKeys: ["account"],
-    });
+    const [drift] = await diffModuleSources({ cwd, registry, enabledKeys: ["account"] });
     assert.equal(drift.reason, "lock-tampered");
     assert.deepEqual(drift.report?.removed, ["src/extra.ts"]);
   });

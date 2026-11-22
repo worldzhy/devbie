@@ -77,14 +77,11 @@ async function runApplyCheck(options: ModulesApplyOptions): Promise<void> {
   const drifts = await diffModuleSources({
     cwd: ctx.cwd,
     registry: ctx.registry,
-    state: ctx.state,
     enabledKeys: declared,
   });
   if (drifts.length > 0) {
     for (const drift of drifts) printSourceDrift(drift);
-    const unreadable = drifts.filter(
-      (drift) => drift.reason === "unavailable-pin" || drift.reason === "unverifiable-lock",
-    );
+    const unreadable = drifts.filter((drift) => drift.reason === "unverifiable-lock");
     // A stale registry cache is not drift: claiming it is sends the reader to
     // back-port against a commit this checkout cannot even read.
     if (unreadable.length === drifts.length) {

@@ -6,7 +6,7 @@ import { DriftReport } from "../core/drift";
 import { diffSnapshots } from "../core/drift";
 import { filesToSnapshot, lockEntryFor } from "../core/module-lock";
 import { collectMissingEnv } from "../lib/check";
-import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
+import { snapshotInstalledModule } from "../lib/drift";
 import { fileExists } from "@devbie/cli-kit";
 import { readModuleLock } from "../lib/module-lock";
 import { readInstalledManifest } from "../lib/module-install";
@@ -19,7 +19,6 @@ export interface StatusModuleEntry {
   key: string;
   version: string | null;
   sourceCommit: string | null;
-  localPatches: string[];
   installed: boolean;
   hasSchema: boolean;
   missingEnv: string[];
@@ -50,27 +49,21 @@ export async function collectStatus(cwd: string, options?: { drift?: boolean }):
     const installed = await fileExists(cwd, `${MODULES_DIR}/${key}`);
     const manifest = installed ? await readInstalledManifest(cwd, key) : null;
     const locked = lockEntryFor(lock, key);
-    const sourceCommit = locked?.sourceCommit ?? record.sourceCommit;
+    const sourceCommit = locked?.sourceCommit ?? null;
 
     const entry: StatusModuleEntry = {
       key,
-      version: locked?.version ?? record.version,
+      version: locked?.version ?? null,
       sourceCommit,
-      localPatches: record.localPatches,
       installed,
       hasSchema: Boolean(manifest?.wiring?.prismaSchema),
       missingEnv: missingEnv[key] ?? [],
       updateAvailable: Boolean(registry?.sourceCommit && sourceCommit && registry.sourceCommit !== sourceCommit),
     };
 
-    if (options?.drift && installed) {
+    if (options?.drift && installed && locked) {
       const installedSnap = await snapshotInstalledModule(cwd, key);
-      if (installedSnap && locked) {
-        entry.drift = diffSnapshots(installedSnap, filesToSnapshot(locked.files));
-      } else if (installedSnap && registry && sourceCommit) {
-        const pristine = await snapshotPristineModule(registry, key, sourceCommit);
-        if (pristine) entry.drift = diffSnapshots(installedSnap, pristine);
-      }
+      if (installedSnap) entry.drift = diffSnapshots(installedSnap, filesToSnapshot(locked.files));
     }
 
     modules.push(entry);

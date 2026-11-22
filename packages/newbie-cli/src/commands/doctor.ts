@@ -11,7 +11,7 @@ import { findMissingEnabledModules } from "../core/module-closure";
 import { moduleSchemaNamespace, readDatasourceSchemas } from "../core/prisma-schema";
 import { collectMissingEnv } from "../lib/check";
 import { CliError, fileExists } from "@devbie/cli-kit";
-import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
+import { snapshotInstalledModule } from "../lib/drift";
 import { readModuleLock } from "../lib/module-lock";
 import { formatRegistryLocation, listRegistryKeys, readRegistryModule, resolveRegistry } from "../lib/registry";
 import { readInstalledManifest } from "../lib/module-install";
@@ -126,9 +126,8 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
       error(`${label}: missing env ${missingEnv[key].join(", ")}`);
     }
 
-    const record = state.modules.find((entry) => entry.key === key);
     const locked = lockEntryFor(lock, key);
-    const pinnedCommit = locked?.sourceCommit ?? record?.sourceCommit ?? null;
+    const pinnedCommit = locked?.sourceCommit ?? null;
     if (registry?.sourceCommit && pinnedCommit && pinnedCommit !== registry.sourceCommit) {
       notice(
         `${label}: update available (${pinnedCommit.slice(0, 7)} -> ${registry.sourceCommit.slice(0, 7)}); run 'newbie modules update'.`,
@@ -140,19 +139,12 @@ export async function runDoctor(options: DoctorOptions): Promise<void> {
       notice(`${label}: deprecated — ${manifest.deprecated}`);
     }
 
-    // Local customisation: the lock manifest answers offline, which is the
-    // common case; fall back to the pristine tree for legacy projects.
-    if (pinnedCommit) {
+    // Local customisation: the lock manifest answers offline (ADR-041).
+    if (locked) {
       const installed = await snapshotInstalledModule(cwd, key);
       if (installed) {
-        const drift = locked
-          ? diffSnapshots(installed, filesToSnapshot(locked.files))
-          : await (async () => {
-              if (!registry) return null;
-              const pristine = await snapshotPristineModule(registry, key, pinnedCommit);
-              return pristine ? diffSnapshots(installed, pristine) : null;
-            })();
-        if (drift && !drift.clean) {
+        const drift = diffSnapshots(installed, filesToSnapshot(locked.files));
+        if (!drift.clean) {
           const details = [
             ...drift.changed.map((file) => `changed: ${file}`),
             ...drift.added.map((file) => `added: ${file}`),

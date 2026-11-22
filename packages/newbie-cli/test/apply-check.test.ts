@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -111,10 +112,31 @@ describe("R70-05: modules apply --check explains an unreadable registry pin", ()
     process.env[REGISTRY_PATH_ENV] = registry;
     console.info = () => undefined;
 
-    // A first real apply writes the generated wiring, so the `--check` run is
-    // free of unrelated "generated files drift" noise and reaches the pin gate.
-    // Prisma generation is skipped: the fixture has no client to build.
+    // A verifiable pin lets the first real apply record the lock and write the
+    // generated wiring, so the `--check` run below is free of unrelated
+    // "generated files drift" noise. Prisma generation is skipped: the fixture
+    // has no client to build.
+    execFileSync("git", ["init", "-q"], { cwd: registry });
+    execFileSync("git", ["add", "-A"], { cwd: registry });
+    execFileSync("git", ["-c", "user.email=test@example.com", "-c", "user.name=test", "commit", "-qm", "fixture"], {
+      cwd: registry,
+    });
+    const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: registry }).toString().trim();
+    await fs.writeFile(
+      path.join(project, "newbie-modules.json"),
+      JSON.stringify({ registry: null, modules: [{ key: "alpha", version: null, sourceCommit: head }] }),
+      "utf8",
+    );
     await runApply({ cwd: project, skipPrismaGenerate: true });
+
+    // Rewind to the pre-lock state a stale checkout produces: no lock, only a
+    // pin this registry cannot read.
+    await fs.rm(path.join(project, "newbie-modules.lock.json"), { force: true });
+    await fs.writeFile(
+      path.join(project, "newbie-modules.json"),
+      JSON.stringify({ registry: null, modules: [{ key: "alpha", version: null, sourceCommit: "deadbeef" }] }),
+      "utf8",
+    );
   });
 
   after(async () => {
@@ -123,6 +145,14 @@ describe("R70-05: modules apply --check explains an unreadable registry pin", ()
     else process.env[REGISTRY_PATH_ENV] = originalEnv;
     await fs.rm(project, { recursive: true, force: true });
     await fs.rm(registry, { recursive: true, force: true });
+  });
+
+  it("refuses a real apply it cannot verify", async () => {
+    await assert.rejects(runApply({ cwd: project, skipPrismaGenerate: true }), (error: unknown) => {
+      assert.ok(error instanceof CliError);
+      assert.match(error.message, /cannot read the locked commit\(s\) deadbee/);
+      return true;
+    });
   });
 
   it("names the stale checkout and how to make the pin readable", async () => {

@@ -77,7 +77,7 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 
 6. **首次落地（迁移）**：消费仓在 CLI 升级后首次运行 `modules apply`，对每个已装配模块先按 pin 校验副本；只把校验干净的模块写入锁文件；任何一个不干净就整体拒绝并点名该 key，禁止用「把现状算成正确」的方式给既有漂移盖章。
 
-7. **`localPatches` 不进入门禁**：ADR-019 规定宿主在 `src/modules/<key>` 内不拥有任何文件（扩展点只有 `prisma-additions/` 与 `src/application/`），因此不存在合法的本地补丁；该字段保持预留，移除是独立清理，不并入本决策。
+7. **`localPatches` 不进入门禁**：ADR-019 规定宿主在 `src/modules/<key>` 内不拥有任何文件（扩展点只有 `prisma-additions/` 与 `src/application/`），因此不存在合法的本地补丁；第二阶段随 `version` / `sourceCommit` 一并从 `ModuleRecord` 移除，不保留空字段。
 
 8. **back-port 流程同步收紧**：registry 提交在先，消费仓一律 `npx newbie modules update <key>`（唯一同时写代码与来源的通道），禁止手工复制后再提交。手工复制现在会被 `copy-modified` 精确指认，而不是伪装成「与 pin 不同」。
 
@@ -102,7 +102,11 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 
 - 新增 `newbie-modules.lock.json`（`lockVersion: 1`），条目为 `key` / `version` / `sourceCommit` / `files`（POSIX 相对路径 → sha256）。
 - `modules apply` 在复制后写入/刷新条目；已存在条目保持不动，让 `--check` 仍能报 `copy-modified`。既有副本无条目时按 pin 校验，干净才采纳，脏副本点名拒绝；pin 不可读则跳过该 key（门禁继续报 `unverifiable-lock`，不写入未经校验的锁）。
-- 门禁改为「副本 = 清单，清单 = registry @ sourceCommit」，信号为 `lock-missing` / `copy-modified` / `lock-tampered` / `unverifiable-lock`；缺对象时先按需 fetch 一次。项目没有锁文件时仍走旧 pin 路径（`missing-pin` / `unavailable-pin`），作为迁移窗口。
+- 门禁改为「副本 = 清单，清单 = registry @ sourceCommit」，信号为 `lock-missing` / `copy-modified` / `lock-tampered` / `unverifiable-lock`；缺对象时先按需 fetch 一次。项目没有锁文件时仍走旧 pin 路径，作为迁移窗口。
 - `update.ts` 的 `fromCommit`、`doctor` 与 `status` 的基线优先读锁文件；`status --drift` 与 `doctor` 的本地漂移判定可离线完成。
 
-尚未迁移：`newbie-modules.json` 仍写入每条记录的 `sourceCommit`（旧客户端兼容 + 现有测试断言），`ModuleRecord` 形状未改。锁文件已是门禁唯一权威；下一步在 MINOR 版本里停写该字段并删除 legacy 分支。
+2026-11-22 第二阶段落地：
+
+- `newbie-modules.json` 不再写入每条记录的 `version` / `sourceCommit` / `localPatches`；`ModuleRecord` 收敛为纯 `{ key }`（`@devbie/modules-state`、newbie hub 快照、module-hub-cli 校验同步调整）。锁文件成为来源信息的唯一真源。
+- legacy pin 分支删除：`module-source-drift.ts` 的 `missing-pin` / `unavailable-pin` 并入 `lock-missing` / `unverifiable-lock`；无锁文件时从声明文件读一次旧 pin 作为迁移基线，读到即校验，读不到即点名拒绝整体写入——不再把 pin 抹掉后留下无法验证的副本。
+- 迁移窗口收口：`modules apply` 在无锁文件且旧 pin 不可读时直接失败（含 7 位 commit 与刷新/换 registry 指引）；有锁文件时保持 `unverifiable-lock`，交由 `--check` 报告。

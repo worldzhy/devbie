@@ -15,15 +15,12 @@ describe("diffModuleKeys", () => {
 });
 
 describe("withModuleKeys", () => {
-  it("preserves pins of retained modules and adds empty records for new keys", () => {
+  it("records only keys, regardless of legacy provenance fields", () => {
     const state = normalizeModulesState({
       modules: [{ key: "a", sourceCommit: "aaa", localPatches: ["p"] }],
     });
     const next = withModuleKeys(state, ["b", "a"]);
-    assert.deepEqual(next.modules, [
-      { key: "b", version: null, sourceCommit: null, localPatches: [] },
-      { key: "a", version: null, sourceCommit: "aaa", localPatches: ["p"] },
-    ]);
+    assert.deepEqual(next.modules, [{ key: "b" }, { key: "a" }]);
   });
 
   it("de-duplicates the requested keys", () => {

@@ -1049,3 +1049,4 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 
 - 修复（2026-11-22, round 87）：P1 六项全部落地——R87-01/02 由 `check-contract.mjs` 的 semver + 落点校验关闭；R87-03 由 registry 门禁与 starter ESLint 的相对说明符解析关闭；R87-04/05 由删除未挂载监控与框架测试迁入 `src/framework/__tests__/` 关闭；R87-06 由 `newbie-modules.lock.json` 第一阶段落地关闭。P2 除 R87-11/13/23 的残余项外全部关闭；R87-23 仅修正 ADR 文档口径，两栈 help 文案语气仍待统一。
+- 后续（2026-11-22）：ADR-041 第二阶段落地——`ModuleRecord` 收敛为纯 `key`，声明文件停写 `sourceCommit`/`version`/`localPatches`，legacy pin 分支只保留一次迁移读取；`newbie-cli` 265 例、`modules-state` 6 例、`newbie` 66 例、`module-hub-cli` 7 例全绿。fewbie-modules 的 dev 已合入 main，devbie registry 快照已重新同步并通过 `check:registry-dist` / `check:registry-snapshot`。

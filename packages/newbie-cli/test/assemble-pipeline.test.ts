@@ -44,11 +44,11 @@ async function makeProject(params: {
     JSON.stringify(
       {
         registry: null,
+        // Simulates a pre-lock project: the pins are the only baseline
+        // `modules apply` has before it seeds newbie-modules.lock.json.
         modules: params.modules.map((entry) => ({
           key: entry.key,
-          version: null,
           sourceCommit: entry.sourceCommit === undefined ? "installed-commit" : entry.sourceCommit,
-          localPatches: [],
         })),
       },
       null,
@@ -201,7 +201,7 @@ describe("runSteps", () => {
         return true;
       },
     );
-    // Fail closed before copying: no half-installed module, no null pin.
+    // Fail closed before copying: no half-installed module, no unproven copy.
     await assert.rejects(fs.readdir(path.join(cwd, "src", "modules", "alpha")));
     assert.deepEqual((await readState(cwd)).modules, []);
   });

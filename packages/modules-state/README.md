@@ -55,8 +55,8 @@ console.log(moduleKeys(state)); // ["account", "heartbeat", ...]
 
 ### Types
 
-- `ModuleRecord` — one installed module (`key`, `version`, `sourceCommit`,
-  `localPatches`).
+- `ModuleRecord` — one installed module (`key`). Per-module provenance lives in
+  `newbie-modules.lock.json` (ADR-041).
 - `ModulesState` — the whole manifest (`registry`, `modules`).
 
 ## License
