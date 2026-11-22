@@ -96,8 +96,6 @@
 
 - [x] **api-client 测试回填模板（2026-11-22，R83-19）**：原决定因 vitest + axios-mock-adapter 与模板 node:test 双 runner 而搁置；改为直接用 node:test 写在 `src/framework/api-client/*.test.ts`（protocol / failure / session-store / refresh-exchange，axios 走 adapter 注入替身），与 `npm test` 同栈；放在 `src/framework/**` 是为了避开宿主对 `src/lib/api-client/*.test.ts` 的 vitest 扫描。
 - [ ] **`text-[13px]` 类任意字号门禁（R83-15 残留）**：R3 已拦任意色值与未定义 palette、R6 已拦任意 radius；nightwatch 仍有约 40 处亚刻度字号（`text-[10px]` / `text-[0.8125rem]` 等）依赖，需先在 framework theme 增补 micro-typography token（如 `text-2xs`）并迁移宿主，才能把 `text-\[` 纳入 OFF_SCALE。
-- [ ] **fewbie-modules：禁止模块导入 `next/*`（R83-10）**：`scripts/check-contract.mjs` 的 `FRAMEWORK_PACKAGES` 含 `next`，而 `login-form` 导入 `next/navigation`、`settings-required-state` 导入 `next/link`。移除 `next` 后需把导航改为 port prop（如 `onNavigate`），同步宿主 adapter 与 nightwatch 消费点。
-- [ ] **fewbie-modules：3 个 block 补 contract + labels（R83-11）**：`login-form`、`password-checklist`、`settings-required-state` 无 `contract` 且硬编码英文；补 `fewbie.module.json` 的 contract，并把文案改为 `labels` prop（与 R79-01 同根）。
 - [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
 
 ## ADR-056 M3 遗留（2026-11-21）

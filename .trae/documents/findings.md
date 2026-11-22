@@ -963,21 +963,21 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 
 | ID     | 仓                                    | 标题                                                                                                                            | 严重度 | 暴露面           | 可达性       | 状态 |
 | ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------- | ------------ | ---- |
-| R84-01 | fewbie-modules ↔ newbie-modules       | 密码策略前端镜像与后端 `validator.isStrongPassword` 双向分歧（`_`/空格被前端拒绝，`€`/`§`被前端接受）；R82-15 只镜像未对后端 | P1     | live             | 任意用户     | open |
-| R84-02 | fewbie-modules（sse-stream）          | 模块级共享 `TextDecoder` 在并发流下串字节（探针实证；宿主副本同缺陷且 live，两个并发消费者）                                   | P1     | artifact         | 任意登录用户 | open |
-| R84-03 | fewbie-modules（check-contract）      | 宿主运行时 import 仅要求「声明依赖」，manifest 声明 `next` 后 `import "next/link"` 通过；R83-10 的准入规则未被门禁表达           | P2     | artifact         | 模块作者     | open |
-| R84-04 | fewbie-modules（check-contract）      | 汇总行把 6 个跳过项计入「14 item contract(s) match」；`registry:block` 缺 contract 只警告不失败                                  | P2     | ops              | 维护者       | open |
-| R84-05 | fewbie-modules                        | `vitest` / `tsconfig` 只收模块内 `*.test.tsx`，`*.test.ts` 不执行也不类型检查；9/14 item 零行为测试                              | P2     | source           | 维护者       | open |
-| R84-06 | fewbie-modules（tsconfig）            | 别名表手工维护，只映射 `@/lib/auth`、`@/lib/query-client`；`sse-stream` 等后续 lib item 无法被跨 item 导入                       | P2     | artifact         | 模块作者     | open |
-| R84-07 | fewbie-modules（data-table）          | 硬编码英文（"No results."、分页区间）且两个图标翻页按钮无 `aria-label`（R79-01 残留）                                           | P2     | artifact         | 任意使用者   | open |
-| R84-08 | fewbie-modules（theme）               | `aria-label="Toggle theme"` 硬编码，无 labels 入参（R79-01 残留）                                                              | P2     | artifact         | 任意使用者   | open |
-| R84-09 | fewbie-modules（login-form）          | 直接展示宿主 API 的 `err.message`，`labels.loginFailed` 仅在非 Error 时生效                                                    | P2     | artifact         | 任意使用者   | open |
-| R84-10 | fewbie-modules（security-settings）   | `formatDateTime` 缺省兜底 `toLocaleString()` 无 locale/时区，SSR 与 CSR 不一致（宿主已传该 prop，现网无影响）                    | P2     | artifact         | 宿主未传时   | open |
-| R84-11 | fewbie-modules（preferences-settings）| 普通事件处理函数命名为 `useBrowserTimezone`，占用 Hook 前缀                                                                    | P2     | artifact         | 模块作者     | open |
-| R84-12 | fewbie-modules（settings-required-state）| 契约只有 `onOpenSettings(settingsHref)`，接不住宿主影子件的 `onAction` / `actionPending`，唯一真实宿主无法采用                  | P2     | artifact         | 模块作者     | open |
-| R84-13 | fewbie-modules（frontend-monitor-sdk）| 动态 import 只有 `.then` 无 `.catch`，chunk 加载失败产生未捕获 rejection 且监控静默失效                                        | P2     | artifact         | 任意使用者   | open |
-| R84-14 | fewbie-modules                        | 4 处硬编码 `green-*`，`security-settings` 的「本设备」徽标无 dark 变体；宿主 ESLint 未拦截                                      | P2     | live / artifact  | 任意使用者   | open |
-| R84-15 | fewbie-modules                        | 缺 `.trae/`（无 skills symlink、无 backlog/findings）、缺 PR 模板、缺 dependabot 配置                                            | P2     | ops              | 维护者       | open |
+| R84-01 | fewbie-modules ↔ newbie-modules       | 密码策略前端镜像与后端 `validator.isStrongPassword` 双向分歧（`_`/空格被前端拒绝，`€`/`§`被前端接受）；R82-15 只镜像未对后端 | P1     | live             | 任意用户     | fixed（R86 复核）：`test/password-policy-parity.test.ts` 以后端实跑期望值双向断言 |
+| R84-02 | fewbie-modules（sse-stream）          | 模块级共享 `TextDecoder` 在并发流下串字节（探针实证；宿主副本同缺陷且 live，两个并发消费者）                                   | P1     | artifact         | 任意登录用户 | fixed（R86 复核）：改为每流独立 `TextDecoder`，`sse-stream/test/sse-stream.test.ts` 并发断言 |
+| R84-03 | fewbie-modules（check-contract）      | 宿主运行时 import 仅要求「声明依赖」，manifest 声明 `next` 后 `import "next/link"` 通过；R83-10 的准入规则未被门禁表达           | P2     | artifact         | 模块作者     | fixed（R86 复核）：`scripts/check-contract.mjs:283-286` 中 `HOST_PACKAGES` 判定先于 `declaredPackages` |
+| R84-04 | fewbie-modules（check-contract）      | 汇总行把 6 个跳过项计入「14 item contract(s) match」；`registry:block` 缺 contract 只警告不失败                                  | P2     | ops              | 维护者       | fixed（R86 复核）：`:471` 汇总显示 6 item(s) skipped；`registry:block` 已随 ADR-066 退场，feature/widget 强制 contract |
+| R84-05 | fewbie-modules                        | `vitest` / `tsconfig` 只收模块内 `*.test.tsx`，`*.test.ts` 不执行也不类型检查；9/14 item 零行为测试                              | P2     | source           | 维护者       | fixed（R86 复核）：`vitest.config.ts:38` 与 tsconfig include 已收 `*.test.ts`；剩 8/16 item 无测试 → R86-07 |
+| R84-06 | fewbie-modules（tsconfig）            | 别名表手工维护，只映射 `@/lib/auth`、`@/lib/query-client`；`sse-stream` 等后续 lib item 无法被跨 item 导入                       | P2     | artifact         | 模块作者     | fixed（R86 复核）：已补 `sse-stream` 别名并随 lib item 同步；别名表仍手工维护（有 `check:types` 兜底） |
+| R84-07 | fewbie-modules（data-table）          | 硬编码英文（"No results."、分页区间）且两个图标翻页按钮无 `aria-label`（R79-01 残留）                                           | P2     | artifact         | 任意使用者   | fixed（R86 复核）：文案与 `aria-label` 全部走 `labels` |
+| R84-08 | fewbie-modules（theme）               | `aria-label="Toggle theme"` 硬编码，无 labels 入参（R79-01 残留）                                                              | P2     | artifact         | 任意使用者   | fixed（R86 复核）：`aria-label` 改由 `labels` 入参 |
+| R84-09 | fewbie-modules（login-form）          | 直接展示宿主 API 的 `err.message`，`labels.loginFailed` 仅在非 Error 时生效                                                    | P2     | artifact         | 任意使用者   | fixed（R86 复核）：新增 `formatError` 入参，默认文案不再透出宿主 message |
+| R84-10 | fewbie-modules（security-settings）   | `formatDateTime` 缺省兜底 `toLocaleString()` 无 locale/时区，SSR 与 CSR 不一致（宿主已传该 prop，现网无影响）                    | P2     | artifact         | 宿主未传时   | fixed（R86 复核）：兜底改为固定 locale + UTC |
+| R84-11 | fewbie-modules（preferences-settings）| 普通事件处理函数命名为 `useBrowserTimezone`，占用 Hook 前缀                                                                    | P2     | artifact         | 模块作者     | fixed（R86 复核）：`useBrowserTimezone` 已降为 label key |
+| R84-12 | fewbie-modules（settings-required-state）| 契约只有 `onOpenSettings(settingsHref)`，接不住宿主影子件的 `onAction` / `actionPending`，唯一真实宿主无法采用                  | P2     | artifact         | 模块作者     | fixed（R86 复核）：contract 已补 `onAction` / `actionPending` |
+| R84-13 | fewbie-modules（frontend-monitor-sdk）| 动态 import 只有 `.then` 无 `.catch`，chunk 加载失败产生未捕获 rejection 且监控静默失效                                        | P2     | artifact         | 任意使用者   | fixed（R86 复核）：动态 import 已补 `.catch` |
+| R84-14 | fewbie-modules                        | 4 处硬编码 `green-*`，`security-settings` 的「本设备」徽标无 dark 变体；宿主 ESLint 未拦截                                      | P2     | live / artifact  | 任意使用者   | partial（R86 复核）：4 处均已有 dark 变体；硬编码 `green-*` 待 token 决策 → R86-08 |
+| R84-15 | fewbie-modules                        | 缺 `.trae/`（无 skills symlink、无 backlog/findings）、缺 PR 模板、缺 dependabot 配置                                            | P2     | ops              | 维护者       | fixed（R86 复核）：`.trae/`、PR 模板、dependabot 均已存在 |
 
 ### Round 84 备注
 
@@ -987,3 +987,24 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 误报剔除 7 条（含 lockfile pin 陈旧、`LoginResult` 契约不符、`query-client` 缓存丢失、排序/分页越界、邮箱未 trim、StrictMode 重复初始化、SSE 帧边界漏 `\r`），明细见报告 §7。
 - 环境限制：宿主 PATH 无 Node，全部 Node 命令在 Docker `66b958b39256` 内执行；P1 两条均有合成探针实证（executed），P2 以 static 为主并已标注。
 - fewbie-modules 缺 `.trae/`，技能不可达，因此本专项报告落在 devbie 评审桶（R84-15 已记录该治理缺口）。
+
+### Round 86（fewbie-cli / fewbie-modules / fewbie-starter 终极状态，报告 `.trae/documents/reviews/expert-review-2026-11-22-round86.md`）
+
+| ID     | 仓                        | 标题                                                                                                       | 严重度 | 暴露面            | 可达性     | 状态 |
+| ------ | ------------------------- | ---------------------------------------------------------------------------------------------------------- | ------ | ----------------- | ---------- | ---- |
+| R86-01 | devbie（fewbie-cli）      | README 仍写 `registry:block` 与 14 项旧表，未反映 widget/feature 与 6 个新 item                            | P2     | docs              | 宿主维护者 | open |
+| R86-02 | devbie + fewbie-starter   | findings 台账落后：R84-01..15 全部仍 open（13 条已修），R2-02 亦已随 1.15.0 发布修复但仍 open             | P2     | docs              | 维护者     | fixed（本会话）：R84-01..13/15 → fixed、R84-14 → partial；starter R2-02、R2-06 → fixed |
+| R86-03 | devbie                    | backlog 残留已完成条目：“禁止模块导入 next/\*”“3 个 block 补 contract + labels”                            | P2     | docs              | 维护者     | fixed（本会话）：两条已从 backlog 删除 |
+| R86-04 | devbie                    | main 落后 dev 68 个提交 / 159 个文件；main 的 CLI 无法消费已上 main 的 widget/feature registry             | P2     | template / ops    | 新宿主/发布 | open |
+| R86-05 | fewbie-modules            | `check-contract.mjs`（唯一完整性闸门）无夹具测试，负向路径无回归保护                                       | P2     | source            | 模块作者   | open |
+| R86-06 | fewbie-modules            | registry 侧无依赖环门禁、无“声明未使用”告警（R85-01/R85-02 仍未落地）                                     | P2     | source            | 模块作者   | open |
+| R86-07 | fewbie-modules            | 8/16 item 无行为测试，含 ADR-065 新增的 login-form、password-checklist、settings-required-state 全部 3 个 | P2     | artifact          | 模块作者   | open |
+| R86-08 | fewbie-modules            | 4 处硬编码 `green-*` 未收敛到设计令牌（R84-14 残余，需 token 决策）                                        | P2     | live / artifact   | 任意使用者 | open |
+| R86-09 | fewbie-starter            | framework 行为测试仍只覆盖传输层，page/shell/feedback/i18n request/health route 无测试（R2-08）             | P2     | template          | 框架维护者 | open |
+
+### Round 86 备注
+
+- 结论：设计层已定型（无 P0/P1），仓库状态未收口；R84 的 15 条 P2 中 13 条已在代码中修复但未关闭台账，故本轮不重复记为新 finding，统一由 R86-02 跟踪。
+- 锚点：devbie `d94de338`（dirty=1，未跟踪 round85 报告）、fewbie-modules `b58f4c6`、fewbie-starter `a13abc1`。
+- 环境：宿主 PATH 无 Node；全部门禁在 Docker `devbie-work`（node v24）内实跑（CLI 140 例、registry 53 例、starter 51 例）。
+- 未执行：`next build`、`docker build`、浏览器 E2E，均由 CI 拥有。
