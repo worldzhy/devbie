@@ -274,6 +274,8 @@ export function ForgotPasswordPage({
                   className="h-auto p-0 text-xs font-normal"
                   onClick={() => void handleGetCode()}
                   disabled={secondsLeft > 0 || sendPending}
+                  aria-busy={sendPending}
+                  aria-label={labels.getCode}
                 >
                   {sendPending ? <Spinner /> : secondsLeft > 0 ? `${secondsLeft}s` : labels.getCode}
                 </Button>
@@ -334,7 +336,13 @@ export function ForgotPasswordPage({
             </div>
           )}
 
-          <Button type="submit" className="w-full" disabled={resetPending}>
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={resetPending}
+            aria-busy={resetPending}
+            aria-label={labels.resetButton}
+          >
             {resetPending ? <Spinner /> : labels.resetButton}
           </Button>
         </form>

@@ -346,6 +346,8 @@ export function SecuritySettings({
                   type="button"
                   onClick={() => void handleEnable()}
                   disabled={enablePending || enableCode.length !== CODE_LENGTH}
+                  aria-busy={enablePending}
+                  aria-label={labels.confirmEnable}
                 >
                   {enablePending ? <Spinner /> : labels.confirmEnable}
                 </Button>
@@ -403,6 +405,8 @@ export function SecuritySettings({
                   variant="destructive"
                   onClick={() => void handleDisable()}
                   disabled={disablePending || (!disablePassword && disableCode.length !== CODE_LENGTH)}
+                  aria-busy={disablePending}
+                  aria-label={labels.disable}
                 >
                   {disablePending ? <Spinner /> : labels.disable}
                 </Button>
@@ -420,7 +424,13 @@ export function SecuritySettings({
                   {labels.disableTwoFactor}
                 </Button>
               ) : (
-                <Button type="button" onClick={() => void handleSetup()} disabled={setupPending}>
+                <Button
+                  type="button"
+                  onClick={() => void handleSetup()}
+                  disabled={setupPending}
+                  aria-busy={setupPending}
+                  aria-label={labels.setupWithApp}
+                >
                   {setupPending ? <Spinner /> : labels.setupWithApp}
                 </Button>
               )}

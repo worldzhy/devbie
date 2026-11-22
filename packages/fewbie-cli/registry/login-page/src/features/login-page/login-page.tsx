@@ -296,7 +296,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button type="submit" className="w-full" disabled={pending} aria-busy={pending} aria-label={labels.submit}>
               {pending ? <Spinner /> : labels.submit}
             </Button>
           </form>
@@ -358,6 +358,8 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                     className="h-auto p-0 text-xs font-normal"
                     onClick={() => void handleSendCode()}
                     disabled={secondsLeft > 0 || sendPending}
+                    aria-busy={sendPending}
+                    aria-label={labels.getCode}
                   >
                     {sendPending ? <Spinner /> : secondsLeft > 0 ? `${secondsLeft}s` : labels.getCode}
                   </Button>
@@ -368,7 +370,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
 
             {error && <p className="text-sm text-destructive">{error}</p>}
 
-            <Button type="submit" className="w-full" disabled={pending}>
+            <Button type="submit" className="w-full" disabled={pending} aria-busy={pending} aria-label={labels.submit}>
               {pending ? <Spinner /> : labels.submit}
             </Button>
           </form>
@@ -434,7 +436,13 @@ function TotpChallenge({ labels, isPending, onSubmit, onBack }: TotpChallengePro
         <p className="text-xs text-muted-foreground">{labels.totpHint}</p>
       </div>
 
-      <Button type="submit" className="w-full" disabled={isPending || totpCode.length !== CODE_LENGTH}>
+      <Button
+        type="submit"
+        className="w-full"
+        disabled={isPending || totpCode.length !== CODE_LENGTH}
+        aria-busy={isPending}
+        aria-label={labels.totpSubmit}
+      >
         {isPending ? <Spinner /> : labels.totpSubmit}
       </Button>
       <Button type="button" variant="link" size="sm" className="w-full" onClick={onBack}>

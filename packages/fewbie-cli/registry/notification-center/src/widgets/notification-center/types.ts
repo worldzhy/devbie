@@ -11,8 +11,6 @@ export interface NotificationCenterLabels {
   loading: string;
   empty: string;
   viewAll: string;
-  ariaRead: string;
-  ariaUnread: string;
   ariaLatestNotification: string;
   detailsLabel: string;
   selectPrompt: string;

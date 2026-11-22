@@ -16,8 +16,6 @@
     "entry": "src/widgets/notification-center/index.ts",
     "labels": [
       "ariaLatestNotification",
-      "ariaRead",
-      "ariaUnread",
       "badgeAlertRecovered",
       "bellLabel",
       "contextLabel",

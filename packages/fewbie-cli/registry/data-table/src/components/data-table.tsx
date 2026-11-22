@@ -25,7 +25,16 @@ interface DataTableProps<T> {
   /** Number of rows per page. Defaults to 10. */
   pageSize?: number;
   className?: string;
-  /** Host-supplied copy; English defaults keep the component usable as-is. */
+  /**
+   * Stable identity for a row, used as the React key. Defaults to the row's
+   * column values, which survives sorting and paging; pass this when two rows
+   * can share every displayed value.
+   */
+  getRowKey?: (row: T, index: number) => string | number;
+  /**
+   * Host-supplied copy. The English defaults only keep a bare demo renderable;
+   * a shipping host must pass `labels` so the table never mixes locales.
+   */
   labels?: Partial<DataTableLabels>;
 }
 
@@ -61,6 +70,7 @@ export function DataTable<T extends Record<string, unknown>>({
   data,
   pageSize = 10,
   className,
+  getRowKey,
   labels,
 }: DataTableProps<T>) {
   const copy = { ...DEFAULT_LABELS, ...labels };
@@ -108,7 +118,18 @@ export function DataTable<T extends Record<string, unknown>>({
           <TableHeader>
             <TableRow>
               {columns.map((col) => (
-                <TableHead key={col.accessorKey}>
+                <TableHead
+                  key={col.accessorKey}
+                  aria-sort={
+                    col.enableSorting === false
+                      ? undefined
+                      : sortKey === col.accessorKey
+                        ? sortDir === "asc"
+                          ? "ascending"
+                          : "descending"
+                        : "none"
+                  }
+                >
                   {col.enableSorting === false ? (
                     col.header
                   ) : (
@@ -135,7 +156,13 @@ export function DataTable<T extends Record<string, unknown>>({
               </TableRow>
             ) : (
               pageData.map((row, i) => (
-                <TableRow key={i}>
+                <TableRow
+                  key={
+                    getRowKey
+                      ? getRowKey(row, i)
+                      : columns.map((col) => String(row[col.accessorKey] ?? "")).join("\u0000") || i
+                  }
+                >
                   {columns.map((col) => (
                     <TableCell key={col.accessorKey}>
                       {col.cell ? col.cell(row[col.accessorKey], row) : String(row[col.accessorKey] ?? "")}

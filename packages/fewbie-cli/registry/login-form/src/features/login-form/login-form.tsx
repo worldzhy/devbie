@@ -68,7 +68,13 @@ export function LoginForm({ labels, redirectPath = "/", onLoggedIn, formatError 
 
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-            <Button type="submit" disabled={submitting} className="w-full">
+            <Button
+              type="submit"
+              disabled={submitting}
+              aria-busy={submitting}
+              aria-label={labels.submit}
+              className="w-full"
+            >
               {submitting ? <Loader2 className="size-4 animate-spin" /> : labels.submit}
             </Button>
           </form>
