@@ -1,4 +1,4 @@
-export { MODULES_DIR, MODULES_JSON, MODULE_MANIFEST_FILE } from "./paths";
+export { MODULE_LOCK_FILE, MODULES_DIR, MODULES_JSON, MODULE_MANIFEST_FILE } from "./paths";
 export {
   createEmptyModulesState,
   ManagedDependencies,

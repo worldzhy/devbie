@@ -1,6 +1,6 @@
 # ADR-041: 模块来源改为锁文件自证，副本完整性不再依赖 registry 对象可用性
 
-状态：提议中
+状态：已采纳（2026-11-22 落地第一阶段，见文末「实施记录」）
 日期：2026-11-12
 Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —— 该 ADR 明确否决了以 pinned `sourceCommit` 为基线，而当前实现（`R5-06/N-2`）实际采用了 pin 基线且无决策记录；本 ADR 用「锁文件 + 内容清单」取代这条基线。门禁放置（ADR-021 → ADR-024 F7）不变。
 
@@ -95,3 +95,14 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 - 测试：需要覆盖四个信号各自的判定路径，以及「副本干净但上游已推进时门禁为绿」这条反向断言（这是本次误报的核心回归点）。
 - 文档：`AGENTS.md` 的 back-port 段落改为强制走 `modules update <key>`；`environment-runbook.md` 的门禁说明同步。
 - ADR-021 在本 ADR 被采纳时改状态为「已采纳（基线选择章节由 ADR-041 取代）」，正文不动。
+
+## 实施记录
+
+2026-11-22 第一阶段落地（round 87 R87-06）：
+
+- 新增 `newbie-modules.lock.json`（`lockVersion: 1`），条目为 `key` / `version` / `sourceCommit` / `files`（POSIX 相对路径 → sha256）。
+- `modules apply` 在复制后写入/刷新条目；已存在条目保持不动，让 `--check` 仍能报 `copy-modified`。既有副本无条目时按 pin 校验，干净才采纳，脏副本点名拒绝；pin 不可读则跳过该 key（门禁继续报 `unverifiable-lock`，不写入未经校验的锁）。
+- 门禁改为「副本 = 清单，清单 = registry @ sourceCommit」，信号为 `lock-missing` / `copy-modified` / `lock-tampered` / `unverifiable-lock`；缺对象时先按需 fetch 一次。项目没有锁文件时仍走旧 pin 路径（`missing-pin` / `unavailable-pin`），作为迁移窗口。
+- `update.ts` 的 `fromCommit`、`doctor` 与 `status` 的基线优先读锁文件；`status --drift` 与 `doctor` 的本地漂移判定可离线完成。
+
+尚未迁移：`newbie-modules.json` 仍写入每条记录的 `sourceCommit`（旧客户端兼容 + 现有测试断言），`ModuleRecord` 形状未改。锁文件已是门禁唯一权威；下一步在 MINOR 版本里停写该字段并删除 legacy 分支。

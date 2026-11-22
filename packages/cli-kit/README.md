@@ -10,7 +10,8 @@ package exists so that the error type, the argument-based process execution
 and the non-throwing filesystem probes live in exactly one place instead of
 being re-implemented per CLI.
 
-- **Zero runtime dependencies.**
+- **One tiny runtime dependency (`colorette`)**, so error output keeps its
+  colour and honours `NO_COLOR` across CLIs.
 - **No shell interpolation** — commands and arguments are passed as arrays to
   `execFile` / `spawn`, so user input can never become shell syntax.
 
@@ -46,6 +47,13 @@ const headCommit = trim(await execCapture("git", ["rev-parse", "HEAD"], { cwd: "
 - `isUserCancellation(error)` — `true` when the error is Inquirer's
   `ExitPromptError` (the user pressed Esc / Ctrl-C), so callers can exit
   quietly instead of reporting a failure.
+
+### Runner
+
+- `run(action)` — wrap a CLI entry point with the shared error protocol:
+  cancellation exits 0 quietly, `CliError` prints its message, any other
+  error prints its message and a stack when `DEBBIE_DEBUG` is set.
+- `DEBUG_ENV` — the name of that environment variable (`"DEBBIE_DEBUG"`).
 
 ### Process execution
 

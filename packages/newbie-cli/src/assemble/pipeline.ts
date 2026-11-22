@@ -2,14 +2,25 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { cyan } from "colorette";
-import { MODULES_DIR, MODULE_MANIFEST_FILE, MODULES_JSON, ModulesState, moduleKeys } from "@devbie/modules-state";
+import {
+  MODULE_LOCK_FILE,
+  MODULES_DIR,
+  MODULE_MANIFEST_FILE,
+  MODULES_JSON,
+  ModulesState,
+  moduleKeys,
+} from "@devbie/modules-state";
 import type { ManagedDependencies } from "@devbie/modules-state";
 
 import { diffModuleKeys, withModuleKeys } from "../core/modules-state";
 import { directDependents } from "../core/module-closure";
+import { diffSnapshots } from "../core/drift";
+import { LOCK_VERSION, lockEntryFor, snapshotToFiles } from "../core/module-lock";
 import { CliError } from "@devbie/cli-kit";
 import { readRegistryModule, type RegistryLocation } from "../lib/registry";
+import { readModuleLock, readModuleLockOrDefault, writeModuleLock } from "../lib/module-lock";
 import { writeModulesState } from "../lib/modules-state";
+import { snapshotInstalledModule, snapshotPristineModule } from "../lib/drift";
 
 import { assembleDependencies } from "./dependencies";
 import { applyDeployRenders, planDeployRenders } from "./deploy";
@@ -128,6 +139,70 @@ function stampCopiedModules(
 }
 
 /**
+ * Seed or refresh the provenance lock (ADR-041). Freshly copied keys are
+ * re-hashed from the installed tree; keys that already have an entry are left
+ * untouched so a later `--check` can still report `copy-modified`.
+ *
+ * Migration rule (ADR-041 §6): an existing copy without a lock entry is only
+ * adopted when it matches its recorded registry tree. A dirty copy is named
+ * and refused — seeding the current state would launder real drift.
+ */
+async function syncModuleLock(ctx: PipelineContext, enabledKeys: string[], copied: ReadonlySet<string>): Promise<void> {
+  const { cwd, registry, sink, state } = ctx;
+  const existing = await readModuleLockOrDefault(cwd);
+  const entries = new Map(existing.modules.map((entry) => [entry.key, entry]));
+  const pins = new Map(state.modules.map((record) => [record.key, record.sourceCommit]));
+  let changed = false;
+
+  for (const key of enabledKeys) {
+    if (entries.has(key) && !copied.has(key)) continue;
+    const installed = await snapshotInstalledModule(cwd, key);
+    if (installed === null) {
+      if (copied.has(key)) {
+        throw new CliError(`Module '${key}' has no copy after installation; cannot write ${MODULE_LOCK_FILE}.`);
+      }
+      continue;
+    }
+    const commit = copied.has(key) ? registry.sourceCommit : (pins.get(key) ?? null);
+    if (!commit) {
+      throw new CliError(
+        `Cannot record provenance for '${key}': no registry source commit. Use a git-backed registry ` +
+          "(NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+      );
+    }
+    if (!copied.has(key)) {
+      const pristine = await snapshotPristineModule(registry, key, commit);
+      // Unverifiable is not dirty: leave the entry out so the gate keeps
+      // reporting `unverifiable-lock` instead of blessing an unchecked copy.
+      if (pristine === null) continue;
+      const report = diffSnapshots(installed, pristine);
+      if (!report.clean) {
+        throw new CliError(
+          `Refusing to write ${MODULE_LOCK_FILE} for '${key}': the installed copy does not match the registry ` +
+            `tree at ${commit.slice(0, 7)}. Back-port it to the registry and run \`newbie modules update ${key}\`, ` +
+            `or remove the copy and run \`newbie modules apply\`.`,
+        );
+      }
+    }
+    entries.set(key, { key, version: null, sourceCommit: commit, files: snapshotToFiles(installed) });
+    changed = true;
+  }
+
+  const enabled = new Set(enabledKeys);
+  for (const key of [...entries.keys()]) {
+    if (!enabled.has(key)) {
+      entries.delete(key);
+      changed = true;
+    }
+  }
+
+  const lockExists = (await readModuleLock(cwd)) !== null;
+  if (!changed && lockExists) return;
+  if (!lockExists && entries.size === 0) return;
+  await writeModuleLock(cwd, sink, { lockVersion: LOCK_VERSION, modules: [...entries.values()] });
+}
+
+/**
  * A copy must be pinned: without a commit the drift gate can never verify it.
  * Callers run this before writing newbie-modules.json, so a refusal leaves both
  * newbie-modules.json and `src/modules` unchanged (R6-04).
@@ -135,7 +210,8 @@ function stampCopiedModules(
 function assertRegistryCommitForCopy(registry: RegistryLocation, added: readonly string[]): void {
   if (added.length === 0 || registry.sourceCommit) return;
   throw new CliError(
-    "Refusing to copy modules without a registry commit: newbie-modules.json needs a `sourceCommit` pin for the drift gate. Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
+    `Refusing to copy modules without a registry commit: ${MODULE_LOCK_FILE} needs a \`sourceCommit\` to record provenance. ` +
+      "Use a git-backed registry (NEWBIE_MODULES_REGISTRY) or set NEWBIE_MODULES_REF.",
   );
 }
 
@@ -151,6 +227,11 @@ export async function runSteps(ctx: PipelineContext, changes: PlannedChange): Pr
       ctx.state = stampCopiedModules(ctx.state, added, registry);
       await writeModulesState(cwd, sink, ctx.state);
     }
+  }
+
+  if (!sink.dryRun) {
+    step(`Update ${MODULE_LOCK_FILE}`);
+    await syncModuleLock(ctx, enabledKeys, new Set(added));
   }
 
   step("Update environment variables");
@@ -270,6 +351,7 @@ export async function planReconcile(
 ): Promise<PlannedChange & { installed: string[]; uninstalled: string[] }> {
   const inProject = new Set(await readProjectModuleDirs(ctx.cwd));
   const declared = moduleKeys(ctx.state);
+  const lock = await readModuleLock(ctx.cwd);
 
   const closure = await assertClosureResolvable(ctx.registry.root, declared);
   const enabled = closure.keys;
@@ -279,7 +361,10 @@ export async function planReconcile(
   const installed = enabled.filter((key) => {
     if (!inProject.has(key)) return true;
     const record = ctx.state.modules.find((entry) => entry.key === key);
-    return !record?.sourceCommit;
+    if (!record?.sourceCommit) return true;
+    // A copy that predates the lock (or lost its entry) is reinstalled: the
+    // copy step writes code and provenance together (ADR-041 §3).
+    return lock !== null && lockEntryFor(lock, key) === undefined;
   });
   const uninstalled = [...inProject].filter((key) => !enabledSet.has(key));
 

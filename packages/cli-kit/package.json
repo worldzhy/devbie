@@ -29,7 +29,9 @@
     "test": "node --import tsx --test test/*.test.ts",
     "prepublishOnly": "npm run build"
   },
-  "dependencies": {},
+  "dependencies": {
+    "colorette": "^2.0.20"
+  },
   "devDependencies": {
     "@types/node": "^22.20.5",
     "rimraf": "^6.1.4",

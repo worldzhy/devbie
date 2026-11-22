@@ -13,6 +13,8 @@ import { runSteps } from "../../assemble/pipeline";
 import { diffSnapshots, driftPatchIds } from "../../core/drift";
 import { snapshotInstalledModule, snapshotPristineModule } from "../../lib/drift";
 import { CliError, fileExists } from "@devbie/cli-kit";
+import { lockEntryFor } from "../../core/module-lock";
+import { readModuleLock } from "../../lib/module-lock";
 import { writeModulesState } from "../../lib/modules-state";
 import { assertInteractive, isInteractive } from "../../lib/interactive";
 
@@ -66,12 +68,13 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   }
 
   const targetCommit = registry.sourceCommit;
+  const lock = await readModuleLock(cwd);
   const inspections: UpdateInspection[] = [];
 
   for (const key of keys) {
     process.stdout.write(`Checking ${key}...\r`);
     const record = state.modules.find((entry) => entry.key === key);
-    const fromCommit = record?.sourceCommit ?? null;
+    const fromCommit = lockEntryFor(lock, key)?.sourceCommit ?? record?.sourceCommit ?? null;
     const base: UpdateInspection = {
       key,
       status: "up-to-date",

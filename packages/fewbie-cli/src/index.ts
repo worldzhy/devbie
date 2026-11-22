@@ -1,12 +1,8 @@
 #!/usr/bin/env node
-import { red } from "colorette";
+import { run } from "@devbie/cli-kit";
 
 import { buildProgram } from "./program";
 
-buildProgram()
-  .parseAsync(process.argv)
-  .catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`${red("error")} ${message}`);
-    process.exit(1);
-  });
+void run(async () => {
+  await buildProgram().parseAsync(process.argv);
+});

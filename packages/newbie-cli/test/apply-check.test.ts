@@ -125,11 +125,11 @@ describe("R70-05: modules apply --check explains an unreadable registry pin", ()
     await fs.rm(registry, { recursive: true, force: true });
   });
 
-  it("names the stale checkout and the fetch command", async () => {
+  it("names the stale checkout and how to make the pin readable", async () => {
     await assert.rejects(runApply({ cwd: project, dryRun: true, check: true }), (error: unknown) => {
       assert.ok(error instanceof CliError);
-      assert.match(error.message, /cannot read the pinned commit\(s\) deadbee/);
-      assert.match(error.message, /git -C .* fetch/);
+      assert.match(error.message, /cannot read the locked commit\(s\) deadbee/);
+      assert.match(error.message, /local registry .* cannot fetch them/);
       return true;
     });
   });

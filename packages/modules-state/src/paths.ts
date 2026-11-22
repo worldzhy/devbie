@@ -9,6 +9,9 @@
 /** Project-root install manifest (shadcn components.json style). */
 export const MODULES_JSON = "newbie-modules.json";
 
+/** Project-root provenance lock (ADR-041); machine-owned, committed. */
+export const MODULE_LOCK_FILE = "newbie-modules.lock.json";
+
 /** Directory where assembled modules live in a consuming project. */
 export const MODULES_DIR = "src/modules";
 

@@ -7,7 +7,7 @@ import { moduleKeys } from "@devbie/modules-state";
 
 import { installedModuleDir } from "./module-install";
 import { readInstalledManifest } from "./module-install";
-import { CliError } from "@devbie/cli-kit";
+import { CliError, DEBUG_ENV } from "@devbie/cli-kit";
 import { readModulesState, stateExists } from "./modules-state";
 import { ModuleManifest } from "../core/module-manifest";
 import { GlobalOptions } from "../commands/shared";
@@ -138,7 +138,7 @@ export async function registerModuleCommands(program: Command, options: GlobalOp
           `[warn] Skipped CLI namespace '${manifest?.wiring?.newbieCli ?? key}' of module '${key}': ${(error as Error).message}`,
         ),
       );
-      if (process.env.NEWBIE_DEBUG && (error as Error).stack) {
+      if (process.env[DEBUG_ENV] && (error as Error).stack) {
         console.error((error as Error).stack);
       }
     }
