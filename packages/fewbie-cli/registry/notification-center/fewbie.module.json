@@ -1,19 +1,19 @@
 {
   "name": "notification-center",
-  "type": "registry:component",
+  "type": "registry:widget",
   "files": [
-    "src/components/notification-center/types.ts",
-    "src/components/notification-center/format.ts",
-    "src/components/notification-center/notification-center.tsx",
-    "src/components/notification-center/notification-detail.tsx",
-    "src/components/notification-center/notification-bell.tsx",
-    "src/components/notification-center/notification-ticker.tsx",
-    "src/components/notification-center/index.ts"
+    "src/widgets/notification-center/types.ts",
+    "src/widgets/notification-center/format.ts",
+    "src/widgets/notification-center/notification-center.tsx",
+    "src/widgets/notification-center/notification-detail.tsx",
+    "src/widgets/notification-center/notification-bell.tsx",
+    "src/widgets/notification-center/notification-ticker.tsx",
+    "src/widgets/notification-center/index.ts"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/components/notification-center/index.ts",
+    "entry": "src/widgets/notification-center/index.ts",
     "labels": [
       "ariaLatestNotification",
       "ariaRead",

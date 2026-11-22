@@ -2,7 +2,7 @@
   "name": "settings-required-state",
   "title": "Settings required state",
   "description": "Empty state shown when required configuration is missing, with a call-to-action whose navigation stays in the host.",
-  "type": "registry:block",
+  "type": "registry:feature",
   "dependencies": [],
   "registryDependencies": [],
   "files": [

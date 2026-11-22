@@ -31,7 +31,7 @@ async function setup(): Promise<Fixture> {
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
-      type: "registry:block",
+      type: "registry:feature",
       title: "Fixture",
       files: [TARGET],
       contract: {
@@ -211,7 +211,7 @@ test("apply removes a pristine target the registry renamed away (R82-08)", async
       path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE),
       JSON.stringify({
         name: "fixture",
-        type: "registry:block",
+        type: "registry:feature",
         title: "Fixture",
         files: [renamed],
         contract: {
@@ -255,7 +255,7 @@ test("remove still cleans up an item the registry has deleted (R83-12)", async (
     await fs.mkdir(path.join(fixture.registry, "keep"), { recursive: true });
     await fs.writeFile(
       path.join(fixture.registry, "keep", REGISTRY_MANIFEST_FILE),
-      JSON.stringify({ name: "keep", type: "registry:block", title: "Keep", files: ["src/keep.ts"] }),
+      JSON.stringify({ name: "keep", type: "registry:feature", title: "Keep", files: ["src/keep.ts"] }),
     );
     await fs.mkdir(path.join(fixture.registry, "keep", "src"), { recursive: true });
     await fs.writeFile(path.join(fixture.registry, "keep", "src/keep.ts"), "export {};\n");

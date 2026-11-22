@@ -27,7 +27,7 @@ async function writeItem(contract: unknown): Promise<{ root: string; name: strin
     path.join(root, name, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name,
-      type: "registry:block",
+      type: "registry:feature",
       title: "Fixture",
       files: [VALID.entry],
       ...(contract === undefined ? {} : { contract }),

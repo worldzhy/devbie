@@ -11,7 +11,7 @@
 export const REGISTRY_MANIFEST_FILE = "fewbie.module.json";
 
 /** shadcn registry item kinds fewbie uses. */
-export type RegistryItemType = "registry:lib" | "registry:component" | "registry:block";
+export type RegistryItemType = "registry:lib" | "registry:component" | "registry:widget" | "registry:feature";
 
 /** File entry in the authored manifest: path relative to the item folder. */
 export interface RegistryFileRef {

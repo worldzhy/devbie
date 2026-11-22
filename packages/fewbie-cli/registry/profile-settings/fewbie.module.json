@@ -1,6 +1,6 @@
 {
   "name": "profile-settings",
-  "type": "registry:block",
+  "type": "registry:feature",
   "title": "Profile settings card",
   "description": "Account profile card: first, middle and last name plus the display name, with a host-owned save port. Data loading, persistence and toasts stay in the host.",
   "dependencies": [],

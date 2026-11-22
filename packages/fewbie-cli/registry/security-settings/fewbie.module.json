@@ -1,6 +1,6 @@
 {
   "name": "security-settings",
-  "type": "registry:block",
+  "type": "registry:feature",
   "title": "Security settings cards",
   "description": "Account security cards: active sessions with per-row sign-out, and authenticator-app enrollment with a QR code and enable/disable flows. Transport and cache invalidation stay in the host.",
   "dependencies": [],

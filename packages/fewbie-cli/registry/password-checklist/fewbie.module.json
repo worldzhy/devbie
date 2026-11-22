@@ -1,6 +1,6 @@
 {
   "name": "password-checklist",
-  "type": "registry:block",
+  "type": "registry:feature",
   "title": "Password checklist",
   "description": "Live password rule checklist with a reusable isStrongPassword predicate. Labels come from the host; the rules mirror the newbie account module's password policy (validator.isStrongPassword defaults: 8+ chars, lower/upper/number/symbol) and must be updated manually when the backend policy changes.",
   "dependencies": [],

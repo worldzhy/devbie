@@ -39,7 +39,7 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
-      type: "registry:block",
+      type: "registry:feature",
       title: "Fixture",
       files: ["src/features/fixture/index.ts", "src/features/fixture/types.ts", "src/features/fixture/fixture.tsx"],
       contract: {

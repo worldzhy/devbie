@@ -1,6 +1,6 @@
 {
   "name": "login-page",
-  "type": "registry:block",
+  "type": "registry:feature",
   "title": "Login page",
   "description": "Page-level login block: password and verification-code tabs, inline TOTP challenge and third-party provider entries. Transport, navigation and copy come from the host through props.",
   "dependencies": [],

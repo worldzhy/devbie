@@ -2,7 +2,7 @@
   "name": "login-form",
   "title": "Login form",
   "description": "Account/password login card built on shadcn ui primitives; submits through the auth util and hands the post-sign-in navigation back to the host.",
-  "type": "registry:block",
+  "type": "registry:feature",
   "dependencies": [],
   "registryDependencies": ["auth"],
   "files": [

@@ -1,6 +1,6 @@
 {
   "name": "preferences-settings",
-  "type": "registry:block",
+  "type": "registry:feature",
   "title": "Preferences settings cards",
   "description": "Account display preferences: interface language, theme and timezone. Persistence and the side effects of each change (locale cookie, theme class, cache refresh) stay in the host.",
   "dependencies": [],
