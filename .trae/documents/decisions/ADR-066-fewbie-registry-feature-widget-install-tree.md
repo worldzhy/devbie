@@ -52,6 +52,8 @@ export type RegistryItemType =
 - 新增 `registry:widget`，指**跨页面壳层组合**（`copilot`、`notification-center`），必须声明 contract。
 - 新增类型在同一版本内生效；旧类型（`registry:block`）在本仓没有外部消费者，逐仓机械改写即可。
 
+命名口径：`feature` / `widget` 取的是**安装层名**，对应 `src/features/**` 与 `src/widgets/**`，不是 FSD 的严格术语。FSD 的 page 层由宿主路由承担，因此 `login-page` 这类「由路由页组装的切片」在 FSD 中其实属于 page，在本仓归入 feature 层。不复用 shadcn 的 `registry:block`：它的语义是「允许 `target` 落到 `app/` 的页面区块」，正是 fewbie 主动放弃的能力；同时它会与 widget 的边界冲突。将来若消费或发布 shadcn 兼容的 `registry.json`，`registry:block` 应留给外部 block，而不是改回自家 item 的类型名。
+
 ### D2 安装路径
 
 | 类型 | 容器内载荷 | 宿主落位 | contract |
