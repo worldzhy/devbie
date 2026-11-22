@@ -111,9 +111,7 @@ function PasswordChecklist({ password, labels }: { password: string; labels: For
       {rules.map((rule) => (
         <li
           key={rule.key}
-          className={`flex items-center gap-2 text-xs ${
-            rule.met ? "text-green-600 dark:text-green-500" : "text-muted-foreground"
-          }`}
+          className={`flex items-center gap-2 text-xs ${rule.met ? "text-success" : "text-muted-foreground"}`}
         >
           {rule.met ? <CheckIcon /> : <ClearIcon />}
           {rule.label}
