@@ -29,7 +29,8 @@ async function git(cwd: string, args: string[]): Promise<void> {
 async function makeRegistryRepo(options: { container?: boolean } = {}): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-repo-"));
   const itemsRoot = options.container ? path.join(root, "packages", "modules") : root;
-  await fs.mkdir(path.join(itemsRoot, "hello", "src", "fewbie", "modules", "hello", "components"), { recursive: true });
+  // Authored payload sits at the install target minus the install root (ADR-071).
+  await fs.mkdir(path.join(itemsRoot, "hello", "components"), { recursive: true });
   await fs.writeFile(
     path.join(itemsRoot, "hello", REGISTRY_MANIFEST_FILE),
     JSON.stringify(
@@ -44,7 +45,7 @@ async function makeRegistryRepo(options: { container?: boolean } = {}): Promise<
     ),
   );
   await fs.writeFile(
-    path.join(itemsRoot, "hello", "src", "fewbie", "modules", "hello", "components", "hello.tsx"),
+    path.join(itemsRoot, "hello", "components", "hello.tsx"),
     "export function Hello() {\n  return null;\n}\n",
   );
   await git(root, ["init", "-q", "-b", "main"]);

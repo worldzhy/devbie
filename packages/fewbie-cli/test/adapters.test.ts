@@ -35,7 +35,11 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   const labelsType = options.labelsType ?? "FixtureLabels";
   const labels = ["title", "description", ...(options.extraLabels ?? [])];
 
-  await fs.mkdir(path.join(module, "src/fewbie/modules/fixture/features/fixture"), { recursive: true });
+  // Authored payload sits at the install target minus the install root (ADR-071).
+  const storage = (target: string): string => target.slice("src/fewbie/modules/fixture/".length);
+  await fs.mkdir(path.join(module, path.dirname(storage("src/fewbie/modules/fixture/features/fixture/index.ts"))), {
+    recursive: true,
+  });
   await fs.writeFile(
     path.join(module, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
@@ -59,15 +63,15 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
     }),
   );
   await fs.writeFile(
-    path.join(module, "src/fewbie/modules/fixture/features/fixture/index.ts"),
+    path.join(module, storage("src/fewbie/modules/fixture/features/fixture/index.ts")),
     `export { Fixture } from "./fixture";\nexport type { ${labelsType} } from "./types";\n`,
   );
   await fs.writeFile(
-    path.join(module, "src/fewbie/modules/fixture/features/fixture/types.ts"),
+    path.join(module, storage("src/fewbie/modules/fixture/features/fixture/types.ts")),
     `export interface ${labelsType} {\n${labels.map((key) => `  ${key}: string;`).join("\n")}\n}\n`,
   );
   await fs.writeFile(
-    path.join(module, "src/fewbie/modules/fixture/features/fixture/fixture.tsx"),
+    path.join(module, storage("src/fewbie/modules/fixture/features/fixture/fixture.tsx")),
     `export function Fixture(): null {\n  return null;\n}\n`,
   );
 

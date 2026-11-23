@@ -30,6 +30,7 @@ import path from "node:path";
 import { resolveTemplate } from "../src/commands/create";
 import { listTemplateFiles } from "../src/commands/template/update";
 import { findAmbiguousTemplatePaths, findUnclassifiedTemplateFiles } from "../src/lib/template-ownership";
+import { moduleStoragePath } from "../src/registry/store";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const packageRoot = path.resolve(__dirname, "..");
@@ -75,8 +76,9 @@ async function main(): Promise<void> {
 
     for (const item of items) {
       for (const file of item.files) {
+        // The snapshot stores payload at the target minus the install root (ADR-071).
         const registryContent = await fs
-          .readFile(path.join(registryRoot, item.name, file), "utf8")
+          .readFile(path.join(registryRoot, item.name, moduleStoragePath(item.name, file)), "utf8")
           .catch(() => undefined);
         if (registryContent === undefined) {
           mismatches.push(`${item.name}: declared file '${file}' is missing from the registry item`);

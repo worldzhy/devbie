@@ -80,6 +80,19 @@ const TYPE_LAYERS: Record<string, readonly string[]> = {
   "registry:component": ["components", "lib"],
 };
 
+/**
+ * Registry-storage path of a declared install target (ADR-071). Authored
+ * `files` keep the installation path; the payload sits at that path minus the
+ * module's install root.
+ */
+export function moduleStoragePath(moduleName: string, target: string): string {
+  const prefix = `src/fewbie/modules/${moduleName}/`;
+  if (!target.startsWith(prefix)) {
+    throw new CliError(`Registry module '${moduleName}' declares '${target}', which does not land under ${prefix}`);
+  }
+  return target.slice(prefix.length);
+}
+
 function assertStringArray(moduleName: string, field: string, value: unknown): void {
   if (value === undefined) return;
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || entry === "")) {
@@ -208,7 +221,7 @@ export async function loadModule(root: string, name: string): Promise<LoadedModu
   if (manifest.contract === undefined) warnMissingContract(name);
   const files = manifest.files.map((relative) => ({
     target: relative,
-    source: path.join(root, name, relative),
+    source: path.join(root, name, moduleStoragePath(name, relative)),
   }));
   return { manifest: { ...manifest, contract: validateManifestContract(manifest) }, files };
 }

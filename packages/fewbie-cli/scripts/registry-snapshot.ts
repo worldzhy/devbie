@@ -11,6 +11,7 @@ import path from "node:path";
 
 import { CliError, execCapture } from "@devbie/cli-kit";
 
+import { moduleStoragePath } from "../src/registry/store";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 export const SNAPSHOT_FILE = ".snapshot.json";
@@ -84,11 +85,12 @@ export async function buildSnapshot(sourceRoot: string, outputRoot: string): Pro
 
     for (const file of files) {
       if (typeof file !== "string") throw new CliError(`Item '${entry.name}' has a non-string files entry.`);
-      const resolved = path.resolve(itemDir, file);
+      const storage = moduleStoragePath(entry.name, file);
+      const resolved = path.resolve(itemDir, storage);
       if (!resolved.startsWith(path.resolve(itemDir) + path.sep)) {
         throw new CliError(`Item '${entry.name}' points outside its directory: ${file}`);
       }
-      const destination = path.join(target, file);
+      const destination = path.join(target, storage);
       await fs.mkdir(path.dirname(destination), { recursive: true });
       await fs.copyFile(resolved, destination);
     }
