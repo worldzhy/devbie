@@ -137,7 +137,6 @@
 
 ## sse-stream 边界收口（2026-11-23）
 
-- [ ] **fewbie-modules 合入 main 后重装 sse-stream 重新 pin**：nightwatch-frontend 的 `fewbie.lock.json` 目前为 `commit: "dev"`（本地 registry 覆盖安装），registry 侧收窄改动合入 main 后需再跑一次 `modules update sse-stream`，把 commit 锚回真实提交。
 - [ ] **`query-client` 与模块边界门禁同型不一致**：`components/query-provider.tsx` 导入 `@tanstack/react-query`，会被宿主的 module boundary 规则判为 state library 违规；该模块从未被安装，所以从未暴露。需决定是给 `lib` 层划定依赖豁免（改 fewbie-starter 的 `eslint.config.mjs`，属跨宿主契约，需 ADR）还是把 `query-client` 收窄或退场。
 
 

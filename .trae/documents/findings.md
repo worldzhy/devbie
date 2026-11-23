@@ -1089,11 +1089,12 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------- | ------------ | ---- |
 | R99-01 | fewbie-modules（sse-stream）      | `registry:lib` 内直接调用全局 `fetch` 发起传输，违反宿主模块边界（transport belongs to the host adapter）；registry 无 eslint，安装后才暴露；`postSse` 零测试、零消费者                                        | P2     | artifact | 模块作者     | fixed（2026-11-23）：模块收窄为纯帧解码器，删除 `postSse` / `SseStreamError` / `PostSseOptions`，manifest 文案同步；registry `format:check` / `check:contract` / `check:types` / `vitest packages/modules/sse-stream` 全绿 |
 | R99-02 | nightwatch-frontend（live 副本）  | R84-02 的 `fixed` 只覆盖 registry；宿主未安装模块、自有副本仍是模块级共享 `TextDecoder`，live 两个并发消费者仍可串字节                                                                                | P1     | live     | 任意登录用户 | fixed（2026-11-23）：安装 `sse-stream`，两处消费切到 `@/fewbie/modules/sse-stream/lib/sse-stream`，删除 `src/api/sse/`（错误信封移至 `src/api/stream-error.ts`）；宿主 `format:check` / `lint`（0 error）/ `build` 全绿，安装产物与 registry 逐字节一致 |
+| R99-03 | devbie（fewbie-cli）              | `modules adapters --check` 对每个已声明模块调用 `planAdapter`，无 contract 时直接抛错，与 ADR-069“`registry:component` / `registry:lib` 的 contract 可选”冲突；安装无 contract 的 lib 会让宿主 CI 变红                                     | P2     | artifact | 宿主 CI      | fixed（2026-11-23）：`runAdapters` 跳过无 contract 模块，回归用例 `skips declared modules without a contract`；随 `@devbie/fewbie-cli@1.17.1` 发布，三个消费方已升级 |
 
 #### Round 99 备注
 
 - 锚点：fewbie-modules dev `1947911`、nightwatch-frontend dev `131d8d2`，两仓开工时工作树干净。
-- 锁文件：宿主 `fewbie.lock.json` 的 `sse-stream` 当前为 `commit: "dev"`（本地 registry 覆盖安装），registry 合入 main 后需重装重新 pin。
+- 锁文件：宿主 `fewbie.lock.json` 的 `sse-stream` 已 pin 到 registry main 的合并提交 `10124e1`（2026-11-23 重装完成）。
 - 流程教训：R84-02 判 `fixed` 时只核对 registry 载荷，未核对 live 暴露面是否消费该修复，属「补丁存在即已修」；证据门禁已在 expert-review skill §5 补硬条款。
 - 同型潜在项：`query-client` 的 `@tanstack/*` 导入会撞同一条边界规则，因未安装而未暴露，已入 backlog。
 
