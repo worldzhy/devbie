@@ -11,6 +11,8 @@ import { readLockfile } from "../src/lib/lockfile";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const TARGET = "src/fewbie/modules/fixture/features/fixture/index.ts";
+/** Authored payload sits at the target minus the install root (ADR-071). */
+const STORAGE_TARGET = TARGET.slice("src/fewbie/modules/fixture/".length);
 const ORIGINAL = "export const fixture = 1;\n";
 
 interface Fixture {
@@ -26,7 +28,7 @@ async function setup(): Promise<Fixture> {
   const project = path.join(root, "project");
   const module = path.join(registry, "fixture");
 
-  await fs.mkdir(path.join(module, "src/fewbie/modules/fixture/features/fixture"), { recursive: true });
+  await fs.mkdir(path.join(module, path.dirname(STORAGE_TARGET)), { recursive: true });
   await fs.writeFile(
     path.join(module, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
@@ -45,7 +47,7 @@ async function setup(): Promise<Fixture> {
       },
     }),
   );
-  await fs.writeFile(path.join(module, TARGET), ORIGINAL);
+  await fs.writeFile(path.join(module, STORAGE_TARGET), ORIGINAL);
 
   await fs.mkdir(project, { recursive: true });
   await fs.writeFile(path.join(project, "package.json"), "{}\n");
@@ -123,7 +125,7 @@ test("update --check fails when the registry moved under an untouched file", asy
     await quiet(() =>
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
-    await fs.writeFile(path.join(fixture.registry, "fixture", TARGET), "export const fixture = 3;\n");
+    await fs.writeFile(path.join(fixture.registry, "fixture", STORAGE_TARGET), "export const fixture = 3;\n");
     await assert.rejects(
       quiet(() => runUpdate({ cwd: fixture.project, check: true })),
       /behind the registry/,
@@ -140,7 +142,7 @@ test("update --check reports a conflict when both sides moved", async () => {
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
     await fs.writeFile(fixture.target, "export const fixture = 4;\n");
-    await fs.writeFile(path.join(fixture.registry, "fixture", TARGET), "export const fixture = 5;\n");
+    await fs.writeFile(path.join(fixture.registry, "fixture", STORAGE_TARGET), "export const fixture = 5;\n");
     await assert.rejects(
       quiet(() => runUpdate({ cwd: fixture.project, check: true })),
       /conflict/,
@@ -156,7 +158,7 @@ test("update --preview classifies without writing", async () => {
     await quiet(() =>
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
-    await fs.writeFile(path.join(fixture.registry, "fixture", TARGET), "export const fixture = 6;\n");
+    await fs.writeFile(path.join(fixture.registry, "fixture", STORAGE_TARGET), "export const fixture = 6;\n");
     const { output } = await quiet(() => runUpdate({ cwd: fixture.project, preview: true, yes: true }));
     assert.match(output, /registry moved/);
     assert.equal(await fs.readFile(fixture.target, "utf8"), ORIGINAL);
@@ -172,7 +174,7 @@ test("update writes a pristine file and refreshes the lockfile baseline", async 
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
     const latest = "export const fixture = 7;\n";
-    await fs.writeFile(path.join(fixture.registry, "fixture", TARGET), latest);
+    await fs.writeFile(path.join(fixture.registry, "fixture", STORAGE_TARGET), latest);
     await quiet(() => runUpdate({ cwd: fixture.project, yes: true }));
     assert.equal(await fs.readFile(fixture.target, "utf8"), latest);
     const lock = await readLockfile(fixture.project);
@@ -205,10 +207,11 @@ test("apply removes a pristine target the registry renamed away (R82-08)", async
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
     const renamed = "src/fewbie/modules/fixture/features/fixture/next.ts";
-    await fs.mkdir(path.join(fixture.registry, "fixture", "src/fewbie/modules/fixture/features/fixture"), {
+    const renamedStorage = renamed.slice("src/fewbie/modules/fixture/".length);
+    await fs.mkdir(path.join(fixture.registry, "fixture", path.dirname(renamedStorage)), {
       recursive: true,
     });
-    await fs.writeFile(path.join(fixture.registry, "fixture", renamed), "export const next = 1;\n");
+    await fs.writeFile(path.join(fixture.registry, "fixture", renamedStorage), "export const next = 1;\n");
     await fs.writeFile(
       path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE),
       JSON.stringify({
@@ -301,7 +304,7 @@ test("update fails closed when a declared file has no lockfile baseline (R83-13)
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
     const latest = "export const fixture = 9;\n";
-    await fs.writeFile(path.join(fixture.registry, "fixture", TARGET), latest);
+    await fs.writeFile(path.join(fixture.registry, "fixture", STORAGE_TARGET), latest);
     // Deleting one lockfile line used to downgrade the file to legacy, which is
     // auto-writable; a corrupt baseline must not silently overwrite the host.
     const lock = JSON.parse(await fs.readFile(path.join(fixture.project, "fewbie.lock.json"), "utf8"));

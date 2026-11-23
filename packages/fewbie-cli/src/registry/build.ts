@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { validateManifestContract } from "./contract";
+import { moduleStoragePath } from "./store";
 import { REGISTRY_MANIFEST_FILE, type BuiltRegistryModule, type RegistryManifest } from "./types";
 
 const SHADCN_ITEM_SCHEMA = "https://ui.shadcn.com/r/registry-item.json";
@@ -38,7 +39,7 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
 
     const files = await Promise.all(
       manifest.files.map(async (relative) => {
-        const resolved = path.resolve(itemDir, relative);
+        const resolved = path.resolve(itemDir, moduleStoragePath(manifest.name, relative));
         // Prevent directory traversal — manifest.files must stay inside the
         // module's own directory. Without this, a malicious manifest could read
         // any file on the filesystem and embed it in the built registry module.
@@ -46,6 +47,8 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
           throw new Error(`Registry manifest for '${entry.name}' contains path outside its directory: ${relative}`);
         }
         return {
+          // Authored storage is the target minus the install root (ADR-071);
+          // the built artifact keeps the declared target.
           path: relative,
           content: await fs.readFile(resolved, "utf8"),
           type: manifest.type,

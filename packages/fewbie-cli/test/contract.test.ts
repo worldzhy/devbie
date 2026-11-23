@@ -21,8 +21,10 @@ const VALID = {
 async function writeModule(contract: unknown): Promise<{ root: string; name: string }> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-contract-"));
   const name = "fixture";
-  await fs.mkdir(path.join(root, name, "src/fewbie/modules/fixture/features/fixture"), { recursive: true });
-  await fs.writeFile(path.join(root, name, VALID.entry), "export {};\n");
+  // Authored payload sits at the install target minus the install root (ADR-071).
+  const storage = (target: string): string => target.slice(`src/fewbie/modules/${name}/`.length);
+  await fs.mkdir(path.join(root, name, path.dirname(storage(VALID.entry))), { recursive: true });
+  await fs.writeFile(path.join(root, name, storage(VALID.entry)), "export {};\n");
   await fs.writeFile(
     path.join(root, name, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
