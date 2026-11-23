@@ -1096,5 +1096,5 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 锚点：fewbie-modules dev `1947911`、nightwatch-frontend dev `131d8d2`，两仓开工时工作树干净。
 - 锁文件：宿主 `fewbie.lock.json` 的 `sse-stream` 已 pin 到 registry main 的合并提交 `10124e1`（2026-11-23 重装完成）。
 - 流程教训：R84-02 判 `fixed` 时只核对 registry 载荷，未核对 live 暴露面是否消费该修复，属「补丁存在即已修」；证据门禁已在 expert-review skill §5 补硬条款。
-- 同型潜在项：`query-client` 的 `@tanstack/*` 导入会撞同一条边界规则，因未安装而未暴露，已入 backlog。
+- 同型项：`query-client` 的 `@tanstack/*` 导入会撞同一条边界规则；已由 ADR-072 退场（删除模块；registry 快照待 fewbie-modules main 合并后重生成）。
 

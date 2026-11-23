@@ -135,8 +135,9 @@
 
 > 2026-11-23 关闭：`@devbie/fewbie-cli@1.17.0` 已发布，registry 核对 `latest=1.17.0`、tarball 在位、无过期 deprecated（bump 提交 `2e0c0a95`，153 测试全绿，audit 仅剩余 lint 工具链 waiver 内的 3 条 moderate）。fewbie-starter / nightwatch-frontend / crewbie-console-frontend 均升 `^1.17.0`，锁文件仅版本行变化，安装产物哈希未变（两个宿主的 lock commit 锚点同批改到 `e2b4291`）；nwf 的 `modules update --check` / `apply --check` / `modules adapters --check` 全绿，cf 的 `update --check` / `apply --check` 全绿（该宿主无 i18n 声明，adapters 门禁不适用）。
 
-## sse-stream 边界收口（2026-11-23）
+## ADR-072 / query-client 退场交付项（2026-11-23）
 
-- [ ] **`query-client` 与模块边界门禁同型不一致**：`components/query-provider.tsx` 导入 `@tanstack/react-query`，会被宿主的 module boundary 规则判为 state library 违规；该模块从未被安装，所以从未暴露。需决定是给 `lib` 层划定依赖豁免（改 fewbie-starter 的 `eslint.config.mjs`，属跨宿主契约，需 ADR）还是把 `query-client` 收窄或退场。
+- [ ] **fewbie-modules PR #17（dev→main）待合并**：退场提交 `1f52bf6`；main 未合并前 CLI 不能重生成 registry 快照（`check:registry-snapshot` 以 `origin/main` 内容为基准）。
+- [ ] **快照重生成 + CLI patch 发布待拍板**：合并后跑 `npm run registry:sync -w @devbie/fewbie-cli` 并提交快照；已发布的 1.17.1 仍含该模块，无宿主声明，无运行影响。
 
 
