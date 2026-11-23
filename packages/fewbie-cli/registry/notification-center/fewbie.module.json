@@ -1,13 +1,15 @@
 {
   "name": "notification-center",
+  "title": "Notification center",
+  "description": "Notifications page body plus a shell widget (bell and ticker) and a shared presentation layer: grouped list, filters, pagination, detail pane and push-failure surface. Transport, domain mapping and routing stay in the host through the declared ports.",
   "type": "registry:block",
   "files": [
-    "src/fewbie/modules/notification-center/features/notification-center/index.ts",
-    "src/fewbie/modules/notification-center/features/notification-center/types.ts",
-    "src/fewbie/modules/notification-center/features/notification-center/grouping.ts",
-    "src/fewbie/modules/notification-center/features/notification-center/use-is-desktop.ts",
-    "src/fewbie/modules/notification-center/features/notification-center/notification-row.tsx",
-    "src/fewbie/modules/notification-center/features/notification-center/notification-center.tsx",
+    "src/fewbie/modules/notification-center/features/notification-list/index.ts",
+    "src/fewbie/modules/notification-center/features/notification-list/types.ts",
+    "src/fewbie/modules/notification-center/features/notification-list/grouping.ts",
+    "src/fewbie/modules/notification-center/features/notification-list/use-is-desktop.ts",
+    "src/fewbie/modules/notification-center/features/notification-list/notification-row.tsx",
+    "src/fewbie/modules/notification-center/features/notification-list/notification-list.tsx",
     "src/fewbie/modules/notification-center/widgets/notification-center-shell/index.ts",
     "src/fewbie/modules/notification-center/widgets/notification-center-shell/types.ts",
     "src/fewbie/modules/notification-center/widgets/notification-center-shell/notification-bell.tsx",
@@ -28,7 +30,7 @@
   "contract": {
     "version": "2.0.0",
     "framework": "^1.7.0",
-    "entry": "src/fewbie/modules/notification-center/features/notification-center/index.ts",
+    "entry": "src/fewbie/modules/notification-center/features/notification-list/index.ts",
     "labels": [
       "allCategories",
       "allProjects",
@@ -94,7 +96,7 @@
     "layers": [
       {
         "layer": "features",
-        "types": "src/fewbie/modules/notification-center/features/notification-center/types.ts",
+        "types": "src/fewbie/modules/notification-center/features/notification-list/types.ts",
         "labels": [
           "allCategories",
           "allProjects",

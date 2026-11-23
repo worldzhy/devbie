@@ -1,5 +1,7 @@
 {
   "name": "account-settings",
+  "title": "Account settings",
+  "description": "Preferences, profile and security settings features for an account page. Persistence, validation endpoints and copy stay in the host through the declared ports and labels.",
   "type": "registry:block",
   "files": [
     "src/fewbie/modules/account-settings/features/preferences-settings/index.ts",
