@@ -135,3 +135,8 @@
 - [ ] **宿主 lock 锚定真实 commit**：nightwatch-frontend `fewbie.lock.json` 因 `FEWBIE_REGISTRY_PATH` 安装记为 `commit: "dev"`；registry 发布后重跑 `modules apply` 写入 main commit。
 - [ ] **nightwatch-frontend 提交**：ADR-068 + ADR-069 宿主改动（10 项安装、i18n 三命名空间合并、adapter 重命名、`password-checklist` 移到 `@/components`）未提交；`format:check` / `lint` / `build` / `npm test` / `modules apply --check` / `adapters --check` / `doctor` 已本地通过。
 
+## ADR-071 落地交付项（2026-11-23）
+
+- [ ] **`@devbie/fewbie-cli` 1.17.0 发版**：registry main（fewbie-modules `e2b4291`）已是"存储剥离安装根"布局；已发布的 1.16.0 仍按 `src/fewbie/modules/...` 找载荷，跑 `modules add/apply/update` 会报缺失。按 RELEASE_CHECKLIST 发布 1.17.0，之后各宿主把 devDependency 升到 `^1.17.0`。
+- [ ] **宿主重装校核**：升级 CLI 后在 nightwatch-frontend / crewbie-console-frontend 跑 `modules update --check` 与 `adapters --check`，确认安装结果与 `fewbie.lock.json` 未变（本 ADR 不改安装目标）。
+
