@@ -17,8 +17,6 @@ export const LOCK_VERSION = 1;
 
 export interface ModuleLockEntry {
   key: string;
-  /** Recorded identity only; null until per-module tags exist (ADR-041). */
-  version: string | null;
   /** Registry commit the file manifest was taken from. */
   sourceCommit: string;
   /** POSIX-relative path -> SHA-256 of the copied file. */
@@ -45,9 +43,6 @@ function assertLockEntry(key: string, entry: unknown): ModuleLockEntry {
   if (typeof raw.sourceCommit !== "string" || raw.sourceCommit === "") {
     throw new CliError(`Invalid ${MODULE_LOCK_FILE}: entry '${key}' needs a non-empty sourceCommit.`);
   }
-  if (raw.version !== undefined && raw.version !== null && typeof raw.version !== "string") {
-    throw new CliError(`Invalid ${MODULE_LOCK_FILE}: entry '${key}' has a non-string version.`);
-  }
   if (raw.files === null || typeof raw.files !== "object" || Array.isArray(raw.files)) {
     throw new CliError(`Invalid ${MODULE_LOCK_FILE}: entry '${key}' needs a files object.`);
   }
@@ -58,7 +53,7 @@ function assertLockEntry(key: string, entry: unknown): ModuleLockEntry {
     }
     files[file] = hash;
   }
-  return { key, version: (raw.version as string | null | undefined) ?? null, sourceCommit: raw.sourceCommit, files };
+  return { key, sourceCommit: raw.sourceCommit, files };
 }
 
 /** Validate the on-disk shape; duplicates and stray keys fail closed. */

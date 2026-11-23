@@ -62,6 +62,7 @@
 ```
 
 - 安装后写入；`apply` 的删除条件改为「当前哈希 = 锁内哈希」；无锁回退 1.8 行为。
+- 与 newbie 栈的 `newbie-modules.lock.json`（ADR-041）是同一模式的两套方言，**有意不共享 schema**：fewbie 物品按目标路径落盘且契约自带 `version`，所以用 registry 块 + 路径映射；newbie 模块是整目录字节一致复制且支持逐 key 部分升级，所以用逐条 `sourceCommit`。判定语义一致，格式不要互迁。
 - `update` 三方分类：pristine 直接更新；host-modified 默认拒绝覆盖；registry-moved 且 host-modified 报冲突。`--preview` 只打印不落盘。
 - 哈希比较前做行尾归一，避免 CRLF 造成伪漂移。
 

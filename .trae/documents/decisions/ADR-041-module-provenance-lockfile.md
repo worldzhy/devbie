@@ -48,7 +48,6 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
      "modules": [
        {
          "key": "audit",
-         "version": null,
          "sourceCommit": "<sha>",
          "files": { "audit.module.ts": "<sha256>", "...": "<sha256>" }
        }
@@ -58,7 +57,7 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 
    `files` 是安装时刻目录内每个文件的 POSIX 相对路径与 SHA-256，口径与现有 `snapshotDirectory` 一致（忽略 `.DS_Store`，不看空目录）。
 
-2. **来源的唯一真源是锁文件**：`newbie-modules.json` 退回纯声明（启用集），每模块的 `sourceCommit` / `version` 移入锁文件；`update` 比较 `fromCommit` 时改读锁文件。同一事实不留在两个文件里。
+2. **来源的唯一真源是锁文件**：`newbie-modules.json` 退回纯声明（启用集），每模块的 `sourceCommit` 移入锁文件；`update` 比较 `fromCommit` 时改读锁文件。同一事实不留在两个文件里。
 
 3. **锁文件只由 CLI 写**：`modules apply` / `modules add` / `modules update` 在复制步完成后写入，与现有 `writeModulesState` 同一时机。门禁通过「清单哈希 vs registry 该 commit 的树」检测锁文件被手改。
 
@@ -83,10 +82,33 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 
 ## 跨宿主 / 演进检验
 
-- 锁文件格式只含模块 key、上游提交、文件哈希，不含任何宿主、厂商或业务概念；换一个消费仓（含 fewbie 侧若将来复用同一模型）语义不变。
+- 锁文件格式只含模块 key、上游提交、文件哈希，不含任何宿主、厂商或业务概念；换一个 newbie 消费仓语义不变。fewbie 侧已有自己的锁文件，见下方「与 fewbie 锁文件的关系」。
 - 锁文件位于模块目录之外，`src/modules/<key>` 仍保持整目录字节一致（ADR-019 契约不动），也不会被 registry 侧的目录对比误判。
 - 与 CLI 版本解耦：旧 CLI 忽略锁文件、行为退回今天；新 CLI 在无锁文件时按第 6 条迁移。不存在「配置要求新 CLI 才能启动」的硬门槛。
-- `version` 字段在锁文件里继续保留为 null，等每模块标签真正出现时再填；它只是可读身份，不参与任何判定。
+- 锁文件不设 `version`：该字段从落地起恒为 null、不参与任何判定，2026-11-23 已删除；每模块标签真正出现时再按新 ADR 重新引入。
+
+## 补充说明（2026-11-23）
+
+### 两个 pin 的分工
+
+- `newbie-modules.json` 顶层的 `registry.sourceCommit` 是**取数点**：`apply` / `update` 用它决定从哪个 registry 修订复制或比较内容，`doctor` / `status` 用它判断「是否有新版」。
+- `newbie-modules.lock.json` 里每条记录的 `sourceCommit` 是**安装点**：该模块的字节实际来自哪个修订，门禁只认这个。
+- 单次 `apply` 后两者通常相同；`modules update <key>` 只推进被点名模块的安装点，其余模块停在旧修订。此时顶层 pin 已前进、部分锁条目不前进，这是合法状态——门禁断言的是「副本 = 清单，清单 = registry @ 安装点」，仍然为绿。
+- 因此不要用顶层 pin 推断「副本是最新的」，也不要用锁条目推断「registry 当前在哪里」。
+
+### 与 fewbie 锁文件的关系
+
+fewbie 栈已有独立实现 `fewbie.lock.json`（ADR-057 D4）。两者是同一模式的两套方言，**有意不共享 schema**：
+
+| | newbie `newbie-modules.lock.json` | fewbie `fewbie.lock.json` |
+|---|---|---|
+| 顶层 | `lockVersion` + `modules` 数组 | `lockfileVersion` + `registry` 块 + `modules` 映射 |
+| 来源 | 每条记录一个 `sourceCommit`，支持逐 key 部分升级 | 单一 registry `commit`，每项另带 `commit` / `version` |
+| 文件键 | 模块目录内相对路径 | 项目内目标路径（`src/features/**` 等） |
+| 哈希 | 裸 sha256 hex | `sha256-<hex>` 前缀 |
+| 版本 | 无 | 有（来自 item contract） |
+
+分歧理由：newbie 模块是整目录字节一致复制，必须逐 key 记录安装点才能表达「部分升级」；fewbie 物品按目标路径落盘、契约自带 `version`，用 registry 块加路径映射更贴近它的安装模型。两者的判定语义一致（副本 = 清单，清单 = 来源树），但不要把一方的格式当成另一方的迁移目标；要统一先各自出 ADR。
 
 ## 影响
 
@@ -100,7 +122,7 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 
 2026-11-22 第一阶段落地（round 87 R87-06）：
 
-- 新增 `newbie-modules.lock.json`（`lockVersion: 1`），条目为 `key` / `version` / `sourceCommit` / `files`（POSIX 相对路径 → sha256）。
+- 新增 `newbie-modules.lock.json`（`lockVersion: 1`），条目为 `key` / `sourceCommit` / `files`（POSIX 相对路径 → sha256）。
 - `modules apply` 在复制后写入/刷新条目；已存在条目保持不动，让 `--check` 仍能报 `copy-modified`。既有副本无条目时按 pin 校验，干净才采纳，脏副本点名拒绝；pin 不可读则跳过该 key（门禁继续报 `unverifiable-lock`，不写入未经校验的锁）。
 - 门禁改为「副本 = 清单，清单 = registry @ sourceCommit」，信号为 `lock-missing` / `copy-modified` / `lock-tampered` / `unverifiable-lock`；缺对象时先按需 fetch 一次。项目没有锁文件时仍走旧 pin 路径，作为迁移窗口。
 - `update.ts` 的 `fromCommit`、`doctor` 与 `status` 的基线优先读锁文件；`status --drift` 与 `doctor` 的本地漂移判定可离线完成。
@@ -110,3 +132,8 @@ Supersedes: ADR-021 的「候选方案/决策」中「基线选择」部分 —�
 - `newbie-modules.json` 不再写入每条记录的 `version` / `sourceCommit` / `localPatches`；`ModuleRecord` 收敛为纯 `{ key }`（`@devbie/modules-state`、newbie hub 快照、module-hub-cli 校验同步调整）。锁文件成为来源信息的唯一真源。
 - legacy pin 分支删除：`module-source-drift.ts` 的 `missing-pin` / `unavailable-pin` 并入 `lock-missing` / `unverifiable-lock`；无锁文件时从声明文件读一次旧 pin 作为迁移基线，读到即校验，读不到即点名拒绝整体写入——不再把 pin 抹掉后留下无法验证的副本。
 - 迁移窗口收口：`modules apply` 在无锁文件且旧 pin 不可读时直接失败（含 7 位 commit 与刷新/换 registry 指引）；有锁文件时保持 `unverifiable-lock`，交由 `--check` 报告。
+
+2026-11-23 收紧：
+
+- 删除条目里的 `version` 预留字段（写侧不再产出，读侧继续忽略以兼容存量锁）：它从落地起恒为 null、不参与判定。`status --json` 与 module-hub 快照的 `version` 列随之移除。
+- 存量锁数据的清理方式是删字段、不 bump `lockVersion`：`files` 清单不受影响，门禁判定不变。消费仓（nightwatch-backend、crewbie-console-backend）已就地重写，差异仅为删除该行。

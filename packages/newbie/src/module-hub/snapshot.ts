@@ -33,7 +33,6 @@ import {
  */
 export interface ModuleSnapshotEntry {
   key: string;
-  version: string | null;
   sourceCommit: string | null;
   installed: boolean;
   hasSchema: boolean;
@@ -41,12 +40,10 @@ export interface ModuleSnapshotEntry {
 
 /**
  * Minimal, tolerant read of the lock's per-module identity. The CLI owns the
- * schema and validation; the snapshot only needs `key` -> version/commit.
+ * schema and validation; the snapshot only needs `key` -> commit.
  */
-async function readLockedIdentities(
-  projectRoot: string,
-): Promise<Map<string, { version: string | null; sourceCommit: string | null }>> {
-  const identities = new Map<string, { version: string | null; sourceCommit: string | null }>();
+async function readLockedIdentities(projectRoot: string): Promise<Map<string, { sourceCommit: string | null }>> {
+  const identities = new Map<string, { sourceCommit: string | null }>();
   let raw: string;
   try {
     raw = await fs.readFile(path.resolve(projectRoot, MODULE_LOCK_FILE), "utf8");
@@ -65,12 +62,8 @@ async function readLockedIdentities(
     if (!entry || typeof entry !== "object") continue;
     const key = (entry as { key?: unknown }).key;
     if (typeof key !== "string" || key.length === 0) continue;
-    const version = (entry as { version?: unknown }).version;
     const sourceCommit = (entry as { sourceCommit?: unknown }).sourceCommit;
-    identities.set(key, {
-      version: typeof version === "string" ? version : null,
-      sourceCommit: typeof sourceCommit === "string" ? sourceCommit : null,
-    });
+    identities.set(key, { sourceCommit: typeof sourceCommit === "string" ? sourceCommit : null });
   }
   return identities;
 }
@@ -120,7 +113,6 @@ export async function readModuleSnapshot(projectRoot: string): Promise<ModuleSna
     const identity = identities.get(record.key);
     entries.push({
       key: record.key,
-      version: identity?.version ?? null,
       sourceCommit: identity?.sourceCommit ?? null,
       installed,
       hasSchema,

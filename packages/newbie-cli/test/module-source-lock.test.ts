@@ -75,7 +75,6 @@ async function makeLockedTrees(): Promise<{
     modules: [
       {
         key: "account",
-        version: null,
         sourceCommit: commit,
         files: await hashTree(path.join(cwd, "src/modules/account")),
       },
@@ -120,8 +119,8 @@ describe("provenance lock", () => {
     const sorted = sortModuleLock({
       lockVersion: 1,
       modules: [
-        { key: "b", version: null, sourceCommit: "2", files: { "z.ts": "1", "a.ts": "2" } },
-        { key: "a", version: null, sourceCommit: "1", files: {} },
+        { key: "b", sourceCommit: "2", files: { "z.ts": "1", "a.ts": "2" } },
+        { key: "a", sourceCommit: "1", files: {} },
       ],
     });
     assert.deepEqual(
@@ -167,7 +166,6 @@ describe("provenance lock", () => {
       modules: [
         {
           key: "account",
-          version: null,
           sourceCommit: commit,
           files: await hashTree(path.join(cwd, "src/modules/account")),
         },
