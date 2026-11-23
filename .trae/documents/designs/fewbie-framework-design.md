@@ -200,7 +200,7 @@ frontend-monitor SDK（自动 PV/错误上报）采用混合分发（2026-09-24 
 4. ~~`newbie-core-packaging-plan.md` Phase 5 需按本决议重写~~——已完成（2026-09-24）：后端文档已重命名为 `newbie-framework-split-plan.md`，第六章与 Phase 5/6 均已按本决议同步。
 5. **nightwatch-frontend 资产沉淀候选登记（2026-10-08）**——A 档四件已全部沉淀：`app-shell`、`query-client`、`password-checklist`、`sse-stream`（详见 `.trae/documents/nightwatch-frontend-asset-sedimentation-plan.md`）。候选登记：
    - **companion block（方向成立、时机未到）**：copilot-dock 全家桶（配对 copilot kernel，触发条件：copilot monitoring phase 2 交付、blocks 协议冻结）；notification-bell 一套（配对 notification-center capability）。首对 companion 落地时需先立「newbie 后端模块 ↔ fewbie 前端 companion item」配对与跟版约定（单独立项）。
-   - **A 档小项（已沉淀，2026-10-08）**：password-checklist（registry:item，描述标注规则真源在 newbie account password.validator、后端策略变更需手工同步）、sse-stream（只含 POST+SSE 传输内核，事件解析留给调用方）。
+   - **A 档小项（已沉淀，2026-10-08；2026-11-23 修订）**：password-checklist（registry:item，描述标注规则真源在 newbie account password.validator、后端策略变更需手工同步）、sse-stream（只含 SSE 帧解码内核，请求与鉴权留在宿主，事件解析留给调用方；原「POST+SSE 传输内核」的传输部分已按宿主模块边界撤出）。
    - **禁止反向污染**：沉淀评审时凡依赖 nw 技术债栈（react-toastify、手写 theme store、React 18）的代码一律不得直接复制，先改写再迁。
 
 6. **init 装配选择 + 框架接线机制（2026-10-08 登记，搁置待重启）**——需求方向已确认（用户原话）："建新项目时可以由使用者选择装配哪些，然后由框架实现接线"。现状缺口（已取证）：`fewbie create` 不与 registry 交互；`modules add` 只复制文件 + 打印 postInstall 手工提示（`theme`、`query-client` 均需手工改 root layout），即沉淀计划收录规则第 3 条"无代码改写能力"（Non-Goal #6）。本轮已出决策表，三个分叉点全部搁置；机制未拍板前该收录规则维持有效。重启时从拍板开始、无需重新取证：
