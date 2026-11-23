@@ -1,6 +1,6 @@
 {
   "name": "copilot",
-  "type": "registry:widget",
+  "type": "registry:block",
   "files": [
     "src/widgets/copilot/types.ts",
     "src/widgets/copilot/view-model.ts",

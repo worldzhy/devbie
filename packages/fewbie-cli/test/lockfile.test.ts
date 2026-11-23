@@ -31,7 +31,7 @@ async function setup(): Promise<Fixture> {
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
-      type: "registry:feature",
+      type: "registry:block",
       title: "Fixture",
       files: [TARGET],
       contract: {
@@ -211,7 +211,7 @@ test("apply removes a pristine target the registry renamed away (R82-08)", async
       path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE),
       JSON.stringify({
         name: "fixture",
-        type: "registry:feature",
+        type: "registry:block",
         title: "Fixture",
         files: [renamed],
         contract: {

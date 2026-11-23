@@ -1,6 +1,6 @@
 # ADR-066：fewbie registry 按 FSD 分层安装 —— `registry:feature` 与 `registry:widget` 两棵树
 
-状态：已采纳
+状态：已采纳（D1–D5、D7 由 ADR-069 取代，其余保留）
 日期：2026-11-22
 关系：修订 [ADR-056](ADR-056-fewbie-frontend-framework-ownership.md) 的模板归属表、[ADR-057](ADR-057-fewbie-module-contract-and-lockfile.md) 的 item 类型与安装路径、[ADR-059](ADR-059-fewbie-registry-container-layout.md) 的容器布局、[ADR-062](ADR-062-fewbie-modules-may-import-sibling-items.md) 的兄弟 item 导入、[ADR-063](ADR-063-fewbie-component-contracts-and-host-injected-domain-mapping.md) 的 `types.ts` 定位、[ADR-065](ADR-065-fewbie-registry-items-land-in-src-features.md) 的 `registry:block` 类型名与边界作用域。
 

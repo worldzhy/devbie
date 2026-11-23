@@ -169,6 +169,11 @@ export async function findOrphanAdapters(projectRoot: string, declaredOverride?:
   for (const item of items) {
     const entry = item.manifest.contract?.entry;
     if (entry !== undefined) expected.add(moduleSpecifier(entry, item.manifest.name));
+    // A block's adapter imports one labels type per layer (ADR-069), so every
+    // layer's types module is a legitimate adapter target too.
+    for (const layer of item.manifest.contract?.layers ?? []) {
+      expected.add(moduleSpecifier(layer.types, item.manifest.name));
+    }
   }
 
   const entries = await fs.readdir(path.join(projectRoot, ADAPTERS_DIR)).catch(() => null);

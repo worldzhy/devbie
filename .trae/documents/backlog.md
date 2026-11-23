@@ -122,3 +122,16 @@
 ## round 87 遗留（2026-11-22）
 
 - [ ] **R87-23 残余 / R87-11**：两栈 help 首句语气（大写 vs 小写）统一；`fewbie-modules` 英文默认文案与「copy 经 labels 传入」准入标准的处理政策定稿（注释已说明默认值仅供 demo）。
+
+## ADR-068 落地交付项（2026-11-23）
+
+- [ ] **提交 registry 快照重建**：`packages/fewbie-cli/registry/**` 已按 fewbie-modules `d90cf82` 重建（未提交）；fewbie-starter `6ee0ca4` 已提交未推送，fewbie-modules `d90cf82` 已提交未推送。
+- [ ] **`check:registry-snapshot` 转绿前置**：门禁比对 `origin/main`，fewbie-modules `dev`→`main` 合并（PR）后复核；宿主 nightwatch-frontend 的安装与薄壳改动也待单独提交。
+
+## ADR-069 落地交付项（2026-11-23）
+
+- [ ] **`@devbie/fewbie-cli` 发版**：源码已支持 `registry:block` / `contract.layers[]` / 多层 adapter（`<Item>ModuleLabels` 并集、逐层 `types.ts`）与 orphan adapter 修正；nightwatch-frontend 验证用的是本地 `dist`，需按 RELEASE_CHECKLIST 发布小版本后宿主 CI 才可复现。
+- [ ] **registry dev→main**：fewbie-modules `79c3095`（18→10、ADR-069 分发单位类型）已本地提交未推送；合并后重跑 `npm run registry:sync -w @devbie/fewbie-cli` 固定 sourceCommit，`check:registry-snapshot` 才能转绿。
+- [ ] **宿主 lock 锚定真实 commit**：nightwatch-frontend `fewbie.lock.json` 因 `FEWBIE_REGISTRY_PATH` 安装记为 `commit: "dev"`；registry 发布后重跑 `modules apply` 写入 main commit。
+- [ ] **nightwatch-frontend 提交**：ADR-068 + ADR-069 宿主改动（10 项安装、i18n 三命名空间合并、adapter 重命名、`password-checklist` 移到 `@/components`）未提交；`format:check` / `lint` / `build` / `npm test` / `modules apply --check` / `adapters --check` / `doctor` 已本地通过。
+

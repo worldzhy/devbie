@@ -3,7 +3,7 @@ import semver from "semver";
 import { CliError } from "@devbie/cli-kit";
 // Published package version; the contract's framework range must admit it.
 import pkg from "../../package.json";
-import type { ModuleContract, ModuleState, RegistryManifest } from "./types";
+import type { ItemLayer, ModuleContract, ModuleLayerContract, ModuleState, RegistryManifest } from "./types";
 
 /**
  * Executable contract validation (ADR-057). The manifest's `contract` block is
@@ -51,6 +51,9 @@ const ALLOWED_STATES: ModuleState[] = ["loading", "error", "empty", "success", "
 
 const PORT_METHOD = /^[A-Za-z_$][\w$]*$/;
 
+/** Layers a block payload may occupy (ADR-069 D1). */
+const LAYERS: ItemLayer[] = ["features", "widgets", "components", "lib"];
+
 function fail(itemName: string, message: string): never {
   throw new CliError(`Registry item '${itemName}': contract.${message}`);
 }
@@ -75,6 +78,91 @@ function assertStringList(itemName: string, field: string, value: unknown, allow
     seen.add(entry);
   }
   return value as string[];
+}
+
+/**
+ * Parse the optional `layers` breakdown of a block. Each layer names its own
+ * `types.ts`, so a merged block keeps per-layer type truth while the host still
+ * receives one adapter over the union (ADR-069 D5).
+ */
+function parseLayers(itemName: string, value: unknown, version: string): ModuleLayerContract[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    fail(itemName, "layers must be a non-empty array.");
+  }
+  if (semver.major(version) < 2) {
+    fail(itemName, `layers require contract version 2.0.0 or later (got '${version}').`);
+  }
+  const seenTypes = new Set<string>();
+  return value.map((entry: unknown) => {
+    if (entry === null || typeof entry !== "object" || Array.isArray(entry)) {
+      fail(itemName, "layers entries must be objects.");
+    }
+    const raw = entry as Record<string, unknown>;
+    const layer = assertNonEmptyString(itemName, "layers[].layer", raw.layer);
+    if (!LAYERS.includes(layer as ItemLayer)) {
+      fail(itemName, `layers[].layer '${layer}' must be one of ${LAYERS.join(", ")}.`);
+    }
+
+    const types = assertNonEmptyString(itemName, `layers.${layer}.types`, raw.types);
+    if (!types.startsWith(`src/${layer}/`)) {
+      fail(itemName, `layers.${layer}.types '${types}' must land under src/${layer}/.`);
+    }
+    // A layer may contribute several source groups (login and forgot password
+    // both live in `features`); each group still needs its own types file.
+    if (seenTypes.has(types)) fail(itemName, `layers declares '${types}' more than once.`);
+    seenTypes.add(types);
+    const labels = assertStringList(itemName, `layers.${layer}.labels`, raw.labels);
+    const ports = assertStringList(itemName, `layers.${layer}.ports`, raw.ports, true);
+    for (const port of ports) {
+      if (!PORT_METHOD.test(port)) fail(itemName, `layers.${layer}.ports entry '${port}' is not a valid method name.`);
+    }
+    const states = assertStringList(itemName, `layers.${layer}.states`, raw.states, true);
+    for (const state of states) {
+      if (!ALLOWED_STATES.includes(state as ModuleState)) {
+        fail(itemName, `layers.${layer}.states entry '${state}' must be one of ${ALLOWED_STATES.join(", ")}.`);
+      }
+    }
+    return {
+      layer: layer as ItemLayer,
+      types,
+      labels,
+      ports,
+      states: states as ModuleState[],
+    };
+  });
+}
+
+/**
+ * Top-level lists are the union of the layers. A key declared by two layers is
+ * a hard failure: the generated adapter binds one key set, so a duplicate would
+ * silently overwrite the other layer's translation (ADR-069 D5).
+ */
+function assertLayerUnion(
+  itemName: string,
+  field: "labels" | "ports" | "states",
+  layers: ModuleLayerContract[],
+  declared: readonly string[],
+): void {
+  // Labels are translation keys: the adapter binds one key set, so a duplicate
+  // would silently overwrite the other layer's copy. Ports and states may
+  // repeat across layers — the host implements a port once and states are
+  // enums, so they are deduplicated.
+  const union = [...new Set(layers.flatMap((layer) => layer[field] as readonly string[]))];
+  if (field === "labels") {
+    const repeated = new Set<string>();
+    const seen = new Set<string>();
+    for (const key of layers.flatMap((layer) => layer.labels)) {
+      if (seen.has(key)) repeated.add(key);
+      seen.add(key);
+    }
+    if (repeated.size > 0) {
+      fail(itemName, `${field} key(s) ${[...repeated].join(", ")} are declared by more than one layer.`);
+    }
+  }
+  const missing = union.filter((key) => !declared.includes(key));
+  const extra = declared.filter((key) => !union.includes(key));
+  if (missing.length > 0) fail(itemName, `${field} is missing layer key(s) ${missing.join(", ")}.`);
+  if (extra.length > 0) fail(itemName, `${field} lists ${extra.join(", ")} that no layer declares.`);
 }
 
 /** Validate one contract object; throws a CliError naming the failing rule. */
@@ -122,6 +210,13 @@ export function parseModuleContract(value: unknown, itemName: string): ModuleCon
     }
   }
 
+  const layers = raw.layers === undefined ? undefined : parseLayers(itemName, raw.layers, version);
+  if (layers !== undefined) {
+    assertLayerUnion(itemName, "labels", layers, labels);
+    assertLayerUnion(itemName, "ports", layers, ports);
+    assertLayerUnion(itemName, "states", layers, states);
+  }
+
   return {
     version,
     framework,
@@ -130,6 +225,7 @@ export function parseModuleContract(value: unknown, itemName: string): ModuleCon
     ports,
     ui,
     states: states as ModuleState[],
+    ...(layers === undefined ? {} : { layers }),
   };
 }
 
@@ -146,6 +242,14 @@ export function validateManifestContract(
   const contract = parseModuleContract(manifest.contract, manifest.name);
   if (!manifest.files.includes(contract.entry)) {
     fail(manifest.name, `entry '${contract.entry}' must be one of the item's files (${manifest.files.join(", ")}).`);
+  }
+  for (const layer of contract.layers ?? []) {
+    if (!manifest.files.includes(layer.types)) {
+      fail(
+        manifest.name,
+        `layers.${layer.layer}.types '${layer.types}' must be one of the item's files (${manifest.files.join(", ")}).`,
+      );
+    }
   }
   return contract;
 }

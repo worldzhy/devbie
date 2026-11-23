@@ -5,6 +5,7 @@ import path from "node:path";
 import { after, describe, it } from "node:test";
 
 import { runAdapters } from "../src/commands/modules/adapters";
+import { adapterSource } from "../src/lib/i18n-contract";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 interface Fixture {
@@ -39,7 +40,7 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
-      type: "registry:feature",
+      type: "registry:block",
       title: "Fixture",
       files: ["src/features/fixture/index.ts", "src/features/fixture/types.ts", "src/features/fixture/fixture.tsx"],
       contract: {
@@ -118,6 +119,24 @@ after(() => {
 async function readAdapter(project: string): Promise<string> {
   return fs.readFile(path.join(project, "src/adapters/fixture.tsx"), "utf8");
 }
+
+describe("adapterSource", () => {
+  it("intersects the layer label types of a merged block (ADR-069)", () => {
+    const source = adapterSource({
+      name: "account-access",
+      labels: ["signIn", "sendReset"],
+      namespace: "modules",
+      layers: [
+        { labelsType: "LoginLabels", entry: "src/features/account-access/login/index.ts" },
+        { labelsType: "ForgotLabels", entry: "src/features/account-access/forgot/index.ts" },
+      ],
+    });
+
+    assert.match(source, /export type AccountAccessModuleLabels = LoginLabels & ForgotLabels;/);
+    assert.match(source, /export function useAccountAccessLabels\(\): AccountAccessModuleLabels \{/);
+    assert.match(source, /useTranslations\("modules\.account-access"\)/);
+  });
+});
 
 describe("fewbie modules adapters", () => {
   it("generates the golden label adapter from the item contract", async () => {

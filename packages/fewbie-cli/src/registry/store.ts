@@ -66,21 +66,15 @@ function isBuilt(item: RegistryManifest | BuiltRegistryItem): item is BuiltRegis
   return Array.isArray(item.files) && item.files.length > 0 && typeof item.files[0] === "object";
 }
 
-const ITEM_TYPES: ReadonlySet<string> = new Set([
-  "registry:lib",
-  "registry:component",
-  "registry:widget",
-  "registry:feature",
-]);
+const ITEM_TYPES: ReadonlySet<string> = new Set(["registry:lib", "registry:component", "registry:block"]);
 
 /**
- * Layer each type may install into. A feature stays a feature so the host's
- * layer lint sees it; a lib may ship a component payload beside its logic
- * (ADR-066). The registry gate applies the same table (R87-02, R87-24).
+ * Layer each type may install into (ADR-069). A block is one distribution unit
+ * that may carry several layers at once; the layer of each file, not the item
+ * type, drives the host's layer lint. The registry gate applies the same table.
  */
 const TYPE_TARGET_ROOTS: Record<string, readonly string[]> = {
-  "registry:feature": ["features"],
-  "registry:widget": ["widgets"],
+  "registry:block": ["features", "widgets", "components", "lib"],
   "registry:lib": ["lib", "components"],
   "registry:component": ["components", "lib"],
 };
