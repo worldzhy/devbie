@@ -1098,3 +1098,10 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - 流程教训：R84-02 判 `fixed` 时只核对 registry 载荷，未核对 live 暴露面是否消费该修复，属「补丁存在即已修」；证据门禁已在 expert-review skill §5 补硬条款。
 - 同型项：`query-client` 的 `@tanstack/*` 导入会撞同一条边界规则；已由 ADR-072 退场（删除模块；registry 快照待 fewbie-modules main 合并后重生成）。
 
+### password-checklist 并入 account-access（ADR-073，2026-11-23）
+
+- **判据**：ADR-069 D6 规定独立 item 的拆出条件是「第二个 vertical 独立消费」。`password-checklist` 的两个消费方中，nightwatch-frontend 的 IAM 新建用户弹窗不再生成初始密码（改为邮箱/手机验证码登录 + `/account/reset-password` 自助设密码），组件消费方归零；剩余唯一消费方 `forgot-password` 只用 `checkPasswordPolicy` / `isStrongPassword`。
+- **registry**：predicate 移入 `account-access/lib/password-policy.ts`（`account-access` 的 `registryDependencies` 置空），删除 `packages/modules/password-checklist/`，9 → 8 项；真值表 `test/password-policy-parity.test.ts` 的导入与复用断言锚点改到新路径，后端 `validator.isStrongPassword` 一致性覆盖不变。
+- **宿主**：nightwatch-frontend 删除模块声明 / adapter / `modules.password-checklist` 命名空间并重写 IAM 弹窗；crewbie-console-frontend 删除声明与安装产物；后端零改动（`User.password` 可空、`/auth/login-by-verification-code` 已支持无密码账号）。
+- **未迁移的部分**：checklist 的渲染组件不再分发；forgot-password 内的本地薄壳是唯一渲染，避免把组件层 6 个 label 键混进 block 契约触发 D5 键冲突。
+
