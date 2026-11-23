@@ -34,10 +34,10 @@ export async function runAdd(options: ModulesAddOptions): Promise<void> {
   const next = [...new Set([...declared, ...names])];
 
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const nextItems = await resolveInstallSet(registryRoot, next);
-  const declaredItems = await resolveInstallSet(registryRoot, declared);
-  const declaredClosure = new Set(declaredItems.map((item) => item.manifest.name));
-  const additions = nextItems.map((item) => item.manifest.name).filter((name) => !declaredClosure.has(name));
+  const nextModules = await resolveInstallSet(registryRoot, next);
+  const declaredModules = await resolveInstallSet(registryRoot, declared);
+  const declaredClosure = new Set(declaredModules.map((module) => module.manifest.name));
+  const additions = nextModules.map((module) => module.manifest.name).filter((name) => !declaredClosure.has(name));
 
   if (additions.length > 0) {
     console.info(cyan(`Installing ${additions.join(", ")} into ${projectRoot}...`));

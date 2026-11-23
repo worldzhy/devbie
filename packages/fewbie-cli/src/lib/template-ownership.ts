@@ -15,7 +15,7 @@
  *   snippet (the framework entry point). Adoption is by hand, like Rails'
  *   `app:update` writing `.new` files (ADR-035).
  *
- * Registry items are listed as host-owned: `modules add` / `modules update`
+ * Registry modules are listed as host-owned: `modules add` / `modules update`
  * write those paths, and template update must never rewrite them (ADR-057).
  *
  * Symlinks are never template assets: a symlink in the template tree is a
@@ -27,7 +27,7 @@
  * classification, `template update` and `doctor` read one source instead of
  * each keeping its own copy.
  *
- * Overlapping entries are allowed: a parent subtree (e.g. `src/items/**`,
+ * Overlapping entries are allowed: a parent subtree (e.g. `src/fewbie/modules/**`,
  * host) and a nested framework subtree (e.g. `src/fewbie/ui/**`) both match
  * the same file, and the longest path wins (ADR-056 D2). Two entries that
  * normalize to the same root are ambiguous, which is a template defect and is
@@ -193,10 +193,14 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: "src/app/page.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
   { path: "src/components/**", ownership: "host" },
-  // Registry items and generated adapters: `modules add/update/adapters` own
+  // Registry modules and generated adapters: `modules add/update/adapters` own
   // these paths, so template update must never overwrite host-customized copies
-  // (ADR-057 D4/D7). Item payload is item-first (ADR-070 D1).
-  { path: "src/items/**", ownership: "host", note: "registry items are written item-first by modules add/update" },
+  // (ADR-057 D4/D7). Module payload is module-first (ADR-070 D1).
+  {
+    path: "src/fewbie/modules/**",
+    ownership: "host",
+    note: "registry modules are written module-first by modules add/update",
+  },
   {
     path: "src/fewbie/adapters/**",
     ownership: "host",

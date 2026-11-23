@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { listRegistryItemNames, loadItem } from "../../registry/store";
+import { listRegistryModuleNames, loadModule } from "../../registry/store";
 import { resolveRegistryRoot } from "../../registry/source";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import {
@@ -97,16 +97,16 @@ function filterExpandedAssets(assets: readonly TemplateAsset[], paths: string[] 
 }
 
 /**
- * Every file a registry item owns. Template update must never manage one of
+ * Every file a registry module owns. Template update must never manage one of
  * these (ADR-025 clause 4); an overlap is a classification defect.
  */
 async function collectRegistryTargets(projectRoot: string): Promise<Set<string>> {
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const names = await listRegistryItemNames(registryRoot);
+  const names = await listRegistryModuleNames(registryRoot);
   const targets = new Set<string>();
   for (const name of names) {
-    const item = await loadItem(registryRoot, name);
-    for (const file of item.files) targets.add(file.target);
+    const module = await loadModule(registryRoot, name);
+    for (const file of module.files) targets.add(file.target);
   }
   return targets;
 }

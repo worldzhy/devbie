@@ -19,7 +19,7 @@ import {
   type NotificationGroup,
   type NotificationPresentationConfig,
   type NotificationPushFailure,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 import { formatDayLabel, groupNotifications } from "./grouping";
 import { NotificationRow } from "./notification-row";
 import { useIsDesktop } from "./use-is-desktop";

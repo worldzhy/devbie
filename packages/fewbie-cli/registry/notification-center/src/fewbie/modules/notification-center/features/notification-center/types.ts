@@ -3,7 +3,7 @@ import type {
   NotificationPresentationConfig,
   NotificationPushFailure,
   NotificationRecord,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 
 /**
  * Page-level copy: filters, day buckets, pagination and the mark-all-read

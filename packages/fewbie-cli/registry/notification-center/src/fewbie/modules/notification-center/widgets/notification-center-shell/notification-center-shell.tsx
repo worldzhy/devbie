@@ -9,7 +9,7 @@ import {
   usePolled,
   type NotificationPresentationConfig,
   type NotificationRecord,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 import { cn } from "@/lib/utils";
 import { NotificationBell } from "./notification-bell";
 import { NotificationTicker } from "./notification-ticker";

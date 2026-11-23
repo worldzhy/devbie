@@ -35,16 +35,16 @@ export async function runRemove(options: ModulesRemoveOptions): Promise<void> {
 
   const remaining = declared.filter((name) => !removing.includes(name));
 
-  // A remaining item may still pull a removed module through its
+  // A remaining module may still pull a removed module through its
   // registryDependencies; expanding the remaining set exposes that.
   const registryRoot = await resolveRegistryRoot(projectRoot);
   const closure = await resolveInstallSet(registryRoot, remaining);
-  const revived = removing.filter((name) => closure.some((item) => item.manifest.name === name));
+  const revived = removing.filter((name) => closure.some((module) => module.manifest.name === name));
   if (revived.length > 0) {
     const details = revived.map((name) => {
       const dependents = closure
-        .filter((item) => (item.manifest.registryDependencies ?? []).includes(name))
-        .map((item) => item.manifest.name);
+        .filter((module) => (module.manifest.registryDependencies ?? []).includes(name))
+        .map((module) => module.manifest.name);
       return `${name} (required by ${dependents.join(", ")})`;
     });
     throw new CliError(`Cannot remove module(s) still required by the declared set: ${details.join("; ")}.`);
@@ -58,7 +58,7 @@ export async function runRemove(options: ModulesRemoveOptions): Promise<void> {
 
   await applyModuleSelection({ projectRoot, current: declared, next: remaining, dryRun: options.dryRun });
 
-  // Generated label adapters are CLI output, not `item.files`, so the apply
+  // Generated label adapters are CLI output, not `module.files`, so the apply
   // pass above cannot reach them; leaving one behind imports a module that no
   // longer exists and breaks the host build (R82-03).
   const orphans = await findOrphanAdapters(projectRoot, remaining);

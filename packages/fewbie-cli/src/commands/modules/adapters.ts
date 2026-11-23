@@ -3,7 +3,7 @@ import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
 import { CliError, pathExists, readTextIfExists } from "@devbie/cli-kit";
-import { loadItem, resolveInstallSet } from "../../registry/store";
+import { loadModule, resolveInstallSet } from "../../registry/store";
 import { resolveRegistryRoot } from "../../registry/source";
 import {
   AdapterPlan,
@@ -44,7 +44,7 @@ const I18N_EXAMPLE = `{
  * Generate the host label adapters for declared modules (ADR-057 D7).
  *
  * The adapter is a mechanical projection of `contract.labels`: it binds the
- * `modules.<item>` i18n namespace to the module's labels type and injects
+ * `modules.<module>` i18n namespace to the module's labels type and injects
  * nothing else. Ports and callbacks stay page-supplied, so the module keeps no
  * host transport or navigation knowledge.
  */
@@ -66,10 +66,12 @@ export async function runAdapters(options: ModulesAdaptersOptions): Promise<void
   const plans: AdapterPlan[] = [];
   const problems: string[] = [];
   for (const name of selected) {
-    const item = await loadItem(registryRoot, name);
-    const plan = await planAdapter(item, declaration.namespace);
+    const module = await loadModule(registryRoot, name);
+    const plan = await planAdapter(module, declaration.namespace);
     plans.push(plan);
-    problems.push(...(await messageKeyProblems(projectRoot, declaration, name, item.manifest.contract?.labels ?? [])));
+    problems.push(
+      ...(await messageKeyProblems(projectRoot, declaration, name, module.manifest.contract?.labels ?? [])),
+    );
   }
 
   if (options.check) {
@@ -153,7 +155,7 @@ function formatProblems(problems: string[]): string {
 
 /**
  * Generated adapters whose module is no longer in the declared set. Adapters
- * are CLI-generated (never part of `item.files`), so `modules remove` cannot
+ * are CLI-generated (never part of `module.files`), so `modules remove` cannot
  * delete them through the normal file list; without this scan they survive as
  * imports of files that no longer exist and break the host build (R82-03).
  * Files without the generated marker are host-written and left alone.
@@ -164,15 +166,15 @@ export async function findOrphanAdapters(projectRoot: string, declaredOverride?:
 
   const declared = declaredOverride ?? (await requireModulesFile(projectRoot));
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const items = await resolveInstallSet(registryRoot, declared);
+  const modules = await resolveInstallSet(registryRoot, declared);
   const expected = new Set<string>();
-  for (const item of items) {
-    const entry = item.manifest.contract?.entry;
-    if (entry !== undefined) expected.add(moduleSpecifier(entry, item.manifest.name));
+  for (const module of modules) {
+    const entry = module.manifest.contract?.entry;
+    if (entry !== undefined) expected.add(moduleSpecifier(entry, module.manifest.name));
     // A block's adapter imports one labels type per layer (ADR-069), so every
     // layer's types module is a legitimate adapter target too.
-    for (const layer of item.manifest.contract?.layers ?? []) {
-      expected.add(moduleSpecifier(layer.types, item.manifest.name));
+    for (const layer of module.manifest.contract?.layers ?? []) {
+      expected.add(moduleSpecifier(layer.types, module.manifest.name));
     }
   }
 

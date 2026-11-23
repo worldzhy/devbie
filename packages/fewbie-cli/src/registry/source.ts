@@ -13,14 +13,14 @@ const REGISTRY_PATH_ENV = "FEWBIE_REGISTRY_PATH";
 /** Base directory for cloned registries (`<base>/<url hash>`). */
 const REGISTRY_CACHE_ENV = "FEWBIE_REGISTRY_CACHE_DIR";
 
-/** Container directory holding every authored item inside a checkout (ADR-059). */
-export const REGISTRY_ITEMS_DIR = "packages/modules";
+/** Container directory holding every authored module inside a checkout (ADR-059). */
+export const REGISTRY_MODULES_DIR = "packages/modules";
 
 /**
  * A candidate directory is only a valid registry root if it contains at
  * least one `<name>/fewbie.module.json`. Merely existing is not enough: when
  * this module runs uncompiled via tsx, the first candidate resolves to the
- * src/registry directory itself (which holds code, not items).
+ * src/registry directory itself (which holds code, not modules).
  */
 export async function isRegistryRoot(candidate: string): Promise<boolean> {
   let entries: import("node:fs").Dirent[];
@@ -31,22 +31,22 @@ export async function isRegistryRoot(candidate: string): Promise<boolean> {
   }
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const hasItem = await fs
+    const hasModule = await fs
       .access(path.join(candidate, entry.name, REGISTRY_MANIFEST_FILE))
       .then(() => true)
       .catch(() => false);
-    if (hasItem) return true;
+    if (hasModule) return true;
   }
   return false;
 }
 
 /**
- * Item directory inside a registry checkout. `packages/modules` wins; a flat
- * checkout (items at its root) stays supported for older registries and for
+ * Module directory inside a registry checkout. `packages/modules` wins; a flat
+ * checkout (modules at its root) stays supported for older registries and for
  * the CLI's own built-in snapshot. Null when neither shape holds.
  */
-export async function locateItemsDir(checkout: string): Promise<string | null> {
-  const container = path.join(checkout, REGISTRY_ITEMS_DIR);
+export async function locateModulesDir(checkout: string): Promise<string | null> {
+  const container = path.join(checkout, REGISTRY_MODULES_DIR);
   if (await isRegistryRoot(container)) return container;
   if (await isRegistryRoot(checkout)) return checkout;
   return null;
@@ -54,7 +54,7 @@ export async function locateItemsDir(checkout: string): Promise<string | null> {
 
 /** Both accepted registry shapes, for error messages. */
 function expectedRegistryShape(): string {
-  return `${path.join(REGISTRY_ITEMS_DIR, "<item>", REGISTRY_MANIFEST_FILE)} or <item>/${REGISTRY_MANIFEST_FILE}`;
+  return `${path.join(REGISTRY_MODULES_DIR, "<module>", REGISTRY_MANIFEST_FILE)} or <module>/${REGISTRY_MANIFEST_FILE}`;
 }
 
 /**
@@ -117,20 +117,20 @@ async function withCacheLock<T>(cacheDir: string, run: () => Promise<T>): Promis
 }
 
 /**
- * Freeze the checked-out items of one commit so reads cannot race a concurrent
+ * Freeze the checked-out modules of one commit so reads cannot race a concurrent
  * fetch/checkout of the shared cache (R83-14). A snapshot is materialized once
  * per commit and never rewritten; `unknown` commits (git unavailable) keep the
  * old behavior because there is no stable name to key on.
  */
-async function materializeSnapshot(cacheDir: string, itemsDir: string, commit: string): Promise<string> {
-  if (commit === "unknown") return itemsDir;
+async function materializeSnapshot(cacheDir: string, modulesDir: string, commit: string): Promise<string> {
+  if (commit === "unknown") return modulesDir;
   const base = `${cacheDir}.snapshots`;
   const target = path.join(base, commit);
   if (await pathExists(target)) return target;
   await fs.mkdir(base, { recursive: true });
   const temp = `${target}.tmp-${process.pid}`;
   await fs.rm(temp, { recursive: true, force: true });
-  await fs.cp(itemsDir, temp, { recursive: true });
+  await fs.cp(modulesDir, temp, { recursive: true });
   try {
     await fs.rename(temp, target);
   } catch (error) {
@@ -144,7 +144,7 @@ async function materializeSnapshot(cacheDir: string, itemsDir: string, commit: s
 /**
  * Materialize a registry repository at `ref` into a per-URL cache directory.
  * A fresh clone is shallow; later runs fetch and hard-checkout the ref so the
- * working tree always matches the declared revision. The returned items come
+ * working tree always matches the declared revision. The returned modules come
  * from a per-commit snapshot taken inside the lock, so they stay stable while
  * another process checks out a different ref (R83-14).
  */
@@ -163,18 +163,18 @@ async function syncGitRegistry(url: string, ref: string | undefined): Promise<Re
       await execCapture("git", ["-C", cacheDir, "fetch", "--quiet", "--depth", "1", "origin", revision]);
       await execCapture("git", ["-C", cacheDir, "checkout", "--quiet", "--force", "FETCH_HEAD"]);
 
-      const itemsDir = await locateItemsDir(cacheDir);
-      if (itemsDir === null) {
+      const modulesDir = await locateModulesDir(cacheDir);
+      if (modulesDir === null) {
         throw new CliError(
-          `Registry ${url}${ref ? `#${ref}` : ""} has no items (expected ${expectedRegistryShape()}).`,
+          `Registry ${url}${ref ? `#${ref}` : ""} has no modules (expected ${expectedRegistryShape()}).`,
         );
       }
       const { stdout } = await execCapture("git", ["-C", cacheDir, "rev-parse", "HEAD"]);
       const commit = stdout.trim() || "unknown";
-      return { root: await materializeSnapshot(cacheDir, itemsDir, commit), commit };
+      return { root: await materializeSnapshot(cacheDir, modulesDir, commit), commit };
     });
   } catch (error) {
-    // A registry-shaped or missing-items error already names the problem;
+    // A registry-shaped or missing-modules error already names the problem;
     // only git failures need the fetch context.
     if (error instanceof CliError) throw error;
     throw new CliError(`Failed to fetch registry ${url}${ref ? `#${ref}` : ""}: ${(error as Error).message}`);
@@ -186,11 +186,11 @@ async function resolveRegistry(projectRoot?: string): Promise<RegistryContext> {
   const override = process.env[REGISTRY_PATH_ENV];
   if (override) {
     const candidate = path.resolve(override);
-    const itemsDir = await locateItemsDir(candidate);
-    if (itemsDir === null) {
+    const modulesDir = await locateModulesDir(candidate);
+    if (modulesDir === null) {
       throw new CliError(`${REGISTRY_PATH_ENV} '${candidate}' is not a registry root (no ${expectedRegistryShape()}).`);
     }
-    return { root: itemsDir, commit: LOCAL_REGISTRY_COMMIT };
+    return { root: modulesDir, commit: LOCAL_REGISTRY_COMMIT };
   }
 
   if (projectRoot) {

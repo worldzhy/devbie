@@ -11,7 +11,7 @@ import { runRemove } from "../src/commands/modules/remove";
 import { runUpdate } from "../src/commands/modules/update";
 import { MODULES_FILE, readModulesFile } from "../src/lib/modules-file";
 import { readLockfile } from "../src/lib/lockfile";
-import { loadItem, readItemFileContent } from "../src/registry/store";
+import { loadModule, readModuleFileContent } from "../src/registry/store";
 import { resolveRegistryRoot } from "../src/registry/source";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
@@ -43,26 +43,26 @@ describe("fewbie modules", () => {
     await runAdd({ cwd: root, names: ["account-access"], yes: true, skipInstall: true });
 
     assert.deepEqual(await readModulesFile(root), ["account-access", "password-checklist"]);
-    assert.ok(await exists(root, "src/items/account-access/lib/auth.ts"));
-    assert.ok(await exists(root, "src/items/account-access/features/login-page/login-page.tsx"));
+    assert.ok(await exists(root, "src/fewbie/modules/account-access/lib/auth.ts"));
+    assert.ok(await exists(root, "src/fewbie/modules/account-access/features/login-page/login-page.tsx"));
   });
 
   it("repairs missing files from the declaration without naming modules", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
-    await fs.rm(path.join(root, "src/items/data-table/components/data-table.tsx"));
+    await fs.rm(path.join(root, "src/fewbie/modules/data-table/components/data-table.tsx"));
 
     await runApply({ cwd: root, yes: true, skipInstall: true });
 
-    assert.ok(await exists(root, "src/items/data-table/components/data-table.tsx"));
+    assert.ok(await exists(root, "src/fewbie/modules/data-table/components/data-table.tsx"));
   });
 
   it("fails --check when a declared file is missing", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
-    await fs.rm(path.join(root, "src/items/data-table/components/data-table.tsx"));
+    await fs.rm(path.join(root, "src/fewbie/modules/data-table/components/data-table.tsx"));
 
     await assert.rejects(runApply({ cwd: root, check: true }), /file missing/);
   });
@@ -93,47 +93,50 @@ describe("fewbie modules", () => {
     await runRemove({ cwd: root, names: ["data-table"], yes: true });
 
     assert.deepEqual(await readModulesFile(root), []);
-    assert.ok(!(await exists(root, "src/items/data-table/components/data-table.tsx")));
+    assert.ok(!(await exists(root, "src/fewbie/modules/data-table/components/data-table.tsx")));
   });
 
   it("keeps a locally modified file when its module is removed", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
-    await fs.writeFile(path.join(root, "src/items/data-table/components/data-table.tsx"), "// customized\n");
+    await fs.writeFile(path.join(root, "src/fewbie/modules/data-table/components/data-table.tsx"), "// customized\n");
 
     await runRemove({ cwd: root, names: ["data-table"], yes: true });
 
-    assert.equal(await read(root, "src/items/data-table/components/data-table.tsx"), "// customized\n");
+    assert.equal(await read(root, "src/fewbie/modules/data-table/components/data-table.tsx"), "// customized\n");
   });
 
   it("update --check gates drift; update keeps host edits unless forced", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
-    const original = await read(root, "src/items/data-table/components/data-table.tsx");
-    await fs.writeFile(path.join(root, "src/items/data-table/components/data-table.tsx"), "// drift\n");
+    const original = await read(root, "src/fewbie/modules/data-table/components/data-table.tsx");
+    await fs.writeFile(path.join(root, "src/fewbie/modules/data-table/components/data-table.tsx"), "// drift\n");
 
     await assert.rejects(runUpdate({ cwd: root, check: true }), /modified locally/);
 
     await runUpdate({ cwd: root, yes: true });
-    assert.equal(await read(root, "src/items/data-table/components/data-table.tsx"), "// drift\n");
+    assert.equal(await read(root, "src/fewbie/modules/data-table/components/data-table.tsx"), "// drift\n");
 
     await runUpdate({ cwd: root, yes: true, force: true });
-    assert.equal(await read(root, "src/items/data-table/components/data-table.tsx"), original);
+    assert.equal(await read(root, "src/fewbie/modules/data-table/components/data-table.tsx"), original);
   });
 
   it("conflicts on files that exist but belong to no declared module unless forced", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
-    await fs.mkdir(path.join(root, "src/items/data-table/components"), { recursive: true });
-    await fs.writeFile(path.join(root, "src/items/data-table/components/data-table.tsx"), "// template copy\n");
+    await fs.mkdir(path.join(root, "src/fewbie/modules/data-table/components"), { recursive: true });
+    await fs.writeFile(
+      path.join(root, "src/fewbie/modules/data-table/components/data-table.tsx"),
+      "// template copy\n",
+    );
 
     await assert.rejects(runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true }), /already exist/);
-    assert.equal(await read(root, "src/items/data-table/components/data-table.tsx"), "// template copy\n");
+    assert.equal(await read(root, "src/fewbie/modules/data-table/components/data-table.tsx"), "// template copy\n");
 
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true, force: true });
-    assert.notEqual(await read(root, "src/items/data-table/components/data-table.tsx"), "// template copy\n");
+    assert.notEqual(await read(root, "src/fewbie/modules/data-table/components/data-table.tsx"), "// template copy\n");
   });
 
   it("retries an interrupted install instead of conflicting on identical files (R20-28)", async () => {
@@ -142,17 +145,17 @@ describe("fewbie modules", () => {
 
     // Simulate a run that wrote the registry bytes, then died before
     // fewbie.json recorded the declaration.
-    const item = await loadItem(await resolveRegistryRoot(), "data-table");
-    for (const file of item.files) {
+    const module = await loadModule(await resolveRegistryRoot(), "data-table");
+    for (const file of module.files) {
       const target = path.join(root, file.target);
       await fs.mkdir(path.dirname(target), { recursive: true });
-      await fs.writeFile(target, await readItemFileContent(file));
+      await fs.writeFile(target, await readModuleFileContent(file));
     }
 
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
 
     assert.deepEqual(await readModulesFile(root), ["data-table"]);
-    assert.ok(await exists(root, "src/items/data-table/components/data-table.tsx"));
+    assert.ok(await exists(root, "src/fewbie/modules/data-table/components/data-table.tsx"));
   });
 
   it("keeps the installed baseline when the registry moves without rewriting the file (R82-01)", async () => {
@@ -168,15 +171,15 @@ describe("fewbie modules", () => {
     await fs.cp(await resolveRegistryRoot(), registry, { recursive: true });
     process.env.FEWBIE_REGISTRY_PATH = registry;
 
-    const target = "src/items/data-table/components/data-table.tsx";
+    const target = "src/fewbie/modules/data-table/components/data-table.tsx";
     await runAdd({ cwd: root, names: ["data-table"], yes: true, skipInstall: true });
     const installed = await read(root, target);
     const installedHash = (await readLockfile(root))?.modules["data-table"]?.files[target];
     assert.ok(installedHash);
 
     // The registry moves on; the host file still holds the installed bytes.
-    const item = await loadItem(registry, "data-table");
-    const source = item.files.find((file) => file.target === target)?.source;
+    const module = await loadModule(registry, "data-table");
+    const source = module.files.find((file) => file.target === target)?.source;
     assert.ok(source);
     await fs.writeFile(source, `${installed}\n// registry v2\n`);
 
@@ -208,7 +211,7 @@ describe("fewbie modules", () => {
     await fs.writeFile(
       adapter,
       '"use client";\n\n// Generated by `fewbie modules adapters` from the forgot-password module contract.\n\n' +
-        'import type { ForgotPasswordLabels } from "@/items/account-access/features/forgot-password";\n',
+        'import type { ForgotPasswordLabels } from "@/fewbie/modules/account-access/features/forgot-password";\n',
     );
 
     await runRemove({ cwd: root, names: ["forgot-password"], yes: true });
@@ -234,7 +237,7 @@ describe("fewbie modules", () => {
     await fs.writeFile(
       path.join(root, "src/fewbie/adapters/account-access.tsx"),
       '"use client";\n\n// Generated by `fewbie modules adapters` from the account-access module contract.\n\n' +
-        'import type { LoginLabels } from "@/items/account-access/features/login-page/types";\n',
+        'import type { LoginLabels } from "@/fewbie/modules/account-access/features/login-page/types";\n',
     );
 
     assert.deepEqual(await findOrphanAdapters(root), []);
@@ -255,7 +258,7 @@ describe("fewbie modules", () => {
     await fs.writeFile(
       path.join(root, "src/fewbie/adapters/forgot-password.tsx"),
       '"use client";\n\n// Generated by `fewbie modules adapters` from the forgot-password module contract.\n\n' +
-        'import type { ForgotPasswordLabels } from "@/items/account-access/features/forgot-password";\n',
+        'import type { ForgotPasswordLabels } from "@/fewbie/modules/account-access/features/forgot-password";\n',
     );
 
     await assert.rejects(runAdapters({ cwd: root, check: true }), /no longer declared/);
@@ -273,7 +276,7 @@ describe("registry manifest targets", () => {
       JSON.stringify({ name: "escape", type: "registry:component", title: "Escape", files: ["../../outside.ts"] }),
     );
 
-    await assert.rejects(loadItem(registryRoot, "escape"), /unsafe file target/);
+    await assert.rejects(loadModule(registryRoot, "escape"), /unsafe file target/);
   });
 
   it("accepts normal project-relative targets", async () => {
@@ -287,23 +290,23 @@ describe("registry manifest targets", () => {
         name: "ok",
         type: "registry:component",
         title: "Ok",
-        files: ["src/items/ok/components/ok.tsx"],
+        files: ["src/fewbie/modules/ok/components/ok.tsx"],
       }),
     );
 
-    const item = await loadItem(registryRoot, "ok");
+    const module = await loadModule(registryRoot, "ok");
     assert.deepEqual(
-      item.files.map((file) => file.target),
-      ["src/items/ok/components/ok.tsx"],
+      module.files.map((file) => file.target),
+      ["src/fewbie/modules/ok/components/ok.tsx"],
     );
   });
 
   async function loadManifest(manifest: unknown): Promise<void> {
     const registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-"));
     after(async () => fs.rm(registryRoot, { recursive: true, force: true }));
-    await fs.mkdir(path.join(registryRoot, "item"));
-    await fs.writeFile(path.join(registryRoot, "item", REGISTRY_MANIFEST_FILE), JSON.stringify(manifest));
-    await loadItem(registryRoot, "item");
+    await fs.mkdir(path.join(registryRoot, "module"));
+    await fs.writeFile(path.join(registryRoot, "module", REGISTRY_MANIFEST_FILE), JSON.stringify(manifest));
+    await loadModule(registryRoot, "module");
   }
 
   it("rejects a manifest whose name does not match its directory (R87-24)", async () => {
@@ -312,29 +315,44 @@ describe("registry manifest targets", () => {
         name: "other",
         type: "registry:component",
         title: "T",
-        files: ["src/items/other/components/a.tsx"],
+        files: ["src/fewbie/modules/other/components/a.tsx"],
       }),
       /directory and manifest names must match/,
     );
   });
 
-  it("rejects an unknown item type", async () => {
+  it("rejects an unknown module type", async () => {
     await assert.rejects(
-      loadManifest({ name: "item", type: "registry:widget", title: "T", files: ["src/items/item/components/a.tsx"] }),
+      loadManifest({
+        name: "module",
+        type: "registry:widget",
+        title: "T",
+        files: ["src/fewbie/modules/module/components/a.tsx"],
+      }),
       /unknown type 'registry:widget'/,
     );
   });
 
   it("rejects files that do not land in a layer the type owns", async () => {
     await assert.rejects(
-      loadManifest({ name: "item", type: "registry:lib", title: "T", files: ["src/items/item/features/a.tsx"] }),
-      /does not land under src\/items\/item\/<lib\|components>\//,
+      loadManifest({
+        name: "module",
+        type: "registry:lib",
+        title: "T",
+        files: ["src/fewbie/modules/module/features/a.tsx"],
+      }),
+      /does not land under src\/fewbie\/modules\/module\/<lib\|components>\//,
     );
   });
 
   it("rejects a manifest without a files array", async () => {
     await assert.rejects(
-      loadManifest({ name: "item", type: "registry:component", title: "T", files: "src/items/item/components/a.tsx" }),
+      loadManifest({
+        name: "module",
+        type: "registry:component",
+        title: "T",
+        files: "src/fewbie/modules/module/components/a.tsx",
+      }),
       /'files' must be a non-empty array/,
     );
   });

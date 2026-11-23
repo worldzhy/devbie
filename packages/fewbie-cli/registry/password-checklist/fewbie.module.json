@@ -2,15 +2,15 @@
   "name": "password-checklist",
   "type": "registry:component",
   "files": [
-    "src/items/password-checklist/components/password-checklist/index.ts",
-    "src/items/password-checklist/components/password-checklist/types.ts",
-    "src/items/password-checklist/components/password-checklist/password-checklist.tsx"
+    "src/fewbie/modules/password-checklist/components/password-checklist/index.ts",
+    "src/fewbie/modules/password-checklist/components/password-checklist/types.ts",
+    "src/fewbie/modules/password-checklist/components/password-checklist/password-checklist.tsx"
   ],
   "registryDependencies": [],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/items/password-checklist/components/password-checklist/index.ts",
+    "entry": "src/fewbie/modules/password-checklist/components/password-checklist/index.ts",
     "labels": ["requirements", "ruleLength", "ruleLowercase", "ruleUppercase", "ruleNumber", "ruleSymbol"],
     "ports": [],
     "ui": [],

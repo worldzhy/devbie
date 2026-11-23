@@ -3,10 +3,10 @@ import path from "node:path";
 import { bold, cyan, green, yellow } from "colorette";
 
 import {
-  LoadedItem,
-  listRegistryItemNames,
-  loadItem,
-  readItemFileContent,
+  LoadedModule,
+  listRegistryModuleNames,
+  loadModule,
+  readModuleFileContent,
   resolveInstallSet,
 } from "../../registry/store";
 import { resolveRegistryContext, resolveRegistryRoot, RegistryContext } from "../../registry/source";
@@ -48,9 +48,9 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
 
   const declared = await requireModulesFile(projectRoot);
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const items = await resolveInstallSet(registryRoot, declared);
+  const modules = await resolveInstallSet(registryRoot, declared);
   const declaredClosure = new Set(declared);
-  const additions = items.map((item) => item.manifest.name).filter((name) => !declaredClosure.has(name));
+  const additions = modules.map((module) => module.manifest.name).filter((name) => !declaredClosure.has(name));
 
   if (additions.length > 0) {
     console.info(cyan(`Installing ${additions.join(", ")} into ${projectRoot}...`));
@@ -83,21 +83,21 @@ export async function runApply(options: ModulesApplyOptions): Promise<void> {
 async function runApplyCheck(projectRoot: string): Promise<void> {
   const declared = await requireModulesFile(projectRoot);
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const items = await resolveInstallSet(registryRoot, declared);
+  const modules = await resolveInstallSet(registryRoot, declared);
 
-  const closure = items.map((item) => item.manifest.name);
+  const closure = modules.map((module) => module.manifest.name);
   const undeclared = closure.filter((name) => !declared.includes(name));
 
   const missingFiles: string[] = [];
-  for (const item of items) {
-    for (const file of item.files) {
+  for (const module of modules) {
+    for (const file of module.files) {
       if (!(await pathExists(path.join(projectRoot, file.target)))) {
-        missingFiles.push(`${item.manifest.name}: ${file.target}`);
+        missingFiles.push(`${module.manifest.name}: ${file.target}`);
       }
     }
   }
 
-  const specs = [...new Set(items.flatMap((item) => item.manifest.dependencies ?? []))];
+  const specs = [...new Set(modules.flatMap((module) => module.manifest.dependencies ?? []))];
   const missingDependencies = await missingPackages(projectRoot, specs);
 
   if (undeclared.length > 0 || missingFiles.length > 0 || missingDependencies.length > 0) {
@@ -111,15 +111,15 @@ async function runApplyCheck(projectRoot: string): Promise<void> {
     );
   }
 
-  // Read every declared file once so an unreadable registry item fails the gate
+  // Read every declared file once so an unreadable registry module fails the gate
   // rather than silently passing.
-  for (const item of items) {
-    for (const file of item.files) await readItemFileContent(file);
+  for (const module of modules) {
+    for (const file of module.files) await readModuleFileContent(file);
   }
 
-  const available = await listRegistryItemNames(registryRoot);
+  const available = await listRegistryModuleNames(registryRoot);
   for (const name of declared) {
-    if (!available.includes(name)) throw new CliError(`Registry item '${name}' not found.`);
+    if (!available.includes(name)) throw new CliError(`Registry module '${name}' not found.`);
   }
 
   console.info(green(bold("✓ Declared modules, their files and dependencies match fewbie.json.")));
@@ -149,17 +149,17 @@ export interface ApplySelectionResult {
 }
 
 /**
- * Load the previously declared set. An item the registry has since deleted
+ * Load the previously declared set. A module the registry has since deleted
  * cannot be resolved, but its installed files still need cleanup; skipping the
  * name here lets the pass below clean them from the lockfile (R83-12).
  */
-async function loadDeclaredItems(root: string, names: readonly string[]): Promise<LoadedItem[]> {
-  const available = new Set(await listRegistryItemNames(root));
-  const items: LoadedItem[] = [];
+async function loadDeclaredModules(root: string, names: readonly string[]): Promise<LoadedModule[]> {
+  const available = new Set(await listRegistryModuleNames(root));
+  const modules: LoadedModule[] = [];
   for (const name of names) {
-    if (available.has(name)) items.push(await loadItem(root, name));
+    if (available.has(name)) modules.push(await loadModule(root, name));
   }
-  return items;
+  return modules;
 }
 
 /**
@@ -176,31 +176,31 @@ async function loadDeclaredItems(root: string, names: readonly string[]): Promis
 export async function applyModuleSelection(options: ApplySelectionOptions): Promise<ApplySelectionResult> {
   const { projectRoot, dryRun } = options;
   const context = await resolveRegistryContext(projectRoot);
-  // Removal must keep working after the item leaves the registry: resolve what
+  // Removal must keep working after the module leaves the registry: resolve what
   // is still there and let the lockfile drive the rest (R83-12).
-  const currentItems = await loadDeclaredItems(context.root, options.current);
-  const nextItems = await resolveInstallSet(context.root, options.next);
+  const currentModules = await loadDeclaredModules(context.root, options.current);
+  const nextModules = await resolveInstallSet(context.root, options.next);
   const lockfile = await readLockfile(projectRoot);
 
-  const currentClosure = currentItems.map((item) => item.manifest.name);
-  const nextClosure = nextItems.map((item) => item.manifest.name);
-  const currentTargets = new Set(currentItems.flatMap((item) => item.files.map((file) => file.target)));
+  const currentClosure = currentModules.map((module) => module.manifest.name);
+  const nextClosure = nextModules.map((module) => module.manifest.name);
+  const currentTargets = new Set(currentModules.flatMap((module) => module.files.map((file) => file.target)));
   const added = nextClosure.filter((name) => !currentClosure.includes(name));
 
   // Plan writes and conflicts before touching the working tree, so a failed
   // run never leaves a half-written project behind.
   const writes: Array<{ target: string; content: string }> = [];
   const conflicts: string[] = [];
-  for (const item of nextItems) {
-    for (const file of item.files) {
+  for (const module of nextModules) {
+    for (const file of module.files) {
       const exists = await pathExists(path.join(projectRoot, file.target));
       if (!exists) {
-        writes.push({ target: file.target, content: await readItemFileContent(file) });
+        writes.push({ target: file.target, content: await readModuleFileContent(file) });
         continue;
       }
       // Idempotent re-install of an already-declared module: leave it alone.
       if (currentTargets.has(file.target)) continue;
-      const content = await readItemFileContent(file);
+      const content = await readModuleFileContent(file);
       // An interrupted earlier install may have landed files before recording
       // the declaration; identical bytes are already the end state this run
       // wants, so finishing the install is not a conflict.
@@ -219,12 +219,12 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
     );
   }
 
-  const nextTargets = new Set(nextItems.flatMap((item) => item.files.map((file) => file.target)));
+  const nextTargets = new Set(nextModules.flatMap((module) => module.files.map((file) => file.target)));
   const deletions: string[] = [];
   const kept: string[] = [];
-  for (const item of currentItems) {
-    if (nextClosure.includes(item.manifest.name)) continue;
-    for (const file of item.files) {
+  for (const module of currentModules) {
+    if (nextClosure.includes(module.manifest.name)) continue;
+    for (const file of module.files) {
       if (nextTargets.has(file.target)) continue;
       const target = path.join(projectRoot, file.target);
       const current = await readTextIfExists(target);
@@ -232,9 +232,11 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
       // Never destroy host customization silently; report it instead. With a
       // lockfile the baseline is the installed bytes, without one fall back to
       // comparing against the registry copy (1.8 behavior).
-      const lockedHash = lockfile?.modules[item.manifest.name]?.files[file.target];
+      const lockedHash = lockfile?.modules[module.manifest.name]?.files[file.target];
       const pristine =
-        lockedHash === undefined ? current === (await readItemFileContent(file)) : hashContent(current) === lockedHash;
+        lockedHash === undefined
+          ? current === (await readModuleFileContent(file))
+          : hashContent(current) === lockedHash;
       if (pristine) deletions.push(file.target);
       else kept.push(file.target);
     }
@@ -243,7 +245,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
   // A module the registry no longer ships cannot be resolved above, so its
   // files come from the lockfile; only the recorded hash can prove a copy is
   // untouched (R83-12).
-  const resolvedNames = new Set(currentItems.map((item) => item.manifest.name));
+  const resolvedNames = new Set(currentModules.map((module) => module.manifest.name));
   for (const name of options.current) {
     if (nextClosure.includes(name) || resolvedNames.has(name)) continue;
     const entry = lockfile?.modules[name];
@@ -262,7 +264,7 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
   // above never see it (R82-08).
   const staleTargets = await findStaleTargets(
     projectRoot,
-    nextItems.map((item) => ({ name: item.manifest.name, targets: item.files.map((file) => file.target) })),
+    nextModules.map((module) => ({ name: module.manifest.name, targets: module.files.map((file) => file.target) })),
     lockfile,
   );
   for (const file of staleTargets) {
@@ -288,13 +290,13 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
   }
 
   await writeModulesFile(projectRoot, nextClosure);
-  await writeModuleLockfile(projectRoot, context, nextItems, new Set(writes.map((write) => write.target)), lockfile);
+  await writeModuleLockfile(projectRoot, context, nextModules, new Set(writes.map((write) => write.target)), lockfile);
 
   for (const target of writes) console.info(`  ${green("added")} ${target.target}`);
   for (const target of deletions) console.info(`  ${green("removed")} ${target}`);
   for (const target of kept) console.info(`  ${yellow("kept")} ${target} (modified locally)`);
 
-  const specs = [...new Set(nextItems.flatMap((item) => item.manifest.dependencies ?? []))];
+  const specs = [...new Set(nextModules.flatMap((module) => module.manifest.dependencies ?? []))];
   const missing = await missingPackages(projectRoot, specs);
   if (missing.length > 0) {
     if (options.skipInstall) {
@@ -305,9 +307,9 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
     }
   }
 
-  const hints = nextItems
-    .filter((item: LoadedItem) => added.includes(item.manifest.name))
-    .map((item) => item.manifest.postInstall)
+  const hints = nextModules
+    .filter((module: LoadedModule) => added.includes(module.manifest.name))
+    .map((module) => module.manifest.postInstall)
     .filter((hint): hint is string => Boolean(hint));
   if (hints.length > 0) {
     console.info(`\n${bold("Next steps")}:`);
@@ -337,16 +339,16 @@ export async function applyModuleSelection(options: ApplySelectionOptions): Prom
 async function writeModuleLockfile(
   projectRoot: string,
   context: RegistryContext,
-  items: LoadedItem[],
+  loaded: LoadedModule[],
   writtenTargets: ReadonlySet<string>,
   previous: Lockfile | null,
 ): Promise<void> {
   const declaration = await readRegistryDeclaration(projectRoot);
   const modules: Record<string, LockfileModule> = {};
-  for (const item of items) {
+  for (const module of loaded) {
     const files: Record<string, string> = {};
-    for (const file of item.files) {
-      const recorded = previous?.modules[item.manifest.name]?.files[file.target];
+    for (const file of module.files) {
+      const recorded = previous?.modules[module.manifest.name]?.files[file.target];
       if (recorded !== undefined && !writtenTargets.has(file.target)) {
         files[file.target] = recorded;
         continue;
@@ -356,10 +358,10 @@ async function writeModuleLockfile(
       const installed = writtenTargets.has(file.target)
         ? null
         : await readTextIfExists(path.join(projectRoot, file.target));
-      files[file.target] = hashContent(installed ?? (await readItemFileContent(file)));
+      files[file.target] = hashContent(installed ?? (await readModuleFileContent(file)));
     }
-    modules[item.manifest.name] = {
-      version: item.manifest.contract?.version ?? "0.0.0",
+    modules[module.manifest.name] = {
+      version: module.manifest.contract?.version ?? "0.0.0",
       commit: context.commit,
       files,
     };

@@ -2,21 +2,21 @@
   "name": "copilot",
   "type": "registry:block",
   "files": [
-    "src/items/copilot/widgets/copilot/types.ts",
-    "src/items/copilot/widgets/copilot/view-model.ts",
-    "src/items/copilot/widgets/copilot/copilot-context.tsx",
-    "src/items/copilot/widgets/copilot/use-copilot-chat.ts",
-    "src/items/copilot/widgets/copilot/copilot-blocks.tsx",
-    "src/items/copilot/widgets/copilot/copilot-tool-card.tsx",
-    "src/items/copilot/widgets/copilot/copilot-timeline.tsx",
-    "src/items/copilot/widgets/copilot/copilot-empty-state.tsx",
-    "src/items/copilot/widgets/copilot/copilot-dock.tsx",
-    "src/items/copilot/widgets/copilot/index.ts"
+    "src/fewbie/modules/copilot/widgets/copilot/types.ts",
+    "src/fewbie/modules/copilot/widgets/copilot/view-model.ts",
+    "src/fewbie/modules/copilot/widgets/copilot/copilot-context.tsx",
+    "src/fewbie/modules/copilot/widgets/copilot/use-copilot-chat.ts",
+    "src/fewbie/modules/copilot/widgets/copilot/copilot-blocks.tsx",
+    "src/fewbie/modules/copilot/widgets/copilot/copilot-tool-card.tsx",
+    "src/fewbie/modules/copilot/widgets/copilot/copilot-timeline.tsx",
+    "src/fewbie/modules/copilot/widgets/copilot/copilot-empty-state.tsx",
+    "src/fewbie/modules/copilot/widgets/copilot/copilot-dock.tsx",
+    "src/fewbie/modules/copilot/widgets/copilot/index.ts"
   ],
   "contract": {
     "version": "1.0.0",
     "framework": "^1.7.0",
-    "entry": "src/items/copilot/widgets/copilot/index.ts",
+    "entry": "src/fewbie/modules/copilot/widgets/copilot/index.ts",
     "labels": [
       "aboutSkill",
       "analyzing",

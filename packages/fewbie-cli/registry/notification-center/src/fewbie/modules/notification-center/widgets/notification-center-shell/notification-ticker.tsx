@@ -6,7 +6,7 @@ import {
   stripTitleMarker,
   useNotificationPresentation,
   type NotificationRecord,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 import { cn } from "@/lib/utils";
 import type { NotificationCenterShellLabels } from "./types";
 

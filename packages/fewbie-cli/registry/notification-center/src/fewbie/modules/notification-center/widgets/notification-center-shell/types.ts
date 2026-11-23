@@ -1,7 +1,7 @@
 import type {
   NotificationPresentationConfig,
   NotificationRecord,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 
 /** Shell copy only; severity, relative time and detail labels come from `notification-presentation`. */
 export interface NotificationCenterShellLabels {

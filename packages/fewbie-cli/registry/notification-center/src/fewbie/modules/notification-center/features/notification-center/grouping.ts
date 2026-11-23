@@ -1,7 +1,7 @@
 import type {
   NotificationGroup,
   NotificationRecord,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 
 export interface NotificationDayGroup {
   label: "today" | "yesterday" | string;

@@ -27,22 +27,22 @@ export interface StaleTarget {
  * disk are not reported: there is nothing to clean up. A target claimed by any
  * declared module is live, even when a different module used to own it.
  *
- * `declaredNames` covers the case where `items` is a subset (a scoped
+ * `declaredNames` covers the case where `modules` is a subset (a scoped
  * `modules update`): lockfile modules outside it are orphans from a declaration
  * that was edited by hand, and their files would otherwise never be reported
  * (R83-12). Omitting it treats every lockfile module as declared.
  */
 export async function findStaleTargets(
   projectRoot: string,
-  items: ReadonlyArray<{ name: string; targets: readonly string[] }>,
+  modules: ReadonlyArray<{ name: string; targets: readonly string[] }>,
   lockfile: Lockfile | null,
   declaredNames?: readonly string[],
 ): Promise<StaleTarget[]> {
   if (lockfile === null) return [];
-  const live = new Set(items.flatMap((item) => item.targets));
-  const declared = new Set(declaredNames ?? items.map((item) => item.name));
+  const live = new Set(modules.flatMap((module) => module.targets));
+  const declared = new Set(declaredNames ?? modules.map((module) => module.name));
   const entries = [
-    ...items.map((item) => ({ name: item.name, locked: lockfile.modules[item.name]?.files ?? {} })),
+    ...modules.map((module) => ({ name: module.name, locked: lockfile.modules[module.name]?.files ?? {} })),
     ...Object.entries(lockfile.modules)
       .filter(([name]) => !declared.has(name))
       .map(([name, entry]) => ({ name, locked: entry.files })),

@@ -5,23 +5,23 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { parseModuleContract, validateManifestContract } from "../src/registry/contract";
-import { loadItem } from "../src/registry/store";
+import { loadModule } from "../src/registry/store";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 const VALID = {
   version: "1.0.0",
   framework: "^1.7.0",
-  entry: "src/items/fixture/features/fixture/index.ts",
+  entry: "src/fewbie/modules/fixture/features/fixture/index.ts",
   labels: ["title", "description"],
   ports: ["save"],
   ui: ["button", "card"],
   states: ["ready", "error"],
 };
 
-async function writeItem(contract: unknown): Promise<{ root: string; name: string }> {
+async function writeModule(contract: unknown): Promise<{ root: string; name: string }> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-contract-"));
   const name = "fixture";
-  await fs.mkdir(path.join(root, name, "src/items/fixture/features/fixture"), { recursive: true });
+  await fs.mkdir(path.join(root, name, "src/fewbie/modules/fixture/features/fixture"), { recursive: true });
   await fs.writeFile(path.join(root, name, VALID.entry), "export {};\n");
   await fs.writeFile(
     path.join(root, name, REGISTRY_MANIFEST_FILE),
@@ -76,18 +76,18 @@ test("rejects an unknown state", () => {
   assert.throws(() => parseModuleContract({ ...VALID, states: ["idle"] }, "fixture"), /must be one of/);
 });
 
-test("rejects an entry that is not one of the item files", () => {
+test("rejects an entry that is not one of the module files", () => {
   const manifest = { name: "fixture", files: ["other.ts"], contract: VALID };
-  assert.throws(() => validateManifestContract(manifest), /must be one of the item's files/);
+  assert.throws(() => validateManifestContract(manifest), /must be one of the module's files/);
 });
 
-test("loadItem warns and still loads an item without a contract", async () => {
-  const { root, name } = await writeItem(undefined);
+test("loadModule warns and still loads a module without a contract", async () => {
+  const { root, name } = await writeModule(undefined);
   const warnings: string[] = [];
   const original = console.warn;
   console.warn = (message: string) => warnings.push(message);
   try {
-    const loaded = await loadItem(root, name);
+    const loaded = await loadModule(root, name);
     assert.equal(loaded.manifest.contract, undefined);
     assert.equal(loaded.manifest.name, name);
     assert.equal(warnings.length, 1);
@@ -98,10 +98,10 @@ test("loadItem warns and still loads an item without a contract", async () => {
   }
 });
 
-test("loadItem validates a contract that ships with the item", async () => {
-  const { root, name } = await writeItem({ ...VALID, entry: "src/items/fixture/features/other/index.ts" });
+test("loadModule validates a contract that ships with the module", async () => {
+  const { root, name } = await writeModule({ ...VALID, entry: "src/fewbie/modules/fixture/features/other/index.ts" });
   try {
-    await assert.rejects(loadItem(root, name), /must be one of the item's files/);
+    await assert.rejects(loadModule(root, name), /must be one of the module's files/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
@@ -116,14 +116,14 @@ const LAYERED = {
   layers: [
     {
       layer: "features",
-      types: "src/items/fixture/features/fixture/types.ts",
+      types: "src/fewbie/modules/fixture/features/fixture/types.ts",
       labels: ["title"],
       ports: ["save"],
       states: ["ready"],
     },
     {
       layer: "components",
-      types: "src/items/fixture/components/shared/types.ts",
+      types: "src/fewbie/modules/fixture/components/shared/types.ts",
       labels: ["description"],
       ports: [],
       states: [],
@@ -133,8 +133,8 @@ const LAYERED = {
 
 const LAYERED_FILES = [
   VALID.entry,
-  "src/items/fixture/features/fixture/types.ts",
-  "src/items/fixture/components/shared/types.ts",
+  "src/fewbie/modules/fixture/features/fixture/types.ts",
+  "src/fewbie/modules/fixture/components/shared/types.ts",
 ];
 
 test("accepts a block whose top-level lists are the layer union (ADR-069)", () => {
@@ -162,9 +162,15 @@ test("rejects a key declared by two layers", () => {
 test("rejects a layer types file outside its own layer", () => {
   const misplaced = {
     ...LAYERED,
-    layers: [{ ...LAYERED.layers[0], types: "src/items/fixture/components/fixture/types.ts" }, LAYERED.layers[1]],
+    layers: [
+      { ...LAYERED.layers[0], types: "src/fewbie/modules/fixture/components/fixture/types.ts" },
+      LAYERED.layers[1],
+    ],
   };
-  assert.throws(() => parseModuleContract(misplaced, "fixture"), /must land under src\/items\/fixture\/features\//);
+  assert.throws(
+    () => parseModuleContract(misplaced, "fixture"),
+    /must land under src\/fewbie\/modules\/fixture\/features\//,
+  );
 });
 
 test("rejects a top-level list that drifts from the layer union", () => {
@@ -174,7 +180,10 @@ test("rejects a top-level list that drifts from the layer union", () => {
   );
 });
 
-test("rejects a layer types file outside the item files", () => {
+test("rejects a layer types file outside the module files", () => {
   const manifest = { name: "fixture", files: [VALID.entry], contract: LAYERED };
-  assert.throws(() => validateManifestContract(manifest), /layers\.features\.types .* must be one of the item's files/);
+  assert.throws(
+    () => validateManifestContract(manifest),
+    /layers\.features\.types .* must be one of the module's files/,
+  );
 });

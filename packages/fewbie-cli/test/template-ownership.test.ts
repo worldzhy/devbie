@@ -87,7 +87,10 @@ describe("longest-prefix ownership (ADR-056 D2)", () => {
     assert.equal(resolveTemplateAsset("src/components/shell/app-shell.tsx")?.ownership, "host");
     assert.equal(resolveTemplateAsset("src/fewbie/framework/page-shell.tsx")?.ownership, "framework");
     assert.equal(resolveTemplateAsset("src/fewbie/i18n/config.ts")?.ownership, "framework");
-    assert.equal(resolveTemplateAsset("src/items/account-access/features/login-page/index.ts")?.ownership, "host");
+    assert.equal(
+      resolveTemplateAsset("src/fewbie/modules/account-access/features/login-page/index.ts")?.ownership,
+      "host",
+    );
     assert.equal(resolveTemplateAsset("src/i18n/messages/framework.en.json")?.ownership, "framework");
     assert.equal(resolveTemplateAsset("src/i18n/messages/nightwatch.en.json")?.ownership, "host");
     assert.equal(resolveTemplateAsset("src/app/layout.tsx")?.ownership, "framework");

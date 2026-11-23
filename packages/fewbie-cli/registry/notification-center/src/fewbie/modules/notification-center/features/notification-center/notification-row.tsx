@@ -7,7 +7,7 @@ import {
   stripTitleMarker,
   useNotificationPresentation,
   type NotificationGroup,
-} from "@/items/notification-center/components/notification-presentation";
+} from "@/fewbie/modules/notification-center/components/notification-presentation";
 import { cn } from "@/lib/utils";
 
 /** One collapsed alert group: unread dot, title, occurrence count and source line. */
