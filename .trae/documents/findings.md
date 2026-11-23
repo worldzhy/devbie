@@ -1070,3 +1070,15 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - **starter CI 修复**：fewbie-starter `guards` 在 dev 上原本红——`src/fewbie/i18n/config.test.ts` 属宿主集成测试（断言宿主 `home` 命名空间），迁回 `src/i18n/config.test.ts` 由 `src/i18n/**` 宿主 glob 覆盖；`.fewbie/framework.json` 按新框架文件集重生成；补 starter ADR-007 满足 framework-ADR 门禁。取证：`87bf191`、`e965f90`；PR #53 checks 绿后 merge。
 - **宿主基线**：nwf / ccf 的 `.fewbie/framework.json` 落后于重生成的模板基线，`template update` 后重新提交（`f576ce7`、`2c9760`），PR #52（nightwatch-frontend）与 #6（crewbie-console-frontend）CI 全绿，留在 open 待用户合并。
 - **校验**：`check:template-deps -w @devbie/fewbie-cli` 与 `check:registry-snapshot -w @devbie/fewbie-cli` 在 fewbie-starter main 更新后均绿。
+
+### registry 目录整治与 copilot 契约收口（2026-11-23）
+
+- **评审**：逐模块核对 fewbie-modules 的分层与落盘（ADR-069/ADR-070）——9 个模块无 features→widgets 反向 import；唯一跨模块引用 account-access→password-checklist 已由 `registryDependencies` 声明并被 CLI 展开，合法。发现文档过期、target 命名冗余、粒度规律未文档化、copilot 契约落后、5 个 manifest 缺 `title/description`。
+- **修正**：fewbie-modules PR #12（merge 合入 main `7c6a64c`）——
+  - copilot `widgets/copilot` → `widgets/copilot-dock`（target 名 = 主文件名、不重复模块名），契约升 `2.0.0` 并补 `contract.layers[]`（原为唯一仍停留在 `1.0.0` 的 block）。
+  - notification-center `features/notification-center` → `features/notification-list`（主文件同步改名）。
+  - account-access / account-settings / notification-center / password-checklist / copilot 补 `title`/`description`；copilot 显式 `registryDependencies: []`。
+  - `AGENTS.md` 修正落盘路径为 `src/fewbie/modules/<module>/<layer>/<target>/`，写死粒度规则（带 contract 的单元开 target 目录并以主文件名命名；无 contract 的普通文件平铺 layer 根），用词统一为 module。
+- **门禁（registry）**：`check:contract`（5 契约对齐、5 模块跳过）与 `check:types`、`format:check` 全绿；`npm test` 12/13 文件绿，`test/check-contract.test.ts` 在容器内因每例 spawn node 超过默认 5s 超时，`--testTimeout=60000` 下 29/29 通过（环境性，非代码）。
+- **快照**：devbie PR #165（merge 合入 main）以 `registry:sync -w @devbie/fewbie-cli` 重新生成快照（`7c6a64c`）；`check:registry-snapshot`、`check:registry-dist`、CLI 153 测试、`format:check` 全绿。
+- **宿主**：nightwatch-frontend PR #53（留用户合并）重装 copilot + notification-center，改 `copilot-host`/`notification-host` 与两个 adapter 的 import，重生成 adapters、刷新 `fewbie.lock.json`；`apply/update/adapters --check`、`template update --check`、format、lint:error、测试全绿。crewbie-console-frontend 仅装 account-access/password-checklist，路径未变，`apply/update --check` 仍绿（其 `adapters --check` 因未声明 i18n 属既有状态，与本次无关）。
