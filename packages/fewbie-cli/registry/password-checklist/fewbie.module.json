@@ -10,12 +10,21 @@
   ],
   "registryDependencies": [],
   "contract": {
-    "version": "1.0.0",
+    "version": "2.0.0",
     "framework": "^1.7.0",
     "entry": "src/fewbie/modules/password-checklist/components/password-checklist/index.ts",
     "labels": ["requirements", "ruleLength", "ruleLowercase", "ruleUppercase", "ruleNumber", "ruleSymbol"],
     "ports": [],
     "ui": [],
-    "states": ["ready"]
+    "states": ["ready"],
+    "layers": [
+      {
+        "layer": "components",
+        "types": "src/fewbie/modules/password-checklist/components/password-checklist/types.ts",
+        "labels": ["requirements", "ruleLength", "ruleLowercase", "ruleUppercase", "ruleNumber", "ruleSymbol"],
+        "ports": [],
+        "states": ["ready"]
+      }
+    ]
   }
 }
