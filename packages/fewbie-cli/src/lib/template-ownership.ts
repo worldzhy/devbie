@@ -192,6 +192,11 @@ export const TEMPLATE_ASSETS: readonly TemplateAsset[] = [
   { path: ".trae/**", ownership: "host", note: "workspace ledger and skill mount; symlinks are never copied" },
   { path: "src/app/page.tsx", ownership: "host" },
   { path: "src/app/favicon.ico", ownership: "host" },
+  {
+    path: "fewbie.json",
+    ownership: "host",
+    note: "module declaration; written by create and modules add/remove, edited by the host",
+  },
   { path: "src/components/**", ownership: "host" },
   // Registry modules and generated adapters: `modules add/update/adapters` own
   // these paths, so template update must never overwrite host-customized copies

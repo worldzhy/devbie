@@ -23,6 +23,10 @@ interface SetupOptions {
   extraLabels?: string[];
   /** Replace the whole i18n block in fewbie.json. */
   i18n?: unknown;
+  /** Omit the contract entirely, as components and libs may (ADR-069). */
+  noContract?: boolean;
+  /** Locale defaults for a 2.x layered contract (ADR-074). */
+  defaults?: Record<string, Record<string, string>>;
 }
 
 const TITLE = "Fixture label";
@@ -31,7 +35,7 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-adapters-"));
   const registry = path.join(root, "registry");
   const project = path.join(root, "project");
-  const module = path.join(registry, "fixture");
+  const module: string = path.join(registry, "fixture");
   const labelsType = options.labelsType ?? "FixtureLabels";
   const labels = ["title", "description", ...(options.extraLabels ?? [])];
 
@@ -40,28 +44,49 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   await fs.mkdir(path.join(module, path.dirname(storage("src/fewbie/modules/fixture/features/fixture/index.ts"))), {
     recursive: true,
   });
-  await fs.writeFile(
-    path.join(module, REGISTRY_MANIFEST_FILE),
-    JSON.stringify({
-      name: "fixture",
-      type: "registry:block",
-      title: "Fixture",
-      files: [
-        "src/fewbie/modules/fixture/features/fixture/index.ts",
-        "src/fewbie/modules/fixture/features/fixture/types.ts",
-        "src/fewbie/modules/fixture/features/fixture/fixture.tsx",
-      ],
-      contract: {
-        version: "1.0.0",
-        framework: "^1.10.0",
-        entry: "src/fewbie/modules/fixture/features/fixture/index.ts",
-        labels,
-        ports: ["save"],
-        ui: ["button"],
-        states: ["ready"],
-      },
-    }),
-  );
+  const manifest: Record<string, unknown> = {
+    name: "fixture",
+    type: options.noContract === true ? "registry:lib" : "registry:block",
+    title: "Fixture",
+    files:
+      options.noContract === true
+        ? ["src/fewbie/modules/fixture/lib/fixture.ts"]
+        : [
+            "src/fewbie/modules/fixture/features/fixture/index.ts",
+            "src/fewbie/modules/fixture/features/fixture/types.ts",
+            "src/fewbie/modules/fixture/features/fixture/fixture.tsx",
+          ],
+  };
+  if (options.noContract !== true) {
+    manifest.contract = {
+      version: options.defaults === undefined ? "1.0.0" : "2.0.0",
+      framework: "^1.10.0",
+      entry: "src/fewbie/modules/fixture/features/fixture/index.ts",
+      labels,
+      ports: ["save"],
+      ui: ["button"],
+      states: ["ready"],
+      ...(options.defaults === undefined
+        ? {}
+        : {
+            layers: [
+              {
+                layer: "features",
+                types: "src/fewbie/modules/fixture/features/fixture/types.ts",
+                labels,
+                ports: ["save"],
+                states: ["ready"],
+                defaults: options.defaults,
+              },
+            ],
+          }),
+    };
+  }
+  await fs.writeFile(path.join(module, REGISTRY_MANIFEST_FILE), JSON.stringify(manifest));
+  if (options.noContract === true) {
+    await fs.mkdir(path.join(module, "lib"), { recursive: true });
+    await fs.writeFile(path.join(module, "lib/fixture.ts"), "export const noop = (): void => {};\n");
+  }
   await fs.writeFile(
     path.join(module, storage("src/fewbie/modules/fixture/features/fixture/index.ts")),
     `export { Fixture } from "./fixture";\nexport type { ${labelsType} } from "./types";\n`,
@@ -216,6 +241,14 @@ export function useFixtureLabels(): FixtureLabels {
     await runAdapters({ cwd: fixture.project, check: true });
   });
 
+  it("skips declared modules without a contract (ADR-069)", async () => {
+    const fixture = await setup({ noContract: true });
+    after(() => fixture.dispose());
+
+    await runAdapters({ cwd: fixture.project, check: true });
+    await assert.rejects(fs.access(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx")));
+  });
+
   it("fails --check when the adapter is missing or drifted", async () => {
     const fixture = await setup();
     after(() => fixture.dispose());
@@ -277,5 +310,68 @@ export function useFixtureLabels(): FixtureLabels {
     await runAdapters({ cwd: fixture.project, dryRun: true });
 
     await assert.rejects(fs.access(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx")));
+  });
+
+  it("falls back to module defaults for labels the host leaves out (ADR-074)", async () => {
+    const fixture = await setup({
+      defaults: {
+        en: { description: "Default description" },
+        zh: { description: "默认描述" },
+      },
+    });
+    after(() => fixture.dispose());
+    await fixture.writeMessages(
+      { modules: { fixture: { title: TITLE } } },
+      { modules: { fixture: { title: "标题" } } },
+    );
+
+    await runAdapters({ cwd: fixture.project });
+
+    const adapter = await readAdapter(fixture.project);
+    assert.match(adapter, /import \{ useLocale, useTranslations \} from "next-intl";/);
+    assert.match(adapter, /const DEFAULTS: Record<string, Record<string, string \| undefined> \| undefined> = \{/);
+    assert.match(adapter, /"en": \{\n    description: "Default description",\n  \},/);
+    assert.match(adapter, /description: label\("description"\)/);
+    assert.match(adapter, /title: label\("title"\)/);
+
+    await runAdapters({ cwd: fixture.project, check: true });
+  });
+
+  it("still rejects a missing label that has no default for its locale (ADR-074)", async () => {
+    const fixture = await setup({
+      defaults: { en: { description: "D" }, zh: { description: "D" } },
+    });
+    after(() => fixture.dispose());
+    await fixture.writeMessages(
+      { modules: { fixture: { description: "D" } } },
+      { modules: { fixture: { title: "标题", description: "D" } } },
+    );
+
+    await assert.rejects(runAdapters({ cwd: fixture.project }), /missing label key\(s\) title/);
+  });
+
+  it("rejects a contract whose defaults miss a host locale (ADR-074 §5)", async () => {
+    const fixture = await setup({ defaults: { en: { description: "D" } } });
+    after(() => fixture.dispose());
+    await fixture.writeMessages(
+      { modules: { fixture: { title: TITLE } } },
+      { modules: { fixture: { title: "标题", description: "D" } } },
+    );
+
+    await assert.rejects(runAdapters({ cwd: fixture.project, check: true }), /no 'zh' defaults/);
+  });
+
+  it("generates an explicit throw for a locale the contract does not cover (ADR-074 D3)", () => {
+    const source = adapterSource({
+      name: "fixture",
+      labels: ["title"],
+      namespace: "modules",
+      layers: [{ labelsType: "FixtureLabels", entry: "src/fewbie/modules/fixture/features/fixture/index.ts" }],
+      defaults: { en: { title: "Title" } },
+    });
+
+    assert.match(source, /const locale = useLocale\(\);/);
+    assert.match(source, /has no default copy for locale/);
+    assert.match(source, /is missing copy for/);
   });
 });

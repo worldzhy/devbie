@@ -964,7 +964,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | ID     | 仓                                    | 标题                                                                                                                            | 严重度 | 暴露面           | 可达性       | 状态 |
 | ------ | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------- | ------------ | ---- |
 | R84-01 | fewbie-modules ↔ newbie-modules       | 密码策略前端镜像与后端 `validator.isStrongPassword` 双向分歧（`_`/空格被前端拒绝，`€`/`§`被前端接受）；R82-15 只镜像未对后端 | P1     | live             | 任意用户     | fixed（R86 复核）：`test/password-policy-parity.test.ts` 以后端实跑期望值双向断言 |
-| R84-02 | fewbie-modules（sse-stream）          | 模块级共享 `TextDecoder` 在并发流下串字节（探针实证；宿主副本同缺陷且 live，两个并发消费者）                                   | P1     | artifact         | 任意登录用户 | fixed（R86 复核）：改为每流独立 `TextDecoder`，`sse-stream/test/sse-stream.test.ts` 并发断言 |
+| R84-02 | fewbie-modules（sse-stream）          | 模块级共享 `TextDecoder` 在并发流下串字节（探针实证；宿主副本同缺陷且 live，两个并发消费者）                                   | P1     | artifact         | 任意登录用户 | fixed（R86 复核）：改为每流独立 `TextDecoder`，`sse-stream/test/sse-stream.test.ts` 并发断言；该修复只覆盖 registry，live 宿主副本未消费，见 R99-02（2026-11-23 关闭） |
 | R84-03 | fewbie-modules（check-contract）      | 宿主运行时 import 仅要求「声明依赖」，manifest 声明 `next` 后 `import "next/link"` 通过；R83-10 的准入规则未被门禁表达           | P2     | artifact         | 模块作者     | fixed（R86 复核）：`scripts/check-contract.mjs:283-286` 中 `HOST_PACKAGES` 判定先于 `declaredPackages` |
 | R84-04 | fewbie-modules（check-contract）      | 汇总行把 6 个跳过项计入「14 item contract(s) match」；`registry:block` 缺 contract 只警告不失败                                  | P2     | ops              | 维护者       | fixed（R86 复核）：`:471` 汇总显示 6 item(s) skipped；`registry:block` 已随 ADR-066 退场，feature/widget 强制 contract |
 | R84-05 | fewbie-modules                        | `vitest` / `tsconfig` 只收模块内 `*.test.tsx`，`*.test.ts` 不执行也不类型检查；9/14 item 零行为测试                              | P2     | source           | 维护者       | fixed（R86 复核）：`vitest.config.ts:38` 与 tsconfig include 已收 `*.test.ts`；剩 8/16 item 无测试 → R86-07 |
@@ -1082,3 +1082,26 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - **门禁（registry）**：`check:contract`（5 契约对齐、5 模块跳过）与 `check:types`、`format:check` 全绿；`npm test` 12/13 文件绿，`test/check-contract.test.ts` 在容器内因每例 spawn node 超过默认 5s 超时，`--testTimeout=60000` 下 29/29 通过（环境性，非代码）。
 - **快照**：devbie PR #165（merge 合入 main）以 `registry:sync -w @devbie/fewbie-cli` 重新生成快照（`7c6a64c`）；`check:registry-snapshot`、`check:registry-dist`、CLI 153 测试、`format:check` 全绿。
 - **宿主**：nightwatch-frontend PR #53（留用户合并）重装 copilot + notification-center，改 `copilot-host`/`notification-host` 与两个 adapter 的 import，重生成 adapters、刷新 `fewbie.lock.json`；`apply/update/adapters --check`、`template update --check`、format、lint:error、测试全绿。crewbie-console-frontend 仅装 account-access/password-checklist，路径未变，`apply/update --check` 仍绿（其 `adapters --check` 因未声明 i18n 属既有状态，与本次无关）。
+
+### Round 99（sse-stream 边界收口，2026-11-23）
+
+| ID     | 仓                                | 标题                                                                                                                                                                                                 | 严重度 | 暴露面   | 可达性       | 状态 |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------- | ------------ | ---- |
+| R99-01 | fewbie-modules（sse-stream）      | `registry:lib` 内直接调用全局 `fetch` 发起传输，违反宿主模块边界（transport belongs to the host adapter）；registry 无 eslint，安装后才暴露；`postSse` 零测试、零消费者                                        | P2     | artifact | 模块作者     | fixed（2026-11-23）：模块收窄为纯帧解码器，删除 `postSse` / `SseStreamError` / `PostSseOptions`，manifest 文案同步；registry `format:check` / `check:contract` / `check:types` / `vitest packages/modules/sse-stream` 全绿 |
+| R99-02 | nightwatch-frontend（live 副本）  | R84-02 的 `fixed` 只覆盖 registry；宿主未安装模块、自有副本仍是模块级共享 `TextDecoder`，live 两个并发消费者仍可串字节                                                                                | P1     | live     | 任意登录用户 | fixed（2026-11-23）：安装 `sse-stream`，两处消费切到 `@/fewbie/modules/sse-stream/lib/sse-stream`，删除 `src/api/sse/`（错误信封移至 `src/api/stream-error.ts`）；宿主 `format:check` / `lint`（0 error）/ `build` 全绿，安装产物与 registry 逐字节一致 |
+| R99-03 | devbie（fewbie-cli）              | `modules adapters --check` 对每个已声明模块调用 `planAdapter`，无 contract 时直接抛错，与 ADR-069“`registry:component` / `registry:lib` 的 contract 可选”冲突；安装无 contract 的 lib 会让宿主 CI 变红                                     | P2     | artifact | 宿主 CI      | fixed（2026-11-23）：`runAdapters` 跳过无 contract 模块，回归用例 `skips declared modules without a contract`；随 `@devbie/fewbie-cli@1.17.1` 发布，三个消费方已升级 |
+
+#### Round 99 备注
+
+- 锚点：fewbie-modules dev `1947911`、nightwatch-frontend dev `131d8d2`，两仓开工时工作树干净。
+- 锁文件：宿主 `fewbie.lock.json` 的 `sse-stream` 已 pin 到 registry main 的合并提交 `10124e1`（2026-11-23 重装完成）。
+- 流程教训：R84-02 判 `fixed` 时只核对 registry 载荷，未核对 live 暴露面是否消费该修复，属「补丁存在即已修」；证据门禁已在 expert-review skill §5 补硬条款。
+- 同型项：`query-client` 的 `@tanstack/*` 导入会撞同一条边界规则；已由 ADR-072 退场（删除模块；registry 快照待 fewbie-modules main 合并后重生成）。
+
+### password-checklist 并入 account-access（ADR-073，2026-11-23）
+
+- **判据**：ADR-069 D6 规定独立 item 的拆出条件是「第二个 vertical 独立消费」。`password-checklist` 的两个消费方中，nightwatch-frontend 的 IAM 新建用户弹窗不再生成初始密码（改为邮箱/手机验证码登录 + `/account/reset-password` 自助设密码），组件消费方归零；剩余唯一消费方 `forgot-password` 只用 `checkPasswordPolicy` / `isStrongPassword`。
+- **registry**：predicate 移入 `account-access/lib/password-policy.ts`（`account-access` 的 `registryDependencies` 置空），删除 `packages/modules/password-checklist/`，9 → 8 项；真值表 `test/password-policy-parity.test.ts` 的导入与复用断言锚点改到新路径，后端 `validator.isStrongPassword` 一致性覆盖不变。
+- **宿主**：nightwatch-frontend 删除模块声明 / adapter / `modules.password-checklist` 命名空间并重写 IAM 弹窗；crewbie-console-frontend 删除声明与安装产物；后端零改动（`User.password` 可空、`/auth/login-by-verification-code` 已支持无密码账号）。
+- **未迁移的部分**：checklist 的渲染组件不再分发；forgot-password 内的本地薄壳是唯一渲染，避免把组件层 6 个 label 键混进 block 契约触发 D5 键冲突。
+

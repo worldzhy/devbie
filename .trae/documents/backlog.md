@@ -135,3 +135,12 @@
 
 > 2026-11-23 关闭：`@devbie/fewbie-cli@1.17.0` 已发布，registry 核对 `latest=1.17.0`、tarball 在位、无过期 deprecated（bump 提交 `2e0c0a95`，153 测试全绿，audit 仅剩余 lint 工具链 waiver 内的 3 条 moderate）。fewbie-starter / nightwatch-frontend / crewbie-console-frontend 均升 `^1.17.0`，锁文件仅版本行变化，安装产物哈希未变（两个宿主的 lock commit 锚点同批改到 `e2b4291`）；nwf 的 `modules update --check` / `apply --check` / `modules adapters --check` 全绿，cf 的 `update --check` / `apply --check` 全绿（该宿主无 i18n 声明，adapters 门禁不适用）。
 
+## ADR-072 / query-client 退场交付项（2026-11-23）
+
+> 2026-11-23 关闭：fewbie-modules PR #17 已合并（main `ff2084c`）；registry 快照按 `1f52bf6` 重生成（9 项，`check:registry-snapshot` 全绿），`@devbie/fewbie-cli@1.17.2` 已发布（`latest=1.17.2`、tarball 在位；build 干净、154 测试通过、audit 仅剩既有 waiver 的 3 条 moderate）。三个消费方升 `^1.17.2`：nightwatch-frontend `514f3f6`、fewbie-starter `20cd025`、crewbie-console-frontend `11dfce4`；nwf 的 `modules update` / `apply` / `adapters --check` 与 cf 的 `update` / `apply --check` 全绿，锁文件仅版本行变化。
+
+## ADR-073 落地交付项（2026-11-23，已完成）
+
+> 2026-11-24 关闭：fewbie-modules PR #18 已合并（main `69126ab`），dev 已快进同步。registry 现为 8 项，谓词位于 `account-access/lib/password-policy.ts`。devbie registry 快照按 `69126ab` 重生成，`check:registry-snapshot` / `check:registry-dist` 全绿；155 用例通过；`@devbie/fewbie-cli@1.17.3` 已发布（`latest=1.17.3`，tarball 200）。消费方：nightwatch-frontend `53dd6e3`（IAM 新建用户弹窗去掉 password 字段与 checklist；卸载模块、adapter 与 `modules.password-checklist` 两语言字典；update/apply/adapters --check、format、lint、build 全绿）、crewbie-console-frontend `d148848`（卸载声明与安装产物，update/apply --check、format、lint、build 全绿）、fewbie-starter `79aac93`（CLI 升 `^1.17.3`，format/lint/build 全绿）。
+
+

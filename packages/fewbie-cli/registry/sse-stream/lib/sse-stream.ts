@@ -1,10 +1,10 @@
 /**
- * Minimal Server-Sent Events transport over fetch.
+ * Minimal Server-Sent Events frame decoder.
  *
- * `postSse` covers endpoints that EventSource cannot serve (POST bodies,
- * custom headers): it POSTs a JSON body, then decodes the response stream.
- * `consumeSseStream` is the lower-level decoder for callers that already
- * hold a fetch Response.
+ * `consumeSseStream` decodes a fetch Response.body stream into frames. The
+ * request stays in the host: EventSource cannot send POST bodies or custom
+ * headers, and only the host knows its own auth, origin guard and retry
+ * policy, so this module deliberately owns no transport.
  *
  * The wire format handled is standard SSE:
  *
@@ -19,61 +19,6 @@
 export interface SseFrame {
   event: string;
   data: string;
-}
-
-/** HTTP-level failure of a POST-initiated SSE request (non-2xx or no body). */
-export class SseStreamError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-    this.name = "SseStreamError";
-  }
-}
-
-const NEVER_ABORTED = new AbortController().signal;
-
-export interface PostSseOptions {
-  /** JSON-encoded request body; omit to POST without a body. */
-  body?: unknown;
-  /** Extra request headers (e.g. Authorization). Content-Type and Accept are set automatically. */
-  headers?: Record<string, string>;
-  /** Aborting stops reading immediately; already received frames are retained by the caller. */
-  signal?: AbortSignal;
-  /** Called for every decoded frame, in arrival order. */
-  onFrame: (frame: SseFrame) => void;
-}
-
-/**
- * POST-initiated SSE request: the standard workaround for EventSource's
- * inability to send POST bodies or custom headers. Resolves after the server
- * closes the stream; rejects with SseStreamError on HTTP-level failures.
- * Stream errors during reading propagate from the underlying reader.
- */
-export async function postSse(url: string, options: PostSseOptions): Promise<void> {
-  const { body, headers, signal = NEVER_ABORTED, onFrame } = options;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-      ...headers,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal,
-  });
-
-  if (!response.ok || !response.body) {
-    const detail = await response.text().catch(() => "");
-    throw new SseStreamError(
-      response.status,
-      `SSE request failed with ${response.status}${detail ? `: ${detail}` : ""}`,
-    );
-  }
-
-  await consumeSseStream(response.body, signal, onFrame);
 }
 
 /**

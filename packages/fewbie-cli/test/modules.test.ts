@@ -12,7 +12,7 @@ import { runUpdate } from "../src/commands/modules/update";
 import { MODULES_FILE, readModulesFile } from "../src/lib/modules-file";
 import { readLockfile } from "../src/lib/lockfile";
 import { loadModule, readModuleFileContent } from "../src/registry/store";
-import { resolveRegistryRoot } from "../src/registry/source";
+import { REGISTRY_MODULES_DIR, resolveRegistryRoot } from "../src/registry/source";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
 async function makeProject(): Promise<string> {
@@ -35,16 +35,62 @@ async function exists(projectRoot: string, relativePath: string): Promise<boolea
     .catch(() => false);
 }
 
+/**
+ * Minimal local registry with one dependency edge (`consumer` requires `base`).
+ * The authored registry has no inter-module dependency left after the
+ * password-checklist fold, so closure behavior needs its own fixture.
+ */
+async function makeDependencyRegistry(): Promise<string> {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-"));
+  const modules: Array<{ name: string; dependencies: string[] }> = [
+    { name: "base", dependencies: [] },
+    { name: "consumer", dependencies: ["base"] },
+  ];
+  for (const module of modules) {
+    const dir = path.join(root, REGISTRY_MODULES_DIR, module.name);
+    await fs.mkdir(path.join(dir, "components", module.name), { recursive: true });
+    await fs.writeFile(
+      path.join(dir, REGISTRY_MANIFEST_FILE),
+      JSON.stringify({
+        name: module.name,
+        type: "registry:component",
+        title: module.name,
+        registryDependencies: module.dependencies,
+        files: [`src/fewbie/modules/${module.name}/components/${module.name}/${module.name}.tsx`],
+      }),
+    );
+    await fs.writeFile(path.join(dir, "components", module.name, `${module.name}.tsx`), "export {};\n");
+  }
+  return root;
+}
+
 describe("fewbie modules", () => {
-  it("adds named modules, expands the dependency closure and writes fewbie.json", async () => {
+  it("adds a named module and writes fewbie.json", async () => {
     const root = await makeProject();
     after(async () => fs.rm(root, { recursive: true, force: true }));
 
     await runAdd({ cwd: root, names: ["account-access"], yes: true, skipInstall: true });
 
-    assert.deepEqual(await readModulesFile(root), ["account-access", "password-checklist"]);
+    assert.deepEqual(await readModulesFile(root), ["account-access"]);
     assert.ok(await exists(root, "src/fewbie/modules/account-access/lib/auth.ts"));
     assert.ok(await exists(root, "src/fewbie/modules/account-access/features/login-page/login-page.tsx"));
+  });
+
+  it("expands the dependency closure of a module with registryDependencies", async () => {
+    const root = await makeProject();
+    const registry = await makeDependencyRegistry();
+    after(async () => {
+      delete process.env.FEWBIE_REGISTRY_PATH;
+      await fs.rm(root, { recursive: true, force: true });
+      await fs.rm(registry, { recursive: true, force: true });
+    });
+    process.env.FEWBIE_REGISTRY_PATH = registry;
+
+    await runAdd({ cwd: root, names: ["consumer"], yes: true, skipInstall: true });
+
+    assert.deepEqual(await readModulesFile(root), ["base", "consumer"]);
+    assert.ok(await exists(root, "src/fewbie/modules/base/components/base/base.tsx"));
+    assert.ok(await exists(root, "src/fewbie/modules/consumer/components/consumer/consumer.tsx"));
   });
 
   it("repairs missing files from the declaration without naming modules", async () => {
@@ -69,20 +115,32 @@ describe("fewbie modules", () => {
 
   it("fails --check when the declaration lacks a required dependency", async () => {
     const root = await makeProject();
-    after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["account-access"], yes: true, skipInstall: true });
-    await fs.writeFile(path.join(root, MODULES_FILE), `${JSON.stringify({ modules: ["account-access"] }, null, 2)}\n`);
+    const registry = await makeDependencyRegistry();
+    after(async () => {
+      delete process.env.FEWBIE_REGISTRY_PATH;
+      await fs.rm(root, { recursive: true, force: true });
+      await fs.rm(registry, { recursive: true, force: true });
+    });
+    process.env.FEWBIE_REGISTRY_PATH = registry;
+    await runAdd({ cwd: root, names: ["consumer"], yes: true, skipInstall: true });
+    await fs.writeFile(path.join(root, MODULES_FILE), `${JSON.stringify({ modules: ["consumer"] }, null, 2)}\n`);
 
     await assert.rejects(runApply({ cwd: root, check: true }), /required by the declared set/);
   });
 
   it("refuses to remove a module another declared module still requires", async () => {
     const root = await makeProject();
-    after(async () => fs.rm(root, { recursive: true, force: true }));
-    await runAdd({ cwd: root, names: ["account-access"], yes: true, skipInstall: true });
+    const registry = await makeDependencyRegistry();
+    after(async () => {
+      delete process.env.FEWBIE_REGISTRY_PATH;
+      await fs.rm(root, { recursive: true, force: true });
+      await fs.rm(registry, { recursive: true, force: true });
+    });
+    process.env.FEWBIE_REGISTRY_PATH = registry;
+    await runAdd({ cwd: root, names: ["consumer"], yes: true, skipInstall: true });
 
-    await assert.rejects(runRemove({ cwd: root, names: ["password-checklist"], yes: true }), /still required/);
-    assert.deepEqual(await readModulesFile(root), ["account-access", "password-checklist"]);
+    await assert.rejects(runRemove({ cwd: root, names: ["base"], yes: true }), /still required/);
+    assert.deepEqual(await readModulesFile(root), ["base", "consumer"]);
   });
 
   it("removes an unmodified module file and its declaration", async () => {

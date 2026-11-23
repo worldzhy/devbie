@@ -206,24 +206,23 @@ manifest types are `registry:lib`, `registry:component`, `registry:widget` and
 widget may compose features and other widgets; a feature never imports a
 widget.
 
-| Item                      | Type        | Description                                                                                                                                 |
-| ------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `auth`                    | `lib`       | Login/logout helpers and session-expired redirect binding built on the template-provided api client.                                        |
-| `query-client`            | `lib`       | TanStack Query singleton with App Router-safe wiring (fresh client per server request, one shared client in the browser) plus the provider. |
-| `sse-stream`              | `lib`       | POST-based SSE transport with frame decoding, keepalive handling and abort support.                                                         |
-| `data-table`              | `component` | Generic data table with client-side sorting and pagination, built on shadcn/ui table primitives.                                            |
-| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout.     |
-| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                         |
-| `copilot`                 | `widget`    | Agent chat dock: capability catalog, run timeline, approval cards and result tables, with `send`/`confirm`/`fetchCatalog` ports.            |
-| `notification-center`     | `widget`    | Notification bell, ticker and detail sheet driven by host ports for recent, unread and push-failure data.                                   |
-| `forgot-password`         | `feature`   | Page-level password reset: email and verification code plus a new password with a live strength checklist.                                  |
-| `login-form`              | `feature`   | Account/password login card; submits through the auth util and hands post-sign-in navigation back to the host.                              |
-| `login-page`              | `feature`   | Page-level password/code login with inline TOTP and third-party provider entries.                                                           |
-| `password-checklist`      | `feature`   | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                     |
-| `preferences-settings`    | `feature`   | Interface language, theme and timezone, with host-side cache and cookie updates.                                                            |
-| `profile-settings`        | `feature`   | Account profile card: names and display name, persisted by the host.                                                                        |
-| `security-settings`       | `feature`   | Active sessions with per-row sign-out, and authenticator-app enrollment.                                                                    |
-| `settings-required-state` | `feature`   | Empty state shown when required configuration is missing, with a setup call-to-action.                                                      |
+| Item                      | Type        | Description                                                                                                                              |
+| ------------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `auth`                    | `lib`       | Login/logout helpers and session-expired redirect binding built on the template-provided api client.                                     |
+| `sse-stream`              | `lib`       | SSE frame decoder: incremental parsing with multibyte buffering and abort support; the request, auth and JSON decoding stay in the host. |
+| `data-table`              | `component` | Generic data table with client-side sorting and pagination, built on shadcn/ui table primitives.                                         |
+| `frontend-monitor-sdk`    | `component` | Browser-side monitoring (PV/AJAX/resource/errors) via `@devbie/frontend-monitor-sdk`; scaffolds a client component for the root layout.  |
+| `theme`                   | `component` | `next-themes` ThemeProvider wrapper and a light/dark toggle button.                                                                      |
+| `copilot`                 | `widget`    | Agent chat dock: capability catalog, run timeline, approval cards and result tables, with `send`/`confirm`/`fetchCatalog` ports.         |
+| `notification-center`     | `widget`    | Notification bell, ticker and detail sheet driven by host ports for recent, unread and push-failure data.                                |
+| `forgot-password`         | `feature`   | Page-level password reset: email and verification code plus a new password with a live strength checklist.                               |
+| `login-form`              | `feature`   | Account/password login card; submits through the auth util and hands post-sign-in navigation back to the host.                           |
+| `login-page`              | `feature`   | Page-level password/code login with inline TOTP and third-party provider entries.                                                        |
+| `password-checklist`      | `feature`   | Live password rule checklist with a reusable `isStrongPassword` predicate (mirrors the backend policy).                                  |
+| `preferences-settings`    | `feature`   | Interface language, theme and timezone, with host-side cache and cookie updates.                                                         |
+| `profile-settings`        | `feature`   | Account profile card: names and display name, persisted by the host.                                                                     |
+| `security-settings`       | `feature`   | Active sessions with per-row sign-out, and authenticator-app enrollment.                                                                 |
+| `settings-required-state` | `feature`   | Empty state shown when required configuration is missing, with a setup call-to-action.                                                   |
 
 Framework assets (`src/components/ui/**`, `src/framework/**`,
 `src/lib/api-client/**`, the root layout and i18n config) ship only through the

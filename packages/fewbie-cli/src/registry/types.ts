@@ -49,6 +49,12 @@ export interface ModuleLayerContract {
   ports: string[];
   /** States this layer implements. */
   states: ModuleState[];
+  /**
+   * Locale-keyed default copy (ADR-074). These are mechanism strings the host
+   * may omit; the generated adapter falls back to them when the host dictionary
+   * has no value. Keys must belong to `labels`, values must be non-empty.
+   */
+  defaults?: Record<string, Record<string, string>>;
 }
 
 /**

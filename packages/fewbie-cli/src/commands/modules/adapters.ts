@@ -67,11 +67,12 @@ export async function runAdapters(options: ModulesAdaptersOptions): Promise<void
   const problems: string[] = [];
   for (const name of selected) {
     const module = await loadModule(registryRoot, name);
+    // ADR-069: components and libs may omit the contract. Without one there are
+    // no labels to bind, so the module contributes no adapter (R99-03).
+    if (module.manifest.contract === undefined) continue;
     const plan = await planAdapter(module, declaration.namespace);
     plans.push(plan);
-    problems.push(
-      ...(await messageKeyProblems(projectRoot, declaration, name, module.manifest.contract?.labels ?? [])),
-    );
+    problems.push(...(await messageKeyProblems(projectRoot, declaration, name, module.manifest.contract)));
   }
 
   if (options.check) {

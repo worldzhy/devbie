@@ -81,6 +81,47 @@ function assertStringList(moduleName: string, field: string, value: unknown, all
 }
 
 /**
+ * Parse a layer's optional `defaults` (ADR-074). This is a shape check only:
+ * keys must belong to the layer's labels and values must be non-empty strings.
+ * Locale coverage is the host's gate (`modules adapters --check`), because only
+ * the host knows the framework locale set it must cover.
+ */
+function parseLayerDefaults(
+  moduleName: string,
+  layer: string,
+  labels: string[],
+  value: unknown,
+): Record<string, Record<string, string>> | undefined {
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail(moduleName, `layers.${layer}.defaults must be an object keyed by locale.`);
+  }
+  const known = new Set(labels);
+  const defaults: Record<string, Record<string, string>> = {};
+  for (const [locale, copy] of Object.entries(value as Record<string, unknown>)) {
+    if (locale.trim() === "") fail(moduleName, `layers.${layer}.defaults has an empty locale key.`);
+    if (copy === null || typeof copy !== "object" || Array.isArray(copy)) {
+      fail(moduleName, `layers.${layer}.defaults.${locale} must be an object of label copy.`);
+    }
+    const entries: Record<string, string> = {};
+    for (const [key, text] of Object.entries(copy as Record<string, unknown>)) {
+      if (!known.has(key)) {
+        fail(
+          moduleName,
+          `layers.${layer}.defaults.${locale} key '${key}' is not one of the layer's labels (${labels.join(", ")}).`,
+        );
+      }
+      if (typeof text !== "string" || text.trim() === "") {
+        fail(moduleName, `layers.${layer}.defaults.${locale}.${key} must be a non-empty string.`);
+      }
+      entries[key] = text;
+    }
+    defaults[locale] = entries;
+  }
+  return defaults;
+}
+
+/**
  * Parse the optional `layers` breakdown of a block. Each layer names its own
  * `types.ts`, so a merged block keeps per-layer type truth while the host still
  * receives one adapter over the union (ADR-069 D5).
@@ -123,12 +164,14 @@ function parseLayers(moduleName: string, value: unknown, version: string): Modul
         fail(moduleName, `layers.${layer}.states entry '${state}' must be one of ${ALLOWED_STATES.join(", ")}.`);
       }
     }
+    const defaults = parseLayerDefaults(moduleName, layer, labels, raw.defaults);
     return {
       layer: layer as ModuleLayer,
       types,
       labels,
       ports,
       states: states as ModuleState[],
+      ...(defaults === undefined ? {} : { defaults }),
     };
   });
 }

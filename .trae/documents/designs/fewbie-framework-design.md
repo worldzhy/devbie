@@ -119,7 +119,7 @@ fewbie 与 @devbie/newbie **根本分野**，不照抄后端的重 npm 包模式
 3. 按需把生成器装入项目 devDependencies（`--skip-install` 可跳过），透传 `-n` 与 `-w/--watch`。
 4. 上游生成失败也返回 exit 0，wrapper 通过产物文件 mtime 自检并以非零退出。
 
-#### apits + react-query 消费范式（2026-10-08 沉淀，配套 `fewbie modules add query-client`）
+#### apits + react-query 消费范式（2026-10-08 沉淀；原配套 `fewbie modules add query-client`，该模块已于 2026-11-23 退场——QueryClient 与 provider 由宿主自建，见 ADR-072）
 
 生成物只负责传输层；服务端状态一律经 `@tanstack/react-query` 消费。范式要点（均以 apits 的 `ApiResponse<T> = [data?, res?]` 返回形态为前提）：
 
@@ -135,7 +135,7 @@ fewbie 与 @devbie/newbie **根本分野**，不照抄后端的重 npm 包模式
    ```
 2. **queryKey 层级**：资源名 camelCase 起首、参数依次追加（`["projects"]`、`["accountSettingsSessions", userId]`），失效按前缀匹配。
 3. **mutation 失效约定**：在 mutation 的 `onSuccess` 中 `queryClient.invalidateQueries({ queryKey: [<资源前缀>] })`，不手工改写缓存。
-4. **QueryClient 接线**：server 每请求新建、browser 单例（`getQueryClient`）；禁止在 client component 体内 `new QueryClient()`（重渲染即丢缓存）。
+4. **QueryClient 接线**：server 每请求新建、browser 单例（宿主自建的 `getQueryClient`）；禁止在 client component 体内 `new QueryClient()`（重渲染即丢缓存）。
 
 ### Class C — UI 组件（shadcn 式复制源码）
 
@@ -198,16 +198,16 @@ frontend-monitor SDK（自动 PV/错误上报）采用混合分发（2026-09-24 
 2. **fewbie 仓库结构（2026-09-25 定稿，2026-10-17 修订）**——fewbie monorepo（npm workspaces，与 newbie 仓同构）：根 `package.json`（private，workspaces `packages/*`）+ `packages/fewbie-cli`（`@devbie/fewbie-cli`，bin `fewbie`，TS + commander；`registry/` 随包 `files` 分发，单一真源）。模板骨架自 2026-10-17 起迁出本 monorepo，事实源在独立仓 [`worldzhy/fewbie-starter`](https://github.com/worldzhy/fewbie-starter)（见 ADR-004）；模板 tag 打在 starter 仓，`create` 的模板解析链为「`--template-path` → `git clone fewbie-starter --branch <tag>`」。历史里程碑：M0 monorepo 骨架（tsc 通过）→ M1 templates/basic + `init` 冒烟（容器内 next build）→ M2 registry + 4 个 add → M3 `gen api` → M4 发 `0.1.0-stage.0` + 打模板 tag。
 3. **实施时机与 v1 范围（2026-09-25 定稿）**——fewbie 不阻塞后端 @devbie/newbie 抽取；v1 首批能力 = `init` + `add`（api-client / auth / theme / login-form 共 4 件）+ `gen api`；`doctor` / `update` / 其余 add（data-table、page-header、settings-required-state、frontend-monitor-sdk wrapper）不进 v1。以新项目作为首个真实落地验证。
 4. ~~`newbie-core-packaging-plan.md` Phase 5 需按本决议重写~~——已完成（2026-09-24）：后端文档已重命名为 `newbie-framework-split-plan.md`，第六章与 Phase 5/6 均已按本决议同步。
-5. **nightwatch-frontend 资产沉淀候选登记（2026-10-08）**——A 档四件已全部沉淀：`app-shell`、`query-client`、`password-checklist`、`sse-stream`（详见 `.trae/documents/nightwatch-frontend-asset-sedimentation-plan.md`）。候选登记：
+5. **nightwatch-frontend 资产沉淀候选登记（2026-10-08）**——A 档四件沉淀后现存两件独立条目：`app-shell`、`sse-stream`（`query-client` 于 2026-11-23 退场，见 ADR-072；`password-checklist` 于 2026-11-23 并入 `account-access` 的 lib，见 ADR-073；详见 `.trae/documents/nightwatch-frontend-asset-sedimentation-plan.md`）。候选登记：
    - **companion block（方向成立、时机未到）**：copilot-dock 全家桶（配对 copilot kernel，触发条件：copilot monitoring phase 2 交付、blocks 协议冻结）；notification-bell 一套（配对 notification-center capability）。首对 companion 落地时需先立「newbie 后端模块 ↔ fewbie 前端 companion item」配对与跟版约定（单独立项）。
-   - **A 档小项（已沉淀，2026-10-08）**：password-checklist（registry:item，描述标注规则真源在 newbie account password.validator、后端策略变更需手工同步）、sse-stream（只含 POST+SSE 传输内核，事件解析留给调用方）。
+   - **A 档小项（已沉淀，2026-10-08；2026-11-23 修订）**：sse-stream（只含 SSE 帧解码内核，请求与鉴权留在宿主，事件解析留给调用方；原「POST+SSE 传输内核」的传输部分已按宿主模块边界撤出）；password-checklist 的 predicate 已并入 `account-access/lib/password-policy.ts`（ADR-073，规则真源仍是 newbie account 的 `validator.isStrongPassword`、后端策略变更需手工同步）。
    - **禁止反向污染**：沉淀评审时凡依赖 nw 技术债栈（react-toastify、手写 theme store、React 18）的代码一律不得直接复制，先改写再迁。
 
-6. **init 装配选择 + 框架接线机制（2026-10-08 登记，搁置待重启）**——需求方向已确认（用户原话）："建新项目时可以由使用者选择装配哪些，然后由框架实现接线"。现状缺口（已取证）：`fewbie create` 不与 registry 交互；`modules add` 只复制文件 + 打印 postInstall 手工提示（`theme`、`query-client` 均需手工改 root layout），即沉淀计划收录规则第 3 条"无代码改写能力"（Non-Goal #6）。本轮已出决策表，三个分叉点全部搁置；机制未拍板前该收录规则维持有效。重启时从拍板开始、无需重新取证：
+6. **init 装配选择 + 框架接线机制（2026-10-08 登记，搁置待重启）**——需求方向已确认（用户原话）："建新项目时可以由使用者选择装配哪些，然后由框架实现接线"。现状缺口（已取证）：`fewbie create` 不与 registry 交互；`modules add` 只复制文件 + 打印 postInstall 手工提示（`theme` 需手工改 root layout；原并列举例的 `query-client` 已退场），即沉淀计划收录规则第 3 条"无代码改写能力"（Non-Goal #6）。本轮已出决策表，三个分叉点全部搁置；机制未拍板前该收录规则维持有效。重启时从拍板开始、无需重新取证：
    - **D1 接线机制**：A 声明式 wiring 清单——item.json 加 `wiring` 字段，CLI 内置 `insert-import` / `wrap-children` 通用变换器，编辑落点带 sentinel marker（幂等、可追溯），shadcn 端退化为装文件不接线（built item 已有 `postInstall` fewbie 专有字段先例，见 `src/registry/types.ts` 注释）/ B per-item codemod 脚本——registry 变任意代码执行，审计面失控 / C 仅 init 时接线——modules add 与 create 行为分裂。当时推荐 A。
-   - **D2 init 选择交互**：A flags + TTY 交互兜底（create-next-app 先例；`--add app-shell,query-client` 脚本化，无参数 TTY 勾选；新增 `@clack/prompts` 运行时依赖）/ B 仅 flags / C 仅交互。当时推荐 A。
+   - **D2 init 选择交互**：A flags + TTY 交互兜底（create-next-app 先例；`--add app-shell,theme` 脚本化，无参数 TTY 勾选；新增 `@clack/prompts` 运行时依赖）/ B 仅 flags / C 仅交互。当时推荐 A。
    - **D3 接线状态校验**：是否纳入 doctor（校验 marker 完整性）。接线改的是宿主文件、不在 `fewbie modules update` 覆盖范围，doctor 是唯一可验证闭环。当时推荐纳入。
-   - 方案骨架（D1-A 形态）：`wiring: [{ target: "src/app/layout.tsx", action: "wrap-children", import: { module: "@/components/query-provider", symbol: "QueryProvider" }, element: "QueryProvider" }]`；init 流序 copy template → rename → runAdd(selected)（wiring 开启、npm install 内含）→ git init 收尾（首个提交即完整可用态）；失败语义沿用 add「不半写」：wiring pre-check（pattern 找不到 / 已接线）失败即整体拒绝。v1 变换器集合两个动作即够，消费者为 `theme`、`query-client`；app-shell 的 nav 配置属内容填空，维持提示不走 wiring。
+   - 方案骨架（D1-A 形态，示例为通用占位名）：`wiring: [{ target: "src/app/layout.tsx", action: "wrap-children", import: { module: "@/components/app-providers", symbol: "AppProviders" }, element: "AppProviders" }]`；init 流序 copy template → rename → runAdd(selected)（wiring 开启、npm install 内含）→ git init 收尾（首个提交即完整可用态）；失败语义沿用 add「不半写」：wiring pre-check（pattern 找不到 / 已接线）失败即整体拒绝。v1 变换器集合两个动作即够，消费者为 `theme`；app-shell 的 nav 配置属内容填空，维持提示不走 wiring。
    - 拍板后的联动义务：推翻沉淀计划（`nightwatch-frontend-asset-sedimentation-plan.md`）收录规则第 3 条与 Non-Goal #6，并同步修订本文件决策 12"自研安装路径（读 registry 源文件复制）"的表述；文档订正随实现同一提交。待验证项（推测）：shadcn CLI 对未知字段的容忍度——`postInstall` 先例表明可行，实现时以官方 CLI 实装 built item 验证。
 
 ## 八、决策记录

@@ -189,3 +189,55 @@ test("rejects a layer types file outside the module files", () => {
     /layers\.features\.types .* must be one of the module's files/,
   );
 });
+
+test("accepts locale defaults on a layer (ADR-074)", () => {
+  const defaults = { en: { title: "Title" }, zh: { title: "标题" } };
+  const parsed = parseModuleContract(
+    {
+      ...LAYERED,
+      layers: [{ ...LAYERED.layers[0], defaults }, LAYERED.layers[1]],
+    },
+    "fixture",
+  );
+  assert.deepEqual(parsed.layers?.[0].defaults, defaults);
+  assert.equal(parsed.layers?.[1].defaults, undefined);
+});
+
+test("rejects a default key that is not one of the layer's labels", () => {
+  assert.throws(
+    () =>
+      parseModuleContract(
+        {
+          ...LAYERED,
+          layers: [{ ...LAYERED.layers[0], defaults: { en: { missing: "x" } } }, LAYERED.layers[1]],
+        },
+        "fixture",
+      ),
+    /key 'missing' is not one of the layer's labels/,
+  );
+});
+
+test("rejects an empty default value", () => {
+  assert.throws(
+    () =>
+      parseModuleContract(
+        {
+          ...LAYERED,
+          layers: [{ ...LAYERED.layers[0], defaults: { en: { title: "  " } } }, LAYERED.layers[1]],
+        },
+        "fixture",
+      ),
+    /must be a non-empty string/,
+  );
+});
+
+test("rejects a defaults block that is not locale-keyed", () => {
+  assert.throws(
+    () =>
+      parseModuleContract(
+        { ...LAYERED, layers: [{ ...LAYERED.layers[0], defaults: ["en"] }, LAYERED.layers[1]] },
+        "fixture",
+      ),
+    /must be an object keyed by locale/,
+  );
+});
