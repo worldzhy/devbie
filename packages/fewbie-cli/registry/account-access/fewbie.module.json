@@ -1,7 +1,7 @@
 {
   "name": "account-access",
   "title": "Account access",
-  "description": "Sign-in and forgot-password pages as copy-assemblable features, plus the password-policy predicate the reset form renders. Credentials, session handling and recovery transport stay in the host through the declared ports and labels.",
+  "description": "Sign-in and forgot-password pages as copy-assemblable features, plus the password-policy predicate and the Google/Lark provider marks the pages accept. Credentials, session handling and recovery transport stay in the host through the declared ports and labels.",
   "type": "registry:block",
   "files": [
     "src/fewbie/modules/account-access/features/login-page/index.ts",
@@ -11,7 +11,8 @@
     "src/fewbie/modules/account-access/features/forgot-password/types.ts",
     "src/fewbie/modules/account-access/features/forgot-password/forgot-password.tsx",
     "src/fewbie/modules/account-access/lib/auth.ts",
-    "src/fewbie/modules/account-access/lib/password-policy.ts"
+    "src/fewbie/modules/account-access/lib/password-policy.ts",
+    "src/fewbie/modules/account-access/lib/provider-marks.tsx"
   ],
   "registryDependencies": [],
   "contract": {
