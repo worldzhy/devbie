@@ -1,5 +1,7 @@
 {
   "name": "account-access",
+  "title": "Account access",
+  "description": "Sign-in and forgot-password pages as copy-assemblable features. Credentials, session handling and recovery transport stay in the host through the declared ports and labels.",
   "type": "registry:block",
   "files": [
     "src/fewbie/modules/account-access/features/login-page/index.ts",

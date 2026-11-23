@@ -1,5 +1,7 @@
 {
   "name": "password-checklist",
+  "title": "Password checklist",
+  "description": "Live password-requirement checklist component. Rule set and copy arrive through props; the module only renders pass/fail state.",
   "type": "registry:component",
   "files": [
     "src/fewbie/modules/password-checklist/components/password-checklist/index.ts",

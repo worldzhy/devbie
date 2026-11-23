@@ -1,4 +1,4 @@
-export { NotificationCenter } from "./notification-center";
+export { NotificationCenter } from "./notification-list";
 export { formatDayLabel, groupNotifications, dayBucket } from "./grouping";
 export type { NotificationDayGroup } from "./grouping";
 export type {
