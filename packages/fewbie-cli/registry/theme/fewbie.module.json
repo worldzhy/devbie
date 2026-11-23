@@ -5,6 +5,6 @@
   "description": "next-themes ThemeProvider wrapper and a light/dark toggle button. The CSS-variable token system itself ships with the shadcn-initialized template (Tailwind v4).",
   "dependencies": ["next-themes@^0.4.6"],
   "registryDependencies": [],
-  "files": ["src/components/theme-provider.tsx", "src/components/theme-toggle.tsx"],
+  "files": ["src/items/theme/components/theme-provider.tsx", "src/items/theme/components/theme-toggle.tsx"],
   "postInstall": "Wrap your root layout <body> with <ThemeProvider> (see src/components/theme-provider.tsx)."
 }

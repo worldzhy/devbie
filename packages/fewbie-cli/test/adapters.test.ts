@@ -35,18 +35,22 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   const labelsType = options.labelsType ?? "FixtureLabels";
   const labels = ["title", "description", ...(options.extraLabels ?? [])];
 
-  await fs.mkdir(path.join(item, "src/features/fixture"), { recursive: true });
+  await fs.mkdir(path.join(item, "src/items/fixture/features/fixture"), { recursive: true });
   await fs.writeFile(
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
       name: "fixture",
       type: "registry:block",
       title: "Fixture",
-      files: ["src/features/fixture/index.ts", "src/features/fixture/types.ts", "src/features/fixture/fixture.tsx"],
+      files: [
+        "src/items/fixture/features/fixture/index.ts",
+        "src/items/fixture/features/fixture/types.ts",
+        "src/items/fixture/features/fixture/fixture.tsx",
+      ],
       contract: {
         version: "1.0.0",
         framework: "^1.10.0",
-        entry: "src/features/fixture/index.ts",
+        entry: "src/items/fixture/features/fixture/index.ts",
         labels,
         ports: ["save"],
         ui: ["button"],
@@ -55,15 +59,15 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
     }),
   );
   await fs.writeFile(
-    path.join(item, "src/features/fixture/index.ts"),
+    path.join(item, "src/items/fixture/features/fixture/index.ts"),
     `export { Fixture } from "./fixture";\nexport type { ${labelsType} } from "./types";\n`,
   );
   await fs.writeFile(
-    path.join(item, "src/features/fixture/types.ts"),
+    path.join(item, "src/items/fixture/features/fixture/types.ts"),
     `export interface ${labelsType} {\n${labels.map((key) => `  ${key}: string;`).join("\n")}\n}\n`,
   );
   await fs.writeFile(
-    path.join(item, "src/features/fixture/fixture.tsx"),
+    path.join(item, "src/items/fixture/features/fixture/fixture.tsx"),
     `export function Fixture(): null {\n  return null;\n}\n`,
   );
 
@@ -117,7 +121,7 @@ after(() => {
 });
 
 async function readAdapter(project: string): Promise<string> {
-  return fs.readFile(path.join(project, "src/adapters/fixture.tsx"), "utf8");
+  return fs.readFile(path.join(project, "src/fewbie/adapters/fixture.tsx"), "utf8");
 }
 
 describe("adapterSource", () => {
@@ -127,8 +131,8 @@ describe("adapterSource", () => {
       labels: ["signIn", "sendReset"],
       namespace: "modules",
       layers: [
-        { labelsType: "LoginLabels", entry: "src/features/account-access/login/index.ts" },
-        { labelsType: "ForgotLabels", entry: "src/features/account-access/forgot/index.ts" },
+        { labelsType: "LoginLabels", entry: "src/items/account-access/features/login/index.ts" },
+        { labelsType: "ForgotLabels", entry: "src/items/account-access/features/forgot/index.ts" },
       ],
     });
 
@@ -154,7 +158,7 @@ describe("fewbie modules adapters", () => {
 
 import { useTranslations } from "next-intl";
 
-import type { FixtureLabels } from "@/features/fixture";
+import type { FixtureLabels } from "@/items/fixture/features/fixture";
 
 /** Labels for the \`fixture\` module, resolved from the \`modules.fixture\` namespace. */
 export function useFixtureLabels(): FixtureLabels {
@@ -174,7 +178,10 @@ export function useFixtureLabels(): FixtureLabels {
 
     await runAdapters({ cwd: fixture.project });
 
-    assert.match(await readAdapter(fixture.project), /import type \{ LoginLabels \} from "@\/features\/fixture"/);
+    assert.match(
+      await readAdapter(fixture.project),
+      /import type \{ LoginLabels \} from "@\/items\/fixture\/features\/fixture"/,
+    );
   });
 
   it("honours a custom namespace", async () => {
@@ -212,7 +219,7 @@ export function useFixtureLabels(): FixtureLabels {
     await assert.rejects(runAdapters({ cwd: fixture.project, check: true }), /adapter missing/);
 
     await runAdapters({ cwd: fixture.project });
-    await fs.appendFile(path.join(fixture.project, "src/adapters/fixture.tsx"), "\n// local edit\n");
+    await fs.appendFile(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx"), "\n// local edit\n");
     await assert.rejects(runAdapters({ cwd: fixture.project, check: true }), /adapter differs/);
   });
 
@@ -228,7 +235,7 @@ export function useFixtureLabels(): FixtureLabels {
       runAdapters({ cwd: fixture.project }),
       /missing label key\(s\) description in "modules\.fixture"/,
     );
-    await assert.rejects(fs.access(path.join(fixture.project, "src/adapters/fixture.tsx")));
+    await assert.rejects(fs.access(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx")));
   });
 
   it("rejects host-only copy left in the module namespace", async () => {
@@ -265,6 +272,6 @@ export function useFixtureLabels(): FixtureLabels {
 
     await runAdapters({ cwd: fixture.project, dryRun: true });
 
-    await assert.rejects(fs.access(path.join(fixture.project, "src/adapters/fixture.tsx")));
+    await assert.rejects(fs.access(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx")));
   });
 });

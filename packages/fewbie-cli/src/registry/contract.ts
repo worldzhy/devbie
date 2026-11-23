@@ -104,8 +104,8 @@ function parseLayers(itemName: string, value: unknown, version: string): ModuleL
     }
 
     const types = assertNonEmptyString(itemName, `layers.${layer}.types`, raw.types);
-    if (!types.startsWith(`src/${layer}/`)) {
-      fail(itemName, `layers.${layer}.types '${types}' must land under src/${layer}/.`);
+    if (!types.startsWith(`src/items/${itemName}/${layer}/`)) {
+      fail(itemName, `layers.${layer}.types '${types}' must land under src/items/${itemName}/${layer}/.`);
     }
     // A layer may contribute several source groups (login and forgot password
     // both live in `features`); each group still needs its own types file.

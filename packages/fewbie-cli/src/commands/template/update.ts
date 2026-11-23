@@ -57,7 +57,7 @@ export interface TemplateUpdateOptions {
  * `filePath` is the asset path from the ownership registry, which may be a
  * `<dir>/**` glob; `filter` is a concrete path (or directory) the user passed.
  * The filter is applied before assets are expanded, so a concrete file inside a
- * glob asset (`src/components/ui/button.tsx`) must match `src/components/ui/**`
+ * glob asset (`src/fewbie/ui/button.tsx`) must match `src/fewbie/ui/**`
  * (R82-11).
  */
 function matchesPathFilter(filePath: string, filter: string): boolean {
@@ -81,8 +81,8 @@ function filterAssets(paths: string[] | undefined): readonly TemplateAsset[] {
 
 /**
  * Narrow expanded assets to the concrete paths the user asked for (R83-06).
- * A filter such as `src/components/ui/button.tsx` selects that glob entry, but
- * expanding `src/components/ui/**` would otherwise act on every sibling: the
+ * A filter such as `src/fewbie/ui/button.tsx` selects that glob entry, but
+ * expanding `src/fewbie/ui/**` would otherwise act on every sibling: the
  * command reports one file and writes many.
  */
 function filterExpandedAssets(assets: readonly TemplateAsset[], paths: string[] | undefined): readonly TemplateAsset[] {
@@ -162,7 +162,7 @@ async function assertTemplateRegistryComplete(templateRoot: string): Promise<voi
 
 /**
  * Expand `/**` subtree assets into one entry per template file (ADR-056 D1), so
- * `src/components/ui/**` ships and syncs concrete files instead of a literal
+ * `src/fewbie/ui/**` ships and syncs concrete files instead of a literal
  * directory path. Files only the project has are left alone: template update
  * never deletes host content.
  */

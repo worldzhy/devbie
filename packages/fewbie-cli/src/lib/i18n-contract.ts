@@ -85,9 +85,9 @@ function assertProjectRelative(label: string, value: string): void {
   }
 }
 
-/** Install target of a module's generated adapter. */
+/** Install target of a module's generated adapter (CLI-owned surface, ADR-070 D3). */
 export function adapterTarget(name: string): string {
-  return `src/adapters/${name}.tsx`;
+  return `src/fewbie/adapters/${name}.tsx`;
 }
 
 /** `preferences-settings` -> `PreferencesSettings`. */
@@ -99,7 +99,7 @@ export function pascalCase(name: string): string {
     .join("");
 }
 
-/** Host import specifier of a module entry, e.g. `@/features/preferences-settings`. */
+/** Host import specifier of a module entry, e.g. `@/items/account-access/features/login-page`. */
 export function moduleSpecifier(entry: string, itemName: string): string {
   if (!entry.startsWith("src/")) {
     throw new CliError(

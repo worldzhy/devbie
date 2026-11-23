@@ -10,7 +10,7 @@ import { hashContent } from "../src/lib/hashes";
 import { readLockfile } from "../src/lib/lockfile";
 import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 
-const TARGET = "src/features/fixture/index.ts";
+const TARGET = "src/items/fixture/features/fixture/index.ts";
 const ORIGINAL = "export const fixture = 1;\n";
 
 interface Fixture {
@@ -26,7 +26,7 @@ async function setup(): Promise<Fixture> {
   const project = path.join(root, "project");
   const item = path.join(registry, "fixture");
 
-  await fs.mkdir(path.join(item, "src/features/fixture"), { recursive: true });
+  await fs.mkdir(path.join(item, "src/items/fixture/features/fixture"), { recursive: true });
   await fs.writeFile(
     path.join(item, REGISTRY_MANIFEST_FILE),
     JSON.stringify({
@@ -204,8 +204,8 @@ test("apply removes a pristine target the registry renamed away (R82-08)", async
     await quiet(() =>
       applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
     );
-    const renamed = "src/features/fixture/next.ts";
-    await fs.mkdir(path.join(fixture.registry, "fixture", "src/features/fixture"), { recursive: true });
+    const renamed = "src/items/fixture/features/fixture/next.ts";
+    await fs.mkdir(path.join(fixture.registry, "fixture", "src/items/fixture/features/fixture"), { recursive: true });
     await fs.writeFile(path.join(fixture.registry, "fixture", renamed), "export const next = 1;\n");
     await fs.writeFile(
       path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE),

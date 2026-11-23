@@ -29,17 +29,17 @@ async function git(cwd: string, args: string[]): Promise<void> {
 async function makeRegistryRepo(options: { container?: boolean } = {}): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-repo-"));
   const itemsRoot = options.container ? path.join(root, "packages", "modules") : root;
-  await fs.mkdir(path.join(itemsRoot, "hello", "src", "components"), { recursive: true });
+  await fs.mkdir(path.join(itemsRoot, "hello", "src", "items", "hello", "components"), { recursive: true });
   await fs.writeFile(
     path.join(itemsRoot, "hello", REGISTRY_MANIFEST_FILE),
     JSON.stringify(
-      { name: "hello", type: "registry:component", title: "Hello", files: ["src/components/hello.tsx"] },
+      { name: "hello", type: "registry:component", title: "Hello", files: ["src/items/hello/components/hello.tsx"] },
       null,
       2,
     ),
   );
   await fs.writeFile(
-    path.join(itemsRoot, "hello", "src", "components", "hello.tsx"),
+    path.join(itemsRoot, "hello", "src", "items", "hello", "components", "hello.tsx"),
     "export function Hello() {\n  return null;\n}\n",
   );
   await git(root, ["init", "-q", "-b", "main"]);
@@ -83,7 +83,7 @@ describe("external registry source", () => {
 
     assert.deepEqual(await readModulesFile(project), ["hello"]);
     assert.equal(
-      await fs.readFile(path.join(project, "src/components/hello.tsx"), "utf8"),
+      await fs.readFile(path.join(project, "src/items/hello/components/hello.tsx"), "utf8"),
       "export function Hello() {\n  return null;\n}\n",
     );
     const document = JSON.parse(await fs.readFile(path.join(project, MODULES_FILE), "utf8")) as {
@@ -111,7 +111,7 @@ describe("external registry source", () => {
 
     assert.deepEqual(await readModulesFile(project), ["hello"]);
     assert.equal(
-      await fs.readFile(path.join(project, "src/components/hello.tsx"), "utf8"),
+      await fs.readFile(path.join(project, "src/items/hello/components/hello.tsx"), "utf8"),
       "export function Hello() {\n  return null;\n}\n",
     );
   });

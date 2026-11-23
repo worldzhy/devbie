@@ -493,27 +493,27 @@ describe("fewbie template update", () => {
       await fs.rm(project, { recursive: true, force: true });
       await fs.rm(template, { recursive: true, force: true });
     });
-    await writeFile(template, "src/components/ui/button.tsx", "export const Button = () => null;\n");
-    await writeFile(template, "src/components/ui/card.tsx", "export const Card = () => null;\n");
+    await writeFile(template, "src/fewbie/ui/button.tsx", "export const Button = () => null;\n");
+    await writeFile(template, "src/fewbie/ui/card.tsx", "export const Card = () => null;\n");
     await writeTemplateBaseline(template);
 
     await runTemplateUpdate({
       cwd: project,
       templatePath: template,
-      paths: ["src/components/ui/button.tsx"],
+      paths: ["src/fewbie/ui/button.tsx"],
     });
 
     assert.equal(
-      await fs.readFile(path.join(project, "src/components/ui/button.tsx"), "utf8"),
+      await fs.readFile(path.join(project, "src/fewbie/ui/button.tsx"), "utf8"),
       "export const Button = () => null;\n",
     );
-    await assert.rejects(fs.readFile(path.join(project, "src/components/ui/card.tsx")));
+    await assert.rejects(fs.readFile(path.join(project, "src/fewbie/ui/card.tsx")));
     // The sibling cannot make the filtered check red either.
     await runTemplateUpdate({
       cwd: project,
       check: true,
       templatePath: template,
-      paths: ["src/components/ui/button.tsx"],
+      paths: ["src/fewbie/ui/button.tsx"],
     });
   });
 });

@@ -2,19 +2,19 @@
   "name": "account-access",
   "type": "registry:block",
   "files": [
-    "src/features/login-page/index.ts",
-    "src/features/login-page/types.ts",
-    "src/features/login-page/login-page.tsx",
-    "src/features/forgot-password/index.ts",
-    "src/features/forgot-password/types.ts",
-    "src/features/forgot-password/forgot-password.tsx",
-    "src/lib/auth.ts"
+    "src/items/account-access/features/login-page/index.ts",
+    "src/items/account-access/features/login-page/types.ts",
+    "src/items/account-access/features/login-page/login-page.tsx",
+    "src/items/account-access/features/forgot-password/index.ts",
+    "src/items/account-access/features/forgot-password/types.ts",
+    "src/items/account-access/features/forgot-password/forgot-password.tsx",
+    "src/items/account-access/lib/auth.ts"
   ],
   "registryDependencies": ["password-checklist"],
   "contract": {
     "version": "2.0.0",
     "framework": "^1.7.0",
-    "entry": "src/features/login-page/index.ts",
+    "entry": "src/items/account-access/features/login-page/index.ts",
     "labels": [
       "title",
       "description",
@@ -77,7 +77,7 @@
     "layers": [
       {
         "layer": "features",
-        "types": "src/features/login-page/types.ts",
+        "types": "src/items/account-access/features/login-page/types.ts",
         "labels": [
           "title",
           "description",
@@ -112,7 +112,7 @@
       },
       {
         "layer": "features",
-        "types": "src/features/forgot-password/types.ts",
+        "types": "src/items/account-access/features/forgot-password/types.ts",
         "labels": [
           "forgotTitle",
           "forgotDescription",

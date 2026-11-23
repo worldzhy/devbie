@@ -11,7 +11,7 @@ import { REGISTRY_MANIFEST_FILE } from "../src/registry/types";
 const VALID = {
   version: "1.0.0",
   framework: "^1.7.0",
-  entry: "src/features/fixture/index.ts",
+  entry: "src/items/fixture/features/fixture/index.ts",
   labels: ["title", "description"],
   ports: ["save"],
   ui: ["button", "card"],
@@ -21,7 +21,7 @@ const VALID = {
 async function writeItem(contract: unknown): Promise<{ root: string; name: string }> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-contract-"));
   const name = "fixture";
-  await fs.mkdir(path.join(root, name, "src/features/fixture"), { recursive: true });
+  await fs.mkdir(path.join(root, name, "src/items/fixture/features/fixture"), { recursive: true });
   await fs.writeFile(path.join(root, name, VALID.entry), "export {};\n");
   await fs.writeFile(
     path.join(root, name, REGISTRY_MANIFEST_FILE),
@@ -99,7 +99,7 @@ test("loadItem warns and still loads an item without a contract", async () => {
 });
 
 test("loadItem validates a contract that ships with the item", async () => {
-  const { root, name } = await writeItem({ ...VALID, entry: "src/features/other/index.ts" });
+  const { root, name } = await writeItem({ ...VALID, entry: "src/items/fixture/features/other/index.ts" });
   try {
     await assert.rejects(loadItem(root, name), /must be one of the item's files/);
   } finally {
@@ -116,14 +116,14 @@ const LAYERED = {
   layers: [
     {
       layer: "features",
-      types: "src/features/fixture/types.ts",
+      types: "src/items/fixture/features/fixture/types.ts",
       labels: ["title"],
       ports: ["save"],
       states: ["ready"],
     },
     {
       layer: "components",
-      types: "src/components/shared/types.ts",
+      types: "src/items/fixture/components/shared/types.ts",
       labels: ["description"],
       ports: [],
       states: [],
@@ -131,7 +131,11 @@ const LAYERED = {
   ],
 };
 
-const LAYERED_FILES = [VALID.entry, "src/features/fixture/types.ts", "src/components/shared/types.ts"];
+const LAYERED_FILES = [
+  VALID.entry,
+  "src/items/fixture/features/fixture/types.ts",
+  "src/items/fixture/components/shared/types.ts",
+];
 
 test("accepts a block whose top-level lists are the layer union (ADR-069)", () => {
   const parsed = parseModuleContract(LAYERED, "fixture");
@@ -158,9 +162,9 @@ test("rejects a key declared by two layers", () => {
 test("rejects a layer types file outside its own layer", () => {
   const misplaced = {
     ...LAYERED,
-    layers: [{ ...LAYERED.layers[0], types: "src/components/fixture/types.ts" }, LAYERED.layers[1]],
+    layers: [{ ...LAYERED.layers[0], types: "src/items/fixture/components/fixture/types.ts" }, LAYERED.layers[1]],
   };
-  assert.throws(() => parseModuleContract(misplaced, "fixture"), /must land under src\/features\//);
+  assert.throws(() => parseModuleContract(misplaced, "fixture"), /must land under src\/items\/fixture\/features\//);
 });
 
 test("rejects a top-level list that drifts from the layer union", () => {

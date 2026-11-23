@@ -2,33 +2,33 @@
   "name": "notification-center",
   "type": "registry:block",
   "files": [
-    "src/features/notification-center/index.ts",
-    "src/features/notification-center/types.ts",
-    "src/features/notification-center/grouping.ts",
-    "src/features/notification-center/use-is-desktop.ts",
-    "src/features/notification-center/notification-row.tsx",
-    "src/features/notification-center/notification-center.tsx",
-    "src/widgets/notification-center-shell/index.ts",
-    "src/widgets/notification-center-shell/types.ts",
-    "src/widgets/notification-center-shell/notification-bell.tsx",
-    "src/widgets/notification-center-shell/notification-ticker.tsx",
-    "src/widgets/notification-center-shell/notification-center-shell.tsx",
-    "src/components/notification-presentation/index.ts",
-    "src/components/notification-presentation/types.ts",
-    "src/components/notification-presentation/format.ts",
-    "src/components/notification-presentation/polling.ts",
-    "src/components/notification-presentation/presentation.tsx",
-    "src/components/notification-presentation/relative-time.tsx",
-    "src/components/notification-presentation/severity-badge.tsx",
-    "src/components/notification-presentation/context-table.tsx",
-    "src/components/notification-presentation/notification-detail.tsx",
-    "src/components/notification-presentation/push-failures.tsx"
+    "src/items/notification-center/features/notification-center/index.ts",
+    "src/items/notification-center/features/notification-center/types.ts",
+    "src/items/notification-center/features/notification-center/grouping.ts",
+    "src/items/notification-center/features/notification-center/use-is-desktop.ts",
+    "src/items/notification-center/features/notification-center/notification-row.tsx",
+    "src/items/notification-center/features/notification-center/notification-center.tsx",
+    "src/items/notification-center/widgets/notification-center-shell/index.ts",
+    "src/items/notification-center/widgets/notification-center-shell/types.ts",
+    "src/items/notification-center/widgets/notification-center-shell/notification-bell.tsx",
+    "src/items/notification-center/widgets/notification-center-shell/notification-ticker.tsx",
+    "src/items/notification-center/widgets/notification-center-shell/notification-center-shell.tsx",
+    "src/items/notification-center/components/notification-presentation/index.ts",
+    "src/items/notification-center/components/notification-presentation/types.ts",
+    "src/items/notification-center/components/notification-presentation/format.ts",
+    "src/items/notification-center/components/notification-presentation/polling.ts",
+    "src/items/notification-center/components/notification-presentation/presentation.tsx",
+    "src/items/notification-center/components/notification-presentation/relative-time.tsx",
+    "src/items/notification-center/components/notification-presentation/severity-badge.tsx",
+    "src/items/notification-center/components/notification-presentation/context-table.tsx",
+    "src/items/notification-center/components/notification-presentation/notification-detail.tsx",
+    "src/items/notification-center/components/notification-presentation/push-failures.tsx"
   ],
   "registryDependencies": [],
   "contract": {
     "version": "2.0.0",
     "framework": "^1.7.0",
-    "entry": "src/features/notification-center/index.ts",
+    "entry": "src/items/notification-center/features/notification-center/index.ts",
     "labels": [
       "allCategories",
       "allProjects",
@@ -94,7 +94,7 @@
     "layers": [
       {
         "layer": "features",
-        "types": "src/features/notification-center/types.ts",
+        "types": "src/items/notification-center/features/notification-center/types.ts",
         "labels": [
           "allCategories",
           "allProjects",
@@ -119,7 +119,7 @@
       },
       {
         "layer": "widgets",
-        "types": "src/widgets/notification-center-shell/types.ts",
+        "types": "src/items/notification-center/widgets/notification-center-shell/types.ts",
         "labels": [
           "ariaLatestNotification",
           "bellLabel",
@@ -134,7 +134,7 @@
       },
       {
         "layer": "components",
-        "types": "src/components/notification-presentation/types.ts",
+        "types": "src/items/notification-center/components/notification-presentation/types.ts",
         "labels": [
           "badgeAlertRecovered",
           "contextLabel",

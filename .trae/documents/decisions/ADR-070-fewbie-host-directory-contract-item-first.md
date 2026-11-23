@@ -1,6 +1,6 @@
-# ADR-070：fewbie 宿主目录契约为 item-first（2.x）
+# ADR-070：fewbie 宿主目录契约为 item-first（1.x minor）
 
-状态：提议中（2026-11-23 用户拍板版本线 1.x；待批准后进入实现）
+状态：已采纳（2026-11-23 用户确认实施）
 日期：2026-11-23
 关系：扩展 [ADR-069](ADR-069-fewbie-registry-item-taxonomy-by-distribution-unit.md) D3（层词表不变，落盘前缀改为 `src/items/<item>/<layer>/`）；取代 [ADR-065](ADR-065-fewbie-registry-items-land-in-src-features.md) 的 `src/features` 单一落点；[ADR-066](ADR-066-fewbie-registry-feature-widget-install-tree.md) 已由 ADR-069 取代，本 ADR 不再引用其条文。
 评审依据：`expert-review-2026-11-23-round94.md`、`round95.md`、`round96.md`、`round97.md`、`round98.md`。
@@ -129,7 +129,7 @@ src/
 
 ## 路径对照表
 
-| 现状（1.x） | 2.x |
+| 现状（1.x） | item-first |
 | --- | --- |
 | `src/features/<slice>/` | `src/items/<item>/features/<slice>/` |
 | `src/widgets/<slice>/` | `src/items/<item>/widgets/<slice>/` |
@@ -158,7 +158,7 @@ registry 侧：10 个 item 目录内部的 `src/features/...` 等载荷路径全
 
 ## 迁移顺序
 
-1. **用户拍板本 ADR**（当前状态：提议中）。
+1. **用户拍板本 ADR**（已完成，2026-11-23）。
 2. CLI 与 registry 门禁一次性切换为 item-first：`TYPE_TARGET_ROOTS` → `TYPE_LAYERS`，路径校验、`moduleSpecifier`、`layerOf`、方向门禁同步改；测试改为单布局用例。
 3. registry 10 项载荷按新路径重排（`files[]` 与 `contract.layers[].types`）。
 4. fewbie-starter 模板树切换为 item-first。

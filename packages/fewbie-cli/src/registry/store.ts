@@ -69,11 +69,12 @@ function isBuilt(item: RegistryManifest | BuiltRegistryItem): item is BuiltRegis
 const ITEM_TYPES: ReadonlySet<string> = new Set(["registry:lib", "registry:component", "registry:block"]);
 
 /**
- * Layer each type may install into (ADR-069). A block is one distribution unit
- * that may carry several layers at once; the layer of each file, not the item
- * type, drives the host's layer lint. The registry gate applies the same table.
+ * Layers each type may install into (ADR-069), and the item-first target shape
+ * (ADR-070): `src/items/<item>/<layer>/…`. A block is one distribution unit that
+ * may carry several layers at once; the layer of each file, not the item type,
+ * drives the host's layer lint. The registry gate applies the same table.
  */
-const TYPE_TARGET_ROOTS: Record<string, readonly string[]> = {
+const TYPE_LAYERS: Record<string, readonly string[]> = {
   "registry:block": ["features", "widgets", "components", "lib"],
   "registry:lib": ["lib", "components"],
   "registry:component": ["components", "lib"],
@@ -119,15 +120,21 @@ function assertManifestShape(itemName: string, item: unknown): asserts item is R
   }
 }
 
-/** A declared target must land in a layer its type owns. */
+/** A declared target must land in the item's own item-first layer tree. */
 function assertTypeTargets(itemName: string, type: string, targets: string[]): void {
-  const roots = TYPE_TARGET_ROOTS[type] ?? [];
+  const layers = TYPE_LAYERS[type] ?? [];
   for (const target of targets) {
-    const segments = target.split("/");
-    if (segments[0] !== "src" || !roots.includes(segments[1]) || segments.length < 3) {
+    const [scope, itemsSegment, itemSegment, layer, ...rest] = target.split("/");
+    if (
+      scope !== "src" ||
+      itemsSegment !== "items" ||
+      itemSegment !== itemName ||
+      !layers.includes(layer) ||
+      rest.length === 0
+    ) {
       throw new CliError(
         `Registry item '${itemName}' declares '${target}', which does not land under ` +
-          `${roots.map((root) => `src/${root}/`).join(" or ")} for type '${type}'.`,
+          `src/items/${itemName}/<${layers.join("|")}>/ for type '${type}'.`,
       );
     }
   }

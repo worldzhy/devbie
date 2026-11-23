@@ -2,21 +2,21 @@
   "name": "account-settings",
   "type": "registry:block",
   "files": [
-    "src/features/preferences-settings/index.ts",
-    "src/features/preferences-settings/types.ts",
-    "src/features/preferences-settings/preferences-settings.tsx",
-    "src/features/profile-settings/index.ts",
-    "src/features/profile-settings/types.ts",
-    "src/features/profile-settings/profile-settings.tsx",
-    "src/features/security-settings/index.ts",
-    "src/features/security-settings/types.ts",
-    "src/features/security-settings/security-settings.tsx"
+    "src/items/account-settings/features/preferences-settings/index.ts",
+    "src/items/account-settings/features/preferences-settings/types.ts",
+    "src/items/account-settings/features/preferences-settings/preferences-settings.tsx",
+    "src/items/account-settings/features/profile-settings/index.ts",
+    "src/items/account-settings/features/profile-settings/types.ts",
+    "src/items/account-settings/features/profile-settings/profile-settings.tsx",
+    "src/items/account-settings/features/security-settings/index.ts",
+    "src/items/account-settings/features/security-settings/types.ts",
+    "src/items/account-settings/features/security-settings/security-settings.tsx"
   ],
   "registryDependencies": [],
   "contract": {
     "version": "2.0.0",
     "framework": "^1.7.0",
-    "entry": "src/features/preferences-settings/index.ts",
+    "entry": "src/items/account-settings/features/preferences-settings/index.ts",
     "labels": [
       "languageTitle",
       "languageDesc",
@@ -82,7 +82,7 @@
     "layers": [
       {
         "layer": "features",
-        "types": "src/features/preferences-settings/types.ts",
+        "types": "src/items/account-settings/features/preferences-settings/types.ts",
         "labels": [
           "languageTitle",
           "languageDesc",
@@ -103,7 +103,7 @@
       },
       {
         "layer": "features",
-        "types": "src/features/profile-settings/types.ts",
+        "types": "src/items/account-settings/features/profile-settings/types.ts",
         "labels": [
           "personalInfo",
           "firstName",
@@ -120,7 +120,7 @@
       },
       {
         "layer": "features",
-        "types": "src/features/security-settings/types.ts",
+        "types": "src/items/account-settings/features/security-settings/types.ts",
         "labels": [
           "activeSessions",
           "loadingSessions",
