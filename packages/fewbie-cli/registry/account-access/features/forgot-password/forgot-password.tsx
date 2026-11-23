@@ -6,10 +6,7 @@ import { Button } from "@/fewbie/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/fewbie/ui/card";
 import { Input } from "@/fewbie/ui/input";
 import { Label } from "@/fewbie/ui/label";
-import {
-  checkPasswordPolicy,
-  isStrongPassword,
-} from "@/fewbie/modules/password-checklist/components/password-checklist";
+import { checkPasswordPolicy, isStrongPassword } from "@/fewbie/modules/account-access/lib/password-policy";
 import type { ForgotPasswordLabels, ForgotPasswordProps } from "./types";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

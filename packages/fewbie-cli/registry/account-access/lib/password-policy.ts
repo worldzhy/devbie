@@ -1,9 +1,3 @@
-"use client";
-
-import { Check, X } from "lucide-react";
-
-import type { PasswordChecklistLabels, PasswordChecklistProps } from "./types";
-
 /** Rule keys in display order; each is also a field of `PasswordPolicyChecks`. */
 export type PasswordRuleKey = "length" | "lowercase" | "uppercase" | "number" | "symbol";
 
@@ -22,6 +16,10 @@ const SYMBOL_PATTERN = /^[-#!$@£%^&*()_+|~=`{}\[\]:";'<>?,.\/\\ ]$/;
  * least 8 UTF-16 code units, one lowercase, one uppercase, one digit and one
  * symbol from the set above. Keep this in sync with
  * `newbie-modules/packages/modules/account/helpers/validator.ts`.
+ *
+ * This is the single frontend copy: the reset form renders it through its own
+ * local checklist shell, so the policy travels with the account-access block
+ * instead of a standalone registry item (ADR-073).
  */
 export function checkPasswordPolicy(password: string): PasswordPolicyChecks {
   return {
@@ -38,36 +36,4 @@ export function checkPasswordPolicy(password: string): PasswordPolicyChecks {
 export function isStrongPassword(password: string): boolean {
   const checks = checkPasswordPolicy(password);
   return checks.length && checks.lowercase && checks.uppercase && checks.number && checks.symbol;
-}
-
-const RULES: ReadonlyArray<{ key: PasswordRuleKey; labelKey: keyof PasswordChecklistLabels }> = [
-  { key: "length", labelKey: "ruleLength" },
-  { key: "lowercase", labelKey: "ruleLowercase" },
-  { key: "uppercase", labelKey: "ruleUppercase" },
-  { key: "number", labelKey: "ruleNumber" },
-  { key: "symbol", labelKey: "ruleSymbol" },
-];
-
-export function PasswordChecklist({ labels, password }: PasswordChecklistProps) {
-  // Show nothing until the user starts typing, to keep the form calm.
-  if (!password) return null;
-
-  const checks = checkPasswordPolicy(password);
-
-  return (
-    <ul className="space-y-1.5 rounded-md border bg-muted/40 p-3" aria-label={labels.requirements}>
-      {RULES.map((rule) => {
-        const met = checks[rule.key];
-        return (
-          <li
-            key={rule.key}
-            className={`flex items-center gap-2 text-xs ${met ? "text-success" : "text-muted-foreground"}`}
-          >
-            {met ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
-            {labels[rule.labelKey]}
-          </li>
-        );
-      })}
-    </ul>
-  );
 }
