@@ -22,6 +22,7 @@
 > 本节 6 条已于 2026-11-23 全部关闭，取证见 `findings.md` 的「发布收尾债清零」节。要点：nightwatch-frontend 与 crewbie-console-frontend 已把框架文件拉齐到模板（cf 走 `--adopt` 建基线，随后按 R2/R3/R4/R7 改造宿主代码）；crewbie-console-backend 把两处只存在于宿主的模块改动（task 详情交付事实、`Task.heartbeatAt` 列）回灌 newbie-modules main `1acf07c` 后完成 ADR-041 锁迁移；四个宿主的 dev→main PR（nb #70、nwf #51、cf #3、cb #3）均已合并；fewbie-modules dev 已快进到 main；nightwatch-world 升 `@devbie/style-guide@^1.8.0`。顺带修复 newbie-starter CI 顺序缺陷（`prisma generate` 必须早于 lint，否则类型感知 DTO 规则误报），证据 newbie-starter #70。
 
 - [ ] **nightwatch-world dev→main 未建 PR**：dev 领先 main 4 个提交（staging 部署 workflow、独立域名栈、backlog 记录、style-guide 1.8.0），领先内容涉及部署语义，未擅自建 PR；确认可发布后再同步 main。
+- [ ] **fewbie-cli module-first 契约未发布**：ADR-070 把 registry 载荷落盘改为 `src/fewbie/modules`（devbie `a0248ed3`、fewbie-modules `c9efdb0`、fewbie-starter `d83e526`、nightwatch-frontend `1f8a3d4`、crewbie-console-frontend `43ca499`）。按 `RELEASE_CHECKLIST.md` 发布 1.16.0（breaking，CHANGELOG 标注）后升三个宿主的 `@devbie/fewbie-cli` pin 与 lockfile；fewbie-modules dev 需先合入 main（`check:registry-snapshot` 比对 origin/main），再开各宿主 dev→main PR，否则 CI 用 1.15.2 会拒绝新路径。
 - [ ] **crewbie-console-backend `modules adapters --check` 不可用**：newbie 栈没有 `adapters` 子命令（该门禁只存在于 fewbie 栈），CI 未引用，无需处理；若后续加模块 i18n 门禁需另设计。
 
 > 本轮 11 条已于 2026-10-30 全部关闭，证据为 dev 分支提交 `6c85bbee`（newbie）、`8ada5196`/`4aba8d19`（newbie-cli）、`1daf36df`（worklog）、`6109cc5f`（web-monitor-sdk）、`cf8bee5c`（aws-secrets-cli）。其中 documentdb 一项改为「默认用运行时信任库、可用 `DOCUMENTDB_CA_FILE` 指向自备 CA 包」，未把 CA PEM 直接入库。
