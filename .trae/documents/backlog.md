@@ -137,7 +137,6 @@
 
 ## ADR-072 / query-client 退场交付项（2026-11-23）
 
-- [ ] **fewbie-modules PR #17（dev→main）待合并**：退场提交 `1f52bf6`；main 未合并前 CLI 不能重生成 registry 快照（`check:registry-snapshot` 以 `origin/main` 内容为基准）。
-- [ ] **快照重生成 + CLI patch 发布待拍板**：合并后跑 `npm run registry:sync -w @devbie/fewbie-cli` 并提交快照；已发布的 1.17.1 仍含该模块，无宿主声明，无运行影响。
+> 2026-11-23 关闭：fewbie-modules PR #17 已合并（main `ff2084c`）；registry 快照按 `1f52bf6` 重生成（9 项，`check:registry-snapshot` 全绿），`@devbie/fewbie-cli@1.17.2` 已发布（`latest=1.17.2`、tarball 在位；build 干净、154 测试通过、audit 仅剩既有 waiver 的 3 条 moderate）。三个消费方升 `^1.17.2`：nightwatch-frontend `514f3f6`、fewbie-starter `20cd025`、crewbie-console-frontend `11dfce4`；nwf 的 `modules update` / `apply` / `adapters --check` 与 cf 的 `update` / `apply --check` 全绿，锁文件仅版本行变化。
 
 
