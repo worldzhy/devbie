@@ -72,9 +72,7 @@ export async function runAdapters(options: ModulesAdaptersOptions): Promise<void
     if (module.manifest.contract === undefined) continue;
     const plan = await planAdapter(module, declaration.namespace);
     plans.push(plan);
-    problems.push(
-      ...(await messageKeyProblems(projectRoot, declaration, name, module.manifest.contract?.labels ?? [])),
-    );
+    problems.push(...(await messageKeyProblems(projectRoot, declaration, name, module.manifest.contract)));
   }
 
   if (options.check) {

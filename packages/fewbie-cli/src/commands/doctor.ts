@@ -61,6 +61,13 @@ const REQUIRED_CSS_VARS = [
 ];
 
 /**
+ * Directory holding host and framework message dictionaries. Framework files
+ * (`framework.<locale>.json`) own the language set (ADR-074 D3).
+ */
+const MESSAGES_DIR = path.join("src", "i18n", "messages");
+const FRAMEWORK_LOCALE_FILE = /^framework\.([^/]+)\.json$/;
+
+/**
  * Read a framework file with the channel its declaration requires (ADR-061):
  * binary assets stay bytes, text assets decode as UTF-8.
  */
@@ -296,6 +303,35 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
           severity: "info",
           category: "framework",
           message: `Framework baseline intact (${Object.keys(manifest.files).length} file(s)).`,
+        });
+      }
+    }
+  }
+
+  // --- 3e. Framework/host message overlap (ADR-074 D1) ---
+  // Common words belong to the framework namespace. A host that keeps its own
+  // copy under `common` shadows the framework key forever and never reports a
+  // drift, so an overlap is an error rather than a warning.
+  const messagesDir = path.join(projectRoot, MESSAGES_DIR);
+  const messageFiles = await fs.readdir(messagesDir).catch(() => null);
+  if (messageFiles !== null) {
+    for (const file of messageFiles) {
+      const match = FRAMEWORK_LOCALE_FILE.exec(file);
+      if (match === null) continue;
+      const locale = match[1];
+      const framework = await readJsonSafe<{ common?: Record<string, unknown> }>(path.join(messagesDir, file));
+      const host = await readJsonSafe<{ common?: Record<string, unknown> }>(path.join(messagesDir, `${locale}.json`));
+      const frameworkCommon = framework?.common;
+      const hostCommon = host?.common;
+      if (frameworkCommon === undefined || hostCommon === undefined) continue;
+      const overlap = Object.keys(hostCommon).filter((key) => key in frameworkCommon);
+      if (overlap.length > 0) {
+        findings.push({
+          severity: "error",
+          category: "i18n",
+          message:
+            `${path.join(MESSAGES_DIR, `${locale}.json`)}: common key(s) ${overlap.join(", ")} already exist in ` +
+            `framework.${locale}.json. Read them through useTranslations("framework.common") and delete the host copy.`,
         });
       }
     }

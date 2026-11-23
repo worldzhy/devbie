@@ -16,7 +16,7 @@
   ],
   "registryDependencies": [],
   "contract": {
-    "version": "2.0.0",
+    "version": "2.1.0",
     "framework": "^1.7.0",
     "entry": "src/fewbie/modules/account-access/features/login-page/index.ts",
     "labels": [
@@ -112,7 +112,63 @@
           "totpSubmit"
         ],
         "ports": ["signIn", "sendVerificationCode"],
-        "states": ["loading", "error", "ready"]
+        "states": ["loading", "error", "ready"],
+        "defaults": {
+          "en": {
+            "tabPassword": "Password",
+            "tabVerificationCode": "Verification code",
+            "email": "Email",
+            "password": "Password",
+            "submit": "Sign in",
+            "verificationCode": "Verification code",
+            "getCode": "Get code",
+            "orContinueWith": "Or continue with",
+            "back": "Back",
+            "clearEmail": "Clear email",
+            "clearPassword": "Clear password",
+            "hidePassword": "Hide password",
+            "showPassword": "Show password",
+            "clearCode": "Clear code",
+            "invalidEmail": "Invalid email",
+            "emailRequired": "Email is required",
+            "passwordMin": "Password must be at least 8 characters",
+            "passwordRequired": "Password is required",
+            "codeDigits": "Verification code must be 6 digits",
+            "codeRequired": "Verification code is required",
+            "invalidCredentials": "Incorrect email or password",
+            "loginFailed": "Sign-in failed",
+            "totpLabel": "Two-factor code",
+            "totpHint": "Enter the 6-digit code from your authenticator app.",
+            "totpSubmit": "Verify"
+          },
+          "zh": {
+            "tabPassword": "密码",
+            "tabVerificationCode": "验证码",
+            "email": "邮箱",
+            "password": "密码",
+            "submit": "登录",
+            "verificationCode": "验证码",
+            "getCode": "获取验证码",
+            "orContinueWith": "或使用以下方式继续",
+            "back": "返回",
+            "clearEmail": "清除邮箱",
+            "clearPassword": "清除密码",
+            "hidePassword": "隐藏密码",
+            "showPassword": "显示密码",
+            "clearCode": "清除验证码",
+            "invalidEmail": "邮箱格式不正确",
+            "emailRequired": "请输入邮箱",
+            "passwordMin": "密码至少 8 位",
+            "passwordRequired": "请输入密码",
+            "codeDigits": "验证码须为 6 位数字",
+            "codeRequired": "请输入验证码",
+            "invalidCredentials": "邮箱或密码不正确",
+            "loginFailed": "登录失败",
+            "totpLabel": "双因素验证码",
+            "totpHint": "请输入身份验证器应用中的 6 位验证码。",
+            "totpSubmit": "验证"
+          }
+        }
       },
       {
         "layer": "features",
@@ -147,7 +203,63 @@
           "passwordRuleSymbol"
         ],
         "ports": ["sendResetCode", "resetPassword"],
-        "states": ["loading", "error", "ready"]
+        "states": ["loading", "error", "ready"],
+        "defaults": {
+          "en": {
+            "emailLabel": "Email",
+            "codeLabel": "Verification code",
+            "newPasswordLabel": "New password",
+            "forgotGetCode": "Get code",
+            "resetButton": "Reset password",
+            "forgotBack": "Back",
+            "forgotClearEmail": "Clear email",
+            "forgotClearCode": "Clear code",
+            "forgotClearPassword": "Clear password",
+            "forgotShowPassword": "Show password",
+            "forgotHidePassword": "Hide password",
+            "forgotInvalidEmail": "Invalid email",
+            "forgotEmailRequired": "Email is required",
+            "forgotCodeDigits": "Verification code must be 6 digits",
+            "forgotCodeRequired": "Verification code is required",
+            "passwordRule": "Password must be at least 8 characters and include uppercase, lowercase, number and symbol",
+            "forgotPasswordRequired": "Password is required",
+            "requestFailed": "Request failed",
+            "resetFailed": "Request failed",
+            "passwordRequirements": "Password requirements",
+            "passwordRuleLength": "At least 8 characters",
+            "passwordRuleLowercase": "One lowercase letter",
+            "passwordRuleUppercase": "One uppercase letter",
+            "passwordRuleNumber": "One number",
+            "passwordRuleSymbol": "One symbol"
+          },
+          "zh": {
+            "emailLabel": "邮箱",
+            "codeLabel": "验证码",
+            "newPasswordLabel": "新密码",
+            "forgotGetCode": "获取验证码",
+            "resetButton": "重置密码",
+            "forgotBack": "返回",
+            "forgotClearEmail": "清除邮箱",
+            "forgotClearCode": "清除验证码",
+            "forgotClearPassword": "清除密码",
+            "forgotShowPassword": "显示密码",
+            "forgotHidePassword": "隐藏密码",
+            "forgotInvalidEmail": "邮箱格式不正确",
+            "forgotEmailRequired": "请输入邮箱",
+            "forgotCodeDigits": "验证码须为 6 位数字",
+            "forgotCodeRequired": "请输入验证码",
+            "passwordRule": "密码至少 8 位，且需包含大写字母、小写字母、数字和符号",
+            "forgotPasswordRequired": "请输入密码",
+            "requestFailed": "请求失败",
+            "resetFailed": "请求失败",
+            "passwordRequirements": "密码要求",
+            "passwordRuleLength": "至少 8 个字符",
+            "passwordRuleLowercase": "包含一个小写字母",
+            "passwordRuleUppercase": "包含一个大写字母",
+            "passwordRuleNumber": "包含一个数字",
+            "passwordRuleSymbol": "包含一个符号"
+          }
+        }
       }
     ]
   }
