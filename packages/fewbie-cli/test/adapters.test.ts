@@ -23,6 +23,8 @@ interface SetupOptions {
   extraLabels?: string[];
   /** Replace the whole i18n block in fewbie.json. */
   i18n?: unknown;
+  /** Omit the contract entirely, as components and libs may (ADR-069). */
+  noContract?: boolean;
 }
 
 const TITLE = "Fixture label";
@@ -31,7 +33,7 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-adapters-"));
   const registry = path.join(root, "registry");
   const project = path.join(root, "project");
-  const module = path.join(registry, "fixture");
+  const module: string = path.join(registry, "fixture");
   const labelsType = options.labelsType ?? "FixtureLabels";
   const labels = ["title", "description", ...(options.extraLabels ?? [])];
 
@@ -40,28 +42,35 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   await fs.mkdir(path.join(module, path.dirname(storage("src/fewbie/modules/fixture/features/fixture/index.ts"))), {
     recursive: true,
   });
-  await fs.writeFile(
-    path.join(module, REGISTRY_MANIFEST_FILE),
-    JSON.stringify({
-      name: "fixture",
-      type: "registry:block",
-      title: "Fixture",
-      files: [
-        "src/fewbie/modules/fixture/features/fixture/index.ts",
-        "src/fewbie/modules/fixture/features/fixture/types.ts",
-        "src/fewbie/modules/fixture/features/fixture/fixture.tsx",
-      ],
-      contract: {
-        version: "1.0.0",
-        framework: "^1.10.0",
-        entry: "src/fewbie/modules/fixture/features/fixture/index.ts",
-        labels,
-        ports: ["save"],
-        ui: ["button"],
-        states: ["ready"],
-      },
-    }),
-  );
+  const manifest: Record<string, unknown> = {
+    name: "fixture",
+    type: options.noContract === true ? "registry:lib" : "registry:block",
+    title: "Fixture",
+    files:
+      options.noContract === true
+        ? ["src/fewbie/modules/fixture/lib/fixture.ts"]
+        : [
+            "src/fewbie/modules/fixture/features/fixture/index.ts",
+            "src/fewbie/modules/fixture/features/fixture/types.ts",
+            "src/fewbie/modules/fixture/features/fixture/fixture.tsx",
+          ],
+  };
+  if (options.noContract !== true) {
+    manifest.contract = {
+      version: "1.0.0",
+      framework: "^1.10.0",
+      entry: "src/fewbie/modules/fixture/features/fixture/index.ts",
+      labels,
+      ports: ["save"],
+      ui: ["button"],
+      states: ["ready"],
+    };
+  }
+  await fs.writeFile(path.join(module, REGISTRY_MANIFEST_FILE), JSON.stringify(manifest));
+  if (options.noContract === true) {
+    await fs.mkdir(path.join(module, "lib"), { recursive: true });
+    await fs.writeFile(path.join(module, "lib/fixture.ts"), "export const noop = (): void => {};\n");
+  }
   await fs.writeFile(
     path.join(module, storage("src/fewbie/modules/fixture/features/fixture/index.ts")),
     `export { Fixture } from "./fixture";\nexport type { ${labelsType} } from "./types";\n`,
@@ -214,6 +223,14 @@ export function useFixtureLabels(): FixtureLabels {
     assert.equal(await readAdapter(fixture.project), first);
 
     await runAdapters({ cwd: fixture.project, check: true });
+  });
+
+  it("skips declared modules without a contract (ADR-069)", async () => {
+    const fixture = await setup({ noContract: true });
+    after(() => fixture.dispose());
+
+    await runAdapters({ cwd: fixture.project, check: true });
+    await assert.rejects(fs.access(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx")));
   });
 
   it("fails --check when the adapter is missing or drifted", async () => {
