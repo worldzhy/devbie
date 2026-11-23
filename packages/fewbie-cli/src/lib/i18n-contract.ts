@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import path from "node:path";
 
 import { CliError } from "@devbie/cli-kit";
-import { LoadedItem, readItemFileContent } from "../registry/store";
+import { LoadedModule, readModuleFileContent } from "../registry/store";
 import { MODULES_FILE } from "./modules-file";
 
 /**
@@ -11,7 +11,7 @@ import { MODULES_FILE } from "./modules-file";
  *
  * The module contract already names every label the host must supply, so the
  * host's label adapter is a mechanical projection of that list. Generation
- * keeps the key set in lockstep with the registry item; `modules adapters
+ * keeps the key set in lockstep with the registry module; `modules adapters
  * --check` is the drift gate.
  */
 
@@ -85,9 +85,9 @@ function assertProjectRelative(label: string, value: string): void {
   }
 }
 
-/** Install target of a module's generated adapter. */
+/** Install target of a module's generated adapter (CLI-owned surface, ADR-070 D3). */
 export function adapterTarget(name: string): string {
-  return `src/adapters/${name}.tsx`;
+  return `src/fewbie/adapters/${name}.tsx`;
 }
 
 /** `preferences-settings` -> `PreferencesSettings`. */
@@ -99,11 +99,11 @@ export function pascalCase(name: string): string {
     .join("");
 }
 
-/** Host import specifier of a module entry, e.g. `@/features/preferences-settings`. */
-export function moduleSpecifier(entry: string, itemName: string): string {
+/** Host import specifier of a module entry, e.g. `@/fewbie/modules/account-access/features/login-page`. */
+export function moduleSpecifier(entry: string, moduleName: string): string {
   if (!entry.startsWith("src/")) {
     throw new CliError(
-      `Registry item '${itemName}': contract.entry '${entry}' must live under src/ so the adapter can import it.`,
+      `Registry module '${moduleName}': contract.entry '${entry}' must live under src/ so the adapter can import it.`,
     );
   }
   const withoutExtension = entry.replace(/\.(ts|tsx)$/, "");
@@ -124,24 +124,26 @@ function memberNames(body: string): string[] {
 }
 
 /**
- * Locate the labels interface in the item's TypeScript sources by matching its
- * member set against `contract.labels`. The name cannot be derived from the
- * item name (`login-page` exports `LoginLabels`), so the sources decide.
+ * Locate a labels interface by matching its member set against the expected
+ * keys. The name cannot be derived from the module name (`login-page` exports
+ * `LoginLabels`), so the sources decide. `targets` narrows the scan to the
+ * files of one contract layer (ADR-069).
  */
-export async function detectLabelsType(item: LoadedItem): Promise<string> {
-  const name = item.manifest.name;
-  const contract = item.manifest.contract;
+export async function detectLabelsType(module: LoadedModule, labels?: string[], targets?: string[]): Promise<string> {
+  const name = module.manifest.name;
+  const contract = module.manifest.contract;
   if (contract === undefined) {
     throw new CliError(
-      `Registry item '${name}' has no contract; add one before generating its i18n adapter (ADR-057).`,
+      `Registry module '${name}' has no contract; add one before generating its i18n adapter (ADR-057).`,
     );
   }
-  const expected = new Set(contract.labels);
+  const expected = new Set(labels ?? contract.labels);
   const candidates: Array<{ type: string; keys: string[] }> = [];
 
-  for (const file of item.files) {
+  const files = targets === undefined ? module.files : module.files.filter((file) => targets.includes(file.target));
+  for (const file of files) {
     if (!/\.(ts|tsx)$/.test(file.target)) continue;
-    const source = await readItemFileContent(file);
+    const source = await readModuleFileContent(file);
     for (const match of source.matchAll(/export\s+interface\s+(\w+)\s*\{([^{}]*)\}/g)) {
       candidates.push({ type: match[1], keys: memberNames(match[2]) });
     }
@@ -155,19 +157,24 @@ export async function detectLabelsType(item: LoadedItem): Promise<string> {
   );
   if (match === undefined) {
     throw new CliError(
-      `Registry item '${name}': no exported interface in the item's sources declares exactly the contract labels ` +
-        `(${contract.labels.join(", ")}). Fix the registry item or its contract.`,
+      `Registry module '${name}': no exported interface in the module's sources declares exactly the contract labels ` +
+        `(${[...expected].join(", ")}). Fix the registry module or its contract.`,
     );
   }
   return match.type;
 }
 
+/** One layer of a block payload; each layer contributes its own labels type. */
+export interface AdapterLayer {
+  labelsType: string;
+  entry: string;
+}
+
 export interface AdapterInput {
   name: string;
   labels: string[];
-  labelsType: string;
-  entry: string;
   namespace: string;
+  layers: AdapterLayer[];
 }
 
 /** Deterministic adapter source; already formatted for the ecosystem style guide. */
@@ -175,18 +182,31 @@ export function adapterSource(input: AdapterInput): string {
   const hook = `use${pascalCase(input.name)}Labels`;
   const qualifiedNamespace = `${input.namespace}.${input.name}`;
   const entries = input.labels.map((label) => `    ${label}: t("${label}"),`).join("\n");
+  const single = input.layers.length === 1 ? input.layers[0] : undefined;
+
+  const imports = single
+    ? `import type { ${single.labelsType} } from "${moduleSpecifier(single.entry, input.name)}";`
+    : input.layers
+        .map((layer) => `import type { ${layer.labelsType} } from "${moduleSpecifier(layer.entry, input.name)}";`)
+        .join("\n");
+  const labelsType = single ? single.labelsType : `${pascalCase(input.name)}ModuleLabels`;
+  const alias = single
+    ? ""
+    : `\n/** Union of the block's layer label types; the host fills one namespace. */\nexport type ${labelsType} = ${input.layers
+        .map((layer) => layer.labelsType)
+        .join(" & ")};\n`;
 
   return `"use client";
 
 // Generated by \`fewbie modules adapters\` from the ${input.name} module contract.
-// Regenerate after \`fewbie modules update\`; edit the registry item instead.
+// Regenerate after \`fewbie modules update\`; edit the registry module instead.
 
 import { useTranslations } from "next-intl";
 
-import type { ${input.labelsType} } from "${moduleSpecifier(input.entry, input.name)}";
-
+${imports}
+${alias}
 /** Labels for the \`${input.name}\` module, resolved from the \`${qualifiedNamespace}\` namespace. */
-export function ${hook}(): ${input.labelsType} {
+export function ${hook}(): ${labelsType} {
   const t = useTranslations("${qualifiedNamespace}");
   return {
 ${entries}
@@ -201,22 +221,41 @@ export interface AdapterPlan {
   content: string;
 }
 
-/** Build the generated adapter for one loaded item. */
-export async function planAdapter(item: LoadedItem, namespace: string): Promise<AdapterPlan> {
-  const contract = item.manifest.contract;
+/** Build the generated adapter for one loaded module. */
+export async function planAdapter(module: LoadedModule, namespace: string): Promise<AdapterPlan> {
+  const contract = module.manifest.contract;
   if (contract === undefined) {
     throw new CliError(
-      `Registry item '${item.manifest.name}' has no contract; add one before generating its i18n adapter (ADR-057).`,
+      `Registry module '${module.manifest.name}' has no contract; add one before generating its i18n adapter (ADR-057).`,
     );
   }
+
+  // A block declares its layers (ADR-069 D5); v1 modules scan the whole payload.
+  const layers: AdapterLayer[] = [];
+  for (const layer of contract.layers ?? []) {
+    layers.push({
+      labelsType: await detectLabelsType(module, layer.labels, [layer.types]),
+      entry: layer.types,
+    });
+  }
+  if (layers.length === 0) {
+    layers.push({ labelsType: await detectLabelsType(module), entry: contract.entry });
+  }
+  const typeNames = layers.map((layer) => layer.labelsType);
+  if (new Set(typeNames).size !== typeNames.length) {
+    throw new CliError(
+      `Registry module '${module.manifest.name}': layers export the same labels type twice ` +
+        `(${typeNames.join(", ")}); give each layer's labels interface a distinct name.`,
+    );
+  }
+
   return {
-    name: item.manifest.name,
-    target: adapterTarget(item.manifest.name),
+    name: module.manifest.name,
+    target: adapterTarget(module.manifest.name),
     content: adapterSource({
-      name: item.manifest.name,
+      name: module.manifest.name,
       labels: contract.labels,
-      labelsType: await detectLabelsType(item),
-      entry: contract.entry,
+      layers,
       namespace,
     }),
   };

@@ -2,7 +2,7 @@ import path from "node:path";
 import { checkbox } from "@inquirer/prompts";
 import { bold, cyan, green, yellow } from "colorette";
 
-import { listRegistryItemNames, loadItem } from "../../registry/store";
+import { listRegistryModuleNames, loadModule } from "../../registry/store";
 import { resolveRegistryRoot } from "../../registry/source";
 import { confirm, isInteractive } from "../../lib/confirm";
 import { pathExists } from "@devbie/cli-kit";
@@ -28,12 +28,12 @@ interface ModuleEntry {
 async function collectInventory(projectRoot: string): Promise<{ declared: string[]; modules: ModuleEntry[] }> {
   const declared = (await readModulesFile(projectRoot)) ?? [];
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const names = await listRegistryItemNames(registryRoot);
+  const names = await listRegistryModuleNames(registryRoot);
   const modules: ModuleEntry[] = [];
 
   for (const name of names) {
-    const item = await loadItem(registryRoot, name);
-    const present = await Promise.all(item.files.map((file) => pathExists(path.join(projectRoot, file.target))));
+    const module = await loadModule(registryRoot, name);
+    const present = await Promise.all(module.files.map((file) => pathExists(path.join(projectRoot, file.target))));
     modules.push({ name, declared: declared.includes(name), installed: present.every(Boolean) });
   }
   // Declared modules absent from this registry checkout stay visible.

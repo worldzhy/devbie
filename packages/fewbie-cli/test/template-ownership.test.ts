@@ -50,7 +50,7 @@ describe("ownership registry completeness (ADR-025)", () => {
   });
 
   it("lists template files missing from the registry", () => {
-    assert.deepEqual(findUnclassifiedTemplateFiles(["next.config.ts", "src/components/ui/button.tsx"]), []);
+    assert.deepEqual(findUnclassifiedTemplateFiles(["next.config.ts", "src/fewbie/ui/button.tsx"]), []);
     assert.deepEqual(findUnclassifiedTemplateFiles(["docs/new.md", "src/orphan.ts"]), ["docs/new.md", "src/orphan.ts"]);
   });
 
@@ -75,7 +75,7 @@ describe("ownership registry completeness (ADR-025)", () => {
     for (const ignored of [".next/server/app.js", "node_modules/pkg/index.js", "package-lock.json"]) {
       assert.ok(isTemplateScanIgnored(ignored), `${ignored} must stay out of the guard`);
     }
-    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/i18n/config.ts", "backlog.md"]) {
+    for (const shipped of ["Dockerfile", ".github/workflows/ci.yml", "src/fewbie/i18n/config.ts", "backlog.md"]) {
       assert.ok(!isTemplateScanIgnored(shipped), `${shipped} must remain classified`);
     }
   });
@@ -83,10 +83,14 @@ describe("ownership registry completeness (ADR-025)", () => {
 
 describe("longest-prefix ownership (ADR-056 D2)", () => {
   it("lets a nested framework subtree win over its host parent", () => {
-    assert.equal(resolveTemplateAsset("src/components/ui/button.tsx")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/fewbie/ui/button.tsx")?.ownership, "framework");
     assert.equal(resolveTemplateAsset("src/components/shell/app-shell.tsx")?.ownership, "host");
-    assert.equal(resolveTemplateAsset("src/framework/page-shell.tsx")?.ownership, "framework");
-    assert.equal(resolveTemplateAsset("src/i18n/config.ts")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/fewbie/framework/page-shell.tsx")?.ownership, "framework");
+    assert.equal(resolveTemplateAsset("src/fewbie/i18n/config.ts")?.ownership, "framework");
+    assert.equal(
+      resolveTemplateAsset("src/fewbie/modules/account-access/features/login-page/index.ts")?.ownership,
+      "host",
+    );
     assert.equal(resolveTemplateAsset("src/i18n/messages/framework.en.json")?.ownership, "framework");
     assert.equal(resolveTemplateAsset("src/i18n/messages/nightwatch.en.json")?.ownership, "host");
     assert.equal(resolveTemplateAsset("src/app/layout.tsx")?.ownership, "framework");

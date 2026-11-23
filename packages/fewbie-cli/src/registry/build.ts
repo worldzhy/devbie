@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 
 import { validateManifestContract } from "./contract";
-import { REGISTRY_MANIFEST_FILE, type BuiltRegistryItem, type RegistryManifest } from "./types";
+import { REGISTRY_MANIFEST_FILE, type BuiltRegistryModule, type RegistryManifest } from "./types";
 
 const SHADCN_ITEM_SCHEMA = "https://ui.shadcn.com/r/registry-item.json";
 
@@ -30,7 +30,7 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
     const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as RegistryManifest;
 
     if (manifest.name !== entry.name) {
-      throw new Error(`Registry folder '${entry.name}' does not match item name '${manifest.name}'.`);
+      throw new Error(`Registry folder '${entry.name}' does not match module name '${manifest.name}'.`);
     }
 
     // A broken contract must fail the build, not ship and surprise a host.
@@ -40,8 +40,8 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
       manifest.files.map(async (relative) => {
         const resolved = path.resolve(itemDir, relative);
         // Prevent directory traversal — manifest.files must stay inside the
-        // item's own directory. Without this, a malicious manifest could read
-        // any file on the filesystem and embed it in the built registry item.
+        // module's own directory. Without this, a malicious manifest could read
+        // any file on the filesystem and embed it in the built registry module.
         if (!resolved.startsWith(path.resolve(itemDir) + path.sep)) {
           throw new Error(`Registry manifest for '${entry.name}' contains path outside its directory: ${relative}`);
         }
@@ -53,7 +53,7 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
       }),
     );
 
-    const builtItem: BuiltRegistryItem = {
+    const builtModule: BuiltRegistryModule = {
       $schema: SHADCN_ITEM_SCHEMA,
       name: manifest.name,
       type: manifest.type,
@@ -68,10 +68,10 @@ export async function buildRegistry(sourceRoot: string, outputRoot: string): Pro
 
     const outDir = path.join(outputRoot, entry.name);
     // Recreate the directory so a manifest rename cannot leave a stale file
-    // (e.g. the old item.json) in the published artifact.
+    // (e.g. the old module.json) in the published artifact.
     await fs.rm(outDir, { recursive: true, force: true });
     await fs.mkdir(outDir, { recursive: true });
-    await fs.writeFile(path.join(outDir, REGISTRY_MANIFEST_FILE), `${JSON.stringify(builtItem, null, 2)}\n`);
+    await fs.writeFile(path.join(outDir, REGISTRY_MANIFEST_FILE), `${JSON.stringify(builtModule, null, 2)}\n`);
     // Sidecar fallback: a shadcn consumer that strips unknown manifest keys
     // still gets the contract from this file.
     if (contract) {

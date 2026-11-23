@@ -5,6 +5,6 @@
   "description": "Server-Sent Events decoder over a fetch ReadableStream with a POST-based request helper, for endpoints that EventSource cannot serve (POST bodies, custom headers). Transport-text only: frame decoding (event/data, keepalive comments, CRLF tolerance, chunk buffering) with abort support; JSON decoding of the data line is the caller's job.",
   "dependencies": [],
   "registryDependencies": [],
-  "files": ["src/lib/sse-stream.ts"],
+  "files": ["src/fewbie/modules/sse-stream/lib/sse-stream.ts"],
   "postInstall": "Use postSse(url, { body, headers, signal, onFrame }) for POST-initiated streams (EventSource cannot POST or set headers); call consumeSseStream directly when you already hold a fetch Response. Throw semantics: SseStreamError carries the HTTP status for non-2xx responses."
 }

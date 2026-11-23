@@ -7,13 +7,16 @@
  * carries its inlined content for `npx shadcn add <url>` consumption.
  */
 
-/** Manifest filename inside an item directory, authored and generated alike. */
+/** Manifest filename inside a module directory, authored and generated alike. */
 export const REGISTRY_MANIFEST_FILE = "fewbie.module.json";
 
-/** shadcn registry item kinds fewbie uses. */
-export type RegistryItemType = "registry:lib" | "registry:component" | "registry:widget" | "registry:feature";
+/** shadcn registry module kinds fewbie uses (ADR-069). */
+export type RegistryModuleType = "registry:lib" | "registry:component" | "registry:block";
 
-/** File entry in the authored manifest: path relative to the item folder. */
+/** Layer a block file belongs to, derived from its target path (ADR-069 D1). */
+export type ModuleLayer = "features" | "widgets" | "components" | "lib";
+
+/** File entry in the authored manifest: path relative to the module folder. */
 export interface RegistryFileRef {
   path: string;
 }
@@ -24,20 +27,38 @@ export interface RegistryFileEntry {
   path: string;
   /** Inlined file content. */
   content: string;
-  type: RegistryItemType;
+  type: RegistryModuleType;
 }
 
 /** UI states a module must be able to render, declared in its contract. */
 export type ModuleState = "loading" | "error" | "empty" | "success" | "ready";
 
 /**
- * Executable module contract (ADR-057). The `types.ts` interface of an item is
- * the type truth; this object restates the parts the CLI can verify without a
- * TypeScript build: version, framework range, entry point, and the label,
- * port, ui and state surfaces the module exposes.
+ * Per-layer contract of a block (ADR-069 D5). A block ships files for several
+ * layers; each layer's `types.ts` is the type truth for that layer's labels and
+ * ports, while the top-level lists are their union for adapter generation.
+ */
+export interface ModuleLayerContract {
+  /** Layer the entry file lands in; must match the target path. */
+  layer: ModuleLayer;
+  /** Project-relative `types.ts` declaring this layer's interfaces. */
+  types: string;
+  /** Label keys this layer consumes. */
+  labels: string[];
+  /** Port method names this layer requires. */
+  ports: string[];
+  /** States this layer implements. */
+  states: ModuleState[];
+}
+
+/**
+ * Executable module contract (ADR-057, ADR-069). The `types.ts` interface of an
+ * module is the type truth; this object restates the parts the CLI can verify
+ * without a TypeScript build: version, framework range, entry point, and the
+ * label, port, ui and state surfaces the module exposes.
  */
 export interface ModuleContract {
-  /** Module version, semver. */
+  /** Module version, semver. Contracts with `layers` are v2 or later. */
   version: string;
   /** Compatible framework range, e.g. "^1.7.0". */
   framework: string;
@@ -51,17 +72,19 @@ export interface ModuleContract {
   ui: string[];
   /** States the module implements. */
   states: ModuleState[];
+  /** Layer breakdown of a block; omitted by single-layer modules (v1). */
+  layers?: ModuleLayerContract[];
 }
 
 /** Authored fewbie.module.json (files are plain path strings). */
 export interface RegistryManifest {
   name: string;
-  type: RegistryItemType;
+  type: RegistryModuleType;
   title: string;
   description?: string;
-  /** npm packages the item needs installed in the consuming project. */
+  /** npm packages the module needs installed in the consuming project. */
   dependencies?: string[];
-  /** Other fewbie registry items this item depends on. */
+  /** Other fewbie registry modules this module depends on. */
   registryDependencies?: string[];
   files: string[];
   /** Hint printed after installation (manual wiring steps). */
@@ -70,11 +93,11 @@ export interface RegistryManifest {
   contract?: ModuleContract;
 }
 
-/** Built shadcn-compatible registry-item manifest. */
-export interface BuiltRegistryItem {
+/** Built shadcn-compatible registry-module manifest. */
+export interface BuiltRegistryModule {
   $schema: string;
   name: string;
-  type: RegistryItemType;
+  type: RegistryModuleType;
   title: string;
   description?: string;
   dependencies?: string[];

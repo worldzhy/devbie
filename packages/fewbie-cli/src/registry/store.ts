@@ -4,35 +4,35 @@ import { yellow } from "colorette";
 
 import { CliError } from "@devbie/cli-kit";
 import { parseModuleContract, validateManifestContract } from "./contract";
-import { REGISTRY_MANIFEST_FILE, type BuiltRegistryItem, type ModuleContract, type RegistryManifest } from "./types";
+import { REGISTRY_MANIFEST_FILE, type BuiltRegistryModule, type ModuleContract, type RegistryManifest } from "./types";
 
-/** A loaded item plus the absolute paths its files should be copied from. */
-export interface LoadedItem {
+/** A loaded module plus the absolute paths its files should be copied from. */
+export interface LoadedModule {
   manifest: RegistryManifest;
   /** Target path (project-relative) -> absolute source path / inline content. */
   files: Array<{ target: string; source?: string; content?: string }>;
 }
 
-async function readItemFile(root: string, name: string): Promise<RegistryManifest | BuiltRegistryItem> {
+async function readModuleFile(root: string, name: string): Promise<RegistryManifest | BuiltRegistryModule> {
   const raw = await fs.readFile(path.join(root, name, REGISTRY_MANIFEST_FILE), "utf8");
-  return JSON.parse(raw) as RegistryManifest | BuiltRegistryItem;
+  return JSON.parse(raw) as RegistryManifest | BuiltRegistryModule;
 }
 
-/** Warn once per item that predates the executable contract (ADR-057). */
+/** Warn once per module that predates the executable contract (ADR-057). */
 function warnMissingContract(name: string): void {
-  console.warn(yellow(`Registry item '${name}' has no contract; pinning is unavailable until the module ships one.`));
+  console.warn(yellow(`Registry module '${name}' has no contract; pinning is unavailable until the module ships one.`));
 }
 
 /**
- * Built items carry the contract inline; the sidecar is the fallback for
+ * Built modules carry the contract inline; the sidecar is the fallback for
  * consumers whose tooling strips unknown manifest keys.
  */
 async function readBuiltContract(
   root: string,
   name: string,
-  item: BuiltRegistryItem,
+  module: BuiltRegistryModule,
 ): Promise<ModuleContract | undefined> {
-  if (item["x-fewbie.contract"] !== undefined) return item["x-fewbie.contract"];
+  if (module["x-fewbie.contract"] !== undefined) return module["x-fewbie.contract"];
   const sidecar = path.join(root, name, "contract.json");
   const raw = await fs.readFile(sidecar, "utf8").catch((error: unknown) => {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
@@ -42,98 +42,105 @@ async function readBuiltContract(
   return parseModuleContract(JSON.parse(raw), name);
 }
 
-/** Names of every authored item in the registry, sorted. */
-export async function listRegistryItemNames(root: string): Promise<string[]> {
+/** Names of every authored module in the registry, sorted. */
+export async function listRegistryModuleNames(root: string): Promise<string[]> {
   const entries = await fs.readdir(root, { withFileTypes: true });
   const names: string[] = [];
   for (const entry of entries) {
     if (!entry.isDirectory()) continue;
-    const hasItem = await fs
+    const hasModule = await fs
       .access(path.join(root, entry.name, REGISTRY_MANIFEST_FILE))
       .then(() => true)
       .catch(() => false);
-    if (hasItem) names.push(entry.name);
+    if (hasModule) names.push(entry.name);
   }
   return names.sort();
 }
 
-/** Content one loaded item file should be copied from. */
-export async function readItemFileContent(file: LoadedItem["files"][number]): Promise<string> {
+/** Content one loaded module file should be copied from. */
+export async function readModuleFileContent(file: LoadedModule["files"][number]): Promise<string> {
   return file.content ?? (await fs.readFile(file.source as string, "utf8"));
 }
 
-function isBuilt(item: RegistryManifest | BuiltRegistryItem): item is BuiltRegistryItem {
-  return Array.isArray(item.files) && item.files.length > 0 && typeof item.files[0] === "object";
+function isBuilt(module: RegistryManifest | BuiltRegistryModule): module is BuiltRegistryModule {
+  return Array.isArray(module.files) && module.files.length > 0 && typeof module.files[0] === "object";
 }
 
-const ITEM_TYPES: ReadonlySet<string> = new Set([
-  "registry:lib",
-  "registry:component",
-  "registry:widget",
-  "registry:feature",
-]);
+const MODULE_TYPES: ReadonlySet<string> = new Set(["registry:lib", "registry:component", "registry:block"]);
 
 /**
- * Layer each type may install into. A feature stays a feature so the host's
- * layer lint sees it; a lib may ship a component payload beside its logic
- * (ADR-066). The registry gate applies the same table (R87-02, R87-24).
+ * Layers each type may install into (ADR-069), and the module-first target shape
+ * (ADR-070): `src/fewbie/modules/<module>/<layer>/…`. A block is one distribution unit that
+ * may carry several layers at once; the layer of each file, not the module type,
+ * drives the host's layer lint. The registry gate applies the same table.
  */
-const TYPE_TARGET_ROOTS: Record<string, readonly string[]> = {
-  "registry:feature": ["features"],
-  "registry:widget": ["widgets"],
+const TYPE_LAYERS: Record<string, readonly string[]> = {
+  "registry:block": ["features", "widgets", "components", "lib"],
   "registry:lib": ["lib", "components"],
   "registry:component": ["components", "lib"],
 };
 
-function assertStringArray(itemName: string, field: string, value: unknown): void {
+function assertStringArray(moduleName: string, field: string, value: unknown): void {
   if (value === undefined) return;
   if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || entry === "")) {
     throw new CliError(
-      `Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: '${field}' must be an array of non-empty strings.`,
+      `Registry module '${moduleName}' has a malformed ${REGISTRY_MANIFEST_FILE}: '${field}' must be an array of non-empty strings.`,
     );
   }
 }
 
 /** Reject a manifest whose shape would only fail later with an obscure error. */
-function assertManifestShape(itemName: string, item: unknown): asserts item is RegistryManifest | BuiltRegistryItem {
-  if (item === null || typeof item !== "object" || Array.isArray(item)) {
-    throw new CliError(`Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: expected an object.`);
-  }
-  const raw = item as Record<string, unknown>;
-  if (raw.name !== itemName) {
+function assertManifestShape(
+  moduleName: string,
+  module: unknown,
+): asserts module is RegistryManifest | BuiltRegistryModule {
+  if (module === null || typeof module !== "object" || Array.isArray(module)) {
     throw new CliError(
-      `Registry item '${itemName}' declares name '${String(raw.name)}' in ${REGISTRY_MANIFEST_FILE}; the directory and manifest names must match.`,
+      `Registry module '${moduleName}' has a malformed ${REGISTRY_MANIFEST_FILE}: expected an object.`,
     );
   }
-  if (typeof raw.type !== "string" || !ITEM_TYPES.has(raw.type)) {
+  const raw = module as Record<string, unknown>;
+  if (raw.name !== moduleName) {
     throw new CliError(
-      `Registry item '${itemName}' declares unknown type '${String(raw.type)}'; expected one of ${[...ITEM_TYPES].join(", ")}.`,
+      `Registry module '${moduleName}' declares name '${String(raw.name)}' in ${REGISTRY_MANIFEST_FILE}; the directory and manifest names must match.`,
+    );
+  }
+  if (typeof raw.type !== "string" || !MODULE_TYPES.has(raw.type)) {
+    throw new CliError(
+      `Registry module '${moduleName}' declares unknown type '${String(raw.type)}'; expected one of ${[...MODULE_TYPES].join(", ")}.`,
     );
   }
   for (const field of ["title", "description", "postInstall"]) {
     if (raw[field] !== undefined && typeof raw[field] !== "string") {
       throw new CliError(
-        `Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: '${field}' must be a string.`,
+        `Registry module '${moduleName}' has a malformed ${REGISTRY_MANIFEST_FILE}: '${field}' must be a string.`,
       );
     }
   }
-  for (const field of ["dependencies", "registryDependencies"]) assertStringArray(itemName, field, raw[field]);
+  for (const field of ["dependencies", "registryDependencies"]) assertStringArray(moduleName, field, raw[field]);
   if (!Array.isArray(raw.files) || raw.files.length === 0) {
     throw new CliError(
-      `Registry item '${itemName}' has a malformed ${REGISTRY_MANIFEST_FILE}: 'files' must be a non-empty array.`,
+      `Registry module '${moduleName}' has a malformed ${REGISTRY_MANIFEST_FILE}: 'files' must be a non-empty array.`,
     );
   }
 }
 
-/** A declared target must land in a layer its type owns. */
-function assertTypeTargets(itemName: string, type: string, targets: string[]): void {
-  const roots = TYPE_TARGET_ROOTS[type] ?? [];
+/** A declared target must land in the module's own module-first layer tree. */
+function assertTypeTargets(moduleName: string, type: string, targets: string[]): void {
+  const layers = TYPE_LAYERS[type] ?? [];
   for (const target of targets) {
-    const segments = target.split("/");
-    if (segments[0] !== "src" || !roots.includes(segments[1]) || segments.length < 3) {
+    const [scope, fewbieSegment, modulesSegment, moduleSegment, layer, ...rest] = target.split("/");
+    if (
+      scope !== "src" ||
+      fewbieSegment !== "fewbie" ||
+      modulesSegment !== "modules" ||
+      moduleSegment !== moduleName ||
+      !layers.includes(layer) ||
+      rest.length === 0
+    ) {
       throw new CliError(
-        `Registry item '${itemName}' declares '${target}', which does not land under ` +
-          `${roots.map((root) => `src/${root}/`).join(" or ")} for type '${type}'.`,
+        `Registry module '${moduleName}' declares '${target}', which does not land under ` +
+          `src/fewbie/modules/${moduleName}/<${layers.join("|")}>/ for type '${type}'.`,
       );
     }
   }
@@ -141,57 +148,59 @@ function assertTypeTargets(itemName: string, type: string, targets: string[]): v
 
 /**
  * Manifest targets are project-relative by contract; an absolute path or a
- * `..` segment would let an item write outside the project root.
+ * `..` segment would let a module write outside the project root.
  */
-function assertProjectRelativeTarget(itemName: string, target: string): void {
+function assertProjectRelativeTarget(moduleName: string, target: string): void {
   if (!target || path.isAbsolute(target) || target.split(/[/\\]/).includes("..")) {
     throw new CliError(
-      `Registry item '${itemName}' declares an unsafe file target '${target}': ` +
+      `Registry module '${moduleName}' declares an unsafe file target '${target}': ` +
         "targets must be relative and stay inside the project.",
     );
   }
 }
 
-/** Load one registry item, normalizing authored and built forms. */
-export async function loadItem(root: string, name: string): Promise<LoadedItem> {
-  const item = await readItemFile(root, name);
-  assertManifestShape(name, item);
+/** Load one registry module, normalizing authored and built forms. */
+export async function loadModule(root: string, name: string): Promise<LoadedModule> {
+  const module = await readModuleFile(root, name);
+  assertManifestShape(name, module);
 
-  if (isBuilt(item)) {
-    for (const file of item.files) {
+  if (isBuilt(module)) {
+    for (const file of module.files) {
       if (typeof file.path !== "string" || typeof file.content !== "string") {
-        throw new CliError(`Registry item '${name}' has a built file entry without a path and content.`);
+        throw new CliError(`Registry module '${name}' has a built file entry without a path and content.`);
       }
       assertProjectRelativeTarget(name, file.path);
     }
-    const targets = item.files.map((f) => f.path);
-    assertTypeTargets(name, item.type, targets);
-    const declared = await readBuiltContract(root, name, item);
+    const targets = module.files.map((f) => f.path);
+    assertTypeTargets(name, module.type, targets);
+    const declared = await readBuiltContract(root, name, module);
     if (declared === undefined) warnMissingContract(name);
     return {
       manifest: {
-        name: item.name,
-        type: item.type,
-        title: item.title,
-        description: item.description,
-        dependencies: item.dependencies,
-        registryDependencies: item.registryDependencies,
-        postInstall: item.postInstall,
+        name: module.name,
+        type: module.type,
+        title: module.title,
+        description: module.description,
+        dependencies: module.dependencies,
+        registryDependencies: module.registryDependencies,
+        postInstall: module.postInstall,
         files: targets,
         contract:
           declared === undefined ? undefined : validateManifestContract({ name, files: targets, contract: declared }),
       },
-      files: item.files.map((f) => ({
+      files: module.files.map((f) => ({
         target: f.path,
         content: f.content,
       })),
     };
   }
 
-  const manifest = item;
+  const manifest = module;
   for (const relative of manifest.files) {
     if (typeof relative !== "string" || relative === "") {
-      throw new CliError(`Registry item '${name}' has a malformed ${REGISTRY_MANIFEST_FILE}: 'files' must hold paths.`);
+      throw new CliError(
+        `Registry module '${name}' has a malformed ${REGISTRY_MANIFEST_FILE}: 'files' must hold paths.`,
+      );
     }
     assertProjectRelativeTarget(name, relative);
   }
@@ -205,11 +214,11 @@ export async function loadItem(root: string, name: string): Promise<LoadedItem> 
 }
 
 /**
- * Resolve requested items plus their registryDependencies into a
+ * Resolve requested modules plus their registryDependencies into a
  * deduplicated install order (dependencies first).
  */
-export async function resolveInstallSet(root: string, names: string[]): Promise<LoadedItem[]> {
-  const ordered: LoadedItem[] = [];
+export async function resolveInstallSet(root: string, names: string[]): Promise<LoadedModule[]> {
+  const ordered: LoadedModule[] = [];
   const seen = new Set<string>();
   const visiting = new Set<string>();
 
@@ -219,11 +228,11 @@ export async function resolveInstallSet(root: string, names: string[]): Promise<
       throw new CliError(`Circular registry dependency involving '${name}'.`);
     }
     visiting.add(name);
-    const loaded = await loadItem(root, name).catch((error: unknown) => {
-      // Only a genuinely missing item becomes "not found"; IO/parse/validation
+    const loaded = await loadModule(root, name).catch((error: unknown) => {
+      // Only a genuinely missing module becomes "not found"; IO/parse/validation
       // failures must surface with their own message instead of being masked.
       if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-        throw new CliError(`Registry item '${name}' not found. Run 'fewbie modules add <name>' with a valid name.`);
+        throw new CliError(`Registry module '${name}' not found. Run 'fewbie modules add <name>' with a valid name.`);
       }
       throw error;
     });

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { loadItem, listRegistryItemNames } from "../registry/store";
+import { loadModule, listRegistryModuleNames } from "../registry/store";
 import { resolveRegistryRoot } from "../registry/source";
 import { pathExists } from "@devbie/cli-kit";
 import { MODULES_FILE, readModulesFile } from "../lib/modules-file";
@@ -24,7 +24,7 @@ export async function runStatus(options: StatusOptions): Promise<void> {
   const warnings: string[] = [];
 
   const registryRoot = await resolveRegistryRoot(projectRoot);
-  const available = new Set(await listRegistryItemNames(registryRoot));
+  const available = new Set(await listRegistryModuleNames(registryRoot));
   const missing: Array<{ name: string; files: string[] }> = [];
 
   for (const name of declared) {
@@ -32,9 +32,9 @@ export async function runStatus(options: StatusOptions): Promise<void> {
       warnings.push(`Declared module '${name}' is not present in the registry.`);
       continue;
     }
-    const item = await loadItem(registryRoot, name);
+    const module = await loadModule(registryRoot, name);
     const absent: string[] = [];
-    for (const file of item.files) {
+    for (const file of module.files) {
       if (!(await pathExists(path.join(projectRoot, file.target)))) absent.push(file.target);
     }
     if (absent.length > 0) missing.push({ name, files: absent });

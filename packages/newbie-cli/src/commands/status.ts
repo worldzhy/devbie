@@ -17,7 +17,6 @@ import { GlobalOptions } from "./shared";
 
 export interface StatusModuleEntry {
   key: string;
-  version: string | null;
   sourceCommit: string | null;
   installed: boolean;
   hasSchema: boolean;
@@ -53,7 +52,6 @@ export async function collectStatus(cwd: string, options?: { drift?: boolean }):
 
     const entry: StatusModuleEntry = {
       key,
-      version: locked?.version ?? null,
       sourceCommit,
       installed,
       hasSchema: Boolean(manifest?.wiring?.prismaSchema),

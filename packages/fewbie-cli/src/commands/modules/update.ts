@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { bold, green, yellow } from "colorette";
 
-import { LoadedItem, readItemFileContent, resolveInstallSet } from "../../registry/store";
+import { LoadedModule, readModuleFileContent, resolveInstallSet } from "../../registry/store";
 import { RegistryContext, resolveRegistryContext } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
@@ -38,7 +38,7 @@ export interface ModulesUpdateOptions {
 type DriftKind = "pristine" | "host-modified" | "conflict" | "unlocked" | "legacy";
 
 interface DriftedFile {
-  item: string;
+  module: string;
   target: string;
   current: string;
   latest: string;
@@ -55,27 +55,27 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
 
   const declared = await requireModulesFile(projectRoot);
   const context = await resolveRegistryContext(projectRoot);
-  const selected = await selectItems(context.root, declared, options.names ?? []);
+  const selected = await selectModules(context.root, declared, options.names ?? []);
   const lockfile = await readLockfile(projectRoot);
   const missing: string[] = [];
   const drifted: DriftedFile[] = [];
 
-  for (const item of selected) {
-    for (const file of item.files) {
+  for (const module of selected) {
+    for (const file of module.files) {
       const current = await readTextIfExists(path.join(projectRoot, file.target));
       // A missing copy is apply's job, not update's; report it as a hint.
       if (current === null) {
-        missing.push(`${item.manifest.name}: ${file.target}`);
+        missing.push(`${module.manifest.name}: ${file.target}`);
         continue;
       }
-      const latest = await readItemFileContent(file);
+      const latest = await readModuleFileContent(file);
       if (current === latest) continue;
       drifted.push({
-        item: item.manifest.name,
+        module: module.manifest.name,
         target: file.target,
         current,
         latest,
-        kind: classify(item, file.target, current, latest, lockfile),
+        kind: classify(module, file.target, current, latest, lockfile),
       });
     }
   }
@@ -86,18 +86,18 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   const unlocked = drifted.filter((file) => file.kind === "unlocked");
   const stale = await findStaleTargets(
     projectRoot,
-    selected.map((item) => ({ name: item.manifest.name, targets: item.files.map((file) => file.target) })),
+    selected.map((module) => ({ name: module.manifest.name, targets: module.files.map((file) => file.target) })),
     lockfile,
     declared,
   );
 
   for (const file of pristine) {
-    console.info(bold(`# ${file.item} → ${file.target} (${describe(file.kind)})`));
+    console.info(bold(`# ${file.module} → ${file.target} (${describe(file.kind)})`));
     process.stdout.write(unifiedDiff(file.current, file.latest, `a/${file.target}`, `b/${file.target}`));
     console.info("");
   }
   for (const file of conflicts) {
-    console.info(bold(yellow(`# ${file.item} → ${file.target} (conflict: registry and host both changed)`)));
+    console.info(bold(yellow(`# ${file.module} → ${file.target} (conflict: registry and host both changed)`)));
     process.stdout.write(unifiedDiff(file.current, file.latest, `a/${file.target}`, `b/${file.target}`));
     console.info("");
   }
@@ -188,7 +188,7 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
 
 /** Three-way classification against the lockfile baseline (ADR-057 D4). */
 function classify(
-  item: LoadedItem,
+  module: LoadedModule,
   target: string,
   current: string,
   latest: string,
@@ -198,7 +198,7 @@ function classify(
   // existing lockfile is not. Treating it as legacy let one deleted line make
   // any host-modified file auto-writable without --force (R83-13).
   if (lockfile === null) return "legacy";
-  const lockedHash = lockfile.modules[item.manifest.name]?.files[target];
+  const lockedHash = lockfile.modules[module.manifest.name]?.files[target];
   if (lockedHash === undefined) return "unlocked";
   if (hashContent(current) === lockedHash) return "pristine";
   if (hashContent(latest) === lockedHash) return "host-modified";
@@ -215,23 +215,23 @@ function describe(kind: DriftKind): string {
 async function writeUpdatedLockfile(
   projectRoot: string,
   context: RegistryContext,
-  items: LoadedItem[],
+  loaded: LoadedModule[],
   written: DriftedFile[],
   lockfile: Lockfile | null,
 ): Promise<void> {
   const declaration = await readRegistryDeclaration(projectRoot);
   const modules = { ...(lockfile?.modules ?? {}) };
-  for (const item of items) {
+  for (const module of loaded) {
     const writtenTargets = new Set(
-      written.filter((file) => file.item === item.manifest.name).map((file) => file.target),
+      written.filter((file) => file.module === module.manifest.name).map((file) => file.target),
     );
-    const previousFiles = modules[item.manifest.name]?.files ?? {};
+    const previousFiles = modules[module.manifest.name]?.files ?? {};
     // Rebuild the entry from the current manifest, so a target the registry
     // renamed or deleted does not linger in the baseline (R82-08).
     const files: Record<string, string> = {};
-    for (const file of item.files) {
+    for (const file of module.files) {
       if (writtenTargets.has(file.target)) {
-        files[file.target] = hashContent(await readItemFileContent(file));
+        files[file.target] = hashContent(await readModuleFileContent(file));
         continue;
       }
       // A file this run did not write keeps its installed baseline. Recording
@@ -243,10 +243,10 @@ async function writeUpdatedLockfile(
         continue;
       }
       const onDisk = await readTextIfExists(path.join(projectRoot, file.target));
-      files[file.target] = hashContent(onDisk ?? (await readItemFileContent(file)));
+      files[file.target] = hashContent(onDisk ?? (await readModuleFileContent(file)));
     }
-    modules[item.manifest.name] = {
-      version: item.manifest.contract?.version ?? "0.0.0",
+    modules[module.manifest.name] = {
+      version: module.manifest.contract?.version ?? "0.0.0",
       commit: context.commit,
       files,
     };
@@ -258,8 +258,8 @@ async function writeUpdatedLockfile(
   });
 }
 
-/** Load the requested declared items (validated against the declaration). */
-async function selectItems(registryRoot: string, declared: string[], names: string[]): Promise<LoadedItem[]> {
+/** Load the requested declared modules (validated against the declaration). */
+async function selectModules(registryRoot: string, declared: string[], names: string[]): Promise<LoadedModule[]> {
   if (names.length === 0) return resolveInstallSet(registryRoot, declared);
 
   const unknown = names.filter((name) => !declared.includes(name));

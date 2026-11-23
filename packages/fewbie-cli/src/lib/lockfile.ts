@@ -25,7 +25,7 @@ export interface LockfileRegistry {
 }
 
 export interface LockfileModule {
-  /** Module contract version, `0.0.0` when the item ships no contract. */
+  /** Module contract version, `0.0.0` when the module ships no contract. */
   version: string;
   /** Registry commit this module was installed from. */
   commit: string;

@@ -13,7 +13,7 @@ import {
   resolveTemplateAsset,
   TEMPLATE_ASSETS,
 } from "../lib/template-ownership";
-import { loadItem, listRegistryItemNames } from "../registry/store";
+import { loadModule, listRegistryModuleNames } from "../registry/store";
 import { resolveRegistryRoot } from "../registry/source";
 
 export interface DoctorOptions {
@@ -35,7 +35,7 @@ interface Finding {
 interface DoctorResult {
   projectRoot: string;
   findings: Finding[];
-  /** Registry items declared in fewbie.json (ADR-025 F10: the declaration is the criterion). */
+  /** Registry modules declared in fewbie.json (ADR-025 F10: the declaration is the criterion). */
   declared: string[];
   /** Count of findings grouped by severity. */
   summary: { error: number; warn: number; info: number };
@@ -139,8 +139,8 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
     });
   }
 
-  const available = new Set(await listRegistryItemNames(registryRoot));
-  const installedItems: Array<{ name: string; dependencies: string[] }> = [];
+  const available = new Set(await listRegistryModuleNames(registryRoot));
+  const installedModules: Array<{ name: string; dependencies: string[] }> = [];
 
   for (const name of declaredModules) {
     if (!available.has(name)) {
@@ -151,8 +151,8 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
       });
       continue;
     }
-    const item = await loadItem(registryRoot, name);
-    const targets = item.files.map((file) => file.target);
+    const module = await loadModule(registryRoot, name);
+    const targets = module.files.map((file) => file.target);
     const present = await Promise.all(
       targets.map((target) =>
         fs
@@ -163,7 +163,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
     );
 
     if (present.every(Boolean)) {
-      installedItems.push({ name, dependencies: item.manifest.dependencies ?? [] });
+      installedModules.push({ name, dependencies: module.manifest.dependencies ?? [] });
     } else {
       findings.push({
         severity: "warn",
@@ -182,13 +182,13 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   }>(path.join(projectRoot, "package.json")))!;
   const declaredPackages = new Set([...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})]);
 
-  for (const item of installedItems) {
-    const missing = item.dependencies.filter((spec) => !declaredPackages.has(packageNameOf(spec)));
+  for (const module of installedModules) {
+    const missing = module.dependencies.filter((spec) => !declaredPackages.has(packageNameOf(spec)));
     if (missing.length > 0) {
       findings.push({
         severity: "warn",
         category: "dependencies",
-        message: `Module '${item.name}' is missing dependencies: ${missing.join(", ")}. Run 'npm install ${missing.join(" ")}'.`,
+        message: `Module '${module.name}' is missing dependencies: ${missing.join(", ")}. Run 'npm install ${missing.join(" ")}'.`,
       });
     }
   }
@@ -327,7 +327,7 @@ export async function runDoctor(options: DoctorOptions): Promise<DoctorResult> {
   }
 
   // --- 5. AI readability ---
-  // Registry items are copied into the project as source (shadcn philosophy),
+  // Registry modules are copied into the project as source (shadcn philosophy),
   // so AI tools can read them without an npm package boundary.
   if (declaredModules.length > 0) {
     findings.push({

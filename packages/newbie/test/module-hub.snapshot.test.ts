@@ -48,8 +48,8 @@ describe("readModuleSnapshot", () => {
       JSON.stringify({
         lockVersion: 1,
         modules: [
-          { key: "account", version: "1.0.0", sourceCommit: "abc123", files: [] },
-          { key: "heartbeat", version: null, sourceCommit: null, files: [] },
+          { key: "account", sourceCommit: "abc123", files: [] },
+          { key: "heartbeat", sourceCommit: null, files: [] },
         ],
       }),
     );
@@ -73,13 +73,11 @@ describe("readModuleSnapshot", () => {
     assert.equal(entries.length, 2);
 
     const account = entries.find((e) => e.key === "account")!;
-    assert.equal(account.version, "1.0.0");
     assert.equal(account.sourceCommit, "abc123");
     assert.equal(account.installed, true);
     assert.equal(account.hasSchema, true);
 
     const heartbeat = entries.find((e) => e.key === "heartbeat")!;
-    assert.equal(heartbeat.version, null);
     assert.equal(heartbeat.sourceCommit, null);
     assert.equal(heartbeat.installed, true);
     assert.equal(heartbeat.hasSchema, false);

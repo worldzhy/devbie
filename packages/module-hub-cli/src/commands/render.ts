@@ -41,9 +41,8 @@ export function renderInstallationInspection(inspection: InstallationInspection)
     console.log(bold(`Reported modules (${inspection.actual.length})`));
     for (const module of inspection.actual) {
       const key = typeof module.key === "string" ? module.key : "(unknown)";
-      const version = typeof module.version === "string" ? module.version : "-";
       const commit = typeof module.sourceCommit === "string" ? module.sourceCommit.slice(0, 12) : "-";
-      console.log(`  ${cyan(key.padEnd(24))} ${version.padEnd(10)} ${gray(commit)}`);
+      console.log(`  ${cyan(key.padEnd(24))} ${gray(commit)}`);
     }
   }
 

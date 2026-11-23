@@ -5,5 +5,5 @@
   "type": "registry:component",
   "dependencies": [],
   "registryDependencies": [],
-  "files": ["src/components/data-table.tsx"]
+  "files": ["src/fewbie/modules/data-table/components/data-table.tsx"]
 }

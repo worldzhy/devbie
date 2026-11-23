@@ -194,7 +194,7 @@ async function syncModuleLock(ctx: PipelineContext, enabledKeys: string[], copie
         );
       }
     }
-    entries.set(key, { key, version: null, sourceCommit: commit, files: snapshotToFiles(installed) });
+    entries.set(key, { key, sourceCommit: commit, files: snapshotToFiles(installed) });
     changed = true;
   }
 

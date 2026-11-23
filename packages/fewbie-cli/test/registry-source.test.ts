@@ -23,23 +23,28 @@ async function git(cwd: string, args: string[]): Promise<void> {
 }
 
 /**
- * A one-item registry repository, usable both as a git URL and a local root.
- * `container: true` puts the item under `packages/modules` (ADR-059).
+ * A one-module registry repository, usable both as a git URL and a local root.
+ * `container: true` puts the module under `packages/modules` (ADR-059).
  */
 async function makeRegistryRepo(options: { container?: boolean } = {}): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-registry-repo-"));
   const itemsRoot = options.container ? path.join(root, "packages", "modules") : root;
-  await fs.mkdir(path.join(itemsRoot, "hello", "src", "components"), { recursive: true });
+  await fs.mkdir(path.join(itemsRoot, "hello", "src", "fewbie", "modules", "hello", "components"), { recursive: true });
   await fs.writeFile(
     path.join(itemsRoot, "hello", REGISTRY_MANIFEST_FILE),
     JSON.stringify(
-      { name: "hello", type: "registry:component", title: "Hello", files: ["src/components/hello.tsx"] },
+      {
+        name: "hello",
+        type: "registry:component",
+        title: "Hello",
+        files: ["src/fewbie/modules/hello/components/hello.tsx"],
+      },
       null,
       2,
     ),
   );
   await fs.writeFile(
-    path.join(itemsRoot, "hello", "src", "components", "hello.tsx"),
+    path.join(itemsRoot, "hello", "src", "fewbie", "modules", "hello", "components", "hello.tsx"),
     "export function Hello() {\n  return null;\n}\n",
   );
   await git(root, ["init", "-q", "-b", "main"]);
@@ -64,7 +69,7 @@ function fileUrl(target: string): string {
 }
 
 describe("external registry source", () => {
-  it("clones the declared registry, installs its item and preserves the registry key", async () => {
+  it("clones the declared registry, installs its module and preserves the registry key", async () => {
     const repo = await makeRegistryRepo();
     after(async () => fs.rm(repo, { recursive: true, force: true }));
     const cache = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-cache-"));
@@ -83,7 +88,7 @@ describe("external registry source", () => {
 
     assert.deepEqual(await readModulesFile(project), ["hello"]);
     assert.equal(
-      await fs.readFile(path.join(project, "src/components/hello.tsx"), "utf8"),
+      await fs.readFile(path.join(project, "src/fewbie/modules/hello/components/hello.tsx"), "utf8"),
       "export function Hello() {\n  return null;\n}\n",
     );
     const document = JSON.parse(await fs.readFile(path.join(project, MODULES_FILE), "utf8")) as {
@@ -92,7 +97,7 @@ describe("external registry source", () => {
     assert.deepEqual(document.registry, { url: fileUrl(repo), ref: "main" });
   });
 
-  it("clones a registry whose items live under packages/modules", async () => {
+  it("clones a registry whose modules live under packages/modules", async () => {
     const repo = await makeRegistryRepo({ container: true });
     after(async () => fs.rm(repo, { recursive: true, force: true }));
     const cache = await fs.mkdtemp(path.join(os.tmpdir(), "fewbie-cache-"));
@@ -111,7 +116,7 @@ describe("external registry source", () => {
 
     assert.deepEqual(await readModulesFile(project), ["hello"]);
     assert.equal(
-      await fs.readFile(path.join(project, "src/components/hello.tsx"), "utf8"),
+      await fs.readFile(path.join(project, "src/fewbie/modules/hello/components/hello.tsx"), "utf8"),
       "export function Hello() {\n  return null;\n}\n",
     );
   });
