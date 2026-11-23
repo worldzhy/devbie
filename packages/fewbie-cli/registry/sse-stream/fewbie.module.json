@@ -1,10 +1,10 @@
 {
   "name": "sse-stream",
   "type": "registry:lib",
-  "title": "POST-based SSE transport",
-  "description": "Server-Sent Events decoder over a fetch ReadableStream with a POST-based request helper, for endpoints that EventSource cannot serve (POST bodies, custom headers). Transport-text only: frame decoding (event/data, keepalive comments, CRLF tolerance, chunk buffering) with abort support; JSON decoding of the data line is the caller's job.",
+  "title": "SSE frame decoder",
+  "description": "Server-Sent Events frame decoder over a fetch ReadableStream: frame boundaries (event/data, keepalive comments, CRLF tolerance, chunk buffering) with abort support. The request stays in the host, which owns transport, auth and origin policy; JSON decoding of the data line is the caller's job.",
   "dependencies": [],
   "registryDependencies": [],
   "files": ["src/fewbie/modules/sse-stream/lib/sse-stream.ts"],
-  "postInstall": "Use postSse(url, { body, headers, signal, onFrame }) for POST-initiated streams (EventSource cannot POST or set headers); call consumeSseStream directly when you already hold a fetch Response. Throw semantics: SseStreamError carries the HTTP status for non-2xx responses."
+  "postInstall": "Open the stream in the host and pass response.body to consumeSseStream(body, signal, onFrame); JSON decoding of the data line is the caller's job."
 }
