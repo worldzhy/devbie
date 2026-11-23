@@ -1061,3 +1061,12 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - **宿主 dev→main**：nightwatch-backend #70、nightwatch-frontend #51、crewbie-console-frontend #3、crewbie-console-backend #3 全部 checks 绿后以 merge 合并；nightwatch-frontend 的 PR 同时吸收 main 上已有的 `next` 16.4.6 升级。
 - **其他**：fewbie-modules dev 已快进到 main `c260def`；nightwatch-world 升 `@devbie/style-guide@^1.8.0`（`9dec39a`，121 测试、worlds:sync 无变更）。
 - **遗留**：nightwatch-world 的 dev→main 未建 PR（领先提交含 staging 部署与独立域名栈，属部署决策）；cb 的 `modules adapters --check` 在 newbie 栈不存在，已在 backlog 标注。
+
+### module-first 契约发布（2026-11-23）
+
+- **发布**：`@devbie/fewbie-cli@1.16.0`（breaking，1.x minor）已按 `RELEASE_CHECKLIST.md` 发布；registry `latest` 指向 1.16.0，tarball `fewbie-cli-1.16.0.tgz` 存在，deprecated 字段逐版本核对（仅历史 1.13.1 仍指向 1.13.2）。发布前 clean build + 153 测试 + `npm audit --omit=dev --workspaces`（仅 lint 工具链 moderate，属既有豁免）。
+- **registry 合入**：fewbie-modules PR #11（dev 领先 4 提交）checks 绿后 merge 合入 main `47317bc`；`check:registry-snapshot`（tree 等价）与 `check:registry-dist` 通过。
+- **宿主升级**：fewbie-starter / nightwatch-frontend / crewbie-console-frontend 升 `@devbie/fewbie-cli ^1.16.0` 并更新 lockfile；三仓 format / lint / test / template / modules 门禁本地全绿。
+- **starter CI 修复**：fewbie-starter `guards` 在 dev 上原本红——`src/fewbie/i18n/config.test.ts` 属宿主集成测试（断言宿主 `home` 命名空间），迁回 `src/i18n/config.test.ts` 由 `src/i18n/**` 宿主 glob 覆盖；`.fewbie/framework.json` 按新框架文件集重生成；补 starter ADR-007 满足 framework-ADR 门禁。取证：`87bf191`、`e965f90`；PR #53 checks 绿后 merge。
+- **宿主基线**：nwf / ccf 的 `.fewbie/framework.json` 落后于重生成的模板基线，`template update` 后重新提交（`f576ce7`、`2c9760`），PR #52（nightwatch-frontend）与 #6（crewbie-console-frontend）CI 全绿，留在 open 待用户合并。
+- **校验**：`check:template-deps -w @devbie/fewbie-cli` 与 `check:registry-snapshot -w @devbie/fewbie-cli` 在 fewbie-starter main 更新后均绿。
