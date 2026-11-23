@@ -125,18 +125,13 @@
 
 ## ADR-068 落地交付项（2026-11-23）
 
-- [ ] **提交 registry 快照重建**：`packages/fewbie-cli/registry/**` 已按 fewbie-modules `d90cf82` 重建（未提交）；fewbie-starter `6ee0ca4` 已提交未推送，fewbie-modules `d90cf82` 已提交未推送。
-- [ ] **`check:registry-snapshot` 转绿前置**：门禁比对 `origin/main`，fewbie-modules `dev`→`main` 合并（PR）后复核；宿主 nightwatch-frontend 的安装与薄壳改动也待单独提交。
+> 2026-11-23 关闭：registry 快照重建已提交（`9300cc56`，随后 `0fb9c0d8` 按 ADR-071 修正读取路径），`check:registry-snapshot` 比对 `1947911` 全绿；fewbie-modules dev→main 已合并（PR #15，main `e2b4291`）；nightwatch-frontend 宿主安装与薄壳改动已提交（`23a9db5`）。
 
 ## ADR-069 落地交付项（2026-11-23）
 
-- [ ] **`@devbie/fewbie-cli` 发版**：源码已支持 `registry:block` / `contract.layers[]` / 多层 adapter（`<Item>ModuleLabels` 并集、逐层 `types.ts`）与 orphan adapter 修正；nightwatch-frontend 验证用的是本地 `dist`，需按 RELEASE_CHECKLIST 发布小版本后宿主 CI 才可复现。
-- [ ] **registry dev→main**：fewbie-modules `79c3095`（18→10、ADR-069 分发单位类型）已本地提交未推送；合并后重跑 `npm run registry:sync -w @devbie/fewbie-cli` 固定 sourceCommit，`check:registry-snapshot` 才能转绿。
-- [ ] **宿主 lock 锚定真实 commit**：nightwatch-frontend `fewbie.lock.json` 因 `FEWBIE_REGISTRY_PATH` 安装记为 `commit: "dev"`；registry 发布后重跑 `modules apply` 写入 main commit。
-- [ ] **nightwatch-frontend 提交**：ADR-068 + ADR-069 宿主改动（10 项安装、i18n 三命名空间合并、adapter 重命名、`password-checklist` 移到 `@/components`）未提交；`format:check` / `lint` / `build` / `npm test` / `modules apply --check` / `adapters --check` / `doctor` 已本地通过。
+> 2026-11-23 关闭：`@devbie/fewbie-cli@1.17.0` 已发布；fewbie-modules `79c3095` 随 PR #14/#15 进入 main；两个宿主 `fewbie.lock.json` 的 `commit: "dev"` 已改锚到 `e2b4291`（nwf `131d8d2`、cf `a60fa63`，安装哈希未变）；nightwatch-frontend 宿主改动已提交。
 
 ## ADR-071 落地交付项（2026-11-23）
 
-- [ ] **`@devbie/fewbie-cli` 1.17.0 发版**：registry main（fewbie-modules `e2b4291`）已是"存储剥离安装根"布局；已发布的 1.16.0 仍按 `src/fewbie/modules/...` 找载荷，跑 `modules add/apply/update` 会报缺失。按 RELEASE_CHECKLIST 发布 1.17.0，之后各宿主把 devDependency 升到 `^1.17.0`。
-- [ ] **宿主重装校核**：升级 CLI 后在 nightwatch-frontend / crewbie-console-frontend 跑 `modules update --check` 与 `adapters --check`，确认安装结果与 `fewbie.lock.json` 未变（本 ADR 不改安装目标）。
+> 2026-11-23 关闭：`@devbie/fewbie-cli@1.17.0` 已发布，registry 核对 `latest=1.17.0`、tarball 在位、无过期 deprecated（bump 提交 `2e0c0a95`，153 测试全绿，audit 仅剩余 lint 工具链 waiver 内的 3 条 moderate）。fewbie-starter / nightwatch-frontend / crewbie-console-frontend 均升 `^1.17.0`，锁文件仅版本行变化，安装产物哈希未变（两个宿主的 lock commit 锚点同批改到 `e2b4291`）；nwf 的 `modules update --check` / `apply --check` / `modules adapters --check` 全绿，cf 的 `update --check` / `apply --check` 全绿（该宿主无 i18n 声明，adapters 门禁不适用）。
 
