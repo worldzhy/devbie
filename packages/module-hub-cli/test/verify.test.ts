@@ -1,23 +1,28 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { deriveModulesUrl } from "../src/env";
+import { buildModulesUrl } from "../src/env";
 import { compareModules, type LocalModule } from "../src/verify";
 
 function record(key: string, sourceCommit: string | null = "abc"): LocalModule {
   return { key, sourceCommit };
 }
 
-describe("deriveModulesUrl", () => {
-  it("replaces the report suffix with the caller-scoped modules path", () => {
-    assert.equal(
-      deriveModulesUrl("https://api.example.com/module-hub/reports"),
-      "https://api.example.com/module-hub/me/modules",
-    );
+describe("buildModulesUrl", () => {
+  it("appends the caller-scoped modules path to the base URL", () => {
+    assert.equal(buildModulesUrl("https://api.example.com"), "https://api.example.com/module-hub/me/modules");
   });
 
-  it("rejects endpoints that do not have the documented shape", () => {
-    assert.throws(() => deriveModulesUrl("https://api.example.com"), /must end with/);
+  it("keeps a deployment prefix and normalizes trailing slashes", () => {
+    assert.equal(buildModulesUrl("https://api.example.com/api/"), "https://api.example.com/api/module-hub/me/modules");
+  });
+
+  it("rejects a base that already carries a /module-hub path", () => {
+    assert.throws(() => buildModulesUrl("https://api.example.com/module-hub/reports"), /without a '\/module-hub' path/);
+  });
+
+  it("rejects an empty value", () => {
+    assert.throws(() => buildModulesUrl("  "), /is empty/);
   });
 });
 

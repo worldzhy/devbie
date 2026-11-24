@@ -6,24 +6,22 @@ import { envValues, parseEnv, CliError, ENV_PATH } from "@devbie/newbie-cli/lib"
 /**
  * Credential resolution mirrors `@devbie/aws-secrets-cli`: the CLI never
  * stores credentials. The installation report token already lives in the
- * deployment environment (`MODULE_HUB_ENDPOINT` / `MODULE_HUB_TOKEN` are
+ * deployment environment (`MODULE_HUB_URL` / `MODULE_HUB_TOKEN` are
  * injected at deploy time and present in the developer's local `.env`), so
  * the CLI reads them from `process.env` first and falls back to the project
  * `.env`. An optional expected label lets callers assert which installation
  * they are talking to, the analogue of `expectedAccountId`.
  */
 
-export const MODULE_HUB_ENDPOINT = "MODULE_HUB_ENDPOINT";
+export const MODULE_HUB_URL = "MODULE_HUB_URL";
 export const MODULE_HUB_TOKEN = "MODULE_HUB_TOKEN";
 export const MODULE_HUB_INSTALLATION_LABEL = "MODULE_HUB_INSTALLATION_LABEL";
 
-/** Report endpoint suffix; the caller-scoped modules endpoint derives from it. */
-const REPORT_SUFFIX = "/module-hub/reports";
-
 /**
- * Read endpoint of the caller's own installation. `me` means "the installation
- * the presented token belongs to", mirroring the host-scoped
- * `GET /module-hub/installations/:id/modules` used by the hub UI.
+ * Read endpoint of the caller's own installation, appended to the configured
+ * base URL. `me` means "the installation the presented token belongs to",
+ * mirroring the host-scoped `GET /module-hub/installations/:id/modules` used
+ * by the hub UI.
  */
 const OWN_MODULES_PATH = "/module-hub/me/modules";
 
@@ -34,21 +32,26 @@ export interface HubCredentials {
 }
 
 /**
- * Derive the caller-scoped modules URL from the report endpoint.
+ * Join the configured base URL with the caller-scoped modules path.
  *
- * `MODULE_HUB_ENDPOINT` is the full report URL (see the provisioning docs), so
- * the hub root is recovered by stripping the known suffix. Anything else is a
- * configuration error rather than something to guess at: silently guessing a
- * URL could point the CLI at the wrong hub.
+ * `MODULE_HUB_URL` is the hub base URL (origin, plus an optional deployment
+ * prefix such as `/api`); the route itself belongs to the hub and is never
+ * part of the deployment config (ADR-075). A value that already carries a
+ * `/module-hub` segment is the old full-report-URL form and is rejected:
+ * appending the path twice would only produce a confusing 404.
  */
-export function deriveModulesUrl(reportUrl: string): string {
-  if (!reportUrl.endsWith(REPORT_SUFFIX)) {
+export function buildModulesUrl(baseUrl: string): string {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  if (!base) {
+    throw new CliError(`${MODULE_HUB_URL} is empty. Point it at the hub base URL (ADR-075).`);
+  }
+  if (/\/module-hub(\/|$)/.test(base)) {
     throw new CliError(
-      `${MODULE_HUB_ENDPOINT} must end with '${REPORT_SUFFIX}' (got '${reportUrl}'). ` +
-        `Pass --modules-url with the full '${OWN_MODULES_PATH}' URL to override the derivation.`,
+      `${MODULE_HUB_URL} must be the hub base URL without a '/module-hub' path (got '${baseUrl}'). ` +
+        `Pass --modules-url with the full '${OWN_MODULES_PATH}' URL to override.`,
     );
   }
-  return `${reportUrl.slice(0, -REPORT_SUFFIX.length)}${OWN_MODULES_PATH}`;
+  return `${base}${OWN_MODULES_PATH}`;
 }
 
 /** Project `.env` values; empty when the file is absent or unparseable. */
@@ -74,7 +77,7 @@ function pickVariable(name: string, envFile: Record<string, string>, override?: 
 
 export interface ResolveCredentialsOptions {
   cwd: string;
-  /** Explicit modules URL; skips derivation from MODULE_HUB_ENDPOINT. */
+  /** Explicit modules URL; skips building it from MODULE_HUB_URL. */
   modulesUrl?: string;
   /** Explicit token override. */
   token?: string;
@@ -96,15 +99,15 @@ export async function resolveCredentials(options: ResolveCredentialsOptions): Pr
     return { modulesUrl: modulesUrlOverride, token };
   }
 
-  const endpoint = pickVariable(MODULE_HUB_ENDPOINT, envFile);
-  if (!endpoint) {
+  const baseUrl = pickVariable(MODULE_HUB_URL, envFile);
+  if (!baseUrl) {
     throw new CliError(
-      `${MODULE_HUB_ENDPOINT} is not set. Export it or add it to ${ENV_PATH}. ` +
-        `Use --modules-url only when the endpoint has a non-standard shape.`,
+      `${MODULE_HUB_URL} is not set. Export it or add it to ${ENV_PATH}. ` +
+        `Use --modules-url only when the hub route has a non-standard shape.`,
     );
   }
 
-  return { modulesUrl: deriveModulesUrl(endpoint), token };
+  return { modulesUrl: buildModulesUrl(baseUrl), token };
 }
 
 /** Expected installation label, when the caller or environment supplies one. */

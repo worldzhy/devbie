@@ -306,7 +306,7 @@ export class HubReportResponseDto {
 
 ### 5.1 进程内自注册与上报（框架侧待实现）
 
-- 配置 env：`MODULE_HUB_ENDPOINT`（完整上报 URL，SDK 不再拼路径）、`MODULE_HUB_TOKEN`（report token）。占位代码读取的 `NIGHTWATCH_REPORT_ENDPOINT/NIGHTWATCH_APPLICATION_TOKEN` 是旧心跳契约变量，实现时替换。
+- 配置 env：`MODULE_HUB_URL`（hub base URL，含可选的部署前缀；reporter 自己追加固化的 `/module-hub/reports`，ADR-075）、`MODULE_HUB_TOKEN`（report token）。占位代码读取的 `NIGHTWATCH_REPORT_ENDPOINT/NIGHTWATCH_APPLICATION_TOKEN` 是旧心跳契约变量，实现时替换。
 - **@newbie/core 启动钩子**：检测到 env 即启用上报——启动时发 `kind="full"`（含模块快照），之后按 `reportIntervalSeconds` 发 `kind="ping"`；随进程退出自然停止。
 - **快照来源不是 CLI**：运行进程不执行 `newbie status`。core 在装配期已持有模块清单（key/version/sourceCommit），需提供内部 API 产出与 `newbie status --json` modules[] 同形状的快照（字段对齐第 3 章注释）。
 - **fewbie SSR 对称实现**：fewbie runtime 的启动钩子（fewbie 侧工作量，见开放问题 3）。fewbie 工程无后端 module 清单，快照仅含框架事实，`modules` 省略。
@@ -375,7 +375,7 @@ node 容器内执行（`/home/worldzhy/src/nightwatch-backend-next`）：
 
 1. registry 发布 module-hub（含 prisma fragment）→ nightwatch `newbie add module-hub` → `prisma migrate dev --name add_module_hub` → `tsc --noEmit` 通过、应用启动正常。
 2. 宿主 API 创建 installation（label/externalRef）→ 明文凭据一次性返回；重复查看不再泄露。
-3. 消费项目配置 `MODULE_HUB_ENDPOINT/MODULE_HUB_TOKEN` 启动进程（或 curl 模拟 `kind="full"`）→ `firstSeenAt/lastSeenAt/快照` 落库；宿主列表 `online=true`；停发后 180s 读时派生为离线。
+3. 消费项目配置 `MODULE_HUB_URL/MODULE_HUB_TOKEN` 启动进程（或 curl 模拟 `kind="full"`）→ `firstSeenAt/lastSeenAt/快照` 落库；宿主列表 `online=true`；停发后 180s 读时派生为离线。
 4. 同一 token 重启进程再 full → 复用原行、事实刷新、不新增行（幂等）。
 5. registry 推新 commit（webhook 或兜底任务）→ `hub-module-release` 新行；catalog 与 installation 快照体现可升级。
 6. 设置 targetSpec → 实例执行 `newbie modules update` 并重启上报 → 模块清单对比展示收敛（目标 = 实际）。
@@ -468,7 +468,7 @@ v1 砍掉的能力（变更单下发、agent 执行、回执状态机）若未�
 
 **里程碑 ③**：C1 完成
 
-10. **@newbie/core 启动钩子**：检测 `MODULE_HUB_ENDPOINT` + `MODULE_HUB_TOKEN` → 启动发 `full`（含 `newbie status --json` 快照 + cliVersion）、每 60s `ping`；重启幂等复用行。
+10. **@newbie/core 启动钩子**：检测 `MODULE_HUB_URL` + `MODULE_HUB_TOKEN` → 启动发 `full`（含 `newbie status --json` 快照 + cliVersion）、每 60s `ping`；重启幂等复用行。
 11. **nightwatch 宿主侧**：创建流程接入 installation 签发 API；`Project → Application → Installations` 查询视图（读 API，通知不做）；env 注入文档。
 12. **验证**：容器内端到端——起一个真实实例 → 注册 → ping → UI / 查询可见。本地 commit。
 

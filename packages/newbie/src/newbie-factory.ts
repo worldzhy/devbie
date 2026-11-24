@@ -277,13 +277,18 @@ export class NewbieFactory {
         });
       }
 
-      // Module-hub self-registration: starts when MODULE_HUB_ENDPOINT and
-      // MODULE_HUB_TOKEN are present. Sends a `kind="full"` snapshot
-      // immediately and `kind="ping"` every 60s.
-      const moduleHubEndpoint = process.env.MODULE_HUB_ENDPOINT;
+      // Module-hub self-registration: starts when MODULE_HUB_URL and
+      // MODULE_HUB_TOKEN are present. MODULE_HUB_URL is a base URL; the
+      // reporter appends its own fixed path (ADR-075). A malformed value
+      // disables reporting with a log line instead of crashing the host.
+      const moduleHubBaseUrl = process.env.MODULE_HUB_URL;
       const moduleHubToken = process.env.MODULE_HUB_TOKEN;
-      if (moduleHubEndpoint && moduleHubToken) {
-        startModuleHubReporting({ endpoint: moduleHubEndpoint, token: moduleHubToken });
+      if (moduleHubBaseUrl && moduleHubToken) {
+        try {
+          startModuleHubReporting({ baseUrl: moduleHubBaseUrl, token: moduleHubToken });
+        } catch (error) {
+          logger.error(`module-hub reporting disabled: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
 
       // Dependency health reporting: checks always run; the POST step is

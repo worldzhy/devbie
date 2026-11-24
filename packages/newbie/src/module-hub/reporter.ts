@@ -5,11 +5,16 @@ import { readModuleSnapshot, type ModuleSnapshotEntry } from "./snapshot";
 /**
  * Built-in module-hub reporter client.
  *
- * When the process sets `MODULE_HUB_ENDPOINT` + `MODULE_HUB_TOKEN`, this
+ * When the process sets `MODULE_HUB_URL` + `MODULE_HUB_TOKEN`, this
  * client self-registers with the hub on startup (a `kind="full"` report
  * containing the assembled-module snapshot) and then sends a lightweight
  * `kind="ping"` every `reportIntervalSeconds` (returned by the hub,
  * currently 60s).
+ *
+ * `MODULE_HUB_URL` is a **base URL** (origin plus an optional deployment
+ * prefix such as `/api`); the reporter appends the fixed
+ * `MODULE_HUB_REPORT_PATH`. The route belongs to the hub, so deployments only
+ * carry the location of the hub, never its internal paths (ADR-075).
  *
  * Design constraints (mirrors `@devbie/heartbeat-sdk`):
  *   - **Idempotent** via a `globalThis[Symbol]` singleton so Next.js HMR or
@@ -33,9 +38,12 @@ const DEFAULT_PING_INTERVAL_MS = 60_000;
  */
 const MIN_PING_INTERVAL_MS = 5_000;
 
+/** Hub-owned report route; appended to the configured base URL. */
+export const MODULE_HUB_REPORT_PATH = "/module-hub/reports";
+
 export interface ModuleHubReportOptions {
-  /** Full module-hub report URL, e.g. https://api.example.com/module-hub/reports. */
-  endpoint: string;
+  /** Hub base URL, e.g. https://api.example.com (an optional deployment prefix is allowed). */
+  baseUrl: string;
   /** Report token sent as X-Module-Hub-Token header. */
   token: string;
   /** Project root where newbie-modules.json lives. Defaults to process.cwd(). */
@@ -68,6 +76,28 @@ function resolvePingIntervalMs(reportIntervalSeconds: unknown): number | null {
 }
 
 /**
+ * Joins the configured base URL with the fixed report path.
+ *
+ * Throws on an empty value and on a base that already carries a `/module-hub`
+ * segment (the pre-ADR-075 full-report-URL form): appending the path twice
+ * would only produce a silent 404. Callers decide how to surface the error;
+ * the framework factory logs it and declines to start reporting.
+ */
+export function resolveReportUrl(baseUrl: string): string {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  if (!base) {
+    throw new Error("MODULE_HUB_URL is empty");
+  }
+  if (/\/module-hub(\/|$)/.test(base)) {
+    throw new Error(
+      `MODULE_HUB_URL must be the hub base URL without a '/module-hub' path (got '${baseUrl}'); ` +
+        `the reporter appends '${MODULE_HUB_REPORT_PATH}' itself`,
+    );
+  }
+  return `${base}${MODULE_HUB_REPORT_PATH}`;
+}
+
+/**
  * Starts the module-hub reporting loop.
  *
  * Immediately sends a `kind="full"` report (with the module snapshot read
@@ -84,8 +114,8 @@ export function startModuleHubReporting(options: ModuleHubReportOptions): Module
     return existing as ModuleHubReportHandle;
   }
 
-  const { endpoint, token } = options;
-  const url = endpoint;
+  const { token } = options;
+  const url = resolveReportUrl(options.baseUrl);
   const projectRoot = options.projectRoot ?? process.cwd();
   const appVersion = options.appVersion ?? process.env.APP_VERSION ?? "";
   const env = options.env ?? process.env.ENVIRONMENT ?? "";
