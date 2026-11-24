@@ -18,7 +18,7 @@ export const MODULE_HUB_TOKEN = "MODULE_HUB_TOKEN";
 export const MODULE_HUB_INSTALLATION_LABEL = "MODULE_HUB_INSTALLATION_LABEL";
 
 /** Report endpoint suffix; the caller-scoped modules endpoint derives from it. */
-const REPORT_SUFFIX = "/module-hub/report";
+const REPORT_SUFFIX = "/module-hub/reports";
 
 /**
  * Read endpoint of the caller's own installation. `me` means "the installation

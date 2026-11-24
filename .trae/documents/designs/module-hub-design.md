@@ -222,7 +222,7 @@ model HubAuditLog {
 
 ### 4.2 实例上报 API（token-only）
 
-`POST /module-hub/report` —— 公开端点（hub 模块内绕过宿主 Guard），token-only，风格对齐 `/applications/heartbeat`：
+`POST /module-hub/reports` —— 公开端点（hub 模块内绕过宿主 Guard），token-only，风格对齐 `/applications/heartbeat`：
 
 - 鉴权头：`X-Module-Hub-Token: <token>`（单一载体，不支持 body 传 token）。
 - 服务端 SHA-256 后反查 `HubInstallation.tokenHash`；查不到或 `revokedAt != null` 一律 401。
@@ -451,7 +451,7 @@ v1 砍掉的能力（变更单下发、agent 执行、回执状态机）若未�
 
 1. **模块 schema**（`src/modules/module-hub/prisma/schema.prisma`）：删 `HubChangeRequest` 模型 + `HubChangeRequestStatus / Type` 枚举 + `HubInstallation.changeRequests` 关联；`HubInstallation` 确认含 `targetSpec` / `modulesSnapshot` / `tokenHash`（v3 3 表定稿：installation / module-release / audit-log）。
 2. **删** `services/change-request.service.ts`，从 `module-hub.module.ts` providers 移除。
-3. **重写** `controllers/agent-poll.controller.ts` → `report.controller.ts`：单端点 `POST /module-hub/report`，`kind=full`（自注册 + 快照）/ `kind=ping`（心跳），头 `X-Module-Hub-Token`；删除 pendingChanges 下发逻辑。
+3. **重写** `controllers/agent-poll.controller.ts` → `report.controller.ts`：单端点 `POST /module-hub/reports`，`kind=full`（自注册 + 快照）/ `kind=ping`（心跳），头 `X-Module-Hub-Token`；删除 pendingChanges 下发逻辑。
 4. **重新生成 migration**（v2 的 `20260927185652_add_module_hub` 含 change_request 表，需按 v3 重建）；重跑 `prisma generate` + 宿主装配（`prisma/models/module-hub.prisma` 同步）。
 5. **registry 落位**：模块目前只存在于宿主仓——按真源约定迁入 `newbie-modules/packages/modules/module-hub/`（`newbie.module.json` 已就绪），宿主侧经装配回流。
 6. **验证**：容器内 `tsc` + lint 通过。本地 commit。

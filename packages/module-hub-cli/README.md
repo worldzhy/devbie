@@ -18,12 +18,12 @@ installation report token already lives in the deployment environment.
 
 | Variable                        | Purpose                                                               |
 | ------------------------------- | --------------------------------------------------------------------- |
-| `MODULE_HUB_ENDPOINT`           | Full report URL, e.g. `https://api.example.com/module-hub/report`     |
+| `MODULE_HUB_ENDPOINT`           | Full report URL, e.g. `https://api.example.com/module-hub/reports`    |
 | `MODULE_HUB_TOKEN`              | Installation report token                                             |
 | `MODULE_HUB_INSTALLATION_LABEL` | Optional label assertion (the analogue of an expected AWS account id) |
 
 Both are read from `process.env` first, then from the project `.env`. The
-read URL is derived from the report URL by swapping the `/module-hub/report`
+read URL is derived from the report URL by swapping the `/module-hub/reports`
 suffix for `/module-hub/me/modules` (`me` = the installation the token belongs
 to); pass `--modules-url` when the endpoint has a non-standard shape.
 

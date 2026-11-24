@@ -11,7 +11,7 @@ function record(key: string, sourceCommit: string | null = "abc"): LocalModule {
 describe("deriveModulesUrl", () => {
   it("replaces the report suffix with the caller-scoped modules path", () => {
     assert.equal(
-      deriveModulesUrl("https://api.example.com/module-hub/report"),
+      deriveModulesUrl("https://api.example.com/module-hub/reports"),
       "https://api.example.com/module-hub/me/modules",
     );
   });

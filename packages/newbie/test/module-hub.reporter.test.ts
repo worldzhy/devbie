@@ -84,7 +84,7 @@ describe("startModuleHubReporting", () => {
 
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
     const handle = startModuleHubReporting({
-      endpoint: "http://localhost:3000/module-hub/report",
+      endpoint: "http://localhost:3000/module-hub/reports",
       token: "secret-token",
       projectRoot: root,
     });
@@ -92,7 +92,7 @@ describe("startModuleHubReporting", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     assert.equal(spy.calls.length, 1);
-    assert.equal(spy.calls[0].url, "http://localhost:3000/module-hub/report");
+    assert.equal(spy.calls[0].url, "http://localhost:3000/module-hub/reports");
     assert.equal(spy.calls[0].init.method, "POST");
     const headers = spy.calls[0].init.headers as Record<string, string>;
     assert.equal(headers["X-Module-Hub-Token"], "secret-token");

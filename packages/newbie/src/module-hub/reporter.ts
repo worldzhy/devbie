@@ -34,7 +34,7 @@ const DEFAULT_PING_INTERVAL_MS = 60_000;
 const MIN_PING_INTERVAL_MS = 5_000;
 
 export interface ModuleHubReportOptions {
-  /** Full module-hub report URL, e.g. https://api.example.com/module-hub/report. */
+  /** Full module-hub report URL, e.g. https://api.example.com/module-hub/reports. */
   endpoint: string;
   /** Report token sent as X-Module-Hub-Token header. */
   token: string;
