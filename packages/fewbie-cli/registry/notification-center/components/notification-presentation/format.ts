@@ -45,8 +45,17 @@ export function formatRelativeTime(value: string, locale: string, now: Date = ne
 }
 
 /** Absolute timestamp; `timeStyle` covers the long hover form and the seconds column. */
-export function formatTimestamp(value: string, locale: string, timeStyle: "short" | "medium" = "short"): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle }).format(new Date(value));
+export function formatTimestamp(
+  value: string,
+  locale: string,
+  timeStyle: "short" | "medium" = "short",
+  timeZone?: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: "short",
+    timeStyle,
+    ...(timeZone ? { timeZone } : {}),
+  }).format(new Date(value));
 }
 
 const SEVERITY_BADGE: Record<string, string> = {
