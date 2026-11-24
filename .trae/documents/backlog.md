@@ -145,9 +145,11 @@
 
 
 
-## ADR-075 落地交付项（2026-11-24）
+## ADR-075 回退交付项（ADR-076，2026-11-24）
 
-- 发版：`@devbie/newbie`、`@devbie/module-hub-cli` 各一个 minor（`MODULE_HUB_ENDPOINT` → `MODULE_HUB_BASE_URL`，`ModuleHubOnboardingDto.endpoint` → `baseUrl`），需用户确认后按 RELEASE_CHECKLIST 执行；发版后 nightwatch-backend `npm install` 才能端到端验证 base URL 上报。
-- 生产部署 env：`nw.inceptionpad.com` 的 `NW_MODULE_HUB_ENDPOINT` 换成 `NW_MODULE_HUB_BASE_URL`（base URL），与后端同批发布，否则上报静默停止（`/Users/worldzhy/src/credentials/nw.inceptionpad.com`，尚未改动）。
-- workspace 外 `/Users/worldzhy/src/e2e-deploy/*` 仍引用 `MODULE_HUB_ENDPOINT`，待确认后同步。
-- nightwatch-backend / crewbie-console-backend 的 `.env.example` 在框架块内，待下次 `npx newbie template update` 带入 newbie-starter 的 `MODULE_HUB_BASE_URL` 说明。
+- 发版：`@devbie/newbie`、`@devbie/module-hub-cli` 各一个 minor（回退为 `MODULE_HUB_ENDPOINT`；CLI 新增独立 `MODULE_HUB_MODULES_ENDPOINT`；`ModuleHubOnboardingDto.baseUrl` → `endpoint`），需用户确认后按 RELEASE_CHECKLIST 执行。
+- 生产部署 env：`nw.inceptionpad.com` 的 `NW_MODULE_HUB_BASE_URL` 换回 `NW_MODULE_HUB_ENDPOINT=<完整上报 URL>`，与后端同批发布（`/Users/worldzhy/src/credentials/nw.inceptionpad.com`，尚未改动）。
+- 存量 application 无需回填：旧键名与完整 URL 形态在回退后恰好正确。
+- nightwatch-backend / crewbie-console-backend 的 `.env.example` 在框架块内，待下次 `npx newbie template update` 带入 newbie-starter 的 `MODULE_HUB_ENDPOINT` 说明。
+- workspace 外 `/Users/worldzhy/src/e2e-deploy/*` 保持的 `MODULE_HUB_ENDPOINT` 与回退后契约一致，无需改动。
+- F5（frontend-monitor-sdk `core.ts` 硬编码 `/api/frontend-monitor/reports`）仍为独立待办，不在本次范围。

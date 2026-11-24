@@ -2,7 +2,7 @@ import type { GlobalOptions } from "@devbie/newbie-cli/lib";
 
 /** Options shared by every `module-hub` subcommand. */
 export interface HubCommandOptions extends GlobalOptions {
-  /** Full caller-scoped modules URL; skips building it from MODULE_HUB_BASE_URL. */
+  /** Full caller-scoped modules URL; skips MODULE_HUB_MODULES_ENDPOINT. */
   modulesUrl?: string;
   /** Installation report token; skips MODULE_HUB_TOKEN resolution. */
   token?: string;

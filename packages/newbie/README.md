@@ -28,7 +28,7 @@ optional self-reporting — without forcing you to wire it all together.
 - **Observability built in** — graceful shutdown with bounded request
   draining, watch-mode port-race recovery, and env-gated backend monitor
   probe (`BACKEND_MONITOR_ENDPOINT` + `BACKEND_MONITOR_TOKEN`) and
-  module-hub reporter (`MODULE_HUB_BASE_URL` + `MODULE_HUB_TOKEN`).
+  module-hub reporter (`MODULE_HUB_ENDPOINT` + `MODULE_HUB_TOKEN`).
 
 ## Requirements
 
@@ -148,21 +148,21 @@ provides typed access to request cookies.
 
 ## Environment variables
 
-| Variable              | Used for                                                                                                                                |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `ENVIRONMENT`         | `development`, `staging` or `production`.                                                                                               |
-| `PORT`                | HTTP listen port.                                                                                                                       |
-| `ALLOWED_ORIGINS`     | Comma-separated CORS origin list.                                                                                                       |
-| `LOG_LEVEL`           | Comma-separated NestJS log levels (e.g. `log,warn,error`).                                                                              |
-| `MODULE_HUB_BASE_URL` | Hub base URL (origin, plus an optional deployment prefix); enables module-hub self-reporting when set together with `MODULE_HUB_TOKEN`. |
-| `MODULE_HUB_TOKEN`    | Token sent to the module hub.                                                                                                           |
+| Variable              | Used for                                                                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`         | `development`, `staging` or `production`.                                                                                                            |
+| `PORT`                | HTTP listen port.                                                                                                                                    |
+| `ALLOWED_ORIGINS`     | Comma-separated CORS origin list.                                                                                                                    |
+| `LOG_LEVEL`           | Comma-separated NestJS log levels (e.g. `log,warn,error`).                                                                                           |
+| `MODULE_HUB_ENDPOINT` | Complete report URL, e.g. `https://api.example.com/module-hub/reports`; enables module-hub self-reporting when set together with `MODULE_HUB_TOKEN`. |
+| `MODULE_HUB_TOKEN`    | Token sent to the module hub.                                                                                                                        |
 
-When both `MODULE_HUB_BASE_URL` and `MODULE_HUB_TOKEN` are present, the
+When both `MODULE_HUB_ENDPOINT` and `MODULE_HUB_TOKEN` are present, the
 framework automatically sends a full snapshot on boot and a ping every 60
-seconds to `<MODULE_HUB_BASE_URL>/module-hub/reports`. The reporter appends that
-path itself, so the value must not contain `/module-hub` (a full report URL
-from before ADR-075 is rejected with a log line and reporting stays off).
-Reporting is fire-and-forget and never blocks application startup.
+seconds to `MODULE_HUB_ENDPOINT`, posted verbatim. The public route is decided
+by the deployment (prefix, gateway rewrite, own domain), so the reporter never
+appends or derives a path (ADR-076). Reporting is fire-and-forget and never
+blocks application startup.
 
 ## Related packages
 
