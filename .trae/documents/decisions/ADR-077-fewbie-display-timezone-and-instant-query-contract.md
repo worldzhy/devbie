@@ -59,6 +59,7 @@
 - `src/lib/format.ts` 的 `formatTimestamp` 保留给「墙钟字符串原样传递」和纯日期场景，注释明确它不承担时区换算，并补测试锁定。
 - 刻意保留 UTC 的两处继续保留并注释：`src/fewbie/framework/forms/date-picker.tsx`（双时区对照展示）、`settings/security` 的会话时间。
 - 模块面（`src/fewbie/modules/notification-center`）的时间来自 registry，按浏览器运行时时区展示；其相对时间与时区无关，绝对时间仅在浏览器渲染，宿主不改模块源码。
+  - **2026-11-24 修订**：模块已改为接受可选 `timeZone`（`NotificationPresentationConfig`），宿主传 `useTimeZone()`；缺省仍回落运行时时区。这样模块绝对时间与全站展示时区一致，不再依赖「浏览器时区恰好等于账号时区」。
 
 ### D4 审计与备份页显式标注时区
 
@@ -76,6 +77,12 @@ wire 契约：
 - 兼容窗口：旧客户端发送的墙钟串仍可被 `new Date()` 解析（按服务器时区解释，即 UTC），不额外抛错；新前端不再产生该格式。
 - 例外：语义本身就是**日历日**的端点（删除数据的日期窗口、报表周期 `periodStart/periodEnd`）继续传 `YYYY-MM-DD`，它们表达日期身份而非瞬时，服务端按日历日窗口处理。
 - ClickHouse 写入/查询继续接收 `Date` 或 ISO 串，不做格式化字符串拼接。
+
+**2026-11-24 实施复核（勘误）**：
+
+- epoch 单位按端点族区分：`func.toDate` 的 Mongo 路径按 epoch **毫秒**解析；ClickHouse 端点经 `toDateTime({beginTime:String})` 解析，ISO-Z 与 epoch **秒**都是瞬时（`clickhouse-client` 实测 `toDateTime('1763452800')` = `2025-11-18 08:00:00`），毫秒串会被钳到 2106 年。前端 `requests` 页发送 `.unix()` 秒对 CH 端点是正确的。
+- 上条「不做格式化字符串拼接」是目标而非现状：`ajax.service.ts` 仍把边界字符串插值进 `toDateTime(...)` 由 CH 解析。
+- 前端 14 个监控页仍用设备时区取日界限（`startOf("day")` / `.unix()` / `.toDate().toISOString()`），未全部切到 `zonedStartOfDay/zonedEndOfDay`；残余与迁移要求登记在 devbie `.trae/documents/backlog.md` 的 ADR-077 节。
 
 ## 4. 迁移映射（nightwatch-frontend）
 

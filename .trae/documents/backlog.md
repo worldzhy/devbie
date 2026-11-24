@@ -155,6 +155,7 @@
 ## ADR-077 落地交付项（2026-11-24）
 
 - 已落地：fewbie-starter `291ae08`（`getRequestConfig` 返回 `timeZone`，`NEXT_TIMEZONE` cookie，缺失/非法回落 UTC）；newbie-modules `b722955`（frontend-monitor 查询边界按瞬时解析）；nightwatch-frontend `0e89978`（`src/lib/datetime.ts`、`DisplayTimezoneSync`、审计/备份时区标注、监控域边界改 ISO）；nightwatch-backend `99b50ae1`（`func.toDate` 数字串按 epoch 毫秒、pvuvip history 同口径、lock 锚到 `b722955`）。
-- [ ] 浏览器取证：切 `Asia/Shanghai` 与 `UTC` 对比审计日志行、监控查询窗口（本次未跑，需登录态）。
-- [ ] `account.dto.ts` 的 `timezone` 仍是 `@IsString()`，非法 IANA 名可入库；读取侧已容错，写入口校验待补。
-- [ ] notification-center 模块的绝对时间（`formatTimestamp`）仍按浏览器运行时时区渲染（ADR-077 D3 明确不在宿主改模块源码范围）；如需统一，走 fewbie-modules 变更。
+- [x] 浏览器取证（2026-11-24 完成，审计日志部分）：登录后审计日志列头显示「时间 ( Asia/Shanghai )」，首行 `2026年11月24日 14:14:45`；设置页把账号时区改为 `UTC` 后同一行列头变「时间 ( UTC )」、值变 `2026年11月24日 06:14:45`（正好 −8h），改回 `Asia/Shanghai` 后恢复原值。监控查询窗口未做同款视觉对比，原因与残余见下一条。
+- [x] `account.dto.ts` 的 `timezone` 写入口校验（2026-11-24 完成）：newbie-modules `ab04800` 新增 `helpers/timezone.validator.ts`（IANA 形状 + `Intl.DateTimeFormat` 探测，与前端读 `NEXT_TIMEZONE` 同口径），覆盖 `UpdateMeDto` / `CreateUserDto` / `UpdateUserDto` 三个写入口并带 `timezone.validator.test.ts`；nightwatch-backend `897724de` 同步锁到 `ab04800`，顺带把 `modules/session/session.service.ts` 对齐 registry 消除 `apply --check` 漂移。
+- [x] notification-center 绝对时间时区（2026-11-24 完成）：fewbie-modules `f285e3b1` 给 `NotificationPresentationConfig` 增加可选 `timeZone` 并透传到 `formatTimestamp` / `RelativeTime` tooltip / 详情面板（缺省仍用运行时区）；nightwatch-frontend `b1523e55` 用 `npx fewbie modules update notification-center` 重装模块并在 `notification-host.tsx` 传 `useTimeZone()`。
+- [ ] **监控页日界限仍是设备时区（D5 残余）**：`frontend-monitor` 下 14 个页面仍用 `dayjs().startOf("day")` / `.unix()` / `.toDate().toISOString()` 生成查询边界（如 `user-traces/page.tsx:98-103`、`requests/page.tsx:89-94`），拿到的是浏览器时区的日历日，账号时区不是浏览器时区时窗口会偏。正确模式见 `pages/page.tsx:45`（`zonedStartOfDay(value.toDate(), dt.timeZone)`）。同时 ADR-077 D5 的 wire 表述需按实现修订：ClickHouse 端点经 `toDateTime({beginTime:String})` 接受 ISO-Z 与 epoch **秒**（`clickhouse-client` 实测 `toDateTime('1763452800')` = `2025-11-18 08:00:00`，毫秒串会被钳到 2106），epoch 毫秒只适用于 `func.toDate` 的 Mongo 路径；`ajax.service.ts` 仍做字符串插值而非参数化 `Date`。迁移时按页面逐个确认端点族后再改。
