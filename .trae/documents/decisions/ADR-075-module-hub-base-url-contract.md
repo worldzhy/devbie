@@ -46,6 +46,7 @@
 
 - `HEARTBEAT_ENDPOINT` / `HEALTH_ENDPOINT` / `BACKEND_MONITOR_ENDPOINT` / `NW_FRONTEND_MONITOR_ENDPOINT` 继续承载完整 URL，SDK 不拼路径。
 - 新约定：`*_ENDPOINT` = 目标端点本身（完整 URL）；`*_BASE_URL` = 客户端会追加固定路径的 base。新增 collector 时按此选择名字，不再引入「完整 URL + 客户端悄悄拼路径」的混用，也不再使用裸 `_URL`（无法自证是 base 还是完整地址）。
+- **默认形态**：新增上报目标 / collector 一律先按「配置携带 base URL + 客户端固化路径」设计；只有当对方 SDK 的既有契约明确要求传入完整 URL（如上述四类）时才用 `*_ENDPOINT`。同类情况照此处理，不再逐次讨论（2026-11-24 用户确认）。
 
 **D4 宿主侧字段更名**
 
