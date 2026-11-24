@@ -72,7 +72,7 @@
 wire 契约：
 
 - 所有时间窗口参数（`beginTime` / `endTime` / `beginTimeStr` / `endTimeStr` 及同类）的合法值是 **瞬时**：ISO-8601 带 `Z`（`toISOString()`）或 epoch（毫秒数字）。裸 `YYYY-MM-DD HH:mm:ss` 不再是合法输入。
-- 前端：日期选择器产出的是展示时区的日历日；`src/lib/datetime.ts` 提供纯函数 `zonedStartOfDay(date, timeZone)` / `zonedEndOfDay(date, timeZone)`，把日历日换算成该时区的瞬时再 `toISOString()`。
+- 前端：`src/lib/datetime.ts` 是唯一的时区换算入口。选择器只取日历日（整日语义）时用 `zonedStartOfDay(date, timeZone)` / `zonedEndOfDay(date, timeZone)`；选择器精确到分钟时用 `zonedWallClockToInstant(value, timeZone)`，把浏览器墙钟按展示时区重建为瞬时。序列化按端点族选择 `toIsoBound`（Mongo）或 `toEpochSeconds`（ClickHouse）；页面间交接用 `formatWallClock` 产出 `YYYY-MM-DDTHH:mm` 的展示时区墙钟串，收件页再经 `zonedWallClockToInstant` 还原，避免 ISO 瞬时二次解释产生偏移。
 - 后端：统一用 `func.toDate()`（接受 ISO / epoch 毫秒 / `Date`）；`pvuvip` 的 `history` 端点把 `new Date(Number(beginTime))` 改为 `func.toDate(beginTime)`，与其余端点同口径。
 - 兼容窗口：旧客户端发送的墙钟串仍可被 `new Date()` 解析（按服务器时区解释，即 UTC），不额外抛错；新前端不再产生该格式。
 - 例外：语义本身就是**日历日**的端点（删除数据的日期窗口、报表周期 `periodStart/periodEnd`）继续传 `YYYY-MM-DD`，它们表达日期身份而非瞬时，服务端按日历日窗口处理。
@@ -84,13 +84,18 @@ wire 契约：
 - 上条「不做格式化字符串拼接」是目标而非现状：`ajax.service.ts` 仍把边界字符串插值进 `toDateTime(...)` 由 CH 解析。
 - 前端监控页日界限迁移完成（2026-11-24，nightwatch-frontend `d5e1a2c`）：11 个文件改用 `zonedStartOfDay/zonedEndOfDay(..., dt.timeZone)`；ClickHouse 端点仍换算成 epoch **秒**（保持既有 wire 形态），Mongo 端点发送 ISO-Z；`user-traces` 详情里相邻记录的窗口边界改由 `fromServerTime` + `toInstant` 先把 CH 墙钟串还原成瞬时再取秒。
 - `overview` 及其 `top` / `province-chart` 三处用 `quickHours` 选任意瞬时（近 1 小时等），语义不是日历日，保持 `toDate().toISOString()` 不变；它们与上述 11 个文件合计即原清单的 14 个命中。
+- **2026-11-24 分钟粒度修正（nightwatch-frontend `cf94d82`，用户裁定）**：上条把 11 个文件的边界统一成日界，误伤了选择器本就精确到分钟的页面。语义按产品意图二分：
+  - **整日**：`requests`、`requests/detail`、`pages/page` —— 保留 `zonedStartOfDay/zonedEndOfDay`。
+  - **分钟级**：`errors`、`errors/detail`、`pages/list`、`pages/visit`、`resources`、`resources/detail`、`user-traces`、`custom` —— 改用 `zonedWallClockToInstant`，用户键入的墙钟按展示时区解释为瞬时。
+  - `zonedEndOfDay` 补 `999ms`（原止于 `23:59:59.000`，Mongo 的 `<=` 比较会丢最后一秒的毫秒部分）。
+  - 该修正同时关闭 round105 的 R105-01..04（见 nightwatch-frontend `.trae/documents/findings.md`）。
 
 ## 4. 迁移映射（nightwatch-frontend）
 
 | 现状 | 迁移到 |
 | --- | --- |
 | `formatTimestamp(value)` 渲染瞬时 | `useDateTime().dateTimeSeconds(value)` |
-| `formatTimestamp(value, { pattern: "YYYY-MM-DD HH:mm:ss" })` 发送查询边界 | `zonedStartOfDay/zonedEndOfDay(...).toISOString()` |
+| `formatTimestamp(value, { pattern: "YYYY-MM-DD HH:mm:ss" })` 发送查询边界 | 整日窗口：`zonedStartOfDay/zonedEndOfDay(...)`；分钟窗口：`zonedWallClockToInstant(...)`，再按端点族 `toIsoBound` / `toEpochSeconds` 序列化 |
 | `formatTimestamp(value, { pattern: "YYYY-MM-DD" })` 日期身份 | 保留（墙钟/纯日期） |
 | `dayjs().format("YYYY-MM-DD HH:mm:ss")` 发送边界 | `new Date().toISOString()` 或 zone 辅助函数 |
 | `format.dateTime` 已有调用 | 行为不变（config 提供 timeZone 后自动正确），仅 D4 页加标注 |
