@@ -82,7 +82,8 @@ wire 契约：
 
 - epoch 单位按端点族区分：`func.toDate` 的 Mongo 路径按 epoch **毫秒**解析；ClickHouse 端点经 `toDateTime({beginTime:String})` 解析，ISO-Z 与 epoch **秒**都是瞬时（`clickhouse-client` 实测 `toDateTime('1763452800')` = `2025-11-18 08:00:00`），毫秒串会被钳到 2106 年。前端 `requests` 页发送 `.unix()` 秒对 CH 端点是正确的。
 - 上条「不做格式化字符串拼接」是目标而非现状：`ajax.service.ts` 仍把边界字符串插值进 `toDateTime(...)` 由 CH 解析。
-- 前端 14 个监控页仍用设备时区取日界限（`startOf("day")` / `.unix()` / `.toDate().toISOString()`），未全部切到 `zonedStartOfDay/zonedEndOfDay`；残余与迁移要求登记在 devbie `.trae/documents/backlog.md` 的 ADR-077 节。
+- 前端监控页日界限迁移完成（2026-11-24，nightwatch-frontend `d5e1a2c`）：11 个文件改用 `zonedStartOfDay/zonedEndOfDay(..., dt.timeZone)`；ClickHouse 端点仍换算成 epoch **秒**（保持既有 wire 形态），Mongo 端点发送 ISO-Z；`user-traces` 详情里相邻记录的窗口边界改由 `fromServerTime` + `toInstant` 先把 CH 墙钟串还原成瞬时再取秒。
+- `overview` 及其 `top` / `province-chart` 三处用 `quickHours` 选任意瞬时（近 1 小时等），语义不是日历日，保持 `toDate().toISOString()` 不变；它们与上述 11 个文件合计即原清单的 14 个命中。
 
 ## 4. 迁移映射（nightwatch-frontend）
 
