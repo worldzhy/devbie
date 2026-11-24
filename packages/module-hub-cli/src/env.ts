@@ -6,14 +6,14 @@ import { envValues, parseEnv, CliError, ENV_PATH } from "@devbie/newbie-cli/lib"
 /**
  * Credential resolution mirrors `@devbie/aws-secrets-cli`: the CLI never
  * stores credentials. The installation report token already lives in the
- * deployment environment (`MODULE_HUB_URL` / `MODULE_HUB_TOKEN` are
+ * deployment environment (`MODULE_HUB_BASE_URL` / `MODULE_HUB_TOKEN` are
  * injected at deploy time and present in the developer's local `.env`), so
  * the CLI reads them from `process.env` first and falls back to the project
  * `.env`. An optional expected label lets callers assert which installation
  * they are talking to, the analogue of `expectedAccountId`.
  */
 
-export const MODULE_HUB_URL = "MODULE_HUB_URL";
+export const MODULE_HUB_BASE_URL = "MODULE_HUB_BASE_URL";
 export const MODULE_HUB_TOKEN = "MODULE_HUB_TOKEN";
 export const MODULE_HUB_INSTALLATION_LABEL = "MODULE_HUB_INSTALLATION_LABEL";
 
@@ -34,7 +34,7 @@ export interface HubCredentials {
 /**
  * Join the configured base URL with the caller-scoped modules path.
  *
- * `MODULE_HUB_URL` is the hub base URL (origin, plus an optional deployment
+ * `MODULE_HUB_BASE_URL` is the hub base URL (origin, plus an optional deployment
  * prefix such as `/api`); the route itself belongs to the hub and is never
  * part of the deployment config (ADR-075). A value that already carries a
  * `/module-hub` segment is the old full-report-URL form and is rejected:
@@ -43,11 +43,11 @@ export interface HubCredentials {
 export function buildModulesUrl(baseUrl: string): string {
   const base = baseUrl.trim().replace(/\/+$/, "");
   if (!base) {
-    throw new CliError(`${MODULE_HUB_URL} is empty. Point it at the hub base URL (ADR-075).`);
+    throw new CliError(`${MODULE_HUB_BASE_URL} is empty. Point it at the hub base URL (ADR-075).`);
   }
   if (/\/module-hub(\/|$)/.test(base)) {
     throw new CliError(
-      `${MODULE_HUB_URL} must be the hub base URL without a '/module-hub' path (got '${baseUrl}'). ` +
+      `${MODULE_HUB_BASE_URL} must be the hub base URL without a '/module-hub' path (got '${baseUrl}'). ` +
         `Pass --modules-url with the full '${OWN_MODULES_PATH}' URL to override.`,
     );
   }
@@ -77,7 +77,7 @@ function pickVariable(name: string, envFile: Record<string, string>, override?: 
 
 export interface ResolveCredentialsOptions {
   cwd: string;
-  /** Explicit modules URL; skips building it from MODULE_HUB_URL. */
+  /** Explicit modules URL; skips building it from MODULE_HUB_BASE_URL. */
   modulesUrl?: string;
   /** Explicit token override. */
   token?: string;
@@ -99,10 +99,10 @@ export async function resolveCredentials(options: ResolveCredentialsOptions): Pr
     return { modulesUrl: modulesUrlOverride, token };
   }
 
-  const baseUrl = pickVariable(MODULE_HUB_URL, envFile);
+  const baseUrl = pickVariable(MODULE_HUB_BASE_URL, envFile);
   if (!baseUrl) {
     throw new CliError(
-      `${MODULE_HUB_URL} is not set. Export it or add it to ${ENV_PATH}. ` +
+      `${MODULE_HUB_BASE_URL} is not set. Export it or add it to ${ENV_PATH}. ` +
         `Use --modules-url only when the hub route has a non-standard shape.`,
     );
   }

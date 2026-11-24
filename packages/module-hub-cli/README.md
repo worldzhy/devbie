@@ -18,13 +18,13 @@ installation report token already lives in the deployment environment.
 
 | Variable                        | Purpose                                                                                                |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `MODULE_HUB_URL`                | Hub base URL, e.g. `https://api.example.com` (an optional deployment prefix such as `/api` is allowed) |
+| `MODULE_HUB_BASE_URL`           | Hub base URL, e.g. `https://api.example.com` (an optional deployment prefix such as `/api` is allowed) |
 | `MODULE_HUB_TOKEN`              | Installation report token                                                                              |
 | `MODULE_HUB_INSTALLATION_LABEL` | Optional label assertion (the analogue of an expected AWS account id)                                  |
 
 Both are read from `process.env` first, then from the project `.env`. The CLI
 appends the hub-owned route `/module-hub/me/modules` to the base URL (`me` =
-the installation the token belongs to), so `MODULE_HUB_URL` must not contain a
+the installation the token belongs to), so `MODULE_HUB_BASE_URL` must not contain a
 `/module-hub` path — a full report URL from before ADR-075 is rejected with a
 hint. Pass `--modules-url` to override the whole URL when the hub route has a
 non-standard shape.

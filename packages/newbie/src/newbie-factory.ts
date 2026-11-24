@@ -277,11 +277,11 @@ export class NewbieFactory {
         });
       }
 
-      // Module-hub self-registration: starts when MODULE_HUB_URL and
-      // MODULE_HUB_TOKEN are present. MODULE_HUB_URL is a base URL; the
+      // Module-hub self-registration: starts when MODULE_HUB_BASE_URL and
+      // MODULE_HUB_TOKEN are present. MODULE_HUB_BASE_URL is a base URL; the
       // reporter appends its own fixed path (ADR-075). A malformed value
       // disables reporting with a log line instead of crashing the host.
-      const moduleHubBaseUrl = process.env.MODULE_HUB_URL;
+      const moduleHubBaseUrl = process.env.MODULE_HUB_BASE_URL;
       const moduleHubToken = process.env.MODULE_HUB_TOKEN;
       if (moduleHubBaseUrl && moduleHubToken) {
         try {

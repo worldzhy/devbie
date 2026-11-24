@@ -20,19 +20,21 @@
 | 决策点 | 选项 | 结论 |
 | --- | --- | --- |
 | 配置承载什么 | A 完整端点 URL（现状）；B base URL，客户端拼路径；C 拆成 host + 独立路径变量 | **B** |
-| 变量名 | A 沿用 `MODULE_HUB_ENDPOINT`；B 改为 `MODULE_HUB_URL` | **B** |
+| 变量名 | A 沿用 `MODULE_HUB_ENDPOINT`；B `MODULE_HUB_BASE_URL`；C `MODULE_HUB_URL`（首版落法，因 `_URL` 不能区分 base 与完整地址而废弃） | **B** |
 | 形态守卫 | A 不校验；B 尾部斜杠归一 + 已含 `/module-hub` 段即拒绝 | **B** |
 
-否决理由：A（完整 URL）把路由知识复制到每个部署环境的配置文件里，改名必漂移；C（host + 路径两个变量）把内部路由暴露成运维可调项，且两变量组合出的错误组合无法静态发现。变量名的 B 让「ENDpoint = 完整端点、URL = 客户端拼路径的 base」成为可读的类型区分；沿用旧名会让「endpoint 其实不是 endpoint」长期误导。
+否决理由：A（完整 URL）把路由知识复制到每个部署环境的配置文件里，改名必漂移；C（host + 路径两个变量）把内部路由暴露成运维可调项，且两变量组合出的错误组合无法静态发现。变量名选 B：本仓 `*_ENDPOINT` 已统一指完整 URL（heartbeat / health / backend-monitor / frontend-monitor），`_URL` 作为 base 与它们无法从名字上区分，只有显式 `_BASE_URL` 才能自证「客户端会追加路径」。
+
+`MODULE_HUB_` 前缀保留：这个 base 属于**上报目标系统**（hub），不属于被管理的应用自身。消费项目部署在自己的域名上，通过 onboarding 拿到 hub 的 base；因此它不能复用应用自己的 `APP_API_URL`（框架契约里也没有这个变量，只有 `APP_FRONTEND_URL`）。前缀标识「哪个系统的 base」，`_BASE_URL` 标识「只是个 base」，两段各承载一半信息。
 
 ## 3. 决策
 
 **D1 配置只携带 base URL**
 
-- 框架 reporter 读取 `MODULE_HUB_URL`（部署环境注入 `NW_MODULE_HUB_URL`），值为 base URL：`scheme://host` 加可选的部署前缀（例如生产 `https://nw.inceptionpad.com/api`），不含 `/module-hub` 路径。
+- 框架 reporter 读取 `MODULE_HUB_BASE_URL`（部署环境注入 `NW_MODULE_HUB_BASE_URL`），值为 base URL：`scheme://host` 加可选的部署前缀（例如生产 `https://nw.inceptionpad.com/api`），不含 `/module-hub` 路径。
 - reporter 固化上报路径 `/module-hub/reports`（`MODULE_HUB_REPORT_PATH`），启动时拼一次，之后所有 full / ping 复用同一 URL。
-- `@devbie/module-hub-cli` 同样读取 `MODULE_HUB_URL`，拼 `/module-hub/me/modules`；删除「剥 `/module-hub/reports` 后缀反推根」的逻辑，`--modules-url` 仍保留为显式整体覆盖。
-- 宿主不再下发完整上报 URL：onboarding DTO 的字段改为 `baseUrl`，env 值写 `NW_MODULE_HUB_URL=<apiUrl>`。
+- `@devbie/module-hub-cli` 同样读取 `MODULE_HUB_BASE_URL`，拼 `/module-hub/me/modules`；删除「剥 `/module-hub/reports` 后缀反推根」的逻辑，`--modules-url` 仍保留为显式整体覆盖。
+- 宿主不再下发完整上报 URL：onboarding DTO 的字段改为 `baseUrl`，env 值写 `NW_MODULE_HUB_BASE_URL=<apiUrl>`。
 
 **D2 形态守卫 fail-closed**
 
@@ -43,12 +45,12 @@
 **D3 其余 collector 保持现状，语义命名区分**
 
 - `HEARTBEAT_ENDPOINT` / `HEALTH_ENDPOINT` / `BACKEND_MONITOR_ENDPOINT` / `NW_FRONTEND_MONITOR_ENDPOINT` 继续承载完整 URL，SDK 不拼路径。
-- 新约定：`*_ENDPOINT` = 目标端点本身；`*_URL` = 客户端会追加固定路径的 base。新增 collector 时按此选择名字，不再引入「完整 URL + 客户端悄悄拼路径」的混用。
+- 新约定：`*_ENDPOINT` = 目标端点本身（完整 URL）；`*_BASE_URL` = 客户端会追加固定路径的 base。新增 collector 时按此选择名字，不再引入「完整 URL + 客户端悄悄拼路径」的混用，也不再使用裸 `_URL`（无法自证是 base 还是完整地址）。
 
 **D4 宿主侧字段更名**
 
 - `ModuleHubOnboardingDto.endpoint` → `baseUrl`，描述改为「hub base URL；reporter 自动追加 `/module-hub/reports`」。
-- `PLATFORM_ENV_KEYS.moduleHub` 的 URL 槽位值改为 `NW_MODULE_HUB_URL`。共享 `OnboardingEnvVarsDto` 的字段名（`token` / `endpoint`）保持不变——它承载的是「环境变量名」，其中 `endpoint` 槽位对 module-hub 指向的是一个 base URL 变量；字段语义在注释里写明，避免为单个 kind 复制一个 DTO。
+- `PLATFORM_ENV_KEYS.moduleHub` 的 URL 槽位值改为 `NW_MODULE_HUB_BASE_URL`。共享 `OnboardingEnvVarsDto` 的字段名（`token` / `endpoint`）保持不变——它承载的是「环境变量名」，其中 `endpoint` 槽位对 module-hub 指向的是一个 base URL 变量；字段语义在注释里写明，避免为单个 kind 复制一个 DTO。
 
 ## 4. 非目标
 
@@ -59,15 +61,15 @@
 
 ## 5. 跨宿主 / 演进检验
 
-- 消费方是 **newbie 框架**，不是某个宿主：`nightwatch-backend`、`crewbie-console-backend` 与未来的 newbie 应用都只提供 `NW_MODULE_HUB_URL` + `NW_MODULE_HUB_TOKEN`，宿主无法也不应该覆盖路径。路径常量属于框架与 hub 服务端的隐含契约，与宿主业务无关。
+- 消费方是 **newbie 框架**，不是某个宿主：`nightwatch-backend`、`crewbie-console-backend` 与未来的 newbie 应用都只提供 `NW_MODULE_HUB_BASE_URL` + `NW_MODULE_HUB_TOKEN`，宿主无法也不应该覆盖路径。路径常量属于框架与 hub 服务端的隐含契约，与宿主业务无关。
 - fewbie runtime 不实现该 reporter（见 module-hub 设计 §5.1 的对称实现条目），因此本 ADR 不产生 fewbie 侧义务。
 - 部署前缀（如 `/api`）留在 base URL 内，随部署环境变化，属于运维输入而非代码常量——这一点保证同一份代码可以部署在根路径或子路径反向代理之后。
 - 未泄漏厂商概念：变量只描述「hub 在哪」，不描述「hub 是什么产品」。
 
 ## 6. 影响
 
-- **必须同批更新**：宿主 onboarding（`NW_MODULE_HUB_URL` 注入 + DTO `baseUrl`）、前端展示与文档、newbie-starter `.env.example`、生产部署 env。任一侧滞后即上报静默失效或 404；生产 `nw.inceptionpad.com` 与后端需要同一发布窗口。
-- 本地开发 `.env` 的 `MODULE_HUB_ENDPOINT=.../module-hub/reports` 要改成 `MODULE_HUB_URL=http://localhost:3000`；旧值会被 D2 的守卫拒绝（显式报错，不是静默 404）。
+- **必须同批更新**：宿主 onboarding（`NW_MODULE_HUB_BASE_URL` 注入 + DTO `baseUrl`）、前端展示与文档、newbie-starter `.env.example`、生产部署 env。任一侧滞后即上报静默失效或 404；生产 `nw.inceptionpad.com` 与后端需要同一发布窗口。
+- 本地开发 `.env` 的 `MODULE_HUB_ENDPOINT=.../module-hub/reports` 要改成 `MODULE_HUB_BASE_URL=http://localhost:3000`；旧值会被 D2 的守卫拒绝（显式报错，不是静默 404）。
 - 语义更简单：路径只存在于服务端路由与客户端常量各一处，改名时两侧同时可见。
 - 发版：`@devbie/newbie`、`@devbie/module-hub-cli` 各一个 minor（变量名与 DTO 形状变更，1.x 线内）。
 - 验证：reporter / CLI 单测覆盖拼接与守卫；宿主冒烟确认 `POST <base>/module-hub/reports` 返回 201。

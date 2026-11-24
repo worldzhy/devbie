@@ -5,13 +5,13 @@ import { readModuleSnapshot, type ModuleSnapshotEntry } from "./snapshot";
 /**
  * Built-in module-hub reporter client.
  *
- * When the process sets `MODULE_HUB_URL` + `MODULE_HUB_TOKEN`, this
+ * When the process sets `MODULE_HUB_BASE_URL` + `MODULE_HUB_TOKEN`, this
  * client self-registers with the hub on startup (a `kind="full"` report
  * containing the assembled-module snapshot) and then sends a lightweight
  * `kind="ping"` every `reportIntervalSeconds` (returned by the hub,
  * currently 60s).
  *
- * `MODULE_HUB_URL` is a **base URL** (origin plus an optional deployment
+ * `MODULE_HUB_BASE_URL` is a **base URL** (origin plus an optional deployment
  * prefix such as `/api`); the reporter appends the fixed
  * `MODULE_HUB_REPORT_PATH`. The route belongs to the hub, so deployments only
  * carry the location of the hub, never its internal paths (ADR-075).
@@ -86,11 +86,11 @@ function resolvePingIntervalMs(reportIntervalSeconds: unknown): number | null {
 export function resolveReportUrl(baseUrl: string): string {
   const base = baseUrl.trim().replace(/\/+$/, "");
   if (!base) {
-    throw new Error("MODULE_HUB_URL is empty");
+    throw new Error("MODULE_HUB_BASE_URL is empty");
   }
   if (/\/module-hub(\/|$)/.test(base)) {
     throw new Error(
-      `MODULE_HUB_URL must be the hub base URL without a '/module-hub' path (got '${baseUrl}'); ` +
+      `MODULE_HUB_BASE_URL must be the hub base URL without a '/module-hub' path (got '${baseUrl}'); ` +
         `the reporter appends '${MODULE_HUB_REPORT_PATH}' itself`,
     );
   }
