@@ -144,3 +144,10 @@
 > 2026-11-24 关闭：fewbie-modules PR #18 已合并（main `69126ab`），dev 已快进同步。registry 现为 8 项，谓词位于 `account-access/lib/password-policy.ts`。devbie registry 快照按 `69126ab` 重生成，`check:registry-snapshot` / `check:registry-dist` 全绿；155 用例通过；`@devbie/fewbie-cli@1.17.3` 已发布（`latest=1.17.3`，tarball 200）。消费方：nightwatch-frontend `53dd6e3`（IAM 新建用户弹窗去掉 password 字段与 checklist；卸载模块、adapter 与 `modules.password-checklist` 两语言字典；update/apply/adapters --check、format、lint、build 全绿）、crewbie-console-frontend `d148848`（卸载声明与安装产物，update/apply --check、format、lint、build 全绿）、fewbie-starter `79aac93`（CLI 升 `^1.17.3`，format/lint/build 全绿）。
 
 
+
+## ADR-075 落地交付项（2026-11-24）
+
+- 发版：`@devbie/newbie`、`@devbie/module-hub-cli` 各一个 minor（`MODULE_HUB_ENDPOINT` → `MODULE_HUB_URL`，`ModuleHubOnboardingDto.endpoint` → `baseUrl`），需用户确认后按 RELEASE_CHECKLIST 执行；发版后 nightwatch-backend `npm install` 才能端到端验证 base URL 上报。
+- 生产部署 env：`nw.inceptionpad.com` 的 `NW_MODULE_HUB_ENDPOINT` 换成 `NW_MODULE_HUB_URL`（base URL），与后端同批发布，否则上报静默停止（`/Users/worldzhy/src/credentials/nw.inceptionpad.com`，尚未改动）。
+- workspace 外 `/Users/worldzhy/src/e2e-deploy/*` 仍引用 `MODULE_HUB_ENDPOINT`，待确认后同步。
+- nightwatch-backend / crewbie-console-backend 的 `.env.example` 在框架块内，待下次 `npx newbie template update` 带入 newbie-starter 的 `MODULE_HUB_URL` 说明。
