@@ -151,3 +151,10 @@
 - 存量 application 无需回填：旧键名与完整 URL 形态在回退后恰好正确。
 - workspace 外 `/Users/worldzhy/src/e2e-deploy/*` 保持的 `MODULE_HUB_ENDPOINT` 与回退后契约一致，无需改动。
 - F5（frontend-monitor-sdk `core.ts` 硬编码 `/api/frontend-monitor/reports`）仍为独立待办，不在本次范围。
+
+## ADR-077 落地交付项（2026-11-24）
+
+- 已落地：fewbie-starter `291ae08`（`getRequestConfig` 返回 `timeZone`，`NEXT_TIMEZONE` cookie，缺失/非法回落 UTC）；newbie-modules `b722955`（frontend-monitor 查询边界按瞬时解析）；nightwatch-frontend `0e89978`（`src/lib/datetime.ts`、`DisplayTimezoneSync`、审计/备份时区标注、监控域边界改 ISO）；nightwatch-backend `99b50ae1`（`func.toDate` 数字串按 epoch 毫秒、pvuvip history 同口径、lock 锚到 `b722955`）。
+- [ ] 浏览器取证：切 `Asia/Shanghai` 与 `UTC` 对比审计日志行、监控查询窗口（本次未跑，需登录态）。
+- [ ] `account.dto.ts` 的 `timezone` 仍是 `@IsString()`，非法 IANA 名可入库；读取侧已容错，写入口校验待补。
+- [ ] notification-center 模块的绝对时间（`formatTimestamp`）仍按浏览器运行时时区渲染（ADR-077 D3 明确不在宿主改模块源码范围）；如需统一，走 fewbie-modules 变更。
