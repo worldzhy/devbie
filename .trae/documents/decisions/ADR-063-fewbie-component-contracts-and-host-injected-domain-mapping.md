@@ -1,6 +1,6 @@
 # ADR-063：组件级 item 可声明契约，业务映射由宿主注入
 
-- 状态：已采纳
+- 状态：已采纳（D3"item 不引入查询库"由 [ADR-079](ADR-079-fewbie-frontend-data-and-session-mechanism.md) 取代；D1/D2/D4/D5/D6 继续有效）
 - 日期：2026-11-22
 - 关系：补充 [ADR-057](ADR-057-fewbie-module-contract-and-lockfile.md)（模块契约与锁文件）、[ADR-058](ADR-058-fewbie-registry-single-source-of-truth.md)（registry 单一真源）与 [ADR-062](ADR-062-fewbie-modules-may-import-sibling-items.md)（兄弟 item 导入）；不改变 `fewbie.module.json` 的安装语义与锁文件格式。
 - 触发：`notification-center` 与 `copilot` 两个全局壳层组件需要跨宿主复用。现有实现依赖宿主 `next-intl`、`next/navigation`、`@tanstack/react-query`、`@/api` 与硬编码的夜巡通知键，无法逐文件复制；而 registry 的 `contract` 只对 `registry:block` 生效，组件级 item 只能 copy-only，`labels`/`ports` 不能被门禁校验。
