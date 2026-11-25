@@ -53,12 +53,13 @@ export interface ModuleSourceDrift {
 /** Lock path: copy = manifest, then manifest = registry tree at sourceCommit. */
 async function lockDrift(params: {
   cwd: string;
-  registry: RegistryLocation;
+  registry: RegistryLocation | null;
   lock: ModuleLock;
   enabledKeys: string[];
   requireInstalled: boolean;
+  localOnly: boolean;
 }): Promise<ModuleSourceDrift[]> {
-  const { cwd, registry, lock, enabledKeys, requireInstalled } = params;
+  const { cwd, registry, lock, enabledKeys, requireInstalled, localOnly } = params;
   const drifts: ModuleSourceDrift[] = [];
   for (const key of enabledKeys) {
     const entry = lockEntryFor(lock, key);
@@ -83,6 +84,14 @@ async function lockDrift(params: {
     const copyReport = diffSnapshots(installed, manifest);
     if (!copyReport.clean) {
       drifts.push({ ...base, report: copyReport, reason: "copy-modified" });
+      continue;
+    }
+    // Local-only mode (pre-commit gate): the copy matches its lock manifest,
+    // which is all the gate can prove offline. The lock-tampered step needs a
+    // registry checkout + git and is left to CI (`modules apply --check`).
+    if (localOnly) continue;
+    if (!registry) {
+      drifts.push({ ...base, reason: "unverifiable-lock" });
       continue;
     }
     let pristine = await snapshotPristineModule(registry, key, entry.sourceCommit);
@@ -110,7 +119,7 @@ async function lockDrift(params: {
  */
 export async function diffModuleSources(params: {
   cwd: string;
-  registry: RegistryLocation;
+  registry: RegistryLocation | null;
   enabledKeys: string[];
   /**
    * Report enabled modules whose copy is absent. `modules apply --check`
@@ -118,8 +127,15 @@ export async function diffModuleSources(params: {
    * --check` has no reconcile pass and must not stay green (R6-03).
    */
   requireInstalled?: boolean;
+  /**
+   * Run only the offline, registry-independent checks (copy-modified,
+   * lock-missing, missing-copy). Skips the lock-tampered step, which needs a
+   * registry checkout + git; `modules drift` (the pre-commit gate) uses this
+   * so it can never block a commit when the registry is unavailable.
+   */
+  localOnly?: boolean;
 }): Promise<ModuleSourceDrift[]> {
-  const { cwd, registry, enabledKeys, requireInstalled = false } = params;
+  const { cwd, registry, enabledKeys, requireInstalled = false, localOnly = false } = params;
   const lock = await readModuleLock(cwd);
   // A project with no lock yet: every existing copy is unproven until the next
   // `modules apply` verifies it (against its legacy pin) and seeds the lock.
@@ -144,7 +160,7 @@ export async function diffModuleSources(params: {
       const pin = pins.get(key) ?? null;
       // A pin this checkout cannot read is a stale registry cache, not drift;
       // keep the actionable `unverifiable-lock` signal for the migration pass.
-      if (pin && (await snapshotPristineModule(registry, key, pin)) === null) {
+      if (pin && !localOnly && registry && (await snapshotPristineModule(registry, key, pin)) === null) {
         drifts.push({
           key,
           installedPath: `${MODULES_DIR}/${key}`,
@@ -166,7 +182,7 @@ export async function diffModuleSources(params: {
     }
     return drifts;
   }
-  return lockDrift({ cwd, registry, lock, enabledKeys, requireInstalled });
+  return lockDrift({ cwd, registry, lock, enabledKeys, requireInstalled, localOnly });
 }
 
 const short = (commit: string | null): string => (commit ? commit.slice(0, 7) : "unknown");

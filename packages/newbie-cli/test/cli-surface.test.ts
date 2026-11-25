@@ -76,6 +76,12 @@ describe("newbie CLI surface", () => {
               commands: [],
             },
             {
+              name: "drift",
+              arguments: [],
+              options: [],
+              commands: [],
+            },
+            {
               name: "remove",
               arguments: [{ name: "keys", required: true, variadic: true }],
               options: ["-y, --yes"],
