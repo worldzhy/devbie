@@ -148,18 +148,21 @@ provides typed access to request cookies.
 
 ## Environment variables
 
-| Variable              | Used for                                                                                      |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| `ENVIRONMENT`         | `development`, `staging` or `production`.                                                     |
-| `PORT`                | HTTP listen port.                                                                             |
-| `ALLOWED_ORIGINS`     | Comma-separated CORS origin list.                                                             |
-| `LOG_LEVEL`           | Comma-separated NestJS log levels (e.g. `log,warn,error`).                                    |
-| `MODULE_HUB_ENDPOINT` | Full report URL; enables module-hub self-reporting when set together with `MODULE_HUB_TOKEN`. |
-| `MODULE_HUB_TOKEN`    | Token sent to the module hub.                                                                 |
+| Variable              | Used for                                                                                                                                             |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`         | `development`, `staging` or `production`.                                                                                                            |
+| `PORT`                | HTTP listen port.                                                                                                                                    |
+| `ALLOWED_ORIGINS`     | Comma-separated CORS origin list.                                                                                                                    |
+| `LOG_LEVEL`           | Comma-separated NestJS log levels (e.g. `log,warn,error`).                                                                                           |
+| `MODULE_HUB_ENDPOINT` | Complete report URL, e.g. `https://api.example.com/module-hub/reports`; enables module-hub self-reporting when set together with `MODULE_HUB_TOKEN`. |
+| `MODULE_HUB_TOKEN`    | Token sent to the module hub.                                                                                                                        |
 
 When both `MODULE_HUB_ENDPOINT` and `MODULE_HUB_TOKEN` are present, the
 framework automatically sends a full snapshot on boot and a ping every 60
-seconds. Reporting is fire-and-forget and never blocks application startup.
+seconds to `MODULE_HUB_ENDPOINT`, posted verbatim. The public route is decided
+by the deployment (prefix, gateway rewrite, own domain), so the reporter never
+appends or derives a path (ADR-076). Reporting is fire-and-forget and never
+blocks application startup.
 
 ## Related packages
 

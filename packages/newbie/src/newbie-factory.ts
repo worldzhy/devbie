@@ -278,8 +278,8 @@ export class NewbieFactory {
       }
 
       // Module-hub self-registration: starts when MODULE_HUB_ENDPOINT and
-      // MODULE_HUB_TOKEN are present. Sends a `kind="full"` snapshot
-      // immediately and `kind="ping"` every 60s.
+      // MODULE_HUB_TOKEN are present. MODULE_HUB_ENDPOINT is the complete
+      // report URL and is posted verbatim (ADR-076).
       const moduleHubEndpoint = process.env.MODULE_HUB_ENDPOINT;
       const moduleHubToken = process.env.MODULE_HUB_TOKEN;
       if (moduleHubEndpoint && moduleHubToken) {

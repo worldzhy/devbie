@@ -52,7 +52,7 @@ export function NotificationDetailSheet({
   onOpenChange: (open: boolean) => void;
   onOpenLink: (notification: NotificationRecord) => void;
 }) {
-  const { labels, resolveSource, onNavigate, alertCenterPath, locale } = useNotificationPresentation();
+  const { labels, resolveSource, onNavigate, alertCenterPath, locale, timeZone } = useNotificationPresentation();
   const resolved = resolveLocale(locale);
 
   if (!notification) {
@@ -71,7 +71,7 @@ export function NotificationDetailSheet({
         <SheetHeader>
           <DetailHeader notification={notification} />
           <SheetDescription className="space-y-1">
-            <span className="block">{formatTimestamp(notification.createdAt, resolved)}</span>
+            <span className="block">{formatTimestamp(notification.createdAt, resolved, "short", timeZone)}</span>
             <span className="block font-mono text-xs">{notification.notificationKey}</span>
           </SheetDescription>
         </SheetHeader>
@@ -121,7 +121,7 @@ export function NotificationDetailSheet({
 }
 
 function DeliveryReasonBlock({ notificationId }: { notificationId: string }) {
-  const { labels, locale, loadDeliveryAttempt } = useNotificationPresentation();
+  const { labels, locale, timeZone, loadDeliveryAttempt } = useNotificationPresentation();
   const [open, setOpen] = useState(false);
   const [attempt, setAttempt] = useState<NotificationDeliveryAttempt | null>(null);
   const [busy, setBusy] = useState(false);
@@ -165,7 +165,7 @@ function DeliveryReasonBlock({ notificationId }: { notificationId: string }) {
             ) : null}
             {attempt.runtimeReasonLabel ? <Badge variant="secondary">{attempt.runtimeReasonLabel}</Badge> : null}
             <span className="text-xs text-muted-foreground">
-              {formatTimestamp(attempt.createdAt, resolveLocale(locale))}
+              {formatTimestamp(attempt.createdAt, resolveLocale(locale), "short", timeZone)}
             </span>
           </div>
         )
@@ -182,8 +182,17 @@ export function NotificationDetailPanel({
   group: NotificationGroup | null;
   onOpenLink: (notification: NotificationRecord) => void;
 }) {
-  const { labels, resolveMeta, categoryVisuals, fallbackVisual, resolveSource, onNavigate, alertCenterPath, locale } =
-    useNotificationPresentation();
+  const {
+    labels,
+    resolveMeta,
+    categoryVisuals,
+    fallbackVisual,
+    resolveSource,
+    onNavigate,
+    alertCenterPath,
+    locale,
+    timeZone,
+  } = useNotificationPresentation();
   const resolved = resolveLocale(locale);
 
   if (!group) {
@@ -216,7 +225,7 @@ export function NotificationDetailPanel({
             ) : null}
           </div>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
-            <span>{formatTimestamp(notification.createdAt, resolved)}</span>
+            <span>{formatTimestamp(notification.createdAt, resolved, "short", timeZone)}</span>
             <span className="font-mono">{notification.notificationKey}</span>
           </p>
         </div>
@@ -265,7 +274,7 @@ export function NotificationDetailPanel({
               {group.records.map((record) => (
                 <li key={record.id} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
                   <span className="tabular-nums text-foreground">
-                    {formatTimestamp(record.createdAt, resolved, "medium")}
+                    {formatTimestamp(record.createdAt, resolved, "medium", timeZone)}
                   </span>
                   <RelativeTime value={record.createdAt} className="text-xs text-muted-foreground" />
                 </li>

@@ -144,3 +144,20 @@
 > 2026-11-24 关闭：fewbie-modules PR #18 已合并（main `69126ab`），dev 已快进同步。registry 现为 8 项，谓词位于 `account-access/lib/password-policy.ts`。devbie registry 快照按 `69126ab` 重生成，`check:registry-snapshot` / `check:registry-dist` 全绿；155 用例通过；`@devbie/fewbie-cli@1.17.3` 已发布（`latest=1.17.3`，tarball 200）。消费方：nightwatch-frontend `53dd6e3`（IAM 新建用户弹窗去掉 password 字段与 checklist；卸载模块、adapter 与 `modules.password-checklist` 两语言字典；update/apply/adapters --check、format、lint、build 全绿）、crewbie-console-frontend `d148848`（卸载声明与安装产物，update/apply --check、format、lint、build 全绿）、fewbie-starter `79aac93`（CLI 升 `^1.17.3`，format/lint/build 全绿）。
 
 
+
+## ADR-075 回退交付项（ADR-076，2026-11-24）
+
+- 生产部署 env：`nw.inceptionpad.com` 的 module-hub 上报地址需在 AWS Secrets Manager 设为 `NW_MODULE_HUB_ENDPOINT=https://nw.inceptionpad.com/api/module-hub/reports`（完整 URL，注意复数 `reports`），与 backend #71 部署同窗口执行；本地 `/Users/worldzhy/src/credentials/nw.inceptionpad.com` 已更正为 `/reports`。若生产当前仍是 `NW_MODULE_HUB_BASE_URL`，需同时换回键名。
+- 存量 application 无需回填：旧键名与完整 URL 形态在回退后恰好正确。
+- workspace 外 `/Users/worldzhy/src/e2e-deploy/*` 保持的 `MODULE_HUB_ENDPOINT` 与回退后契约一致，无需改动。
+- F5（frontend-monitor-sdk `core.ts` 硬编码 `/api/frontend-monitor/reports`）仍为独立待办，不在本次范围。
+
+## ADR-077 落地交付项（2026-11-24）
+
+- 已落地：fewbie-starter `291ae08`（`getRequestConfig` 返回 `timeZone`，`NEXT_TIMEZONE` cookie，缺失/非法回落 UTC）；newbie-modules `b722955`（frontend-monitor 查询边界按瞬时解析）；nightwatch-frontend `0e89978`（`src/lib/datetime.ts`、`DisplayTimezoneSync`、审计/备份时区标注、监控域边界改 ISO）；nightwatch-backend `99b50ae1`（`func.toDate` 数字串按 epoch 毫秒、pvuvip history 同口径、lock 锚到 `b722955`）。
+- [x] 浏览器取证（2026-11-24 完成，审计日志部分）：登录后审计日志列头显示「时间 ( Asia/Shanghai )」，首行 `2026年11月24日 14:14:45`；设置页把账号时区改为 `UTC` 后同一行列头变「时间 ( UTC )」、值变 `2026年11月24日 06:14:45`（正好 −8h），改回 `Asia/Shanghai` 后恢复原值。监控查询窗口未做同款视觉对比，原因与残余见下一条（该残余已由 `d5e1a2c` 收口，仍为静态验证）。
+- [x] `account.dto.ts` 的 `timezone` 写入口校验（2026-11-24 完成）：newbie-modules `ab04800` 新增 `helpers/timezone.validator.ts`（IANA 形状 + `Intl.DateTimeFormat` 探测，与前端读 `NEXT_TIMEZONE` 同口径），覆盖 `UpdateMeDto` / `CreateUserDto` / `UpdateUserDto` 三个写入口并带 `timezone.validator.test.ts`；nightwatch-backend `897724de` 同步锁到 `ab04800`，顺带把 `modules/session/session.service.ts` 对齐 registry 消除 `apply --check` 漂移。
+- [x] notification-center 绝对时间时区（2026-11-24 完成）：fewbie-modules `f285e3b1` 给 `NotificationPresentationConfig` 增加可选 `timeZone` 并透传到 `formatTimestamp` / `RelativeTime` tooltip / 详情面板（缺省仍用运行时区）；nightwatch-frontend `b1523e55` 用 `npx fewbie modules update notification-center` 重装模块并在 `notification-host.tsx` 传 `useTimeZone()`。
+- [x] **监控页日界限仍是设备时区（D5 残余）**（2026-11-24 完成，nightwatch-frontend `d5e1a2c`）：11 个文件（`requests` / `requests/detail` / `errors` / `errors/detail` / `pages/list` / `pages/visit` / `resources` / `resources/detail` / `user-traces` / `user-traces/detail` / `user-traces/components/analysis-detail`）改用 `zonedStartOfDay/zonedEndOfDay(..., dt.timeZone)`。CH 端点（`ajax` / `error` / 相邻记录窗口）继续发送 epoch **秒**，Mongo 端点（`analysis` / `pages` / `resource`）发送 ISO-Z；`user-traces` 详情边界先经 `fromServerTime` + `toInstant` 把 CH 墙钟串还原为瞬时。`overview` 及 `top` / `province-chart` 是 `quickHours` 任意瞬时选窗，不涉日历日，保持原样。验证：容器内 `tsc --noEmit` / `npm run lint` / `prettier --check` / `fewbie modules update --check` 全绿。ADR-077 勘误已同步。
+  - **2026-11-24 分钟粒度修正（nightwatch-frontend `cf94d82`，round105 收口）**：选时精确到分钟的页面（`errors` / `errors/detail` / `pages/list` / `pages/visit` / `resources` / `resources/detail` / `user-traces`）改用 `zonedWallClockToInstant`，不再被截成日界；`requests` / `requests/detail` / `pages/page` 保持整日。`zonedEndOfDay` 补 999ms。新增 `toIsoBound` / `toEpochSeconds` / `formatWallClock`，页面间交接改存展示时区墙钟串。
+  - **2026-11-24 round106 修正（nightwatch-frontend `bbeb343`）**：`custom` 的 picker 是日期粒度（无 `withTime`），上一条把它列进分钟级是误判——按分钟换算会让 `endTime` 落在结束日 00:00，后端 `$lte` 排除整天。已回到整日语义。日界 helper 改为读浏览器本地 parts（`zonedWallClockDayStart/DayEnd`），修掉"浏览器时区在展示时区以东时整日页选错日"；`toInstant` → `parseInstant`、`formatWallClock` → `toDisplayWallClock`。`datetime.test.ts` 的 3 条 `.000` 断言同步为 `.999` 并补跨时区/DST 用例——此前 `npm test` 是红的，而上一条的"验证全绿"未包含单测。验证：`tsc --noEmit` / `npm run lint` / `prettier --check` / `npm test`（201 passed）/ `fewbie modules update --check` 全绿。

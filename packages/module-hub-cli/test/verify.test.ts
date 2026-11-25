@@ -1,25 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { deriveModulesUrl } from "../src/env";
 import { compareModules, type LocalModule } from "../src/verify";
 
 function record(key: string, sourceCommit: string | null = "abc"): LocalModule {
   return { key, sourceCommit };
 }
-
-describe("deriveModulesUrl", () => {
-  it("replaces the report suffix with the caller-scoped modules path", () => {
-    assert.equal(
-      deriveModulesUrl("https://api.example.com/module-hub/report"),
-      "https://api.example.com/module-hub/me/modules",
-    );
-  });
-
-  it("rejects endpoints that do not have the documented shape", () => {
-    assert.throws(() => deriveModulesUrl("https://api.example.com"), /must end with/);
-  });
-});
 
 describe("compareModules", () => {
   it("reports a clean match", () => {

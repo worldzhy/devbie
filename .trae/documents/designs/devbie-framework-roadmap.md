@@ -156,7 +156,7 @@
   | `hub-module-release` | registry 版本目录登记（GitHub webhook 写入）                                                   |
   | `hub-audit-log`      | 上报与目录变更审计（谁/何时/哪个实例/什么变更）                                               |
 - **API（token-only，`MODULE_HUB_TOKEN`）**：
-  - 运行时上报：单端点 `POST /module-hub/report`，`kind=full`（自注册 + 快照）/ `kind=ping`（心跳），头 `X-Module-Hub-Token`
+  - 运行时上报：单端点 `POST /module-hub/reports`，`kind=full`（自注册 + 快照）/ `kind=ping`（心跳），头 `X-Module-Hub-Token`
   - 宿主集成：installation 列表、模块清单、可升级项查询（宿主服务端调用，UI 权限归宿主）
   - GitHub webhook：registry 发布 → 登记 release → 与 installation 快照对账 → 生成可升级项
 - **升级通道**：hub 只呈现可升级项；实际升级由人/CI 执行 `newbie modules update`，部署后实例重启并上报新状态（回执状态机不在 v1 范围）
@@ -237,4 +237,4 @@
 | ~~nightwatch Application/Agent 模型~~  | ~~C1 阻塞~~ **已解除**：C1 改为去 project 化的 token-only installation 模型，框架侧可独立设计；仅 C2 面板仍待宿主 UI 层次重构 | —                 |
 | nightwatch-backend-next 生产切换未完成 | D1 GA 缺乏稳定验证环境                                                                                                        | nightwatch 工作区 |
 
-**建议下一步**：C1（module-hub 控制面）框架侧已按 v1 观察者模式实现（`@devbie/core` 启动钩子直报 `POST /module-hub/report` + rawBody；无 agent 轮询、无变更单，`newbie agent` 命令已删除，见 ADR-024 F15）；A1/A2/A3/A4/A5/B1 均已完成。剩余：消费侧 C1 端到端验收（nightwatch 工作区）与 D1 GA。
+**建议下一步**：C1（module-hub 控制面）框架侧已按 v1 观察者模式实现（`@devbie/core` 启动钩子直报 `POST /module-hub/reports` + rawBody；无 agent 轮询、无变更单，`newbie agent` 命令已删除，见 ADR-024 F15）；A1/A2/A3/A4/A5/B1 均已完成。剩余：消费侧 C1 端到端验收（nightwatch 工作区）与 D1 GA。

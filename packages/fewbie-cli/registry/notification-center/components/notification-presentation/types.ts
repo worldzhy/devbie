@@ -105,6 +105,8 @@ export interface NotificationPresentationConfig {
   resolvePushFailure?: (failure: NotificationPushFailure) => string;
   /** Locale for relative time and timestamps; defaults to the browser locale. */
   locale?: string;
+  /** IANA display zone for absolute timestamps; defaults to the runtime zone. */
+  timeZone?: string;
   alertCenterPath?: string;
   /** Host-owned navigation; the item never imports a router. */
   onNavigate?: (path: string) => void;

@@ -11,6 +11,12 @@ import { readModuleSnapshot, type ModuleSnapshotEntry } from "./snapshot";
  * `kind="ping"` every `reportIntervalSeconds` (returned by the hub,
  * currently 60s).
  *
+ * `MODULE_HUB_ENDPOINT` is the **complete report URL**, posted verbatim. The
+ * public route is decided by the deployment (prefix, gateway rewrite, own
+ * domain), so the client never appends or derives a path — the same contract
+ * as the heartbeat / health / backend-monitor / frontend-monitor SDKs
+ * (ADR-076).
+ *
  * Design constraints (mirrors `@devbie/heartbeat-sdk`):
  *   - **Idempotent** via a `globalThis[Symbol]` singleton so Next.js HMR or
  *     double-init does not create duplicate timers.
@@ -34,7 +40,7 @@ const DEFAULT_PING_INTERVAL_MS = 60_000;
 const MIN_PING_INTERVAL_MS = 5_000;
 
 export interface ModuleHubReportOptions {
-  /** Full module-hub report URL, e.g. https://api.example.com/module-hub/report. */
+  /** Complete report URL, e.g. https://api.example.com/module-hub/reports. Posted verbatim. */
   endpoint: string;
   /** Report token sent as X-Module-Hub-Token header. */
   token: string;
@@ -84,8 +90,8 @@ export function startModuleHubReporting(options: ModuleHubReportOptions): Module
     return existing as ModuleHubReportHandle;
   }
 
-  const { endpoint, token } = options;
-  const url = endpoint;
+  const { token } = options;
+  const url = options.endpoint.trim();
   const projectRoot = options.projectRoot ?? process.cwd();
   const appVersion = options.appVersion ?? process.env.APP_VERSION ?? "";
   const env = options.env ?? process.env.ENVIRONMENT ?? "";

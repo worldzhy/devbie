@@ -58,7 +58,11 @@ describe("startModuleHubReporting", () => {
 
   it("returns a handle with stop()", () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
-    const handle = startModuleHubReporting({ endpoint: "http://localhost:3000", token: "tok", projectRoot: root });
+    const handle = startModuleHubReporting({
+      endpoint: "http://localhost:3000/module-hub/reports",
+      token: "tok",
+      projectRoot: root,
+    });
     assert.equal(typeof handle.stop, "function");
     handle.stop();
     spy.restore();
@@ -66,10 +70,24 @@ describe("startModuleHubReporting", () => {
 
   it("is idempotent: second call returns the same handle", () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
-    const first = startModuleHubReporting({ endpoint: "http://a", token: "t", projectRoot: root });
-    const second = startModuleHubReporting({ endpoint: "http://b", token: "t", projectRoot: root });
+    const first = startModuleHubReporting({ endpoint: "http://a/module-hub/reports", token: "t", projectRoot: root });
+    const second = startModuleHubReporting({ endpoint: "http://b/module-hub/reports", token: "t", projectRoot: root });
     assert.strictEqual(first, second);
     first.stop();
+    spy.restore();
+  });
+
+  it("posts to the configured endpoint verbatim, even on a non-standard route", async () => {
+    const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
+    const endpoint = "https://hub.example.com/gateway/ingest/reports";
+    const handle = startModuleHubReporting({ endpoint, token: "tok", projectRoot: root });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    assert.equal(spy.calls.length, 1);
+    assert.equal(spy.calls[0].url, endpoint);
+
+    handle.stop();
     spy.restore();
   });
 
@@ -84,7 +102,7 @@ describe("startModuleHubReporting", () => {
 
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
     const handle = startModuleHubReporting({
-      endpoint: "http://localhost:3000/module-hub/report",
+      endpoint: "http://localhost:3000/module-hub/reports",
       token: "secret-token",
       projectRoot: root,
     });
@@ -92,7 +110,7 @@ describe("startModuleHubReporting", () => {
     await new Promise((resolve) => setTimeout(resolve, 50));
 
     assert.equal(spy.calls.length, 1);
-    assert.equal(spy.calls[0].url, "http://localhost:3000/module-hub/report");
+    assert.equal(spy.calls[0].url, "http://localhost:3000/module-hub/reports");
     assert.equal(spy.calls[0].init.method, "POST");
     const headers = spy.calls[0].init.headers as Record<string, string>;
     assert.equal(headers["X-Module-Hub-Token"], "secret-token");
@@ -113,7 +131,7 @@ describe("startModuleHubReporting", () => {
   it("sends pings after the full report", async () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
     const handle = startModuleHubReporting({
-      endpoint: "http://localhost:3000",
+      endpoint: "http://localhost:3000/module-hub/reports",
       token: "tok",
       projectRoot: root,
     });
@@ -133,7 +151,7 @@ describe("startModuleHubReporting", () => {
       throw new Error("network down");
     });
     const handle = startModuleHubReporting({
-      endpoint: "http://localhost:3000",
+      endpoint: "http://localhost:3000/module-hub/reports",
       token: "tok",
       projectRoot: root,
     });
@@ -148,7 +166,7 @@ describe("startModuleHubReporting", () => {
   it("clamps a bogus reportIntervalSeconds instead of flooding pings", async () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: -5 }), { status: 200 }));
     const handle = startModuleHubReporting({
-      endpoint: "http://localhost:3000",
+      endpoint: "http://localhost:3000/module-hub/reports",
       token: "tok",
       projectRoot: root,
     });
@@ -165,7 +183,7 @@ describe("startModuleHubReporting", () => {
   it("stops the ping interval when stop() is called", async () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
     const handle = startModuleHubReporting({
-      endpoint: "http://localhost:3000",
+      endpoint: "http://localhost:3000/module-hub/reports",
       token: "tok",
       projectRoot: root,
     });
@@ -181,9 +199,9 @@ describe("startModuleHubReporting", () => {
 
   it("allows restart after stop()", () => {
     const spy = mockFetch(async () => new Response(JSON.stringify({ reportIntervalSeconds: 60 }), { status: 200 }));
-    const first = startModuleHubReporting({ endpoint: "http://a", token: "t", projectRoot: root });
+    const first = startModuleHubReporting({ endpoint: "http://a/module-hub/reports", token: "t", projectRoot: root });
     first.stop();
-    const second = startModuleHubReporting({ endpoint: "http://b", token: "t", projectRoot: root });
+    const second = startModuleHubReporting({ endpoint: "http://b/module-hub/reports", token: "t", projectRoot: root });
     assert.notStrictEqual(first, second);
     second.stop();
     spy.restore();
