@@ -7,7 +7,7 @@ import { RegistryContext, resolveRegistryContext } from "../../registry/source";
 import { confirm } from "../../lib/confirm";
 import { CliError, readTextIfExists } from "@devbie/cli-kit";
 import { hashContent } from "../../lib/hashes";
-import { LOCKFILE_VERSION, Lockfile, readLockfile, writeLockfile } from "../../lib/lockfile";
+import { declaredDependencies, LOCKFILE_VERSION, Lockfile, readLockfile, writeLockfile } from "../../lib/lockfile";
 import { findStaleTargets } from "../../lib/stale-targets";
 import { readRegistryDeclaration, requireModulesFile } from "../../lib/modules-file";
 import { assertProjectRoot } from "../../lib/project";
@@ -140,6 +140,12 @@ export async function runUpdate(options: ModulesUpdateOptions): Promise<void> {
   }
 
   if (drifted.length === 0 && stale.length === 0) {
+    // Files match the registry, but the lockfile may still miss the dependency
+    // declaration the host lint reads (ADR-079 D5). Refresh only that metadata
+    // so adopting the CLI does not require an unrelated file update.
+    if (lockfile !== null && selected.some((module) => dependenciesDiffer(module, lockfile))) {
+      await writeUpdatedLockfile(projectRoot, context, selected, [], lockfile);
+    }
     console.info(green(bold("✓ Declared module files are up to date.")));
     if (missing.length > 0) {
       console.info(yellow(`Missing file(s); run 'fewbie modules apply' to restore them:\n  ${missing.join("\n  ")}`));
@@ -211,6 +217,16 @@ function describe(kind: DriftKind): string {
   return "registry moved";
 }
 
+/**
+ * True when the lockfile records a different dependency list than the module
+ * manifest. Files are unaffected, so only `modules update` refreshes it.
+ */
+function dependenciesDiffer(module: LoadedModule, lockfile: Lockfile): boolean {
+  const recorded = lockfile.modules[module.manifest.name]?.dependencies ?? [];
+  const declared = module.manifest.dependencies ?? [];
+  return declared.length !== recorded.length || declared.some((name) => !recorded.includes(name));
+}
+
 /** Refresh the lockfile baseline for every file this run wrote. */
 async function writeUpdatedLockfile(
   projectRoot: string,
@@ -248,6 +264,7 @@ async function writeUpdatedLockfile(
     modules[module.manifest.name] = {
       version: module.manifest.contract?.version ?? "0.0.0",
       commit: context.commit,
+      ...declaredDependencies(module.manifest.dependencies),
       files,
     };
   }

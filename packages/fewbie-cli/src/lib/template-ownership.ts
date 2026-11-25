@@ -260,6 +260,10 @@ export const FRAMEWORK_DEPENDENCIES: readonly FrameworkDependency[] = [
   { name: "tw-animate-css", importedBy: "src/app/globals.css" },
   { name: "shadcn", importedBy: "src/app/globals.css (shadcn/tailwind.css)" },
   { name: "axios", importedBy: "src/lib/api-client/client.ts" },
+  {
+    name: "@tanstack/react-query",
+    importedBy: "src/fewbie/framework/providers/query-provider.tsx (ADR-079 D3)",
+  },
   { name: "dayjs", importedBy: "src/fewbie/framework/forms/date-picker.tsx" },
   { name: "cmdk", importedBy: "src/fewbie/ui/command.tsx" },
   { name: "echarts", importedBy: "src/fewbie/framework/chart/echarts.ts" },

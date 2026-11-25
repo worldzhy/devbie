@@ -13,7 +13,14 @@ import { resolveRegistryContext, resolveRegistryRoot, RegistryContext } from "..
 import { confirm } from "../../lib/confirm";
 import { CliError, execLive, pathExists, readTextIfExists } from "@devbie/cli-kit";
 import { hashContent } from "../../lib/hashes";
-import { LOCKFILE_VERSION, Lockfile, LockfileModule, readLockfile, writeLockfile } from "../../lib/lockfile";
+import {
+  declaredDependencies,
+  LOCKFILE_VERSION,
+  Lockfile,
+  LockfileModule,
+  readLockfile,
+  writeLockfile,
+} from "../../lib/lockfile";
 import { findStaleTargets } from "../../lib/stale-targets";
 import { readRegistryDeclaration, requireModulesFile, writeModulesFile } from "../../lib/modules-file";
 import { missingPackages } from "../../lib/npm-spec";
@@ -363,6 +370,7 @@ async function writeModuleLockfile(
     modules[module.manifest.name] = {
       version: module.manifest.contract?.version ?? "0.0.0",
       commit: context.commit,
+      ...declaredDependencies(module.manifest.dependencies),
       files,
     };
   }
