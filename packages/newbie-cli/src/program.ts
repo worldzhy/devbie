@@ -8,6 +8,7 @@ import { runCreate } from "./commands/create";
 import { runDoctor } from "./commands/doctor";
 import { runAdd } from "./commands/modules/add";
 import { runApply } from "./commands/modules/apply";
+import { runDrift } from "./commands/modules/drift";
 import { runModules } from "./commands/modules/default";
 import { runLint } from "./commands/modules/lint";
 import { runRemove } from "./commands/modules/remove";
@@ -139,6 +140,15 @@ export function buildProgram(): Command {
           yes: Boolean(flags.yes),
         }),
       );
+    });
+
+  modules
+    .command("drift")
+    .description(
+      "Check installed module copies against the provenance lock (local-only, offline; exits 2 on drift) — the pre-commit gate; CI runs the full check with `modules apply --check`",
+    )
+    .action(function (this: Command) {
+      return run(() => runDrift(collectOptions(this)));
     });
 
   modules
