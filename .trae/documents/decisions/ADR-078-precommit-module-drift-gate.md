@@ -81,7 +81,7 @@
 
 ## 6. 影响
 
-- **发版顺序**：(1) devbie 实现 `newbie modules drift` + 本 ADR；(2) 发 `@devbie/newbie` minor（1.x 线内，`npm publish --tag latest`）；(3) `newbie-starter` 更新 `.githooks/pre-commit` 模板（调用 `newbie modules drift`，含 D2/D3 降级逻辑）；(4) 消费者经 `newbie template update` 拉取模板。hook 的 D3 降级使得 CLI 与模板的升级可异步进行——模板先到、CLI 未升时只 warn 不阻塞。
+- **发版顺序**：(1) devbie 实现 `newbie modules drift` + 本 ADR；(2) 发 `@devbie/newbie-cli` minor（1.x 线内，`npm publish --tag latest`）——`node_modules/.bin/newbie` 由它提供；(3) `newbie-starter` 更新 `.githooks/pre-commit` 模板（调用 `newbie modules drift`，含 D2/D3 降级逻辑）；(4) **存量消费者手动套用模板里的 drift 步骤**：`.githooks/pre-commit` 属 `template-shipped-host-owned`（`template-update.ts` 只同步 `framework-whole-file` / `framework-marker-block`，不覆盖 host-owned 文件），`newbie template update` 不会更新它；`newbie-starter` 是权威参考，新脚手架首次安装即带上。hook 的 D3 降级使得 CLI 与模板的升级可异步进行——模板先到、CLI 未升时只 warn 不阻塞。
 - **验证**：`modules drift` 单测覆盖 (a) copy-modified 退出 2、(b) 干净退出 0、(c) 无 registry 时 lock-tampered 跳过且退出 0、(d) lock-missing / missing-copy 退出 2；hook 用一个临时仓库实测：手改 `src/modules/<key>` 提交被拦、无关文件提交不触发、删 `node_modules/.bin/newbie` 时 warn-skip 不拦。
 - **更容易**：手改模块副本的错误在 commit 时刻即被报出，不再等到 PR/CI；修复指引与 CI 一致。
 - **更难 / 成本**：每次命中触发器的提交多一次本地漂移检查（毫秒级，纯文件哈希）；可接受。开发者需知道 `--no-verify` 会绕过它（但 CI 兜底）。
