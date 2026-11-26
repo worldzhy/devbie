@@ -1,7 +1,6 @@
 "use client";
 
 import { OctagonAlert } from "lucide-react";
-import { interpolate } from "./format";
 import { useNotificationPresentation } from "./presentation";
 import { RelativeTime } from "./relative-time";
 import type { NotificationPushFailure } from "./types";
@@ -21,8 +20,7 @@ export function NotificationPushFailures({
   const { labels, resolvePushFailure } = useNotificationPresentation();
   if (failures.length === 0) return null;
 
-  const summary =
-    failures.length === 1 ? labels.pushFailedOne : interpolate(labels.pushFailedMany, { count: failures.length });
+  const summary = failures.length === 1 ? labels.pushFailedOne : labels.pushFailedMany(failures.length);
 
   return (
     <div

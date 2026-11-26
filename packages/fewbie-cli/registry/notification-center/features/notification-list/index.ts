@@ -8,5 +8,5 @@ export type {
   NotificationCenterPort,
   NotificationCenterProps,
   NotificationCenterQuery,
-  NotificationProjectOption,
+  NotificationScopeOption,
 } from "./types";

@@ -1105,3 +1105,43 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - **宿主**：nightwatch-frontend 删除模块声明 / adapter / `modules.password-checklist` 命名空间并重写 IAM 弹窗；crewbie-console-frontend 删除声明与安装产物；后端零改动（`User.password` 可空、`/auth/login-by-verification-code` 已支持无密码账号）。
 - **未迁移的部分**：checklist 的渲染组件不再分发；forgot-password 内的本地薄壳是唯一渲染，避免把组件层 6 个 label 键混进 block 契约触发 D5 键冲突。
 
+### Round 107（前端复用与标准化，2026-11-26）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-26-round107-frontend-reuse.md`。scope 为四仓前端代码面（fewbie-starter / fewbie-modules / nightwatch-frontend / crewbie-console-frontend），主题限定复用、标准化、优雅性。
+
+| ID      | 仓                                    | 标题                                                                                 | 严重度 | 暴露面   | 可达性       | 状态 |
+| ------- | ------------------------------------- | ------------------------------------------------------------------------------------ | ------ | -------- | ------------ | ---- |
+| R107-01 | nightwatch-frontend                   | 框架 layout 与 host-providers 各挂一个 `ApiErrorToast`，错误通道 fan-out 到两者，每次请求失败弹两条 toast | P1     | live     | 任意登录用户 | closed — fewbie-starter c85236f + nightwatch 326f69a6（ADR-080 D1 / fewbie-starter ADR-014） |
+| R107-02 | crewbie-console-frontend              | 自带 fork 的 `ThemeProvider`（独立 context），`/settings/preferences` 用其 hook，渲染即抛 `must be used inside ThemeProvider` | P1     | live     | 任意登录用户 | closed — crewbie d5a7370 |
+| R107-03 | nightwatch-frontend + crewbie-console-frontend | `src/api` 传输层跨宿主重复：`request.ts` 近乎逐字节、`stream-error.ts` / `copilot/chat-stream.ts` / `copilot/view-model.ts` 逐字节相同 | P2     | live     | 任意登录用户 | closed — fewbie-starter c85236f + 两宿主（ADR-080 D2） |
+| R107-04 | 两宿主 + account-access               | TOTP 挑战 UI 三份实现（模块内 `TotpChallenge`、nightwatch `isPending`、crewbie `pending`），prop 名与 i18n 命名空间已漂移 | P2     | live     | 任意登录用户 | closed — fewbie-modules 80494ae + nightwatch cd36aec1 + crewbie 6e2874a |
+| R107-05 | crewbie-console-frontend              | `src/components/frontend-monitor.tsx` 是 `frontend-monitor-sdk` 模块的旧快照（缺 `catch` 与 disposed 守卫），模块未被安装 | P2     | live     | 任意登录用户 | closed — 两宿主安装 frontend-monitor-sdk 并删除旧副本（crewbie d5a7370 / nightwatch 326f69a6） |
+| R107-06 | nightwatch-frontend                   | 在 `notification-center-host/severity-badge.tsx` 重抄已安装模块的 severity 徽章与 token，且注释引用不存在的 `security/page.tsx` / `severityTextClass` | P2     | live     | 任意登录用户 | closed — nightwatch 326f69a6 |
+| R107-07 | crewbie-console-frontend              | 「通知链接是否安全」谓词两份实现：nightwatch 走 `safe-path.isSafeExternalUrl`，crewbie 内联 `isExternalHttpUrl` | P2     | live     | 任意登录用户 | closed — crewbie d5a7370 |
+| R107-08 | 两宿主                                | 框架已挂 `QueryProvider`，宿主仍嵌套第二个 `QueryClientProvider`；crewbie 用模块级单例，正是框架注释点名的 SSR 缓存泄漏写法 | P2     | live     | 任意登录用户 | closed — fewbie-starter c85236f + crewbie d5a7370（ADR-080 D3） |
+| R107-09 | nightwatch-frontend                   | `components/loading` 用 inline `zIndex: 9999` + `navShow` 宽度重算重建 overlay，绕过 `LoadingState variant="overlay"`；`navShow` 无写入方，遮罩恒缺 100px | P2     | live     | 任意登录用户 | closed — nightwatch 326f69a6 |
+| R107-10 | nightwatch-frontend                   | `useThemeStore` 持久化 `navShow`/header 背景，与框架主题系统无关，唯一消费方是 `Loading`；命名与职责错位 | P2     | live     | 任意登录用户 | closed — nightwatch 326f69a6 |
+| R107-11 | fewbie-modules                        | `data-table` 与 `theme` 两个模块零消费（宿主未安装、模块间无引用），同时宿主各自手写表壳；`console-kit/pagination-bar.tsx` 是无信息量的 re-export | P2     | artifact | 模块作者     | closed — fewbie-modules 02f7075（删除 theme，保留 data-table，ADR-002 D3/D4） |
+| R107-12 | fewbie-modules（notification-center） | 契约含宿主业务词汇：`projectId`、`NotificationProjectOption`、`allProjects`/`ariaProject` label，违反模块准入第一条 | P2     | artifact | 模块作者     | closed — fewbie-modules 02f7075 + 两宿主 |
+| R107-13 | fewbie-modules（account-access）      | 共享 `login-shell` 内置 19 个硬编码 token 的夜色调色板 + 2 处 arbitrary Tailwind 颜色，宿主无法换肤；四仓仅有的 arbitrary 颜色即在此 | P2     | artifact | 模块作者     | closed — fewbie-modules 02f7075（ADR-002 D2） |
+| R107-14 | fewbie-starter + 两宿主               | `cn` 双导入路径：框架/starter 用 `from "cn"`，宿主与模块用 `@/lib/utils`；`components.json` alias 指向后者 | P2     | template | 新宿主       | closed — fewbie-starter 891e03a（ADR-015：统一 `@/lib/utils`） |
+| R107-15 | crewbie-console-frontend              | 5 个无 `"use server"` 的客户端辅助模块命名为 `actions.ts`，与 App Router server action 约定同形 | P2     | live     | 任意登录用户 | closed — crewbie d5a7370 |
+| R107-16 | nightwatch-frontend                   | 单文件体量失控：`security-evaluation/page.tsx` 2708 行、`account-detail.tsx` 1440、`dialogs.tsx` 1422、`application-manager.tsx` 1171 | P2     | live     | 任意登录用户 | deferred — 已写入 nightwatch-frontend backlog |
+
+#### Round 107 备注
+
+- 锚点：four 仓均在 `dev`、工作树干净（fewbie-starter `2e160a4`、fewbie-modules `8b80cdb`、nightwatch-frontend `764f9a23`、crewbie-console-frontend `c49bbd5`），无 provisional 项。
+- 装配面全绿：nightwatch 9 个、crewbie 8 个装配模块与 registry 逐字节一致；`src/fewbie/adapters/*` 两宿主逐字节相同（生成物未被手改）。
+- 本轮全部为静态取证（读码 + grep + diff），无浏览器验证；P1 两条的运行时表现（双 toast、偏好页抛错）可按证据直接复现，未在浏览器中实测。
+- 复核提示：R107-01 的修复涉及框架侧能力（默认订阅者 opt-out），R107-12/R107-13 属跨宿主契约变更，三者按「设计前置 ADR」应先出 ADR 再动代码。
+
+#### Round 107 收尾（2026-11-26）
+
+- 关闭锚点：fewbie-starter `891e03a`（+ `c85236f`，已合入 main）、fewbie-modules `80494ae`（`dev`）、nightwatch-frontend `cd36aec1`（`dev`）、crewbie-console-frontend `6e2874a`（`dev`）。
+- 决策落点：devbie ADR-080（错误订阅者 / apits 适配器 / QueryClient 归属）、fewbie-starter ADR-014（框架实现）与 ADR-015（`cn` 单一路径）、fewbie-modules ADR-002（scope 词汇 / LoginPalette / 删 theme 保 data-table）。
+- R107-14 方向修正：原报告倾向统一为 `from "cn"`，实现时改为统一 `@/lib/utils`——`components.json` 的 `aliases.utils` 指向它，`npx shadcn add` 产出即合规，标准不再依赖手工步骤（ADR-015）。
+- R107-05 扩面：nightwatch 同样在用旧快照副本，两宿主一并改为安装 `frontend-monitor-sdk` 模块。
+- R107-11 取舍：保留 `data-table`（客户端整表分页与 IAM/审计的服务端分页行渲染器不兼容），只删除 `theme`。
+- R107-16 未做：四个千行页面拆分写入 `nightwatch-frontend/.trae/documents/backlog.md`，不在本轮回合内。
+- 验证范围：四仓 `format:check` / lint / tsc / build 全绿；fewbie-starter `npm test` 101 项、fewbie-modules vitest 152 项；未做浏览器实测（双 toast 与偏好页修复仅有编译期与单测证据）。
+

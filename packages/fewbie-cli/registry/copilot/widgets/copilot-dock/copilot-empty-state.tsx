@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight, Info } from "lucide-react";
 import { Badge } from "@/fewbie/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/fewbie/ui/tooltip";
-import { interpolate, skillDisplayName, useCopilotRuntime } from "./copilot-context";
+import { skillDisplayName, useCopilotRuntime } from "./copilot-context";
 import type { CopilotSkillsCatalog } from "./types";
 
 export interface CopilotEmptyStateProps {
@@ -79,7 +79,7 @@ function SkillSection({
                   <TooltipTrigger asChild>
                     <button
                       type="button"
-                      aria-label={interpolate(labels.aboutSkill, { name: skillDisplayName(skill.name) })}
+                      aria-label={labels.aboutSkill(skillDisplayName(skill.name))}
                       className="text-muted-foreground transition-colors hover:text-foreground"
                     >
                       <Info className="size-3.5" />

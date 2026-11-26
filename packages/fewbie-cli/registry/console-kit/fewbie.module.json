@@ -1,0 +1,12 @@
+{
+  "name": "console-kit",
+  "title": "Console kit",
+  "description": "Server-side pagination bar and table shell shared by console list pages, built on the framework state surfaces.",
+  "type": "registry:component",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    "src/fewbie/modules/console-kit/components/pagination-bar.tsx",
+    "src/fewbie/modules/console-kit/components/table-shell.tsx"
+  ]
+}

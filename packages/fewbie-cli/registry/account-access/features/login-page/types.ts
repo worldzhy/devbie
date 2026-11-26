@@ -12,6 +12,8 @@ export interface LoginLabels {
   tabVerificationCode: string;
   email: string;
   password: string;
+  /** Rendered as a link beside the password label when `onForgotPassword` is set. */
+  forgotPassword?: string;
   submit: string;
   verificationCode: string;
   getCode: string;
@@ -97,4 +99,11 @@ export interface LoginPageProps {
   onSignedIn?: () => void;
   /** Called after a verification code was sent; the host may toast. */
   onCodeSent?: () => void;
+  /**
+   * Hands failed requests to the host instead of rendering the inline error
+   * paragraph. The host may toast, matching its own feedback conventions.
+   */
+  onError?: (message: string) => void;
+  /** Navigates to the password-recovery flow, seeded with the typed email. */
+  onForgotPassword?: (email: string) => void;
 }

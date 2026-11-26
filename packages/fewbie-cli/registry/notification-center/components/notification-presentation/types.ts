@@ -1,14 +1,13 @@
 import type { LucideIcon } from "lucide-react";
 
 /**
- * Every string the presentation surfaces render. The host supplies translated
- * copy, so the shared payload carries no vocabulary of its own. `{count}` /
- * `{title}` are replaced by `interpolate` from `format.ts`.
+ * Every label the presentation surfaces render. Parameterized labels are
+ * functions so the host adapter can apply ICU plural and interpolation rules.
  */
 export interface NotificationPresentationLabels {
   detailsLabel: string;
   selectPrompt: string;
-  occurrencesCount: string;
+  occurrencesCount: (count: number) => string;
   occurrencesLabel: string;
   sourceLabel: string;
   detailLabel: string;
@@ -30,7 +29,7 @@ export interface NotificationPresentationLabels {
   read: string;
   unread: string;
   pushFailedOne: string;
-  pushFailedMany: string;
+  pushFailedMany: (count: number) => string;
 }
 
 /** One record as the host's API returns it, trimmed to what the surfaces read. */

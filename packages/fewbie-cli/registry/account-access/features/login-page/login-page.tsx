@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { Eye, EyeOff, LoaderCircle, X } from "lucide-react";
 
 import { Button } from "@/fewbie/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/fewbie/ui/card";
 import { Input } from "@/fewbie/ui/input";
 import { Label } from "@/fewbie/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/fewbie/ui/tabs";
-import type { LoginLabels, LoginPageProps, LoginResult } from "./types";
+import { TotpChallenge } from "./totp-challenge";
+import type { LoginPageProps, LoginResult } from "./types";
 
 type LoginMode = "password" | "code";
 
@@ -15,76 +17,22 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const CODE_LENGTH = 6;
 const DEFAULT_RESEND_SECONDS = 60;
 
-function Spinner() {
-  return (
-    <span
-      aria-hidden="true"
-      className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-    />
-  );
-}
-
-function ClearIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      className="h-4 w-4"
-    >
-      <path d="M18 6 6 18M6 6l12 12" />
-    </svg>
-  );
-}
-
-function EyeIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="h-4 w-4"
-    >
-      <path d="M3 3l18 18" />
-      <path d="M10.6 10.6a3 3 0 0 0 4.2 4.2" />
-      <path d="M9.9 5.2A10.9 10.9 0 0 1 12 5c6.5 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1" />
-      <path d="M6.2 6.2A17.4 17.4 0 0 0 2 12s3.5 7 10 7a10.6 10.6 0 0 0 4.2-.9" />
-    </svg>
-  );
-}
-
 /**
  * Page-level login module: password and verification-code tabs, an inline TOTP
  * challenge, and third-party entries. Transport, navigation, toasts and brand
  * shell belong to the host and enter through `port`, `oauthProviders` and the
  * `onSignedIn`/`onCodeSent` callbacks.
  */
-export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, onCodeSent }: LoginPageProps) {
+export function LoginPage({
+  labels,
+  port,
+  notices,
+  oauthProviders,
+  onSignedIn,
+  onCodeSent,
+  onError,
+  onForgotPassword,
+}: LoginPageProps) {
   const [mode, setMode] = useState<LoginMode>("password");
   const [showPassword, setShowPassword] = useState(false);
   // Seconds left before the user can request another verification code.
@@ -107,6 +55,13 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
 
   const isCountingDown = secondsLeft > 0;
 
+  // A host that wants its own feedback (toasts) owns the error; otherwise the
+  // page keeps an inline paragraph so a bare install still reports failures.
+  function reportError(message: string): void {
+    if (onError) onError(message);
+    else setError(message);
+  }
+
   // Countdown timer for resending the verification code.
   useEffect(() => {
     if (!isCountingDown) return;
@@ -120,7 +75,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
       return;
     }
     if (!result.ok) {
-      setError(result.invalidCredentials ? labels.invalidCredentials : labels.loginFailed);
+      reportError(result.invalidCredentials ? labels.invalidCredentials : labels.loginFailed);
       return;
     }
     onSignedIn?.();
@@ -132,7 +87,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
     try {
       complete(await port.signIn(input));
     } catch {
-      setError(labels.loginFailed);
+      reportError(labels.loginFailed);
     } finally {
       setPending(false);
     }
@@ -176,14 +131,14 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
     try {
       const result = await port.sendVerificationCode(codeEmail);
       if (!result.ok) {
-        setError(labels.loginFailed);
+        reportError(labels.loginFailed);
         return;
       }
       // Follow the resend cooldown returned by the backend.
       setSecondsLeft(result.secondsOfCountdown ?? DEFAULT_RESEND_SECONDS);
       onCodeSent?.();
     } catch {
-      setError(labels.loginFailed);
+      reportError(labels.loginFailed);
     } finally {
       setSendPending(false);
     }
@@ -252,7 +207,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                     className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     aria-label={labels.clearEmail}
                   >
-                    <ClearIcon />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
@@ -260,7 +215,20 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="login-page-password">{labels.password}</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="login-page-password">{labels.password}</Label>
+                {labels.forgotPassword && onForgotPassword && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs leading-none font-normal"
+                    onClick={() => onForgotPassword(passwordEmail)}
+                  >
+                    {labels.forgotPassword}
+                  </Button>
+                )}
+              </div>
               <div className="relative">
                 <Input
                   id="login-page-password"
@@ -278,7 +246,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                       className="text-muted-foreground hover:text-foreground"
                       aria-label={labels.clearPassword}
                     >
-                      <ClearIcon />
+                      <X className="h-4 w-4" />
                     </button>
                   )}
                   <button
@@ -287,7 +255,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                     className="text-muted-foreground hover:text-foreground"
                     aria-label={showPassword ? labels.hidePassword : labels.showPassword}
                   >
-                    {showPassword ? <EyeOffIcon /> : <EyeIcon />}
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -297,7 +265,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={pending} aria-busy={pending} aria-label={labels.submit}>
-              {pending ? <Spinner /> : labels.submit}
+              {pending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : labels.submit}
             </Button>
           </form>
         )}
@@ -322,7 +290,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                     className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     aria-label={labels.clearEmail}
                   >
-                    <ClearIcon />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
@@ -348,7 +316,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                       className="text-muted-foreground hover:text-foreground"
                       aria-label={labels.clearCode}
                     >
-                      <ClearIcon />
+                      <X className="h-4 w-4" />
                     </button>
                   )}
                   <Button
@@ -361,7 +329,13 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
                     aria-busy={sendPending}
                     aria-label={labels.getCode}
                   >
-                    {sendPending ? <Spinner /> : secondsLeft > 0 ? `${secondsLeft}s` : labels.getCode}
+                    {sendPending ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : secondsLeft > 0 ? (
+                      `${secondsLeft}s`
+                    ) : (
+                      labels.getCode
+                    )}
                   </Button>
                 </div>
               </div>
@@ -371,7 +345,7 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
             {error && <p className="text-sm text-destructive">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={pending} aria-busy={pending} aria-label={labels.submit}>
-              {pending ? <Spinner /> : labels.submit}
+              {pending ? <LoaderCircle className="h-5 w-5 animate-spin" /> : labels.submit}
             </Button>
           </form>
         )}
@@ -399,55 +373,5 @@ export function LoginPage({ labels, port, notices, oauthProviders, onSignedIn, o
         )}
       </CardContent>
     </Card>
-  );
-}
-
-interface TotpChallengeProps {
-  labels: LoginLabels;
-  isPending: boolean;
-  onSubmit: (code: string) => void;
-  onBack: () => void;
-}
-
-function TotpChallenge({ labels, isPending, onSubmit, onBack }: TotpChallengeProps) {
-  const [totpCode, setTotpCode] = useState("");
-
-  return (
-    <form
-      method="post"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (totpCode.length === CODE_LENGTH) onSubmit(totpCode);
-      }}
-      noValidate
-      className="space-y-5"
-    >
-      <div className="space-y-2">
-        <Label htmlFor="login-page-totp">{labels.totpLabel}</Label>
-        <Input
-          id="login-page-totp"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          value={totpCode}
-          onChange={(event) => setTotpCode(event.target.value.replace(/\D/g, "").slice(0, CODE_LENGTH))}
-          placeholder="123456"
-          autoFocus
-        />
-        <p className="text-xs text-muted-foreground">{labels.totpHint}</p>
-      </div>
-
-      <Button
-        type="submit"
-        className="w-full"
-        disabled={isPending || totpCode.length !== CODE_LENGTH}
-        aria-busy={isPending}
-        aria-label={labels.totpSubmit}
-      >
-        {isPending ? <Spinner /> : labels.totpSubmit}
-      </Button>
-      <Button type="button" variant="link" size="sm" className="w-full" onClick={onBack}>
-        {labels.back}
-      </Button>
-    </form>
   );
 }

@@ -55,7 +55,7 @@ export function NotificationTicker({
   return (
     <button
       type="button"
-      aria-label={labels.ariaLatestNotification}
+      aria-label={labels.ariaLatestNotification(stripTitleMarker(notification.title))}
       onClick={() => onOpen(notification)}
       className={cn(base, "transition-colors hover:bg-muted/60")}
     >

@@ -7,7 +7,7 @@ import { Button } from "@/fewbie/ui/button";
 import { Separator } from "@/fewbie/ui/separator";
 import { Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle } from "@/fewbie/ui/sheet";
 import { NotificationContextTable } from "./context-table";
-import { formatTimestamp, interpolate, resolveLocale, stripTitleMarker } from "./format";
+import { formatTimestamp, resolveLocale, stripTitleMarker } from "./format";
 import { useNotificationPresentation } from "./presentation";
 import { RelativeTime } from "./relative-time";
 import { RecoveredBadge, SeverityBadge } from "./severity-badge";
@@ -221,7 +221,7 @@ export function NotificationDetailPanel({
             <StatusBadge notification={notification} />
             <Badge variant="secondary">{meta.label}</Badge>
             {group.records.length > 1 ? (
-              <Badge variant="outline">{interpolate(labels.occurrencesCount, { count: group.records.length })}</Badge>
+              <Badge variant="outline">{labels.occurrencesCount(group.records.length)}</Badge>
             ) : null}
           </div>
           <p className="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">

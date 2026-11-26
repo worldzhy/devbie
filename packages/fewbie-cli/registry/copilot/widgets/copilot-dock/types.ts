@@ -2,12 +2,13 @@ import type { ReactNode } from "react";
 
 /**
  * Copy for every surface. The host translates; the item owns no language and
- * no product vocabulary. `{name}` placeholders are filled by the surfaces.
+ * no product vocabulary. Parameterized labels are functions so host adapters
+ * can apply ICU plural and interpolation rules.
  */
 export interface CopilotLabels {
   title: string;
   resizeAria: string;
-  context: string;
+  context: (label: string) => string;
   manageModelsAria: string;
   manageModels: string;
   newConversationAria: string;
@@ -19,14 +20,14 @@ export interface CopilotLabels {
   disclaimer: string;
   disclaimerShortcuts: string;
   suggestAria: string;
-  suggestOnPage: string;
+  suggestOnPage: (label: string) => string;
   suggestGeneric: string;
   confirm: string;
   cancel: string;
   configureModel: string;
   dismiss: string;
   tooLongTitle: string;
-  tooLongMessage: string;
+  tooLongMessage: (limit: number) => string;
   unavailableTitle: string;
   confirmFailedTitle: string;
   noModelTitle: string;
@@ -42,14 +43,14 @@ export interface CopilotLabels {
   loadingCapabilities: string;
   availableOnPage: string;
   otherCapabilities: string;
-  aboutSkill: string;
+  aboutSkill: (name: string) => string;
   thinking: string;
   querying: string;
   analyzing: string;
   failed: string;
   stopped: string;
-  steps: string;
-  tokens: string;
+  steps: (count: number) => string;
+  tokens: (count: number) => string;
   statusAwaitingApproval: string;
   statusRunning: string;
   statusSuccess: string;
@@ -63,8 +64,8 @@ export interface CopilotLabels {
   statistics: string;
   noData: string;
   dataTruncated: string;
-  rowsCount: string;
-  showingRows: string;
+  rowsCount: (count: number) => string;
+  showingRows: (shown: number, total: number) => string;
   viewQuery: string;
   queryTruncated: string;
 }
