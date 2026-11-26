@@ -48,6 +48,24 @@ export class CommonListRequestDto {
   page?: number;
 }
 
+/**
+ * Base class for paginated list responses.
+ *
+ * Subclasses must declare the element type of `records` themselves (ADR-087):
+ *
+ * ```ts
+ * export class ListUsersResponseDto extends CommonListResponseDto<UserResponseDto> {
+ *   @ApiProperty({ type: UserResponseDto, isArray: true })
+ *   declare records: UserResponseDto[];
+ * }
+ * ```
+ *
+ * The base deliberately carries no `records` decorator. Generics are erased at
+ * runtime, so a decorator here would only advertise `object[]` in the OpenAPI
+ * document and make every generated client say `{}[]`. Without it, a subclass
+ * that forgets the redeclaration fails at the consumer's compile step instead
+ * of silently shipping a wrong contract.
+ */
 export class CommonListResponseDto<T = any> {
   @ApiProperty({
     type: CommonPagination,
@@ -55,11 +73,6 @@ export class CommonListResponseDto<T = any> {
   })
   pagination!: CommonPagination;
 
-  @ApiProperty({
-    type: Object,
-    isArray: true,
-    description: "List of records in the current page",
-  })
   records!: T[];
 }
 
