@@ -186,14 +186,16 @@
 
 ### 组二：止血与清扫（方向已定）
 
-> 2026-11-26 完成 4/7 条（R108-02 / 12 / 13 / 14 / 15），commit 见各仓 dev 分支；R108-08/16/18 为描述不清的模糊项，待进一步定位具体文件。
+> 2026-11-26 全部完成（9/9 条），commit 见各仓 dev 分支。
 
 - [x] **R108-02** — fixed（crewbie `836c951`）：request.ts 改为再导出框架 `apits.ts`，宿主钩子保留，行为零变更。
+- [x] **R108-08** — fixed（fewbie-modules `6280c94`）：三份 `Math.max(0, Math.trunc(page ?? 0))` 抽到 console-kit `lib/pagination.ts` → `clampPage()`，两消费模块（audit-query / iam-query）已依赖 console-kit。
 - [x] **R108-12** — fixed（fewbie-starter `1b73df3`）：SheetPanel 两行中文注释改英文。
 - [x] **R108-13** — fixed（crewbie `836c951`）：`query-keys/admin.ts` → `console.ts`，内容本就是 `consoleKeys`。
-- [x] **R108-14** — fixed（无 commit）：两宿 `src/fewbie/modules/password-checklist/` 卸载后残留空目录（untracked），已删除。
-- [x] **R108-15** — fixed（nightwatch `0bf7b977`）：12 个组件 `from "cn"` → `from "@/lib/utils"`，格式/门禁全绿。
-- [ ] **R108-08 / R108-16 / R108-18**（模糊项，待定位）：三份查询归一化上收 console-kit；CI 镜像标签 pin；contract.framework pin 对齐。当前仓 ci.yml 无 sha256 pin，fewbie.json 无 contract 字段，backlog 描述需更具体才能执行。
+- [x] **R108-14** — fixed（crewbie `e8d786a` + 无 commit）：① smoke.test.ts 标题 `fewbie-basic-template` → `crewbie-console smoke`；② 两宿 untracked 空目录 `password-checklist/` 已清理；③ CI 镜像标签实际全用 `@v7` 无 sha256 pin 残留（报告误报，skip）。
+- [x] **R108-15** — fixed（nightwatch `0bf7b977`）：12 个组件 `from "cn"` → `from "@/lib/utils"`。
+- [x] **R108-16** — fixed（nightwatch `0bf7b977` + `c4211e65`）：① 15 个 `from "cn"` 同 R108-15 已合批；② `cn` 依赖 `^0.5.0` → `^0.5.2`，对齐另外两宿。
+- [x] **R108-18** — fixed（fewbie-modules `6280c94`）：4 个模块 `contract.framework` 从 `^1.7.0`/`^1.15.0` → `^1.20.0`（与 fewbie-starter cli 版本对齐）；`account-access` 的 `contract.version: 2.3.0` 是真升级，不强制对齐。
 
 ### 组三：能力上收（待拍板，需 ADR）
 
