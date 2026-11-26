@@ -37,6 +37,8 @@ export interface ApiInterface {
     required: Required;
     /** Type (YApi-X) */
     type?: RequestQueryType;
+    /** Full schema for structured query parameters (arrays, enums and references). */
+    schema?: JSONSchema4;
   }>;
   /** POST only: request content type. No special handling needed for text, file, raw. */
   requestBodyType: RequestBodyType;
@@ -327,6 +329,8 @@ export interface PropDefinition {
   isArray?: boolean;
   /** Allowed literal values for enum properties */
   enum?: Array<string | number>;
+  /** Full schema for structured properties such as array query parameters. */
+  schema?: JSONSchema4;
 }
 
 /** Property definition list */

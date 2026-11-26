@@ -152,6 +152,7 @@ function handleOpenApiOperation(
         name: p.name,
         desc: p.description || "",
         type: p.schema ? (p.schema as any).type : (p as any).type,
+        schema: p.schema,
         required: p.required ? Required.true : Required.false,
         example: "",
       };

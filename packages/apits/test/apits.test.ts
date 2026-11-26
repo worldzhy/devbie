@@ -88,6 +88,77 @@ describe("G-1: nullable normalization", () => {
   });
 });
 
+describe("G-1b: nullable DTO references", () => {
+  it("nullable allOf/$ref schemas render as DTO | null", async () => {
+    const code = await jsonSchemaToTsCode(
+      {
+        type: "object",
+        properties: {
+          maintenanceWindow: {
+            nullable: true,
+            type: "object",
+            allOf: [{ $ref: "#/components/schemas/MaintenanceWindowDto" }],
+          },
+          directWindow: {
+            nullable: true,
+            $ref: "#/components/schemas/MaintenanceWindowDto",
+          },
+        },
+        components: {
+          schemas: {
+            MaintenanceWindowDto: {
+              type: "object",
+              properties: { startsAt: { type: "string" } },
+            },
+          },
+        },
+      } as any,
+      "AuthorizationDto",
+    );
+
+    assert.match(code, /maintenanceWindow\?: MaintenanceWindowDto \| null/, `Got: ${code}`);
+    assert.match(code, /directWindow\?: MaintenanceWindowDto \| null/, `Got: ${code}`);
+    assert.doesNotMatch(code, /& \(\{\} \| null\)/, `Got: ${code}`);
+  });
+});
+
+describe("array query parameters", () => {
+  const spec = {
+    openapi: "3.0.0",
+    info: { title: "Array Query Test", version: "1.0.0" },
+    paths: {
+      "/users": {
+        get: {
+          summary: "List users",
+          parameters: [
+            {
+              name: "roles",
+              in: "query",
+              schema: { type: "array", items: { type: "string" } },
+            },
+            {
+              name: "reasons",
+              in: "query",
+              schema: { type: "array", items: { type: "string", enum: ["BOUNCE", "COMPLAINT"] } },
+            },
+          ],
+          responses: { "200": { description: "ok" } },
+        },
+      },
+    },
+  };
+
+  it("retains item types and enum values in the compiled request type", async () => {
+    const { interfaces } = await openApiToInterfaces(spec);
+    const usersIface = interfaces.find((i) => i.path === "/users")!;
+    const code = await jsonSchemaToTsCode(getRequestDataJsonSchema(usersIface), "ListUsersRequest");
+
+    assert.match(code, /roles\?: string\[\]/, `Got: ${code}`);
+    assert.match(code, /reasons\?: \("BOUNCE" \| "COMPLAINT"\)\[\]/, `Got: ${code}`);
+    assert.doesNotMatch(code, /unknown\[\]/, `Got: ${code}`);
+  });
+});
+
 describe("G-3: degenerate request body coercion", () => {
   const interfaceInfo = {
     requestBodyType: RequestBodyType.json,

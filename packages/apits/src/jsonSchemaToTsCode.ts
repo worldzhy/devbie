@@ -27,6 +27,44 @@ function upperFirst(value: string): string {
 }
 
 /**
+ * Normalize OpenAPI 3.x `nullable: true` in place.
+ *
+ * Scalar and enum schemas use the JSON Schema union-null form. Composition
+ * schemas (`$ref` / `allOf` / `oneOf` / `anyOf`) must instead become
+ * `anyOf: [schema, null]`: adding `null` to their sibling `type` would produce
+ * an intersection such as `Dto & ({} | null)` rather than `Dto | null`.
+ */
+function normalizeNullableSchema(jsonSchema: JSONSchema4): void {
+  if (jsonSchema.nullable !== true) return;
+
+  if (jsonSchema.$ref || jsonSchema.allOf || jsonSchema.oneOf || jsonSchema.anyOf) {
+    const { nullable: _nullable, description, ...schemaWithoutNullable } = jsonSchema as any;
+    for (const key of Object.keys(jsonSchema)) {
+      delete (jsonSchema as any)[key];
+    }
+    Object.assign(jsonSchema, {
+      ...(description ? { description } : {}),
+      anyOf: [schemaWithoutNullable, { type: "null" }],
+    });
+    return;
+  }
+
+  if (jsonSchema.type) {
+    // Merge 'null' into the existing type(s) without duplicates.
+    const types = castArray(jsonSchema.type).filter((t) => t !== "null") as JSONSchema4TypeName[];
+    if (!types.includes("null")) types.push("null");
+    jsonSchema.type = types.length === 1 ? types[0] : types;
+  } else if (Array.isArray(jsonSchema.enum)) {
+    // For enum schemas without a type, append a null literal so the generated
+    // union includes `null`.
+    if (!jsonSchema.enum.includes(null)) {
+      jsonSchema.enum = [...jsonSchema.enum, null] as any;
+    }
+  }
+  delete jsonSchema.nullable;
+}
+
+/**
  * Process a JSON Schema in place.
  *
  * @param jsonSchema JSON Schema to process
@@ -46,29 +84,9 @@ export function processJsonSchema<T extends JSONSchema4>(jsonSchema: T): T {
   // Strip `default` so json-schema-to-typescript cannot infer a type from it.
   delete jsonSchema.default;
 
-  // Normalize OpenAPI 3.x `nullable: true` into JSON Schema `type: [..., 'null']`.
-  // json-schema-to-typescript only understands the JSON Schema union-null form
-  // (a `type` array containing 'null'); OpenAPI's `nullable` keyword is silently
-  // ignored, which drops `| null` from generated types. This walker bridges
-  // that gap so nullable fields render as `T | null`.
-  if (jsonSchema.nullable === true) {
-    if (jsonSchema.type) {
-      // Merge 'null' into the existing type(s) without duplicates.
-      const types = castArray(jsonSchema.type).filter((t) => t !== "null") as JSONSchema4TypeName[];
-      if (!types.includes("null")) types.push("null");
-      jsonSchema.type = types.length === 1 ? types[0] : types;
-    } else if (jsonSchema.enum && Array.isArray(jsonSchema.enum)) {
-      // For enum schemas without a type, append a null literal so the
-      // generated union includes `null`.
-      if (!jsonSchema.enum.includes(null)) {
-        jsonSchema.enum = [...jsonSchema.enum, null] as any;
-      }
-    }
-    // Note: `$ref`/`allOf`/`oneOf`/`anyOf` + nullable combinations are not
-    // normalized here because they would require restructuring the schema
-    // (e.g. wrapping in anyOf). Nullable scalars cover the common case.
-    delete jsonSchema.nullable;
-  }
+  // json-schema-to-typescript only understands the JSON Schema union-null
+  // form; OpenAPI's `nullable` keyword is silently ignored otherwise.
+  normalizeNullableSchema(jsonSchema);
 
   // Normalize type names to standard JSON Schema type names.
   if (jsonSchema.type) {
@@ -163,7 +181,9 @@ function propDefinitionsToJsonSchema(propDefinitions: PropDefinitions): JSONSche
     }, []),
     properties: propDefinitions.reduce<Exclude<JSONSchema4["properties"], undefined>>((res, prop) => {
       res[prop.name] = {
-        type: prop.type,
+        // Structured query parameters carry their full schema so array item
+        // types, enum values and references survive into the compiled type.
+        ...(prop.schema ? prop.schema : { type: prop.type }),
         description: prop.comment,
         // File fields emit the native DOM `File` type (or `File[]` for
         // multi-file arrays) so generated code has no dangling reference
@@ -210,20 +230,9 @@ export function preprocessSchema(schema: JSONSchema4): JSONSchema4 {
     delete processed.enum;
   }
 
-  // Normalize OpenAPI 3.x `nullable: true` into the JSON Schema union-null
-  // form (`type: [T, 'null']`) so json-schema-to-typescript emits `T | null`.
-  if (processed.nullable === true) {
-    if (processed.type) {
-      // Merge 'null' into the existing type(s) without duplicates.
-      const typeList: string[] = castArray(processed.type).filter((typeName) => typeName !== "null");
-      typeList.push("null");
-      processed.type = (typeList.length === 1 ? typeList[0] : typeList) as any;
-    } else if (Array.isArray(processed.enum)) {
-      // For enum schemas without a type, append a null literal.
-      if (!processed.enum.includes(null)) processed.enum = [...processed.enum, null];
-    }
-    delete processed.nullable;
-  }
+  // Normalize OpenAPI 3.x `nullable: true` so json-schema-to-typescript emits
+  // `T | null`, including composition schemas such as `allOf: [$ref]`.
+  normalizeNullableSchema(processed);
 
   // Recurse into every child value.
   for (const key in processed) {
@@ -416,6 +425,7 @@ export function getRequestDataJsonSchema(interfaceInfo: ApiInterface): JSONSchem
         required: item.required === Required.true,
         type: item.type || "any", // `object` resolves to `{}`, which causes declaration issues, so strip it for now
         comment: item.desc,
+        schema: item.schema,
       })),
     );
     /* istanbul ignore else */
