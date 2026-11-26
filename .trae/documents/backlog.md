@@ -111,7 +111,7 @@
 
 ## ADR-056 M3 遗留（2026-11-21）
 
-- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。nwf 已手工补 `doctor` 与三条 modules 门禁（`1d5978c`、`8584cbc`），但 `check:structure` / `check:framework-adr` 仍未进宿主 CI。需决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。**（2026-11-26 方向已定：各宿主手工加步骤，且必须先修完 R108-03/R108-04 的 34 处违规再接门禁，另需先修 R108-17 的 barrel 误报；见「Round 108 修复计划」组一。）**
+- [x] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。**（2026-11-26 已落地）** 结构门禁已由两宿手工接入（nightwatch `0e7a3fde`、crewbie `6da7247`，含 crewbie 的类型与模块门禁）；`check:framework-adr` 仍只在 fewbie-starter 运行——框架文件由模板下发、不得在宿主手改，ADR 属于 starter 仓，宿主无需该门禁。
 - [ ] **R12 的「版本号/changelog」未自动化**：当前只校验框架路径变更必须带 `.trae/documents/decisions/` 下的 ADR；版本递增仍靠发布清单人工执行。
 - [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发（nwf 已有 6 个 mjs），但 `package.json` 是 host 所有权；M4 迁移已完成，`check:structure` / `check:framework-adr` 别名仍未补入宿主脚本，因此宿主 CI 实际不跑这两个门禁。
 
@@ -177,10 +177,12 @@
 
 ### 组一：门禁（方向已定：先修违规再接门禁）
 
-- [ ] **R108-17**（前置）：`check-primitives.mjs` 跳过 barrel 再导出，只统计声明；两宿从 5 行误报降到 0，并做阴性对照。
-- [ ] **R108-04**（先于 R108-03）：三个 account-level 布局换 `SidebarShell`（projects / aws-accounts / jdy，共 625 行）。
-- [ ] **R108-03**：nightwatch 30 个页面（24 处 PageShell 未占根 + 6 处手写 `<h1>`）、crewbie 4 个页面；登录/回调/brand 走「页委托给大写组件」的官方逃生口，不塞页面标题栏。
-- [ ] **R108-01**：两宿 `package.json` 增加 `check:structure`，`ci.yml` 增加步骤；crewbie 另补 `tsc --noEmit`、`modules apply/update/adapters --check`。
+> 2026-11-26 全部完成。执行中修正了两处前提，见每条括注。
+
+- [x] **R108-17**（前置）：`check-primitives.mjs` 跳过 barrel 再导出，只统计声明；两宿从 5 行误报降到 0，并做阴性对照。fewbie-starter `d0befc8`，自测含「barrel 不报 + 真重复仍报红」。
+- [x] **R108-04**（先于 R108-03）：三个 account-level 布局换 `SidebarShell`（projects / aws-accounts / jdy）。nightwatch `0e7a3fde`；框架侧补 `min-w-0` 防宽表格顶开整页（fewbie-starter ADR-016、`c427cb3`）。
+- [x] **R108-03**：页面契约修复。**实际口径修正**：原报告的 31 行输出含 6 个误报（子组件在上、页面在下的合规页面），同时漏报 6 个页面根为裸元素的真实违规；页面门禁改为按默认导出 body 判定（fewbie-starter ADR-017、`4f58aaf`/`6fe504d`）。修正后 nightwatch 26 个页面、crewbie 8 个页面全部通过（`0e7a3fde`、`6da7247`）；登录 / 回调 / brand 走「路由薄委托 + 视图组件」。
+- [x] **R108-01**：两宿 `package.json` 增加 `check:structure`，`ci.yml` 增加步骤；crewbie 另补 `next typegen` + `tsc --noEmit` + `modules apply/update/adapters --check`。nightwatch `0e7a3fde`、crewbie `6da7247`。
 
 ### 组二：止血与清扫（方向已定）
 
