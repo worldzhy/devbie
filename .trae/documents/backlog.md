@@ -186,9 +186,14 @@
 
 ### 组二：止血与清扫（方向已定）
 
-- [ ] **R108-02**：crewbie `src/api/request.ts` 改为再导出（已核对与框架 `apits.ts` 逐行等价，零行为变更）。
-- [ ] **R108-12**：fewbie-starter `ui/sheet.tsx` 两行中文注释改英文。
-- [ ] **R108-08 / R108-13 / R108-14 / R108-15 / R108-16 / R108-18**：三份查询归一化上收 `console-kit`；`query-keys/admin.ts` 改名；删模板残留与 CI 镜像标签；清空目录；`from "cn"` 改 `@/lib/utils` 并统一版本；统一 `contract.framework` pin 与契约版本。
+> 2026-11-26 完成 4/7 条（R108-02 / 12 / 13 / 14 / 15），commit 见各仓 dev 分支；R108-08/16/18 为描述不清的模糊项，待进一步定位具体文件。
+
+- [x] **R108-02** — fixed（crewbie `836c951`）：request.ts 改为再导出框架 `apits.ts`，宿主钩子保留，行为零变更。
+- [x] **R108-12** — fixed（fewbie-starter `1b73df3`）：SheetPanel 两行中文注释改英文。
+- [x] **R108-13** — fixed（crewbie `836c951`）：`query-keys/admin.ts` → `console.ts`，内容本就是 `consoleKeys`。
+- [x] **R108-14** — fixed（无 commit）：两宿 `src/fewbie/modules/password-checklist/` 卸载后残留空目录（untracked），已删除。
+- [x] **R108-15** — fixed（nightwatch `0bf7b977`）：12 个组件 `from "cn"` → `from "@/lib/utils"`，格式/门禁全绿。
+- [ ] **R108-08 / R108-16 / R108-18**（模糊项，待定位）：三份查询归一化上收 console-kit；CI 镜像标签 pin；contract.framework pin 对齐。当前仓 ci.yml 无 sha256 pin，fewbie.json 无 contract 字段，backlog 描述需更具体才能执行。
 
 ### 组三：能力上收（待拍板，需 ADR）
 
