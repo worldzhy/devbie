@@ -1,6 +1,6 @@
 # ADR-085: copilot 模块声明 pathname→route 映射契约
 
-状态：草稿待采纳
+状态：已采纳
 日期：2026-11-26
 Supersedes: 无；回应 Round 108 的 R108-09
 

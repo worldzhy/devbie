@@ -1,6 +1,6 @@
 # ADR-083: notification-center 导出 provider-free 的 RelativeTime
 
-状态：草稿待采纳
+状态：已采纳
 日期：2026-11-26
 Supersedes: 无；回应 Round 108 的 R108-06
 
