@@ -1145,3 +1145,37 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - R107-16 已于 2026-11-26 补做：nightwatch-frontend `395f916a` 将四个入口分别降为 106 / 43 / 12 / 90 行，数据 hook 与视图子组件均放同目录；backlog 条目已删除。
 - 验证范围：四仓 `format:check` / lint / tsc / build 全绿；fewbie-starter `npm test` 101 项、fewbie-modules vitest 152 项；未做浏览器实测（双 toast 与偏好页修复仅有编译期与单测证据）。
 
+### Round 108（前端复用与标准化复核，2026-11-26）
+
+报告：`.trae/documents/reviews/expert-review-2026-11-26-round108-frontend-reuse.md`。scope 与 Round 107 相同（四仓前端代码面），性质为 round107 复核 + 新发现。全部条目状态 `open`。
+
+| ID      | 仓                                              | 标题                                                                                                                                     | 严重度 | 暴露面   | 可达性       | 状态     |
+| ------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------- | ------------ | -------- |
+| R108-01 | nightwatch-frontend + crewbie-console-frontend  | 框架四道结构门禁（page-contract / layout-shell / primitives / route-conventions）在两宿 CI 中全部未接线；手工执行 nightwatch exit 1（39 处）、crewbie exit 1（4 处），漂移无机器拦截 | P1     | source   | CI / 合并门禁 | open     |
+| R108-02 | crewbie-console-frontend                        | `src/api/request.ts` 重造框架已导出的 `request` / `ClientRequestConfig`（五个方法体本地实现），生成物只消费本地入口，框架修正不会生效 | P1     | live     | 任意登录用户 | open     |
+| R108-03 | nightwatch-frontend                             | 76 个页面中 25 个不渲染 `PageShell`、6 处手写 `<h1>`（`check-page-contract.mjs` 31 行输出），页面头存在两套写法                              | P2     | live     | 任意登录用户 | open     |
+| R108-04 | nightwatch-frontend                             | 三个 account-level 布局（projects / aws-accounts / jdy，共 625 行）手写固定侧边栏框架，未用框架 `SidebarShell`                              | P2     | live     | 任意登录用户 | open     |
+| R108-05 | 两宿主                                          | 表页状态 UI 全手写：nightwatch 43 个文件渲染 `<Table>`、0 个用 `TableShell`；宿主侧 `EmptyState` nightwatch 仅 2 处、crewbie 0 处                 | P2     | live     | 任意登录用户 | open     |
+| R108-06 | nightwatch-frontend                             | 复刻已安装模块的 `RelativeTime`（next-intl `useFormatter` vs 模块 `Intl.RelativeTimeFormat`），被 4 个非通知页面消费，同时间戳可能两种文案       | P2     | live     | 任意登录用户 | open     |
+| R108-07 | nightwatch-frontend + crewbie-console-frontend  | `console-iam-host/api.ts` 两宿约九成相同（72 行差异 / 303 行），crewbie 已抽映射函数、nightwatch 仍内联，重构不传导                              | P2     | source   | 开发者       | open     |
+| R108-08 | fewbie-modules                                  | 列表查询归一化三份（audit-query、iam users、iam permissions），语义一致，已达「第三次重复即抽取」阈值                                          | P2     | artifact | 模块作者     | open     |
+| R108-09 | nightwatch-frontend + crewbie-console-frontend  | copilot 页面上下文两形态：nightwatch 纯函数 + 测试 + 未知路由返回 undefined；crewbie hook + 原始 pathname 回退 + 无测试                       | P2     | live     | 任意登录用户 | open     |
+| R108-10 | fewbie-starter + 两宿主                          | api-client 测试覆盖私有化：nightwatch 1016 行 vitest 套件，框架仅 184 行 node:test，crewbie 无等价套件；同一被测模块两种测试框架                | P2     | source   | 开发者       | open     |
+| R108-11 | nightwatch-frontend                             | `SettingsRequiredState` 与框架 `EmptyState` 竞争（卡片容器 / CTA pending / fullHeight 三个变体缺失导致宿主自建）                               | P2     | live     | 任意登录用户 | open     |
+| R108-12 | fewbie-starter（同步到两宿主）                  | 框架 `ui/sheet.tsx` 出现中文注释（第 109–110 行），违反仓库语言规则并随同步扩散到两宿主                                                       | P3       | template | 新宿主       | open     |
+| R108-13 | crewbie-console-frontend                        | `src/lib/query-keys/admin.ts` 导出 `consoleKeys`，文件名 / 目录名与导出名错位                                                                 | P3       | source   | 开发者       | open     |
+| R108-14 | crewbie-console-frontend                        | 模板残留：`src/smoke.test.ts` 逐字复制模板自检；CI 镜像标签仍为 `fewbie-starter:ci`                                                            | P3       | source   | CI           | open     |
+| R108-15 | 两宿主                                          | 空目录残留：两宿 `src/fewbie/modules/password-checklist/**`；nightwatch 另 4 个（`components/loading`、`components/auth`、`chat-bindings-card`、`setup-guide`） | P3     | source   | 开发者       | open     |
+| R108-16 | nightwatch-frontend                             | R107-14 残留：15 个宿主文件仍 `from "cn"` 绕过 `@/lib/utils`；`cn` 依赖 `^0.5.0`，另两仓 `^0.5.2`                                              | P3       | live     | 任意登录用户 | open     |
+| R108-17 | 两宿主 scripts（框架同步）                       | `check-primitives.mjs` 把 barrel 再导出判为重复定义（nightwatch `analysis/blocks/index.tsx` 5 条全为 `export { X } from "./x"`），接入 CI 前必须先修 | P3     | source   | CI           | open     |
+| R108-18 | fewbie-modules                                  | `contract.framework` 三档 pin 不一致（`^1.7.0` / `^1.15.0` / `^1.20.0`）；`account-access` 契约版本 2.3.0，其余 2.0.0                         | P3       | artifact | 模块作者     | open     |
+
+#### Round 108 备注
+
+- 锚点：四仓均在 `dev`、工作树干净（fewbie-starter `891e03a`、fewbie-modules `80494ae`、nightwatch-frontend `395f916a`、crewbie-console-frontend `6e2874a`），无 provisional 项。
+- round107 复核结果：13 条 closed、3 条 partial（R107-03 → R108-02、R107-11 → R108-05、R107-14 → R108-16）。建议把这三条状态改注为 `closed with residual` 并指向本轮 ID。
+- 本轮唯一 executed 类证据为四道门禁脚本的退出码与输出行数；其余为 static（读码 / diff / grep）。未做浏览器验证。
+- R108-17 是 R108-01 的前置：门禁不修误报就接线，nightwatch 会因 barrel 再导出直接红，规则失去可信度。
+- R108-06 修复方向修正（2026-11-26 13:2x，方案评审时发现）：原报告写「改用模块导出」，不可行——模块 `RelativeTime` 内部调用 `useNotificationPresentation()`，未挂 `NotificationPresentationProvider` 时直接抛错，而 nightwatch 的 4 个消费页面（panorama、dashboard、job-scheduler、alert-center）都不在该 Provider 内。可行方向是「把 provider-free 的相对时间组件上收到框架」（需 fewbie-starter ADR），或「模块提供可脱离 Provider 的变体」。finding 本体（同一职责两份实现）不变。
+- R108-10 修复方向修正（2026-11-26，用户拍板，ADR-081）：原方向「测试搬层、框架维持 node:test」作废。改为「全生态测试运行器统一为 vitest」——框架侧从 node:test 迁移，nightwatch 的 1016 行 api-client 套件搬到框架层时不再需要改写测试 API。finding 本体（同一模块的测试强度分裂在宿主层）不变，处置方式改变。ADR-081 同时推翻 backlog 中 R83-19 的规避性做法。
+

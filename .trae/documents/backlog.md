@@ -105,13 +105,13 @@
 
 ## ADR-056 M2 遗留（2026-11-21）
 
-- [x] **api-client 测试回填模板（2026-11-22，R83-19）**：原决定因 vitest + axios-mock-adapter 与模板 node:test 双 runner 而搁置；改为直接用 node:test 写在 `src/framework/api-client/*.test.ts`（protocol / failure / session-store / refresh-exchange，axios 走 adapter 注入替身），与 `npm test` 同栈；放在 `src/framework/**` 是为了避开宿主对 `src/lib/api-client/*.test.ts` 的 vitest 扫描。
+- [x] **api-client 测试回填模板（2026-11-22，R83-19）**：原决定因 vitest + axios-mock-adapter 与模板 node:test 双 runner 而搁置；改为直接用 node:test 写在 `src/framework/api-client/*.test.ts`（protocol / failure / session-store / refresh-exchange，axios 走 adapter 注入替身），与 `npm test` 同栈；放在 `src/framework/**` 是为了避开宿主对 `src/lib/api-client/*.test.ts` 的 vitest 扫描。（2026-11-26：该规避性做法由 ADR-081 推翻，运行器统一为 vitest；迁移见「ADR-081 落地交付项」。）
 - [ ] **`text-[13px]` 类任意字号门禁（R83-15 残留）**：R3 已拦任意色值与未定义 palette、R6 已拦任意 radius；nightwatch 仍有约 40 处亚刻度字号（`text-[10px]` / `text-[0.8125rem]` 等）依赖，需先在 framework theme 增补 micro-typography token（如 `text-2xs`）并迁移宿主，才能把 `text-\[` 纳入 OFF_SCALE。
 - [ ] **`use-session-bootstrap` / `use-sign-out` 未落框架**：两者依赖宿主的登录路径、登出接口与响应字段，随 `auth` registry 项在宿主实现；框架只保留 `src/lib/api-client/**` 的通用会话能力。
 
 ## ADR-056 M3 遗留（2026-11-21）
 
-- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。nwf 已手工补 `doctor` 与三条 modules 门禁（`1d5978c`、`8584cbc`），但 `check:structure` / `check:framework-adr` 仍未进宿主 CI。需决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。
+- [ ] **`.github/**` 仍为 host 所有权**：R12 的 ADR 门禁与结构检查步骤只加在 fewbie-starter 自身 CI；宿主（含 nightwatch-frontend）不会通过 `template update` 获得。nwf 已手工补 `doctor` 与三条 modules 门禁（`1d5978c`、`8584cbc`），但 `check:structure` / `check:framework-adr` 仍未进宿主 CI。需决定是重分类 `.github/**`（需 ADR，属跨宿主契约）还是让各宿主手工加步骤。**（2026-11-26 方向已定：各宿主手工加步骤，且必须先修完 R108-03/R108-04 的 34 处违规再接门禁，另需先修 R108-17 的 barrel 误报；见「Round 108 修复计划」组一。）**
 - [ ] **R12 的「版本号/changelog」未自动化**：当前只校验框架路径变更必须带 `.trae/documents/decisions/` 下的 ADR；版本递增仍靠发布清单人工执行。
 - [ ] **宿主 `package.json` 不会拿到 npm script 别名**：`scripts/**` 随模板下发（nwf 已有 6 个 mjs），但 `package.json` 是 host 所有权；M4 迁移已完成，`check:structure` / `check:framework-adr` 别名仍未补入宿主脚本，因此宿主 CI 实际不跑这两个门禁。
 
@@ -161,3 +161,37 @@
 - [x] **监控页日界限仍是设备时区（D5 残余）**（2026-11-24 完成，nightwatch-frontend `d5e1a2c`）：11 个文件（`requests` / `requests/detail` / `errors` / `errors/detail` / `pages/list` / `pages/visit` / `resources` / `resources/detail` / `user-traces` / `user-traces/detail` / `user-traces/components/analysis-detail`）改用 `zonedStartOfDay/zonedEndOfDay(..., dt.timeZone)`。CH 端点（`ajax` / `error` / 相邻记录窗口）继续发送 epoch **秒**，Mongo 端点（`analysis` / `pages` / `resource`）发送 ISO-Z；`user-traces` 详情边界先经 `fromServerTime` + `toInstant` 把 CH 墙钟串还原为瞬时。`overview` 及 `top` / `province-chart` 是 `quickHours` 任意瞬时选窗，不涉日历日，保持原样。验证：容器内 `tsc --noEmit` / `npm run lint` / `prettier --check` / `fewbie modules update --check` 全绿。ADR-077 勘误已同步。
   - **2026-11-24 分钟粒度修正（nightwatch-frontend `cf94d82`，round105 收口）**：选时精确到分钟的页面（`errors` / `errors/detail` / `pages/list` / `pages/visit` / `resources` / `resources/detail` / `user-traces`）改用 `zonedWallClockToInstant`，不再被截成日界；`requests` / `requests/detail` / `pages/page` 保持整日。`zonedEndOfDay` 补 999ms。新增 `toIsoBound` / `toEpochSeconds` / `formatWallClock`，页面间交接改存展示时区墙钟串。
   - **2026-11-24 round106 修正（nightwatch-frontend `bbeb343`）**：`custom` 的 picker 是日期粒度（无 `withTime`），上一条把它列进分钟级是误判——按分钟换算会让 `endTime` 落在结束日 00:00，后端 `$lte` 排除整天。已回到整日语义。日界 helper 改为读浏览器本地 parts（`zonedWallClockDayStart/DayEnd`），修掉"浏览器时区在展示时区以东时整日页选错日"；`toInstant` → `parseInstant`、`formatWallClock` → `toDisplayWallClock`。`datetime.test.ts` 的 3 条 `.000` 断言同步为 `.999` 并补跨时区/DST 用例——此前 `npm test` 是红的，而上一条的"验证全绿"未包含单测。验证：`tsc --noEmit` / `npm run lint` / `prettier --check` / `npm test`（201 passed）/ `fewbie modules update --check` 全绿。
+
+## ADR-081 落地交付项（2026-11-26）
+
+> 决策正文见 `.trae/documents/decisions/ADR-081-test-runner-unification-vitest.md`。全生态统一 vitest；推翻 R83-19 的规避性做法。
+
+- [ ] **fewbie-starter 迁移**：新增 `vitest.config.mts`（`environment: "jsdom"`，include 覆盖 `src/**/*.test.{ts,tsx}` 与 `scripts/**/*.test.mjs`）；13 个测试文件 `node:test` → `vitest`；`mock.module` → `vi.mock`；删 `src/fewbie/framework/__tests__/dom.ts`；`npm test` 改 `vitest run`；`tsx` 评估退场。
+- [ ] **nightwatch-frontend 跟随**：删 `vitest.config.mts` 的 `exclude: ["src/fewbie/framework/**"]`；把宿主层 `src/lib/api-client/*.test.ts`（1016 行）搬入框架层 `src/fewbie/framework/api-client/` 并删宿主副本；`fewbie template update` 后全量回归。
+- [ ] **crewbie-console-frontend 跟随**：删 `exclude` 与模板残留 `src/smoke.test.ts`（或改写为有效用例）；补 `vitest` 进 devDependencies 与 `npm test` 脚本。
+- [ ] **回归门禁**（迁移完成判据）：逐仓迁移前后用例数与断言数一致（命令取证）；四仓 `npm test` / `lint` / `build` 全绿；`fewbie template update --check` 在 nightwatch-frontend 与 crewbie-console-frontend 通过；阴性对照——框架测试改错一个断言，两个宿主 `npm test` 必须同时变红。
+
+## Round 108 修复计划（2026-11-26，评审报告 round108）
+
+> 报告：`.trae/documents/reviews/expert-review-2026-11-26-round108-frontend-reuse.md`；台账：`findings.md` Round 108。
+
+### 组一：门禁（方向已定：先修违规再接门禁）
+
+- [ ] **R108-17**（前置）：`check-primitives.mjs` 跳过 barrel 再导出，只统计声明；两宿从 5 行误报降到 0，并做阴性对照。
+- [ ] **R108-04**（先于 R108-03）：三个 account-level 布局换 `SidebarShell`（projects / aws-accounts / jdy，共 625 行）。
+- [ ] **R108-03**：nightwatch 30 个页面（24 处 PageShell 未占根 + 6 处手写 `<h1>`）、crewbie 4 个页面；登录/回调/brand 走「页委托给大写组件」的官方逃生口，不塞页面标题栏。
+- [ ] **R108-01**：两宿 `package.json` 增加 `check:structure`，`ci.yml` 增加步骤；crewbie 另补 `tsc --noEmit`、`modules apply/update/adapters --check`。
+
+### 组二：止血与清扫（方向已定）
+
+- [ ] **R108-02**：crewbie `src/api/request.ts` 改为再导出（已核对与框架 `apits.ts` 逐行等价，零行为变更）。
+- [ ] **R108-12**：fewbie-starter `ui/sheet.tsx` 两行中文注释改英文。
+- [ ] **R108-08 / R108-13 / R108-14 / R108-15 / R108-16 / R108-18**：三份查询归一化上收 `console-kit`；`query-keys/admin.ts` 改名；删模板残留与 CI 镜像标签；清空目录；`from "cn"` 改 `@/lib/utils` 并统一版本；统一 `contract.framework` pin 与契约版本。
+
+### 组三：能力上收（待拍板，需 ADR）
+
+- [ ] **StateSurface 上收**：抽出布局原语（居中/卡片/撑满高度 + 图标与操作位），`EmptyState` / `ErrorState` / `LoadingState` 成为其预设；`actionPending` 由组合解决。拍板后先出 ADR 再动代码。
+- [ ] **R108-05**：`TableShell` 与空状态原语替换宿主手写块（依赖上一条）。
+- [ ] **R108-06**：provider-free 相对时间组件上收到框架（模块 `RelativeTime` 依赖 `NotificationPresentationProvider`，不能直接换 import）。
+- [ ] **R108-09**：copilot「pathname → route」纯函数形态与未知路由语义写入模块契约（需 ADR）。
+- [ ] **R108-07**：`console-iam-host` 端口适配器跨宿主分叉收敛（宿主内抽 mapper 与模块提供端口工厂二选一，后者需 ADR）。
