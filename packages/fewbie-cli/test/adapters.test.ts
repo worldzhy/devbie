@@ -19,6 +19,10 @@ interface Fixture {
 interface SetupOptions {
   /** Override the interface name inside the module sources. */
   labelsType?: string;
+  /** Override individual label member types inside the labels interface. */
+  memberTypes?: Record<string, string>;
+  /** Mark individual label members optional in the labels interface. */
+  optionalLabels?: string[];
   /** Extra label keys the contract declares but the dictionaries lack. */
   extraLabels?: string[];
   /** Replace the whole i18n block in fewbie.json. */
@@ -93,7 +97,12 @@ async function setup(options: SetupOptions = {}): Promise<Fixture> {
   );
   await fs.writeFile(
     path.join(module, storage("src/fewbie/modules/fixture/features/fixture/types.ts")),
-    `export interface ${labelsType} {\n${labels.map((key) => `  ${key}: string;`).join("\n")}\n}\n`,
+    `export interface ${labelsType} {\n${labels
+      .map(
+        (key) =>
+          `  ${key}${options.optionalLabels?.includes(key) === true ? "?" : ""}: ${options.memberTypes?.[key] ?? "string"};`,
+      )
+      .join("\n")}\n}\n`,
   );
   await fs.writeFile(
     path.join(module, storage("src/fewbie/modules/fixture/features/fixture/fixture.tsx")),
@@ -213,6 +222,42 @@ export function useFixtureLabels(): FixtureLabels {
     );
   });
 
+  it("generates mixed string and function labels, including optional function members", async () => {
+    const fixture = await setup({
+      extraLabels: ["pageOf"],
+      memberTypes: {
+        description: "(name: string) => string",
+        pageOf: "(page: number, totalPages: number) => string",
+      },
+      optionalLabels: ["pageOf"],
+    });
+    after(() => fixture.dispose());
+    await fixture.writeMessages({
+      modules: { fixture: { title: TITLE, description: "About {name}", pageOf: "Page {page} of {totalPages}" } },
+    });
+
+    await runAdapters({ cwd: fixture.project });
+
+    const adapter = await readAdapter(fixture.project);
+    assert.match(adapter, /title: t\("title"\)/);
+    assert.match(adapter, /description: \(name\) => t\("description", \{ name \}\)/);
+    assert.match(adapter, /pageOf: \(page, totalPages\) => t\("pageOf", \{ page, totalPages \}\)/);
+    await runAdapters({ cwd: fixture.project, check: true });
+  });
+
+  it("fails closed when a function label has no safely parseable signature", async () => {
+    const fixture = await setup({
+      memberTypes: { description: "(...names: string[]) => string" },
+    });
+    after(() => fixture.dispose());
+
+    await assert.rejects(
+      runAdapters({ cwd: fixture.project }),
+      /member 'description' has an unsupported function signature/,
+    );
+    await assert.rejects(fs.access(path.join(fixture.project, "src/fewbie/adapters/fixture.tsx")));
+  });
+
   it("honours a custom namespace", async () => {
     const fixture = await setup({
       i18n: {
@@ -328,13 +373,50 @@ export function useFixtureLabels(): FixtureLabels {
     await runAdapters({ cwd: fixture.project });
 
     const adapter = await readAdapter(fixture.project);
-    assert.match(adapter, /import \{ useLocale, useTranslations \} from "next-intl";/);
+    assert.match(adapter, /import \{ createTranslator, useLocale, useTranslations \} from "next-intl";/);
     assert.match(adapter, /const DEFAULTS: Record<string, Record<string, string \| undefined> \| undefined> = \{/);
     assert.match(adapter, /"en": \{\n    description: "Default description",\n  \},/);
     assert.match(adapter, /description: label\("description"\)/);
     assert.match(adapter, /title: label\("title"\)/);
 
     await runAdapters({ cwd: fixture.project, check: true });
+  });
+
+  it("formats function-label defaults as ICU messages with their parameter values", async () => {
+    const fixture = await setup({
+      extraLabels: ["recordCount"],
+      memberTypes: {
+        description: "(name: string) => string",
+        recordCount: "(total: number) => string",
+      },
+      defaults: {
+        en: {
+          description: "About {name}",
+          recordCount: "{total, plural, one {# record} other {# records}}",
+        },
+        zh: {
+          description: "关于 {name}",
+          recordCount: "共 {total} 条",
+        },
+      },
+    });
+    after(() => fixture.dispose());
+    await fixture.writeMessages(
+      { modules: { fixture: { title: TITLE } } },
+      { modules: { fixture: { title: "标题" } } },
+    );
+
+    await runAdapters({ cwd: fixture.project });
+
+    const adapter = await readAdapter(fixture.project);
+    assert.match(adapter, /import \{ createTranslator, useLocale, useTranslations \} from "next-intl";/);
+    assert.match(adapter, /description: "About \{name\}"/);
+    assert.match(adapter, /recordCount: "\{total, plural, one \{# record\} other \{# records\}\}"/);
+    assert.match(adapter, /description: \(name\) => label\("description", \{ name \}\)/);
+    assert.match(adapter, /recordCount: \(total\) => label\("recordCount", \{ total \}\)/);
+    assert.match(adapter, /createTranslator\(\{ locale, messages: defaults \}\)/);
+    assert.match(adapter, /if \(has\(key\)\) return translate\(key, values\);/);
+    assert.match(adapter, /return formatDefault\(key, values\);/);
   });
 
   it("still rejects a missing label that has no default for its locale (ADR-074)", async () => {

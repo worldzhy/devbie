@@ -119,9 +119,79 @@ function stripComments(body: string): string {
   return body.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
 }
 
-/** Member names of an interface body (`name?: string;` -> `name`). */
-function memberNames(body: string): string[] {
-  return [...stripComments(body).matchAll(/^\s*([A-Za-z_$][\w$]*)\s*\??\s*:/gm)].map((match) => match[1]);
+interface LabelMember {
+  name: string;
+  type: string;
+}
+
+interface LabelsTypeMatch {
+  type: string;
+  labelParameters: Record<string, string[]>;
+}
+
+/** Members of an interface body, retaining function types for adapter generation. */
+function labelMembers(body: string): LabelMember[] {
+  return [...stripComments(body).matchAll(/^\s*([A-Za-z_$][\w$]*)\s*\??\s*:\s*([^;\n]+?)\s*;?[ \t]*$/gm)].map(
+    (match) => ({ name: match[1], type: match[2].trim() }),
+  );
+}
+
+/** Parse the deliberately small function-label signature supported by the generator. */
+function parseFunctionParameters(moduleName: string, typeName: string, member: LabelMember): string[] {
+  const signature = /^\(\s*([\s\S]*?)\s*\)\s*=>\s*string$/.exec(member.type);
+  const parameters = signature?.[1].trim();
+  const parts = parameters === undefined || parameters === "" ? [] : parameters.split(",").map((part) => part.trim());
+  const names = parts.map((part) => /^([A-Za-z_$][\w$]*)\s*:\s*[^,():=>{};]+$/.exec(part)?.[1]);
+  if (signature === null || names.some((name) => name === undefined) || new Set(names).size !== names.length) {
+    throw new CliError(
+      `Registry module '${moduleName}': labels interface '${typeName}' member '${member.name}' has an unsupported ` +
+        "function signature. Use (arg: type, ...) => string with simple named parameters.",
+    );
+  }
+  return names as string[];
+}
+
+/** Locate a labels interface and extract the values required by function labels. */
+async function detectLabels(module: LoadedModule, labels?: string[], targets?: string[]): Promise<LabelsTypeMatch> {
+  const name = module.manifest.name;
+  const contract = module.manifest.contract;
+  if (contract === undefined) {
+    throw new CliError(
+      `Registry module '${name}' has no contract; add one before generating its i18n adapter (ADR-057).`,
+    );
+  }
+  const expected = new Set(labels ?? contract.labels);
+  const candidates: Array<{ type: string; members: LabelMember[] }> = [];
+
+  const files = targets === undefined ? module.files : module.files.filter((file) => targets.includes(file.target));
+  for (const file of files) {
+    if (!/\.(ts|tsx)$/.test(file.target)) continue;
+    const source = await readModuleFileContent(file);
+    for (const match of source.matchAll(/export\s+interface\s+(\w+)\s*\{([^{}]*)\}/g)) {
+      candidates.push({ type: match[1], members: labelMembers(match[2]) });
+    }
+  }
+
+  const match = candidates.find((candidate) => {
+    const keys = candidate.members.map((member) => member.name);
+    return (
+      keys.length === expected.size && keys.every((key) => expected.has(key)) && expected.size === new Set(keys).size
+    );
+  });
+  if (match === undefined) {
+    throw new CliError(
+      `Registry module '${name}': no exported interface in the module's sources declares exactly the contract labels ` +
+        `(${[...expected].join(", ")}). Fix the registry module or its contract.`,
+    );
+  }
+
+  const labelParameters: Record<string, string[]> = {};
+  for (const member of match.members) {
+    if (member.type.includes("=>")) {
+      labelParameters[member.name] = parseFunctionParameters(name, match.type, member);
+    }
+  }
+  return { type: match.type, labelParameters };
 }
 
 /**
@@ -131,38 +201,7 @@ function memberNames(body: string): string[] {
  * files of one contract layer (ADR-069).
  */
 export async function detectLabelsType(module: LoadedModule, labels?: string[], targets?: string[]): Promise<string> {
-  const name = module.manifest.name;
-  const contract = module.manifest.contract;
-  if (contract === undefined) {
-    throw new CliError(
-      `Registry module '${name}' has no contract; add one before generating its i18n adapter (ADR-057).`,
-    );
-  }
-  const expected = new Set(labels ?? contract.labels);
-  const candidates: Array<{ type: string; keys: string[] }> = [];
-
-  const files = targets === undefined ? module.files : module.files.filter((file) => targets.includes(file.target));
-  for (const file of files) {
-    if (!/\.(ts|tsx)$/.test(file.target)) continue;
-    const source = await readModuleFileContent(file);
-    for (const match of source.matchAll(/export\s+interface\s+(\w+)\s*\{([^{}]*)\}/g)) {
-      candidates.push({ type: match[1], keys: memberNames(match[2]) });
-    }
-  }
-
-  const match = candidates.find(
-    (candidate) =>
-      candidate.keys.length === expected.size &&
-      candidate.keys.every((key) => expected.has(key)) &&
-      expected.size === new Set(candidate.keys).size,
-  );
-  if (match === undefined) {
-    throw new CliError(
-      `Registry module '${name}': no exported interface in the module's sources declares exactly the contract labels ` +
-        `(${[...expected].join(", ")}). Fix the registry module or its contract.`,
-    );
-  }
-  return match.type;
+  return (await detectLabels(module, labels, targets)).type;
 }
 
 /** One layer of a block payload; each layer contributes its own labels type. */
@@ -176,6 +215,8 @@ export interface AdapterInput {
   labels: string[];
   namespace: string;
   layers: AdapterLayer[];
+  /** Function-label parameter names, keyed by contract label. */
+  labelParameters?: Record<string, string[]>;
   /** Merged locale defaults from the contract layers (ADR-074); absent when none are declared. */
   defaults?: Record<string, Record<string, string>>;
 }
@@ -232,16 +273,24 @@ export function adapterSource(input: AdapterInput): string {
   const nextIntl =
     defaults === undefined
       ? `import { useTranslations } from "next-intl";`
-      : `import { useLocale, useTranslations } from "next-intl";`;
+      : `import { createTranslator, useLocale, useTranslations } from "next-intl";`;
 
   const entries = input.labels
-    .map((label) => `    ${label}: ${defaults === undefined ? `t("${label}")` : `label("${label}")`},`)
+    .map((label) => {
+      const parameters = input.labelParameters?.[label];
+      if (parameters === undefined) {
+        return `    ${label}: ${defaults === undefined ? `t("${label}")` : `label("${label}")`},`;
+      }
+      const values = parameters.length === 0 ? "" : `, { ${parameters.join(", ")} }`;
+      const translate = defaults === undefined ? "t" : "label";
+      return `    ${label}: (${parameters.join(", ")}) => ${translate}("${label}"${values}),`;
+    })
     .join("\n");
 
   const defaultsBlock =
     defaults === undefined
       ? ""
-      : `\n/**\n * Default copy declared by the module contract (ADR-074). The host dictionary\n * wins; these values fill the labels the host leaves out.\n */\n${defaultsLiteral(defaults)}\n`;
+      : `\n/**\n * Default copy declared by the module contract (ADR-074). The host dictionary\n * wins; these values fill the labels the host leaves out.\n */\n${defaultsLiteral(defaults)}\ntype LabelValues = Record<string, string | number | Date>;\n`;
 
   const resolution =
     defaults === undefined
@@ -257,18 +306,22 @@ export function adapterSource(input: AdapterInput): string {
   /**
    * The contract keys are a superset of the typed host dictionary: a label the
    * host omits comes from DEFAULTS, so it cannot be part of the message-key
-   * union. Read through a loose signature instead of narrowing the key type.
+   * union. Read through loose signatures instead of narrowing the key types.
    */
-  const translate = t as unknown as (key: string) => string;
+  const translate = t as unknown as (key: string, values?: LabelValues) => string;
   const has = t.has as unknown as (key: string) => boolean;
+  const formatDefault = createTranslator({ locale, messages: defaults }) as unknown as (
+    key: string,
+    values?: LabelValues,
+  ) => string;
   /** Host copy wins; a label the host omits falls back to the module default. */
-  const label = (key: string): string => {
-    if (has(key)) return translate(key);
+  const label = (key: string, values?: LabelValues): string => {
+    if (has(key)) return translate(key, values);
     const copy = defaults[key];
     if (copy === undefined) {
       throw new Error("Module '${input.name}' is missing copy for '" + key + "' in locale '" + locale + "'.");
     }
-    return copy;
+    return formatDefault(key, values);
   };`;
 
   return `"use client";
@@ -307,14 +360,16 @@ export async function planAdapter(module: LoadedModule, namespace: string): Prom
 
   // A block declares its layers (ADR-069 D5); v1 modules scan the whole payload.
   const layers: AdapterLayer[] = [];
+  const labelParameters: Record<string, string[]> = {};
   for (const layer of contract.layers ?? []) {
-    layers.push({
-      labelsType: await detectLabelsType(module, layer.labels, [layer.types]),
-      entry: layer.types,
-    });
+    const detected = await detectLabels(module, layer.labels, [layer.types]);
+    Object.assign(labelParameters, detected.labelParameters);
+    layers.push({ labelsType: detected.type, entry: layer.types });
   }
   if (layers.length === 0) {
-    layers.push({ labelsType: await detectLabelsType(module), entry: contract.entry });
+    const detected = await detectLabels(module);
+    Object.assign(labelParameters, detected.labelParameters);
+    layers.push({ labelsType: detected.type, entry: contract.entry });
   }
   const typeNames = layers.map((layer) => layer.labelsType);
   if (new Set(typeNames).size !== typeNames.length) {
@@ -333,6 +388,7 @@ export async function planAdapter(module: LoadedModule, namespace: string): Prom
       labels: contract.labels,
       layers,
       namespace,
+      ...(Object.keys(labelParameters).length === 0 ? {} : { labelParameters }),
       ...(defaults === undefined ? {} : { defaults }),
     }),
   };
