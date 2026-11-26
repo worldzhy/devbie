@@ -1126,7 +1126,7 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 | R107-13 | fewbie-modules（account-access）      | 共享 `login-shell` 内置 19 个硬编码 token 的夜色调色板 + 2 处 arbitrary Tailwind 颜色，宿主无法换肤；四仓仅有的 arbitrary 颜色即在此 | P2     | artifact | 模块作者     | closed — fewbie-modules 02f7075（ADR-002 D2） |
 | R107-14 | fewbie-starter + 两宿主               | `cn` 双导入路径：框架/starter 用 `from "cn"`，宿主与模块用 `@/lib/utils`；`components.json` alias 指向后者 | P2     | template | 新宿主       | closed — fewbie-starter 891e03a（ADR-015：统一 `@/lib/utils`） |
 | R107-15 | crewbie-console-frontend              | 5 个无 `"use server"` 的客户端辅助模块命名为 `actions.ts`，与 App Router server action 约定同形 | P2     | live     | 任意登录用户 | closed — crewbie d5a7370 |
-| R107-16 | nightwatch-frontend                   | 单文件体量失控：`security-evaluation/page.tsx` 2708 行、`account-detail.tsx` 1440、`dialogs.tsx` 1422、`application-manager.tsx` 1171 | P2     | live     | 任意登录用户 | deferred — 已写入 nightwatch-frontend backlog |
+| R107-16 | nightwatch-frontend                   | 单文件体量失控：`security-evaluation/page.tsx` 2708 行、`account-detail.tsx` 1440、`dialogs.tsx` 1422、`application-manager.tsx` 1171 | P2     | live     | 任意登录用户 | closed — nightwatch-frontend `395f916a` |
 
 #### Round 107 备注
 
@@ -1142,6 +1142,6 @@ carry-over 重验（round36）：R34-13（`/iam/scopes` 权限错配）命令复
 - R107-14 方向修正：原报告倾向统一为 `from "cn"`，实现时改为统一 `@/lib/utils`——`components.json` 的 `aliases.utils` 指向它，`npx shadcn add` 产出即合规，标准不再依赖手工步骤（ADR-015）。
 - R107-05 扩面：nightwatch 同样在用旧快照副本，两宿主一并改为安装 `frontend-monitor-sdk` 模块。
 - R107-11 取舍：保留 `data-table`（客户端整表分页与 IAM/审计的服务端分页行渲染器不兼容），只删除 `theme`。
-- R107-16 未做：四个千行页面拆分写入 `nightwatch-frontend/.trae/documents/backlog.md`，不在本轮回合内。
+- R107-16 已于 2026-11-26 补做：nightwatch-frontend `395f916a` 将四个入口分别降为 106 / 43 / 12 / 90 行，数据 hook 与视图子组件均放同目录；backlog 条目已删除。
 - 验证范围：四仓 `format:check` / lint / tsc / build 全绿；fewbie-starter `npm test` 101 项、fewbie-modules vitest 152 项；未做浏览器实测（双 toast 与偏好页修复仅有编译期与单测证据）。
 
