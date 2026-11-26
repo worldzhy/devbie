@@ -6,7 +6,7 @@ import type {
 /** Shell copy only; severity, relative time and detail labels come from `notification-presentation`. */
 export interface NotificationCenterShellLabels {
   bellLabel: string;
-  ariaLatestNotification: string;
+  ariaLatestNotification: (title: string) => string;
   greetingAllQuiet: string;
   greetingNothingToDo: string;
   greetingCaughtUp: string;

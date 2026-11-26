@@ -13,17 +13,17 @@ import type {
 export interface NotificationCenterLabels {
   tabAll: string;
   tabUnread: string;
-  tabUnreadWithCount: string;
+  tabUnreadWithCount: (count: number) => string;
   severityAll: string;
   ariaSeverity: string;
   ariaCategory: string;
   allCategories: string;
-  ariaProject: string;
-  allProjects: string;
+  ariaScope: string;
+  allScopes: string;
   emptyFiltered: string;
   dayToday: string;
   dayYesterday: string;
-  totalNotifications: string;
+  totalNotifications: (count: number) => string;
   ariaPrevPage: string;
   ariaNextPage: string;
   keyboardHint: string;
@@ -37,7 +37,7 @@ export interface NotificationCenterQuery {
   unreadOnly: boolean;
   severity?: string;
   notificationKeys?: string[];
-  projectId?: string;
+  scopeId?: string;
 }
 
 /** One page of records plus the counters the toolbar renders. */
@@ -59,8 +59,11 @@ export interface NotificationCenterPort {
   fetchDeliveryAttempt?(id: string): Promise<NotificationDeliveryAttempt | null>;
 }
 
-/** Host project filter option; project names are already localized by the host. */
-export interface NotificationProjectOption {
+/**
+ * Host scope filter option: whatever grouping the host filters notifications
+ * by (a project, a site, a tenant). Names arrive already localized.
+ */
+export interface NotificationScopeOption {
   id: string;
   name: string;
 }
@@ -76,7 +79,7 @@ export interface NotificationCenterProps {
   labels: NotificationCenterLabels;
   presentation: NotificationPresentationConfig;
   port: NotificationCenterPort;
-  projectOptions: NotificationProjectOption[];
+  scopeOptions: NotificationScopeOption[];
   categoryFilters: NotificationCategoryFilter[];
   /** Rows per page; duplicate alerts merge within a page, so the default is large. */
   pageSize?: number;

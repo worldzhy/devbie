@@ -4,7 +4,7 @@ import { useState } from "react";
 import { AlertTriangle, Check, ChevronDown, ChevronUp, Copy } from "lucide-react";
 import { Button } from "@/fewbie/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/fewbie/ui/table";
-import { interpolate, useCopilotRuntime } from "./copilot-context";
+import { useCopilotRuntime } from "./copilot-context";
 import type {
   CopilotChartBlock,
   CopilotErrorBlock,
@@ -112,9 +112,7 @@ function CopilotTableBlockView({ block }: { block: CopilotTableBlock }) {
       )}
       {rows.length > 0 ? (
         <p className="mt-1.5 text-[10px] text-muted-foreground/70">
-          {rows.length === totalRows
-            ? interpolate(labels.rowsCount, { count: totalRows })
-            : interpolate(labels.showingRows, { shown: rows.length, total: totalRows })}
+          {rows.length === totalRows ? labels.rowsCount(totalRows) : labels.showingRows(rows.length, totalRows)}
           {truncated ? ` · ${labels.dataTruncated}` : ""}
         </p>
       ) : null}

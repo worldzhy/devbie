@@ -82,6 +82,65 @@ after(() => {
   else process.env.FEWBIE_REGISTRY_PATH = originalRegistryPath;
 });
 
+test("apply records the npm packages a module declares (ADR-079 D5)", async () => {
+  const fixture = await setup();
+  try {
+    const manifestPath = path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE);
+    const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+    await fs.writeFile(
+      manifestPath,
+      JSON.stringify({ ...manifest, dependencies: ["@tanstack/react-query@^5.90.0", "dayjs"] }),
+    );
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    const lock = await readLockfile(fixture.project);
+    // The host ESLint reads this list, so it must mirror the manifest verbatim
+    // (version ranges included) rather than the installed tree.
+    assert.deepEqual(lock?.modules.fixture.dependencies, ["@tanstack/react-query@^5.90.0", "dayjs"]);
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("a module without dependencies keeps the pre-ADR-079 lockfile shape", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    const lock = await readLockfile(fixture.project);
+    assert.equal("dependencies" in lock!.modules.fixture, false);
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
+test("update refreshes declared dependencies and rejects a malformed list", async () => {
+  const fixture = await setup();
+  try {
+    await quiet(() =>
+      applyModuleSelection({ projectRoot: fixture.project, current: [], next: ["fixture"], skipInstall: true }),
+    );
+    const manifestPath = path.join(fixture.registry, "fixture", REGISTRY_MANIFEST_FILE);
+    const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+    await fs.writeFile(manifestPath, JSON.stringify({ ...manifest, dependencies: ["dayjs"] }));
+    await quiet(() => runUpdate({ cwd: fixture.project, yes: true }));
+    assert.deepEqual((await readLockfile(fixture.project))?.modules.fixture.dependencies, ["dayjs"]);
+
+    const lockfilePath = path.join(fixture.project, "fewbie.lock.json");
+    const lock = JSON.parse(await fs.readFile(lockfilePath, "utf8"));
+    lock.modules.fixture.dependencies = "dayjs";
+    await fs.writeFile(lockfilePath, JSON.stringify(lock));
+    await assert.rejects(
+      quiet(() => runUpdate({ cwd: fixture.project, check: true })),
+      /dependencies must be an array/,
+    );
+  } finally {
+    await fs.rm(fixture.root, { recursive: true, force: true });
+  }
+});
+
 test("hashContent normalizes line endings", () => {
   assert.equal(hashContent("a\r\nb\r\n"), hashContent("a\nb\n"));
 });

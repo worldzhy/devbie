@@ -6,7 +6,7 @@ import { Button } from "@/fewbie/ui/button";
 import { Textarea } from "@/fewbie/ui/textarea";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/fewbie/ui/tooltip";
 import { CopilotEmptyState } from "./copilot-empty-state";
-import { CopilotProvider, interpolate, useCopilotRuntime } from "./copilot-context";
+import { CopilotProvider, useCopilotRuntime } from "./copilot-context";
 import { CopilotTimeline } from "./copilot-timeline";
 import type { CopilotDockProps, CopilotSkillsCatalog } from "./types";
 import { useCopilotChat, type CopilotBanner } from "./use-copilot-chat";
@@ -141,7 +141,7 @@ export function CopilotDock(props: CopilotDockProps) {
           <h2 className="text-sm font-semibold">{labels.title}</h2>
           {modelBadge}
           <span className="ml-2 truncate text-xs text-muted-foreground">
-            {contextLabel ? interpolate(labels.context, { label: contextLabel }) : null}
+            {contextLabel ? labels.context(contextLabel) : null}
           </span>
           <div className="ml-auto flex items-center gap-1">
             {canManageModels && settingsHref ? (
@@ -228,9 +228,7 @@ export function CopilotDock(props: CopilotDockProps) {
                 >
                   <div className="rounded-lg border border-border bg-card p-3 shadow-lg">
                     <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                      {contextLabel
-                        ? interpolate(labels.suggestOnPage, { label: contextLabel })
-                        : labels.suggestGeneric}
+                      {contextLabel ? labels.suggestOnPage(contextLabel) : labels.suggestGeneric}
                     </div>
                     <div className="flex flex-col gap-1">
                       {prompts.map((prompt) => (
@@ -298,9 +296,11 @@ function CopilotBannerView({
   const { labels } = useCopilotRuntime();
   const message = banner.rawMessage
     ? banner.rawMessage
-    : banner.messageKey
-      ? interpolate(labels[banner.messageKey], banner.values ?? {})
-      : null;
+    : banner.messageKey === "tooLongMessage"
+      ? labels.tooLongMessage(banner.limit)
+      : banner.messageKey
+        ? labels[banner.messageKey]
+        : null;
 
   return (
     <div className="flex items-start gap-2 border-b border-border bg-muted/40 px-3 py-2">

@@ -29,6 +29,13 @@ export interface LockfileModule {
   version: string;
   /** Registry commit this module was installed from. */
   commit: string;
+  /**
+   * npm packages the module declared in `fewbie.module.json: dependencies`
+   * (ADR-079 D5). The host lint reads them to allow a module to import the
+   * packages it ships against; absent on lockfiles written before the field
+   * existed, which reads as "declared nothing".
+   */
+  dependencies?: string[];
   /** Project-relative target -> `sha256-<hex>` of the installed bytes. */
   files: Record<string, string>;
 }
@@ -86,6 +93,12 @@ export async function readLockfile(projectRoot: string): Promise<Lockfile | null
     if (record.files === null || typeof record.files !== "object" || Array.isArray(record.files)) {
       throw new CliError(`${LOCKFILE}: modules.${name}.files must be a target -> hash object.`);
     }
+    // Optional: lockfiles written before ADR-079 have no dependencies field.
+    if (record.dependencies !== undefined) {
+      if (!Array.isArray(record.dependencies) || record.dependencies.some((entry) => typeof entry !== "string")) {
+        throw new CliError(`${LOCKFILE}: modules.${name}.dependencies must be an array of package names.`);
+      }
+    }
     for (const [target, hash] of Object.entries(record.files as Record<string, unknown>)) {
       if (typeof hash !== "string" || hash.length === 0) {
         throw new CliError(`${LOCKFILE}: modules.${name}.files['${target}'] must be a non-empty hash string.`);
@@ -93,6 +106,18 @@ export async function readLockfile(projectRoot: string): Promise<Lockfile | null
     }
   }
   return lockfile as Lockfile;
+}
+
+/**
+ * Dependency part of a lockfile module entry (ADR-079 D5).
+ *
+ * The host ESLint reads it to allow a module to import the npm packages it
+ * declared, so it must mirror the manifest rather than the installed tree.
+ * Omitted when the module declares nothing, which keeps the entry shape of
+ * modules written before the field existed.
+ */
+export function declaredDependencies(dependencies: string[] | undefined): { dependencies?: string[] } {
+  return dependencies && dependencies.length > 0 ? { dependencies: [...dependencies] } : {};
 }
 
 /** Write the lockfile deterministically: sorted modules and sorted file keys. */
@@ -103,6 +128,7 @@ export async function writeLockfile(projectRoot: string, lockfile: Lockfile): Pr
     modules[name] = {
       version: entry.version,
       commit: entry.commit,
+      ...(entry.dependencies?.length ? { dependencies: [...entry.dependencies].sort() } : {}),
       files: Object.fromEntries(Object.entries(entry.files).sort(([a], [b]) => a.localeCompare(b))),
     };
   }

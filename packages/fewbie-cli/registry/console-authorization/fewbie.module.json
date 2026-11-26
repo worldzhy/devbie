@@ -1,0 +1,47 @@
+{
+  "name": "console-authorization",
+  "title": "Console authorization",
+  "description": "Permission-group gating for console navigation and routes, fed by the host's own session or account query.",
+  "type": "registry:block",
+  "dependencies": [],
+  "registryDependencies": [],
+  "files": [
+    "src/fewbie/modules/console-authorization/lib/types.ts",
+    "src/fewbie/modules/console-authorization/lib/route-access.ts",
+    "src/fewbie/modules/console-authorization/features/access-control/types.ts",
+    "src/fewbie/modules/console-authorization/features/access-control/access-provider.tsx",
+    "src/fewbie/modules/console-authorization/features/access-control/use-can-see.ts",
+    "src/fewbie/modules/console-authorization/features/access-control/require-permission.tsx",
+    "src/fewbie/modules/console-authorization/features/access-control/index.ts"
+  ],
+  "contract": {
+    "version": "2.0.0",
+    "framework": "^1.15.0",
+    "entry": "src/fewbie/modules/console-authorization/features/access-control/index.ts",
+    "labels": ["accessDeniedTitle", "accessDeniedDescription", "loadingLabel"],
+    "ports": [],
+    "ui": [],
+    "states": ["loading", "ready"],
+    "layers": [
+      {
+        "layer": "features",
+        "types": "src/fewbie/modules/console-authorization/features/access-control/types.ts",
+        "labels": ["accessDeniedTitle", "accessDeniedDescription", "loadingLabel"],
+        "ports": [],
+        "states": ["loading", "ready"],
+        "defaults": {
+          "en": {
+            "accessDeniedTitle": "Access denied",
+            "accessDeniedDescription": "Ask an administrator for the permission group that owns this page.",
+            "loadingLabel": "Checking access"
+          },
+          "zh": {
+            "accessDeniedTitle": "无权访问",
+            "accessDeniedDescription": "请联系管理员为你分配该页面所属的权限组。",
+            "loadingLabel": "正在校验权限"
+          }
+        }
+      }
+    ]
+  }
+}

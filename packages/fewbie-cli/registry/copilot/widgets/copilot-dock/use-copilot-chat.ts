@@ -39,15 +39,14 @@ export type CopilotBannerMessageKey =
   | "runInProgressMessage"
   | "conversationForbiddenMessage";
 
-export interface CopilotBanner {
+export type CopilotBanner = {
   tone: CopilotBannerTone;
   titleKey: CopilotBannerTitleKey;
-  messageKey?: CopilotBannerMessageKey;
-  /** Values for `{limit}` in a message template. */
-  values?: { limit?: number };
   /** Server-supplied message rendered verbatim when no label applies. */
   rawMessage?: string;
-}
+} & (
+  { messageKey?: Exclude<CopilotBannerMessageKey, "tooLongMessage"> } | { messageKey: "tooLongMessage"; limit: number }
+);
 
 export interface UseCopilotChat {
   entries: CopilotEntry[];
@@ -111,7 +110,7 @@ export function useCopilotChat({ port, pageContext, onToolFinished }: UseCopilot
           tone: "error",
           titleKey: "tooLongTitle",
           messageKey: "tooLongMessage",
-          values: { limit: MAX_MESSAGE_LENGTH },
+          limit: MAX_MESSAGE_LENGTH,
         });
         return;
       }

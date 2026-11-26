@@ -1,6 +1,6 @@
 # ADR-072: 退场 query-client registry 模块
 
-状态：已采纳
+状态：已采纳（"禁止模块引用 `@tanstack/*`、不放宽模块边界门禁"的结论由 [ADR-079](ADR-079-fewbie-frontend-data-and-session-mechanism.md) 取代；`query-client` 作为 registry 模块退场的决定继续有效）
 日期：2026-11-23
 关系：取代 [ADR-069](ADR-069-fewbie-registry-item-taxonomy-by-distribution-unit.md) D6 中把 `query-client` 列为跨域 lib 的判定，以及 D8"保持"清单中的该条目；ADR-069 其余内容继续适用。
 

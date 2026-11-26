@@ -23,11 +23,6 @@ export function useCopilotRuntime(): CopilotRuntime {
   return value;
 }
 
-/** Replace `{name}` placeholders; unknown placeholders are left untouched. */
-export function interpolate(template: string, values: Record<string, string | number | undefined>): string {
-  return template.replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? String(values[name]) : match));
-}
-
 /** Client-generated request id with a fallback for non-secure contexts. */
 export function newRequestId(): string {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();

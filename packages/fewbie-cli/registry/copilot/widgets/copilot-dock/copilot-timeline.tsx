@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Ban } from "lucide-react";
 import { Badge } from "@/fewbie/ui/badge";
-import { interpolate, prettifyCode, useCopilotRuntime } from "./copilot-context";
+import { prettifyCode, useCopilotRuntime } from "./copilot-context";
 import { CopilotToolCard } from "./copilot-tool-card";
 import type { CopilotConfirmationDecision, CopilotSkillCatalogEntry } from "./types";
 import type { CopilotEntry } from "./use-copilot-chat";
@@ -112,8 +112,8 @@ function AssistantTurn({
 
       {vm.status === "done" && vm.usage ? (
         <p className="text-[10px] text-muted-foreground/70">
-          {vm.steps ? `${interpolate(labels.steps, { count: vm.steps })} · ` : ""}
-          {interpolate(labels.tokens, { count: vm.usage.totalTokens })}
+          {vm.steps ? `${labels.steps(vm.steps)} · ` : ""}
+          {labels.tokens(vm.usage.totalTokens)}
         </p>
       ) : null}
     </div>

@@ -1,12 +1,5 @@
 export { CopilotDock } from "./copilot-dock";
-export {
-  CopilotProvider,
-  useCopilotRuntime,
-  interpolate,
-  newRequestId,
-  prettifyCode,
-  skillDisplayName,
-} from "./copilot-context";
+export { CopilotProvider, useCopilotRuntime, newRequestId, prettifyCode, skillDisplayName } from "./copilot-context";
 export type { CopilotRuntime } from "./copilot-context";
 export { CopilotTimeline } from "./copilot-timeline";
 export type { CopilotTimelineProps } from "./copilot-timeline";
